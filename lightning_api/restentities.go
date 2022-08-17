@@ -1,0 +1,88 @@
+package lightning_api
+
+import "github.com/lightningnetwork/lnd/lnrpc"
+
+// A hack to override uint64 -> string (REST API)
+
+type GetInfoResponseOverride struct {
+	BestHeaderTimestamp string `json:"best_header_timestamp,omitempty"`
+	lnrpc.GetInfoResponse
+}
+
+type Channels struct {
+	Channels []*ChannelOverride `json:"channels"`
+}
+
+type ChannelConstraintsOverride struct {
+	ChanReserveSat    string `json:"chan_reserve_sat,omitempty"`
+	DustLimitSat      string `json:"dust_limit_sat,omitempty"`
+	MaxPendingAmtMsat string `json:"max_pending_amt_msat,omitempty"`
+	MinHtlcMsat       string `json:"min_htlc_msat,omitempty"`
+
+	lnrpc.ChannelConstraints
+}
+
+type HtlcOverride struct {
+	Amount              string `json:"amount,omitempty"`
+	HashLock            string `json:"hash_lock,omitempty"`
+	HtlcIndex           string `json:"htlc_index,omitempty"`
+	ForwardingChannel   string `json:"forwarding_channel,omitempty"`
+	ForwardingHtlcIndex string `json:"forwarding_htlc_index,omitempty"`
+	lnrpc.HTLC
+}
+
+type ChannelOverride struct {
+	ChanId                string `json:"chan_id,omitempty"`
+	Capacity              string `json:"capacity,omitempty"`
+	LocalBalance          string `json:"local_balance,omitempty"`
+	RemoteBalance         string `json:"remote_balance,omitempty"`
+	CommitFee             string `json:"commit_fee,omitempty"`
+	CommitWeight          string `json:"commit_weight,omitempty"`
+	FeePerKw              string `json:"fee_per_kw,omitempty"`
+	UnsettledBalance      string `json:"unsettled_balance,omitempty"`
+	TotalSatoshisSent     string `json:"total_satoshis_sent,omitempty"`
+	TotalSatoshisReceived string `json:"total_satoshis_received,omitempty"`
+	NumUpdates            string `json:"num_updates,omitempty"`
+	// Deprecated
+	LocalChanReserveSat string `json:"local_chan_reserve_sat,omitempty"`
+	// Deprecated
+	RemoteChanReserveSat string                      `json:"remote_chan_reserve_sat,omitempty"`
+	CommitmentType       string                      `json:"commitment_type,omitempty"`
+	PendingHtlcs         []*HtlcOverride             `json:"pending_htlcs,omitempty"`
+	Lifetime             string                      `json:"lifetime,omitempty"`
+	Uptime               string                      `json:"uptime,omitempty"`
+	PushAmountSat        string                      `json:"push_amount_sat,omitempty"`
+	LocalConstraints     *ChannelConstraintsOverride `json:"local_constraints,omitempty"`
+	RemoteConstraints    *ChannelConstraintsOverride `json:"remote_constraints,omitempty"`
+
+	lnrpc.Channel
+}
+
+type Graph struct {
+	GraphNodeOverride  []*GraphNodeOverride `json:"nodes,omitempty"`
+	GraphEdgesOverride []*GraphEdgeOverride `json:"edges,omitempty"`
+
+	//lnrpc.ChannelGraph
+}
+
+type RoutingPolicyOverride struct {
+	MinHtlc          string `json:"min_htlc,omitempty"`
+	FeeBaseMsat      string `json:"fee_base_msat,omitempty"`
+	FeeRateMilliMsat string `json:"fee_rate_milli_msat,omitempty"`
+	MaxHtlcMsat      string `json:"max_htlc_msat,omitempty"`
+
+	lnrpc.RoutingPolicy
+}
+
+type GraphNodeOverride struct {
+	lnrpc.LightningNode
+}
+
+type GraphEdgeOverride struct {
+	ChannelId   string                 `json:"channel_id,omitempty"`
+	Capacity    string                 `json:"capacity,omitempty"`
+	Node1Policy *RoutingPolicyOverride `json:"node1_policy,omitempty"`
+	Node2Policy *RoutingPolicyOverride `json:"node2_policy,omitempty"`
+
+	lnrpc.ChannelEdge
+}
