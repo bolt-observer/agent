@@ -298,11 +298,15 @@ func mkGetLndApi(ctx *cli.Context) channelchecker.NewApiCall {
 
 func checker(ctx *cli.Context) error {
 
-	if ctx.String("apikey") == "" && ctx.String("url") != "" {
+	apiKey = utils.GetEnvWithDefault("API_KEY", "")
+	if apiKey == "" {
+		apiKey = ctx.String("apikey")
+	}
+
+	if apiKey == "" && ctx.String("url") != "" {
 		return fmt.Errorf("missing API key")
 	}
 
-	apiKey = ctx.String("apikey")
 	url = ctx.String("url")
 
 	interval, err := getInterval(ctx)

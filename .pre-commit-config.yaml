@@ -1,0 +1,33 @@
+default_stages: [commit]
+fail_fast: true
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: detect-aws-credentials
+        args: ['--allow-missing-credentials']
+
+  - repo: https://github.com/Bahjat/pre-commit-golang
+    rev: v1.0.1
+    hooks:
+      - id: go-fmt-import
+      - id: go-vet
+      - id: go-lint
+
+  #- repo: https://github.com/rhysd/actionlint
+  #  rev: v1.6.10
+  #  hooks:
+  #    - id: actionlint-docker
+
+
+# sets up .pre-commit-ci.yaml to ensure pre-commit dependencies stay up to date
+ci:
+    autoupdate_schedule: weekly
+    skip: []
+    submodules: false
