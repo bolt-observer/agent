@@ -22,7 +22,7 @@ import (
 
 	channelchecker "github.com/bolt-observer/agent/channelchecker"
 	api "github.com/bolt-observer/agent/lightning_api"
-	utils "github.com/bolt-observer/go_common"
+	utils "github.com/bolt-observer/go_common/utils"
 	entities "github.com/bolt-observer/go_common/entities"
 
 	agent_entities "github.com/bolt-observer/agent/entities"

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	utils "github.com/bolt-observer/go_common"
+	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/golang/glog"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc"

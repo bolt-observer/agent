@@ -15,10 +15,12 @@ jobs:
           go-version: 1.18
 
       - name: Set-up private repos
-        run: go env -w GOPRIVATE=github.com/bolt-observer/go_common && git config url."git@github.com:".insteadOf "https://github.com/"
+        env:
+          TOKEN: ${{ secrets.PAT }}
+        run: go env -w GOPRIVATE=github.com/bolt-observer/go_common &&  git config --global --add url."https://$TOKEN@github.com/".insteadOf https://github.com/
 
       - name: Update dependencies
-        run: go get -v ./...
+        run: go get ./...
 
       - name: Build
         run: go build -v ./...

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	utils "github.com/bolt-observer/go_common"
+	utils "github.com/bolt-observer/go_common/utils"
 	entities "github.com/bolt-observer/go_common/entities"
 )
 

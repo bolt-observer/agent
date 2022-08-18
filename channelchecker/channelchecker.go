@@ -13,7 +13,7 @@ import (
 
 	entities "github.com/bolt-observer/agent/entities"
 	api "github.com/bolt-observer/agent/lightning_api"
-	utils "github.com/bolt-observer/go_common"
+	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/golang/glog"
 	"github.com/marpaia/graphite-golang"
 )

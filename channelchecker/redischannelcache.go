@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	utils "github.com/bolt-observer/go_common"
+	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/go-redis/redis"
 	"github.com/golang/glog"
 )
