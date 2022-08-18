@@ -6,7 +6,9 @@ Agent is a piece of software that is able to run on lightning node (we provide r
 
 Currently we have:
 
-### balance-agent: an agent that can report channel balance information
+### balance-agent
+
+an agent that can report channel balance information
 
 The usage should be pretty self expanatory:
 
@@ -18,7 +20,7 @@ USAGE:
    balance-agent [global options] command [command options] [arguments...]
 
 VERSION:
-   0.0.1
+   v0.0.1
 
 COMMANDS:
      help, h  Shows a list of commands or help for one command
@@ -51,7 +53,7 @@ By default it will try to communicate with LND using local gRPC connection and `
 
 You can use `--userest` to start using REST API (default is as mentioned gRPC) - in that case `--rpcserver` can be complete URL to the endpoint.
 
-Of course you can also start the agent on a remote node and just point it to the correct endpoints.
+Of course you can also start the agent on a remote node and just point it to the correct endpoint.
 
 Internally we use:
 * [channelchecker](./channelchecker): an abstraction for checking all channels

@@ -1,0 +1,27 @@
+name: Go package
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+
+      - name: Set-up private repos
+        run: go env -w GOPRIVATE=github.com/bolt-observer/go_common && git config url."git@github.com:".insteadOf "https://github.com/"
+
+      - name: Update dependencies
+        run: go get -v ./...
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -v ./...

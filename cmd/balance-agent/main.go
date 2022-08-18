@@ -162,6 +162,8 @@ func extractPathArgs(ctx *cli.Context) (string, string, error) {
 
 func getApp() *cli.App {
 	app := cli.NewApp()
+	app.Version = GitRevision
+
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:  "apikey",
