@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/golang/glog"
 	cli "github.com/urfave/cli"
 
