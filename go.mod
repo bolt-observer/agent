@@ -7,6 +7,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.1
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang/glog v1.0.0
+	github.com/golang/mock v1.6.0
 	github.com/lightningnetwork/lnd v0.15.0-beta
 	github.com/marpaia/graphite-golang v0.0.0-20190519024811-caf161d2c2b1
 	github.com/urfave/cli v1.22.4

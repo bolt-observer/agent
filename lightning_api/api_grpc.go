@@ -2,6 +2,9 @@ package lightning_api
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/golang/glog"
@@ -25,6 +28,18 @@ func NewLndGrpcLightningApi(getData GetDataCall) LightingApiCalls {
 		Client:      client,
 		CleanupFunc: cleanup,
 	}
+}
+
+// Not used
+func debugOutput(resp *lnrpc.ChannelGraph) {
+	resp.Nodes = resp.Nodes[0:5]
+	resp.Edges = resp.Edges[0:5]
+	bodyData, _ := json.Marshal(resp)
+	f, _ := os.OpenFile("dummy.json", os.O_WRONLY|os.O_CREATE, 0644)
+	f.Truncate(0)
+	defer f.Close()
+	json.Unmarshal(bodyData, &resp)
+	fmt.Fprintf(f, "%s\n", string(bodyData))
 }
 
 func (l *LndGrpcLightningApi) GetInfo(ctx context.Context) (*InfoApi, error) {

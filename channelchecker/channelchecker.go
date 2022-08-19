@@ -132,6 +132,7 @@ func (c *ChannelChecker) GetState(
 	return resp, err
 }
 
+// CustomMetric is a method to send custom metrics via graphite
 func (c *ChannelChecker) CustomMetric(name, value string) {
 	c.monitoring.graphite.SendMetrics([]graphite.Metric{
 		graphite.NewMetric(fmt.Sprintf("%s.%s.%s.%s", PREFIX, c.monitoring.env, name, value), "1", time.Now().Unix()),
