@@ -67,6 +67,8 @@ github.com/bolt-observer/go_common v0.0.1 h1:h1a/EQYRkaWqPXzLSn5RzF/dysSNfp6Hc8f
 github.com/bolt-observer/go_common v0.0.1/go.mod h1:/tOf/W6jiCUrJg35Dqu6Km3cnxdjTPwV331jyhKXRX8=
 github.com/bolt-observer/go_common v0.0.2 h1:d8wdpuawUwQRiSQet5Ato7mCm/VFL8Qcme2TniZKzlw=
 github.com/bolt-observer/go_common v0.0.2/go.mod h1:/tOf/W6jiCUrJg35Dqu6Km3cnxdjTPwV331jyhKXRX8=
+github.com/bolt-observer/go_common v0.0.3 h1:DZumV8H90wSRxIpmT7HVi9Kg+pxaFC42yAMQKNNbcnQ=
+github.com/bolt-observer/go_common v0.0.3/go.mod h1:/tOf/W6jiCUrJg35Dqu6Km3cnxdjTPwV331jyhKXRX8=
 github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3/go.mod h1:3J08xEfcugPacsc34/LKRU2yO7YmuT8yt28J8k2+rrI=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
 github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c/go.mod h1:tjmYdS6MLJ5/s0Fj4DbLgSbDHbEqLJrtnHecBFkdz5M=
