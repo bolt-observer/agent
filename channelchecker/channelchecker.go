@@ -34,6 +34,7 @@ type ChannelChecker struct {
 	keepAliveInterval time.Duration // Keepalive interval
 	checkGraph        bool          // Should we check gossip
 	monitoring        *ChannelCheckerMonitoring
+	eventLoopInterval time.Duration
 }
 
 func NewDefaultChannelChecker(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *ChannelCheckerMonitoring) *ChannelChecker {
@@ -43,6 +44,10 @@ func NewDefaultChannelChecker(ctx context.Context, keepAlive time.Duration, smoo
 func NewChannelChecker(ctx context.Context, cache ChannelCache, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *ChannelCheckerMonitoring) *ChannelChecker {
 	if ctx == nil {
 		ctx = getContext()
+	}
+
+	if monitoring == nil {
+		monitoring = NewNopChannelCheckerMonitoring()
 	}
 
 	return &ChannelChecker{
@@ -57,6 +62,7 @@ func NewChannelChecker(ctx context.Context, cache ChannelCache, keepAlive time.D
 		checkGraph:        checkGraph,
 		keepAliveInterval: keepAlive,
 		monitoring:        monitoring,
+		eventLoopInterval: 10 * time.Second,
 	}
 }
 
@@ -256,8 +262,13 @@ func getContext() context.Context {
 	return ctx
 }
 
+// WARNING: this should not be used except for unit testing
+func (c *ChannelChecker) OverrideLoopInterval(duration time.Duration) {
+	c.eventLoopInterval = duration
+}
+
 func (c *ChannelChecker) EventLoop() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(c.eventLoopInterval)
 
 	func() {
 		for {
@@ -329,7 +340,7 @@ func (c *ChannelChecker) checkAll() bool {
 	for _, one := range c.globalSettings.GetKeys() {
 		s := c.globalSettings.Get(one)
 
-		if c.checkGraph {
+		if c.checkGraph && s.settings.GraphPollInterval != 0 {
 			graphToBeCheckedBy := s.lastGraphCheck.Add(s.settings.GraphPollInterval)
 
 			if graphToBeCheckedBy.Before(now) {
@@ -343,7 +354,10 @@ func (c *ChannelChecker) checkAll() bool {
 		}
 
 		toBeCheckedBy := s.lastCheck.Add(s.settings.PollInterval.Duration())
-		reportAnyway := s.lastReport.Add(s.settings.NoopInterval).Before(now)
+		reportAnyway := false
+		if s.settings.NoopInterval != 0 {
+			reportAnyway = s.lastReport.Add(s.settings.NoopInterval).Before(now)
+		}
 
 		if toBeCheckedBy.Before(now) {
 

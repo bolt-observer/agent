@@ -22,8 +22,8 @@ import (
 
 	channelchecker "github.com/bolt-observer/agent/channelchecker"
 	api "github.com/bolt-observer/agent/lightning_api"
-	utils "github.com/bolt-observer/go_common/utils"
 	entities "github.com/bolt-observer/go_common/entities"
+	utils "github.com/bolt-observer/go_common/utils"
 
 	agent_entities "github.com/bolt-observer/agent/entities"
 )
@@ -317,6 +317,11 @@ func checker(ctx *cli.Context) error {
 	}
 
 	c := channelchecker.NewDefaultChannelChecker(context.Background(), ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), channelchecker.NewNopChannelCheckerMonitoring())
+
+	if interval == agent_entities.SECOND {
+		// Second is just for testing purposes
+		interval = agent_entities.TEN_SECONDS
+	}
 
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: ctx.Bool("private")}
 

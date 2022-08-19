@@ -17,6 +17,7 @@ type Interval int
 
 const (
 	MANUAL_REQUEST Interval = iota
+	SECOND
 	TEN_SECONDS
 	MINUTE
 	HOUR
@@ -24,6 +25,8 @@ const (
 
 func (i Interval) Duration() time.Duration {
 	switch i {
+	case SECOND:
+		return 1 * time.Second
 	case TEN_SECONDS:
 		return 10 * time.Second
 	case MINUTE:
@@ -40,6 +43,8 @@ func (i *Interval) MarshalJSON() ([]byte, error) {
 	switch *i {
 	case MANUAL_REQUEST:
 		str = `"manual"`
+	case SECOND:
+		str = `"1s"`
 	case TEN_SECONDS:
 		str = `"10s"`
 	case MINUTE:
@@ -58,6 +63,8 @@ func (i *Interval) UnmarshalJSON(s []byte) (err error) {
 	switch input {
 	case "manual":
 		*i = MANUAL_REQUEST
+	case "1s":
+		*i = SECOND
 	case "10s":
 		*i = TEN_SECONDS
 	case "1m":
