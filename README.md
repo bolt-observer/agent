@@ -68,6 +68,13 @@ go env -w GOPRIVATE=github.com/bolt-observer/go_common
 git config url."git@github.com:".insteadOf "https://github.com/"
 ```
 
+## Verifying the Release
+
+```
+curl https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/fiksn.asc | gpg --import
+gpg --verify manifest-fiksn-v0.0.3.sig manifest-v0.0.3.txt
+```
+
 ## Troubleshooting
 
 Do:
