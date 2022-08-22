@@ -8,7 +8,7 @@ Currently we have:
 
 ### balance-agent
 
-an agent that can report channel balance information
+utility to monitor channel balances
 
 The usage should be pretty self expanatory:
 
@@ -20,7 +20,7 @@ USAGE:
    balance-agent [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.0.1
+   v0.0.3
 
 COMMANDS:
      help, h  Shows a list of commands or help for one command
@@ -41,7 +41,7 @@ GLOBAL OPTIONS:
 ```
 
 It tries the best to have sane defaults so you can just start it up on your node without further hassle.
-If you have a strange lnd dir you might need:
+If you have a strange lnd dir (`/storage` in the example) you might need:
 ```
 ./balance-agent --lnddir /storage/lnd/ --tlscertpath /storage/lnd/data/secrets/lnd.cert
 ```
@@ -53,7 +53,8 @@ By default it will try to communicate with LND using local gRPC connection and `
 
 You can use `--userest` to start using REST API (default is as mentioned gRPC) - in that case `--rpcserver` can be complete URL to the endpoint.
 
-Of course you can also start the agent on a remote node and just point it to the correct endpoint.
+Of course you can also start the agent on a remote node and just point it to the correct endpoint, but since this is not the default
+use cases flags `--userest` and `--rpcserver` are not advertied in help.
 
 Internally we use:
 * [channelchecker](./channelchecker): an abstraction for checking all channels
@@ -72,7 +73,13 @@ git config url."git@github.com:".insteadOf "https://github.com/"
 
 ```
 curl https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/fiksn.asc | gpg --import
-gpg --verify manifest-fiksn-v0.0.3.sig manifest-v0.0.3.txt
+gpg --verify manifest-v0.0.3.txt.asc manifest-v0.0.3.txt
+```
+
+and you should see:
+```
+gpg:                using RSA key F4B8B3B59C1E5AA39A1B9636E897355718E1DBF4
+gpg: Good signature from "Gregor Pogacnik <gregor@bolt.observer>" [ultimate]
 ```
 
 ## Troubleshooting
