@@ -528,6 +528,9 @@ func (c *ChannelChecker) filterList(
 				one.ActivePrevious = oldActive
 			}
 
+			one.ActiveLocalPrevious = true
+			one.ActiveRemotePrevious = true
+
 			resp = append(resp, one)
 
 			c.channelCache.DeferredSet(id, val, current)
