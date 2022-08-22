@@ -355,6 +355,7 @@ func (c *ChannelChecker) checkAll() bool {
 
 		toBeCheckedBy := s.lastCheck.Add(s.settings.PollInterval.Duration())
 		reportAnyway := false
+
 		if s.settings.NoopInterval != 0 {
 			reportAnyway = s.lastReport.Add(s.settings.NoopInterval).Before(now)
 		}
@@ -566,6 +567,7 @@ func (c *ChannelChecker) revertChanIdChanges() {
 }
 
 // parseOldVal is just used for determining diff (deprecated)
+/*
 func parseOldVal(val string) (bool, uint64, uint64, bool, bool, error) {
 	parsed := strings.Split(val, "-")
 	if len(parsed) != 5 {
@@ -599,6 +601,7 @@ func parseOldVal(val string) (bool, uint64, uint64, bool, bool, error) {
 
 	return b, uint64(n1), uint64(n2), b1, b2, nil
 }
+*/
 
 // Deprecated
 func parseOldValLegacy(val string) (bool, uint64, uint64, error) {
