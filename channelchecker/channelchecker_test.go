@@ -178,7 +178,7 @@ func TestBasicFlow(t *testing.T) {
 	was_called := false
 
 	c.Subscribe(
-		pubKey,
+		pubKey, "random_id",
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -186,7 +186,7 @@ func TestBasicFlow(t *testing.T) {
 			AllowPrivateChannels: true,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-			if len(report.ChangedChannels) == 2 {
+			if len(report.ChangedChannels) == 2 && report.UniqueId == "random_id" {
 				was_called = true
 			}
 
@@ -234,7 +234,7 @@ func TestPrivateChannelsExcluded(t *testing.T) {
 	was_called := false
 
 	c.Subscribe(
-		pubKey,
+		pubKey, "",
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -297,7 +297,7 @@ func TestInactiveFlow(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		pubKey,
+		pubKey, "",
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -381,7 +381,7 @@ func TestChange(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		pubKey,
+		pubKey, "",
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -453,7 +453,7 @@ func TestPubkeyWrong(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	err := c.Subscribe(
-		pubKey,
+		pubKey, "",
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -504,7 +504,7 @@ func TestKeepAliveIsSent(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		pubKey,
+		pubKey, "",
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -590,7 +590,7 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		pubKey,
+		pubKey, "",
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -665,7 +665,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		pubKey,
+		pubKey, "",
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -753,7 +753,7 @@ func TestGraphIsRequested(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		pubKey,
+		pubKey, "",
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -817,7 +817,7 @@ func TestBasicFlowRedis(t *testing.T) {
 	was_called := false
 
 	c.Subscribe(
-		pubKey,
+		pubKey, "",
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,

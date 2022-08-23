@@ -185,7 +185,8 @@ func (h *HttpApi) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Tran
 
 	trans := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			RootCAs: cp,
+			MinVersion: tls.VersionTLS11,
+			RootCAs:    cp,
 		},
 	}
 

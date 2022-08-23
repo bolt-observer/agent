@@ -326,9 +326,9 @@ func checker(ctx *cli.Context) error {
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: ctx.Bool("private")}
 
 	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
-		c.GetState("", mkGetLndApi(ctx), settings, callback)
+		c.GetState("", "", mkGetLndApi(ctx), settings, callback)
 	} else {
-		err = c.Subscribe("",
+		err = c.Subscribe("", "",
 			mkGetLndApi(ctx),
 			settings,
 			callback)

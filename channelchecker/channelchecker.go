@@ -2,6 +2,7 @@ package channelchecker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -67,16 +68,21 @@ func NewChannelChecker(ctx context.Context, cache ChannelCache, keepAlive time.D
 }
 
 // Check if we are subscribed for a certain public key
-func (c *ChannelChecker) IsSubscribed(pubKey string) bool {
-	return utils.Contains(c.globalSettings.GetKeys(), pubKey)
+func (c *ChannelChecker) IsSubscribed(pubKey, uniqueId string) bool {
+	return utils.Contains(c.globalSettings.GetKeys(), pubKey+uniqueId)
 }
 
 // Subscribe to notifications about channel changes (if already subscribed this will force a callback, use IsSubscribed to check)
 func (c *ChannelChecker) Subscribe(
 	pubKey string,
+	uniqueId string,
 	getApi NewApiCall,
 	settings entities.ReportingSettings,
 	callback entities.BalanceReportCallback) error {
+
+	if pubKey != "" && !utils.ValidatePubkey(pubKey) {
+		return errors.New("invalid pubkey")
+	}
 
 	api := getApi()
 	if api == nil {
@@ -101,7 +107,8 @@ func (c *ChannelChecker) Subscribe(
 		settings.NoopInterval = c.keepAliveInterval
 	}
 
-	c.globalSettings.Set(info.IdentityPubkey, Settings{
+	c.globalSettings.Set(info.IdentityPubkey+uniqueId, Settings{
+		identifier:     entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId},
 		settings:       settings,
 		lastCheck:      time.Time{},
 		lastGraphCheck: time.Time{},
@@ -114,19 +121,24 @@ func (c *ChannelChecker) Subscribe(
 }
 
 // Unsubscribe from a pubkey
-func (c *ChannelChecker) Unsubscribe(pubkey string) error {
-	c.globalSettings.Delete(pubkey)
+func (c *ChannelChecker) Unsubscribe(pubkey, uniqueId string) error {
+	c.globalSettings.Delete(pubkey + uniqueId)
 	return nil
 }
 
 // Get current state (settings.pollInterval is ignored)
 func (c *ChannelChecker) GetState(
 	pubKey string,
+	uniqueId string,
 	getApi NewApiCall,
 	settings entities.ReportingSettings,
 	optCallback entities.BalanceReportCallback) (*entities.ChannelBalanceReport, error) {
 
-	resp, err := c.checkOne(pubKey, getApi, settings, true, false)
+	if pubKey != "" && !utils.ValidatePubkey(pubKey) {
+		return nil, errors.New("invalid pubkey")
+	}
+
+	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId}, getApi, settings, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -268,6 +280,7 @@ func (c *ChannelChecker) OverrideLoopInterval(duration time.Duration) {
 }
 
 func (c *ChannelChecker) EventLoop() {
+	// nosemgrep
 	ticker := time.NewTicker(c.eventLoopInterval)
 
 	func() {
@@ -343,7 +356,8 @@ func (c *ChannelChecker) checkAll() bool {
 		if c.checkGraph && s.settings.GraphPollInterval != 0 {
 			graphToBeCheckedBy := s.lastGraphCheck.Add(s.settings.GraphPollInterval)
 
-			if graphToBeCheckedBy.Before(now) {
+			if graphToBeCheckedBy.Before(now) && s.identifier.Identifier != "" {
+				// Beware: here the graph is fetched just per node
 				err := c.fetchGraph(s.identifier.Identifier, s.getApi, s.settings)
 				if err != nil {
 					glog.Warningf("Could not fetch graph from %s: %v", s.identifier.Identifier, err)
@@ -364,14 +378,14 @@ func (c *ChannelChecker) checkAll() bool {
 
 			// Subscribe will set lastCheck to min value and you expect update in such a case
 			ignoreCache := toBeCheckedBy.Year() <= 1
-			resp, err := c.checkOne(s.identifier.Identifier, s.getApi, s.settings, ignoreCache, reportAnyway)
+			resp, err := c.checkOne(s.identifier, s.getApi, s.settings, ignoreCache, reportAnyway)
 			if err != nil {
 				glog.Warningf("Check failed: %v", err)
 				continue
 			}
 
-			if resp != nil && !strings.EqualFold(resp.PubKey, one) {
-				glog.Warningf("PubKey mismatch %s vs %s", resp.PubKey, one)
+			if resp != nil && !strings.EqualFold(resp.PubKey, s.identifier.Identifier) {
+				glog.Warningf("PubKey mismatch %s vs %s", resp.PubKey, s.identifier.Identifier)
 				continue
 			}
 
@@ -403,13 +417,13 @@ func (c *ChannelChecker) checkAll() bool {
 
 // checkOne checks one specific node
 func (c *ChannelChecker) checkOne(
-	pubKey string,
+	identifier entities.NodeIdentifier,
 	getApi NewApiCall,
 	settings entities.ReportingSettings,
 	ignoreCache bool,
 	reportAnyway bool) (*entities.ChannelBalanceReport, error) {
 
-	metricsName := fmt.Sprintf("checkone.%s", pubKey)
+	metricsName := fmt.Sprintf("checkone.%s", identifier.GetId())
 	defer c.metricsTimer(metricsName)()
 
 	api := getApi()
@@ -425,9 +439,13 @@ func (c *ChannelChecker) checkOne(
 		return nil, fmt.Errorf("failed to get info: %v", err)
 	}
 
-	if pubKey != "" && !strings.EqualFold(info.IdentityPubkey, pubKey) {
+	if identifier.Identifier != "" && !strings.EqualFold(info.IdentityPubkey, identifier.Identifier) {
 		c.metricsReport(metricsName, "failure")
 		return nil, fmt.Errorf("pubkey and reported pubkey are not the same")
+	}
+
+	if identifier.Identifier == "" {
+		identifier.Identifier = info.IdentityPubkey
 	}
 
 	channelList, set, err := c.getChannelList(api, info, settings.AllowedEntropy, settings.AllowPrivateChannels)
@@ -438,17 +456,17 @@ func (c *ChannelChecker) checkOne(
 
 	closedChannels := make([]entities.ClosedChannel, 0)
 
-	if len(c.nodeChanIds[info.IdentityPubkey]) > 0 {
+	if len(c.nodeChanIds[identifier.GetId()]) > 0 {
 		// We must have some old channel set
 
 		// diff between new -> old
-		closed := utils.SetDiff(set, c.nodeChanIds[info.IdentityPubkey])
+		closed := utils.SetDiff(set, c.nodeChanIds[identifier.GetId()])
 		for k := range closed {
 			closedChannels = append(closedChannels, entities.ClosedChannel{ChannelId: k})
 		}
 	}
 
-	c.nodeChanIdsNew[info.IdentityPubkey] = set
+	c.nodeChanIdsNew[identifier.GetId()] = set
 
 	channelList = c.filterList(channelList, ignoreCache)
 
@@ -456,7 +474,8 @@ func (c *ChannelChecker) checkOne(
 		ReportingSettings: settings,
 		Chain:             info.Chain,
 		Network:           info.Network,
-		PubKey:            info.IdentityPubkey,
+		PubKey:            identifier.Identifier,
+		UniqueId:          identifier.UniqueId,
 		Timestamp:         entities.JsonTime(time.Now()),
 		ChangedChannels:   channelList,
 		ClosedChannels:    closedChannels,

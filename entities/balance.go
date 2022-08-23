@@ -13,6 +13,10 @@ type NodeIdentifier struct {
 	UniqueId   string `json:"unique_id"`
 }
 
+func (n *NodeIdentifier) GetId() string {
+	return n.Identifier + n.UniqueId
+}
+
 type Interval int
 
 const (
@@ -110,6 +114,7 @@ type ChannelBalanceReport struct {
 	Chain           string           `json:"chain"`   // should be bitcoin (bitcoin, litecoin)
 	Network         string           `json:"network"` // should be mainnet (regtest, testnet, mainnet)
 	PubKey          string           `json:"pubkey"`
+	UniqueId        string           `json:"uniqueId,omitempty"` // optional unique identifier
 	Timestamp       JsonTime         `json:"timestamp"`
 	ChangedChannels []ChannelBalance `json:"changed_channels"`
 	ClosedChannels  []ClosedChannel  `json:"closed_channels"`
