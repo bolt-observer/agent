@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	miniredis "github.com/alicebob/miniredis/v2"
 	agent_entities "github.com/bolt-observer/agent/entities"
 	lightning_api "github.com/bolt-observer/agent/lightning_api"
 	entities "github.com/bolt-observer/go_common/entities"
@@ -775,5 +777,71 @@ func TestGraphIsRequested(t *testing.T) {
 
 	if !success {
 		t.Fatalf("DescribeGraph was not called")
+	}
+}
+
+func TestBasicFlowRedis(t *testing.T) {
+	pubKey, api, d := initTest(t)
+
+	mr := miniredis.RunT(t)
+	mr.Addr()
+
+	err := os.Setenv("REDIS_URL", mr.Addr())
+	if err != nil {
+		t.Fatalf("Could not set REDIS_URL")
+		return
+	}
+
+	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+		contents := ""
+		if strings.Contains(req.URL.Path, "v1/getinfo") {
+			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else if strings.Contains(req.URL.Path, "v1/channels") {
+			contents = getChannelJson(1337, false, true)
+		}
+
+		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+
+	// Use redis
+	c := NewChannelChecker(ctx, NewRedisChannelCache(), time.Duration(0), true, false, nil)
+	// Make everything a bit faster
+	c.OverrideLoopInterval(1 * time.Second)
+	was_called := false
+
+	c.Subscribe(
+		pubKey,
+		func() lightning_api.LightingApiCalls { return api },
+		agent_entities.ReportingSettings{
+			AllowedEntropy:       64,
+			PollInterval:         agent_entities.SECOND,
+			AllowPrivateChannels: true,
+		},
+		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+			if len(report.ChangedChannels) == 2 {
+				was_called = true
+			}
+
+			cancel()
+			return true
+		},
+	)
+
+	c.EventLoop()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("Took too long")
+	case <-ctx.Done():
+		if !was_called {
+			t.Fatalf("Callback was not correctly invoked")
+		}
 	}
 }
