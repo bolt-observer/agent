@@ -132,21 +132,23 @@ func (l *LndGrpcLightningApi) DescribeGraph(ctx context.Context, unannounced boo
 	nodes := make([]DescribeGraphNodeApi, 0)
 
 	for _, node := range resp.Nodes {
-		nodes = append(nodes, DescribeGraphNodeApi{PubKey: node.PubKey, Alias: node.Alias})
+		addresses := make([]NodeAddressApi, 0)
+		for _, addr := range node.Addresses {
+			addresses = append(addresses, NodeAddressApi{Addr: addr.Addr, Network: addr.Network})
+		}
+
+		features := make(map[string]NodeFeatureApi)
+		for id, feat := range node.Features {
+			features[fmt.Sprintf("%d", id)] = NodeFeatureApi{Name: feat.Name, IsRequired: feat.IsRequired, IsKnown: feat.IsKnown}
+		}
+
+		nodes = append(nodes, l.convertNode(node))
 	}
 
-	channels := make([]DescribeGraphChannelApi, 0)
+	channels := make([]NodeChannelApi, 0)
 
 	for _, edge := range resp.Edges {
-		channels = append(channels, DescribeGraphChannelApi{
-			ChannelId:   edge.ChannelId,
-			ChanPoint:   edge.ChanPoint,
-			Node1Pub:    edge.Node1Pub,
-			Node2Pub:    edge.Node2Pub,
-			Capacity:    uint64(edge.Capacity),
-			Node1Policy: toPolicy(edge.Node1Policy),
-			Node2Policy: toPolicy(edge.Node2Policy),
-		})
+		channels = append(channels, l.convertChan(edge))
 	}
 
 	ret := &DescribeGraphApi{
@@ -155,4 +157,58 @@ func (l *LndGrpcLightningApi) DescribeGraph(ctx context.Context, unannounced boo
 	}
 
 	return ret, nil
+}
+
+func (l *LndGrpcLightningApi) convertNode(node *lnrpc.LightningNode) DescribeGraphNodeApi {
+	addresses := make([]NodeAddressApi, 0)
+	for _, addr := range node.Addresses {
+		addresses = append(addresses, NodeAddressApi{Addr: addr.Addr, Network: addr.Network})
+	}
+
+	features := make(map[string]NodeFeatureApi)
+	for id, feat := range node.Features {
+		features[fmt.Sprintf("%d", id)] = NodeFeatureApi{Name: feat.Name, IsRequired: feat.IsRequired, IsKnown: feat.IsKnown}
+	}
+
+	return DescribeGraphNodeApi{PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Addresses: addresses, Features: features}
+}
+
+func (l *LndGrpcLightningApi) convertChan(edge *lnrpc.ChannelEdge) NodeChannelApi {
+	return NodeChannelApi{
+		ChannelId:   edge.ChannelId,
+		ChanPoint:   edge.ChanPoint,
+		Node1Pub:    edge.Node1Pub,
+		Node2Pub:    edge.Node2Pub,
+		Capacity:    uint64(edge.Capacity),
+		Node1Policy: toPolicy(edge.Node1Policy),
+		Node2Policy: toPolicy(edge.Node2Policy),
+	}
+}
+
+func (l *LndGrpcLightningApi) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoApi, error) {
+	resp, err := l.Client.GetNodeInfo(ctx, &lnrpc.NodeInfoRequest{PubKey: pubKey, IncludeChannels: channels})
+
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make([]NodeChannelApi, 0)
+
+	for _, edge := range resp.Channels {
+		ch = append(ch, l.convertChan(edge))
+	}
+
+	ret := &NodeInfoApi{Node: l.convertNode(resp.Node), Channels: ch, NumChannels: resp.NumChannels, TotalCapacity: uint64(resp.TotalCapacity)}
+	return ret, nil
+}
+
+func (l *LndGrpcLightningApi) GetChanInfo(ctx context.Context, chanId uint64) (*NodeChannelApi, error) {
+	resp, err := l.Client.GetChanInfo(ctx, &lnrpc.ChanInfoRequest{ChanId: chanId})
+
+	if err != nil {
+		return nil, err
+	}
+
+	ret := l.convertChan(resp)
+	return &ret, nil
 }

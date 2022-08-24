@@ -78,6 +78,15 @@ type GraphNodeOverride struct {
 	lnrpc.LightningNode
 }
 
+type GetNodeInfoOverride struct {
+	Node          *GraphNodeOverride   `json:"node,omitempty"`
+	NumChannels   int64                `json:"num_channels,omitempty"`
+	TotalCapacity string               `json:"total_capacity,omitempty"`
+	Channels      []*GraphEdgeOverride `json:"channels"`
+
+	lnrpc.NodeInfo
+}
+
 type GraphEdgeOverride struct {
 	ChannelId   string                 `json:"channel_id,omitempty"`
 	Capacity    string                 `json:"capacity,omitempty"`

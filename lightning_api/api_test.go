@@ -3,8 +3,8 @@ package lightning_api
 import (
 	"testing"
 
-	utils "github.com/bolt-observer/go_common/utils"
 	entities "github.com/bolt-observer/go_common/entities"
+	utils "github.com/bolt-observer/go_common/utils"
 )
 
 func TestApiSelection(t *testing.T) {
