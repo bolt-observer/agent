@@ -58,6 +58,8 @@ use cases flags `--userest` and `--rpcserver` are not advertied in help.
 
 Internally we use:
 * [channelchecker](./channelchecker): an abstraction for checking all channels
+* [nodeinfo](./nodeinfo): this can basically report `lncli getnodeinfo` for your node (including unnanounced channels) - it is used by the agent when you allow private data access so we have a full view of node info & channels
+* [checkermonitoring](./checkermonitoring): is used for reporting metrics via Graphite (not used directly in balance-agent here)
 * [lightning_api](./lightning_api): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
 
 ## Dependencies
