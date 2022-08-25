@@ -32,9 +32,7 @@ func NewLndGrpcLightningApi(getData GetDataCall) LightingApiCalls {
 }
 
 // Not used
-func debugOutput(resp *lnrpc.ChannelGraph) {
-	resp.Nodes = resp.Nodes[0:5]
-	resp.Edges = resp.Edges[0:5]
+func debugOutput(resp *lnrpc.ChannelEdge) {
 	bodyData, _ := json.Marshal(resp)
 	f, _ := os.OpenFile("dummy.json", os.O_WRONLY|os.O_CREATE, 0644)
 	f.Truncate(0)
@@ -133,16 +131,6 @@ func (l *LndGrpcLightningApi) DescribeGraph(ctx context.Context, unannounced boo
 	nodes := make([]DescribeGraphNodeApi, 0)
 
 	for _, node := range resp.Nodes {
-		addresses := make([]NodeAddressApi, 0)
-		for _, addr := range node.Addresses {
-			addresses = append(addresses, NodeAddressApi{Addr: addr.Addr, Network: addr.Network})
-		}
-
-		features := make(map[string]NodeFeatureApi)
-		for id, feat := range node.Features {
-			features[fmt.Sprintf("%d", id)] = NodeFeatureApi{Name: feat.Name, IsRequired: feat.IsRequired, IsKnown: feat.IsKnown}
-		}
-
 		nodes = append(nodes, l.convertNode(node))
 	}
 

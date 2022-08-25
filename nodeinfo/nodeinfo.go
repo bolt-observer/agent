@@ -234,7 +234,7 @@ func (c *NodeInfo) checkOne(
 
 	info, err := api.GetNodeInfoFull(c.ctx, true, true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call GetNodeInfoFull")
+		return nil, fmt.Errorf("failed to call GetNodeInfoFull %v", err)
 	}
 
 	ret := &entities.InfoReport{

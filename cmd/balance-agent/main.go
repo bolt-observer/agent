@@ -14,6 +14,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
@@ -46,6 +47,8 @@ var (
 	url                string
 	nodeurl            string
 	GitRevision        = "unknownVersion"
+
+	nodeInfoReported sync.Map
 )
 
 func getData(ctx *cli.Context) (*entities.Data, error) {
@@ -281,8 +284,11 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 		return false
 	}
 
+	n := agent_entities.NodeIdentifier{Identifier: report.Node.PubKey, UniqueId: report.UniqueId}
+
 	if nodeurl == "" {
 		glog.Infof("Sent out callback %s\n", string(rep))
+		nodeInfoReported.Store(n.GetId(), struct{}{})
 		return true
 	}
 
@@ -307,11 +313,21 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	}
 
 	glog.Infof("Sent out callback %s\n", string(rep))
+	nodeInfoReported.Store(n.GetId(), struct{}{})
 
 	return true
 }
 
 func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+	// When nodeinfo was not reported fake as if balance report could not be delivered (because same data
+	// will be eventually retried)
+	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueId: report.UniqueId}
+	_, ok := nodeInfoReported.Load(n.GetId())
+	if !ok {
+		glog.Warningf("Node data for %s was not reported yet", n.GetId())
+		return false
+	}
+
 	rep, err := json.Marshal(report)
 	if err != nil {
 		fmt.Printf("Error marshalling report: %v\n", err)
@@ -399,12 +415,16 @@ func checker(ctx *cli.Context) error {
 	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
 		if ctx.Bool("private") {
 			infochecker.GetState("", ctx.String("uniqueId"), agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback)
+			time.Sleep(1 * time.Second)
 		}
 		c.GetState("", ctx.String("uniqueId"), mkGetLndApi(ctx), settings, balanceCallback)
 	} else {
 		if ctx.Bool("private") {
-			// TODO: change poll interval here
 			infochecker.Subscribe("", ctx.String("uniqueId"), nodeinterval, mkGetLndApi(ctx), infoCallback)
+		} else {
+			// If you don't allow private data then treat nodeinfo as already reported
+			n := agent_entities.NodeIdentifier{Identifier: "", UniqueId: ctx.String("uniqueId")}
+			nodeInfoReported.Store(n.GetId(), struct{}{})
 		}
 		err = c.Subscribe("", ctx.String("uniqueId"),
 			mkGetLndApi(ctx),

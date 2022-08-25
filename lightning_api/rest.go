@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -116,12 +117,7 @@ func (h *HttpApi) HttpGetGraph(ctx context.Context, req *http.Request, trans *ht
 
 	req.Method = http.MethodGet
 
-	unnanounced_str := "false"
-	if unannounced {
-		unnanounced_str = "true"
-	}
-
-	u, err := url.Parse(fmt.Sprintf("%s/v1/graph?include_unannounced=%s", req.URL, unnanounced_str))
+	u, err := url.Parse(fmt.Sprintf("%s/v1/graph?include_unannounced=%s", req.URL, strconv.FormatBool(unannounced)))
 	if err != nil {
 		return nil, fmt.Errorf("invalid url %s", err)
 	}
@@ -157,12 +153,7 @@ func (h *HttpApi) HttpGetNodeInfo(ctx context.Context, req *http.Request, trans 
 
 	req.Method = http.MethodGet
 
-	channel_str := "false"
-	if channels {
-		channel_str = "true"
-	}
-
-	u, err := url.Parse(fmt.Sprintf("%s/v1/graph/node/%s?include_channels=%s", req.URL, pubKey, channel_str))
+	u, err := url.Parse(fmt.Sprintf("%s/v1/graph/node/%s?include_channels=%s", req.URL, pubKey, strconv.FormatBool(channels)))
 	if err != nil {
 		return nil, fmt.Errorf("invalid url %s", err)
 	}
