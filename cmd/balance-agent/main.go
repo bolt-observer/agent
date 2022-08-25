@@ -21,7 +21,9 @@ import (
 	cli "github.com/urfave/cli"
 
 	channelchecker "github.com/bolt-observer/agent/channelchecker"
+	"github.com/bolt-observer/agent/checkermonitoring"
 	api "github.com/bolt-observer/agent/lightning_api"
+	"github.com/bolt-observer/agent/nodeinfo"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 
@@ -42,6 +44,7 @@ var (
 	defaultRPCHostPort = "localhost:" + defaultRPCPort
 	apiKey             string
 	url                string
+	nodeurl            string
 	GitRevision        = "unknownVersion"
 )
 
@@ -212,7 +215,7 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:  "private",
-			Usage: "report private channels as well",
+			Usage: "report private data as well",
 		},
 		&cli.BoolFlag{
 			Name:   "userest",
@@ -236,14 +239,32 @@ func getApp() *cli.App {
 			Value:  "https://bolt.observer/api/agent-report",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:   "nodeurl",
+			Usage:  "Node report URL",
+			Value:  "https://bolt.observer/api/private-node",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "nodeinterval",
+			Usage:  "interval to poll - 10s, 1m or 1h",
+			Value:  "1m",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "uniqueId",
+			Usage:  "Unique identifier",
+			Value:  "",
+			Hidden: true,
+		},
 	}
 
 	return app
 }
 
-func getInterval(ctx *cli.Context) (agent_entities.Interval, error) {
+func getInterval(ctx *cli.Context, name string) (agent_entities.Interval, error) {
 	i := agent_entities.Interval(0)
-	s := strings.ToLower(ctx.String("interval"))
+	s := strings.ToLower(ctx.String(name))
 
 	err := i.UnmarshalJSON([]byte(s))
 	if err != nil {
@@ -253,7 +274,44 @@ func getInterval(ctx *cli.Context) (agent_entities.Interval, error) {
 	return i, nil
 }
 
-func callback(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
+	rep, err := json.Marshal(report)
+	if err != nil {
+		fmt.Printf("Error marshalling report: %v\n", err)
+		return false
+	}
+
+	if nodeurl == "" {
+		glog.Infof("Sent out callback %s\n", string(rep))
+		return true
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, nodeurl, strings.NewReader(string(rep)))
+	if err != nil {
+		return false
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := http.DefaultClient
+
+	resp, err := client.Do(req)
+	if err != nil {
+		glog.Warningf("Error when doing request, %v", err)
+		return false
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		glog.Warningf("Status was not OK but, %d", resp.StatusCode)
+		return false
+	}
+
+	glog.Infof("Sent out callback %s\n", string(rep))
+
+	return true
+}
+
+func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
 	rep, err := json.Marshal(report)
 	if err != nil {
 		fmt.Printf("Error marshalling report: %v\n", err)
@@ -290,7 +348,7 @@ func callback(ctx context.Context, report *agent_entities.ChannelBalanceReport) 
 	return true
 }
 
-func mkGetLndApi(ctx *cli.Context) channelchecker.NewApiCall {
+func mkGetLndApi(ctx *cli.Context) agent_entities.NewApiCall {
 	return func() api.LightingApiCalls {
 		return api.NewApi(api.LND_GRPC, func() (*entities.Data, error) {
 			return getData(ctx)
@@ -310,35 +368,55 @@ func checker(ctx *cli.Context) error {
 	}
 
 	url = ctx.String("url")
+	nodeurl = ctx.String("nodeurl")
 
-	interval, err := getInterval(ctx)
+	interval, err := getInterval(ctx, "interval")
 	if err != nil {
 		return err
 	}
 
-	c := channelchecker.NewDefaultChannelChecker(context.Background(), ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), channelchecker.NewNopChannelCheckerMonitoring())
+	nodeinterval, err := getInterval(ctx, "nodeinterval")
+	if err != nil {
+		nodeinterval = interval
+	}
+
+	ct := context.Background()
+	infochecker := nodeinfo.NewNodeInfo(ct, checkermonitoring.NewNopCheckerMonitoring("nodeinfo"))
+	c := channelchecker.NewDefaultChannelChecker(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), checkermonitoring.NewNopCheckerMonitoring("channelchecker"))
 
 	if interval == agent_entities.SECOND {
 		// Second is just for testing purposes
 		interval = agent_entities.TEN_SECONDS
 	}
 
+	if nodeinterval == agent_entities.SECOND {
+		// Second is just for testing purposes
+		nodeinterval = agent_entities.TEN_SECONDS
+	}
+
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: ctx.Bool("private")}
 
 	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
-		c.GetState("", "", mkGetLndApi(ctx), settings, callback)
+		if ctx.Bool("private") {
+			infochecker.GetState("", ctx.String("uniqueId"), agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback)
+		}
+		c.GetState("", ctx.String("uniqueId"), mkGetLndApi(ctx), settings, balanceCallback)
 	} else {
-		err = c.Subscribe("", "",
+		if ctx.Bool("private") {
+			// TODO: change poll interval here
+			infochecker.Subscribe("", ctx.String("uniqueId"), nodeinterval, mkGetLndApi(ctx), infoCallback)
+		}
+		err = c.Subscribe("", ctx.String("uniqueId"),
 			mkGetLndApi(ctx),
 			settings,
-			callback)
+			balanceCallback)
 
 		if err != nil {
 			return err
 		}
 
 		fmt.Printf("Waiting for events...")
-		c.EventLoop()
+		utils.WaitAll(infochecker, c)
 	}
 
 	return nil
@@ -353,5 +431,4 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
-
 }

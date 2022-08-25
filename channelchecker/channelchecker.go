@@ -12,16 +12,14 @@ import (
 	"syscall"
 	"time"
 
+	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
 	api "github.com/bolt-observer/agent/lightning_api"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/golang/glog"
-	"github.com/marpaia/graphite-golang"
 )
 
 type SetOfChanIds map[uint64]struct{}
-
-type NewApiCall func() api.LightingApiCalls
 
 type ChannelChecker struct {
 	ctx               context.Context
@@ -34,21 +32,21 @@ type ChannelChecker struct {
 	smooth            bool          // Should we smooth out fluctuations due to HTLCs
 	keepAliveInterval time.Duration // Keepalive interval
 	checkGraph        bool          // Should we check gossip
-	monitoring        *ChannelCheckerMonitoring
+	monitoring        *checkermonitoring.CheckerMonitoring
 	eventLoopInterval time.Duration
 }
 
-func NewDefaultChannelChecker(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *ChannelCheckerMonitoring) *ChannelChecker {
+func NewDefaultChannelChecker(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *checkermonitoring.CheckerMonitoring) *ChannelChecker {
 	return NewChannelChecker(ctx, NewInMemoryChannelCache(), keepAlive, smooth, checkGraph, monitoring)
 }
 
-func NewChannelChecker(ctx context.Context, cache ChannelCache, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *ChannelCheckerMonitoring) *ChannelChecker {
+func NewChannelChecker(ctx context.Context, cache ChannelCache, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *checkermonitoring.CheckerMonitoring) *ChannelChecker {
 	if ctx == nil {
 		ctx = getContext()
 	}
 
 	if monitoring == nil {
-		monitoring = NewNopChannelCheckerMonitoring()
+		monitoring = checkermonitoring.NewNopCheckerMonitoring("channelchecker")
 	}
 
 	return &ChannelChecker{
@@ -76,7 +74,7 @@ func (c *ChannelChecker) IsSubscribed(pubKey, uniqueId string) bool {
 func (c *ChannelChecker) Subscribe(
 	pubKey string,
 	uniqueId string,
-	getApi NewApiCall,
+	getApi entities.NewApiCall,
 	settings entities.ReportingSettings,
 	callback entities.BalanceReportCallback) error {
 
@@ -130,7 +128,7 @@ func (c *ChannelChecker) Unsubscribe(pubkey, uniqueId string) error {
 func (c *ChannelChecker) GetState(
 	pubKey string,
 	uniqueId string,
-	getApi NewApiCall,
+	getApi entities.NewApiCall,
 	settings entities.ReportingSettings,
 	optCallback entities.BalanceReportCallback) (*entities.ChannelBalanceReport, error) {
 
@@ -150,20 +148,13 @@ func (c *ChannelChecker) GetState(
 	return resp, err
 }
 
-// CustomMetric is a method to send custom metrics via graphite
-func (c *ChannelChecker) CustomMetric(name, value string) {
-	c.monitoring.graphite.SendMetrics([]graphite.Metric{
-		graphite.NewMetric(fmt.Sprintf("%s.%s.%s.%s", PREFIX, c.monitoring.env, name, value), "1", time.Now().Unix()),
-	})
-}
-
 func (c *ChannelChecker) getChannelList(
 	api api.LightingApiCalls,
 	info *api.InfoApi,
 	precisionBits int,
 	allowPrivateChans bool) ([]entities.ChannelBalance, SetOfChanIds, error) {
 
-	defer c.metricsTimer(fmt.Sprintf("channellist.%s", info.IdentityPubkey))()
+	defer c.monitoring.MetricsTimer(fmt.Sprintf("channellist.%s", info.IdentityPubkey))()
 
 	resp := make([]entities.ChannelBalance, 0)
 
@@ -283,6 +274,12 @@ func (c *ChannelChecker) EventLoop() {
 	// nosemgrep
 	ticker := time.NewTicker(c.eventLoopInterval)
 
+	// Imediately call checkAll()
+	if !c.checkAll() {
+		ticker.Stop()
+		return
+	}
+
 	func() {
 		for {
 			select {
@@ -300,7 +297,7 @@ func (c *ChannelChecker) EventLoop() {
 
 func (c *ChannelChecker) fetchGraph(
 	pubKey string,
-	getApi NewApiCall,
+	getApi entities.NewApiCall,
 	settings entities.ReportingSettings,
 ) error {
 
@@ -347,7 +344,7 @@ func (c *ChannelChecker) fetchGraph(
 }
 
 func (c *ChannelChecker) checkAll() bool {
-	defer c.metricsTimer("checkall.global")()
+	defer c.monitoring.MetricsTimer("checkall.global")()
 
 	now := time.Now()
 	for _, one := range c.globalSettings.GetKeys() {
@@ -384,7 +381,7 @@ func (c *ChannelChecker) checkAll() bool {
 				continue
 			}
 
-			if resp != nil && !strings.EqualFold(resp.PubKey, s.identifier.Identifier) {
+			if resp != nil && s.identifier.Identifier != "" && !strings.EqualFold(resp.PubKey, s.identifier.Identifier) {
 				glog.Warningf("PubKey mismatch %s vs %s", resp.PubKey, s.identifier.Identifier)
 				continue
 			}
@@ -411,36 +408,36 @@ func (c *ChannelChecker) checkAll() bool {
 		}
 	}
 
-	c.metricsReport("checkall.global", "success")
+	c.monitoring.MetricsReport("checkall.global", "success")
 	return true
 }
 
 // checkOne checks one specific node
 func (c *ChannelChecker) checkOne(
 	identifier entities.NodeIdentifier,
-	getApi NewApiCall,
+	getApi entities.NewApiCall,
 	settings entities.ReportingSettings,
 	ignoreCache bool,
 	reportAnyway bool) (*entities.ChannelBalanceReport, error) {
 
 	metricsName := fmt.Sprintf("checkone.%s", identifier.GetId())
-	defer c.metricsTimer(metricsName)()
+	defer c.monitoring.MetricsTimer(metricsName)()
 
 	api := getApi()
 	if api == nil {
-		c.metricsReport(metricsName, "failure")
+		c.monitoring.MetricsReport(metricsName, "failure")
 		return nil, fmt.Errorf("failed to get client")
 	}
 	defer api.Cleanup()
 
 	info, err := api.GetInfo(c.ctx)
 	if err != nil {
-		c.metricsReport(metricsName, "failure")
+		c.monitoring.MetricsReport(metricsName, "failure")
 		return nil, fmt.Errorf("failed to get info: %v", err)
 	}
 
 	if identifier.Identifier != "" && !strings.EqualFold(info.IdentityPubkey, identifier.Identifier) {
-		c.metricsReport(metricsName, "failure")
+		c.monitoring.MetricsReport(metricsName, "failure")
 		return nil, fmt.Errorf("pubkey and reported pubkey are not the same")
 	}
 
@@ -450,7 +447,7 @@ func (c *ChannelChecker) checkOne(
 
 	channelList, set, err := c.getChannelList(api, info, settings.AllowedEntropy, settings.AllowPrivateChannels)
 	if err != nil {
-		c.metricsReport(metricsName, "failure")
+		c.monitoring.MetricsReport(metricsName, "failure")
 		return nil, err
 	}
 
@@ -485,7 +482,7 @@ func (c *ChannelChecker) checkOne(
 		resp = nil
 	}
 
-	c.metricsReport(metricsName, "success")
+	c.monitoring.MetricsReport(metricsName, "success")
 	return resp, nil
 }
 

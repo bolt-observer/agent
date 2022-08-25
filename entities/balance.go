@@ -8,15 +8,6 @@ import (
 	"time"
 )
 
-type NodeIdentifier struct {
-	Identifier string `json:"identifier"`
-	UniqueId   string `json:"unique_id"`
-}
-
-func (n *NodeIdentifier) GetId() string {
-	return n.Identifier + n.UniqueId
-}
-
 type Interval int
 
 const (

@@ -29,9 +29,10 @@ func NewLndRestLightningApi(getData GetDataCall) LightingApiCalls {
 	api.SetTransport(transport)
 
 	return &LndRestLightningApi{
-		Request:   request,
-		Transport: transport,
-		HttpApi:   api,
+		Request:      request,
+		Transport:    transport,
+		HttpApi:      api,
+		LightningApi: LightningApi{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
 

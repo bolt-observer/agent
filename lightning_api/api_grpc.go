@@ -25,8 +25,9 @@ func NewLndGrpcLightningApi(getData GetDataCall) LightingApiCalls {
 	}
 
 	return &LndGrpcLightningApi{
-		Client:      client,
-		CleanupFunc: cleanup,
+		Client:       client,
+		CleanupFunc:  cleanup,
+		LightningApi: LightningApi{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
 

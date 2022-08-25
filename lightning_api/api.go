@@ -96,13 +96,13 @@ type NodeChannelApi struct {
 }
 
 type RoutingPolicyApi struct {
-	TimeLockDelta uint32 `json:"time_lock_delta,omitempty"`
-	MinHtlc       uint64 `json:"min_htlc,omitempty"`
-	BaseFee       uint64 `json:"fee_base_msat,omitempty"`
-	FeeRate       uint64 `json:"fee_rate_milli_msat,omitempty"`
-	Disabled      bool   `json:"disabled,omitempty"`
-	LastUpdate    time.Time
-	MaxHtlc       uint64 `json:"max_htlc_msat,omitempty"`
+	TimeLockDelta uint32    `json:"time_lock_delta,omitempty"`
+	MinHtlc       uint64    `json:"min_htlc,omitempty"`
+	BaseFee       uint64    `json:"fee_base_msat,omitempty"`
+	FeeRate       uint64    `json:"fee_rate_milli_msat,omitempty"`
+	Disabled      bool      `json:"disabled,omitempty"`
+	LastUpdate    time.Time `json:"-"`
+	MaxHtlc       uint64    `json:"max_htlc_msat,omitempty"`
 }
 
 type NodeInfoApi struct {
@@ -113,49 +113,85 @@ type NodeInfoApi struct {
 }
 
 type LightningApi struct {
+	GetNodeInfoFullThreshUseDescribeGraph int // If node has more than that number of channels use DescribeGraph else do GetChanInfo for each one
 }
 
-func (l *LndGrpcLightningApi) GetNodeInfoFull(ctx context.Context) (*NodeInfoApi, error) {
-	return GetNodeInfoFull(l, ctx)
+func (l *LndGrpcLightningApi) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoApi, error) {
+	return getNodeInfoFull(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
 }
 
-func (l *LndRestLightningApi) GetNodeInfoFull(ctx context.Context) (*NodeInfoApi, error) {
-	return GetNodeInfoFull(l, ctx)
+func (l *LndRestLightningApi) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoApi, error) {
+	return getNodeInfoFull(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
 }
 
-func GetNodeInfoFull(l LightingApiCalls, ctx context.Context) (*NodeInfoApi, error) {
+// GetNodeInfoFull returns info for local node possibly including unnanounced channels (as soon as that can be obtained via GetNodeInfo this method is useless)
+func getNodeInfoFull(l LightingApiCalls, threshUseDescribeGraph int, ctx context.Context, channels, unnanounced bool) (*NodeInfoApi, error) {
 	info, err := l.GetInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	nodeInfo, err := l.GetNodeInfo(ctx, info.IdentityPubkey, false)
+	nodeInfo, err := l.GetNodeInfo(ctx, info.IdentityPubkey, channels)
 	if err != nil {
 		return nil, err
 	}
 
-	nodeInfo.Channels = make([]NodeChannelApi, 0)
+	if !unnanounced {
+		// We have full info already (fast bailout)
+		return nodeInfo, err
+	}
+
+	// Else the channel stats are wrong (unnanounced channels did not count)
 	chans, err := l.GetChannels(ctx)
 	if err != nil {
-		return nil, err
+		// TODO: Bit of a hack but nodeInfo is pretty much correct
+		return nodeInfo, err
 	}
 
 	numChans := 0
 	totalCapacity := uint64(0)
 
 	for _, ch := range chans.Channels {
-		c, err := l.GetChanInfo(ctx, ch.ChanId)
-		if err != nil {
-			return nil, err
+		if ch.Private && !unnanounced {
+			continue
 		}
-		totalCapacity += c.Capacity
+		totalCapacity += ch.Capacity
 		numChans += 1
-
-		nodeInfo.Channels = append(nodeInfo.Channels, *c)
 	}
 
 	nodeInfo.NumChannels = uint32(numChans)
 	nodeInfo.TotalCapacity = totalCapacity
+
+	if !channels {
+		return nodeInfo, nil
+	}
+
+	nodeInfo.Channels = make([]NodeChannelApi, 0)
+
+	if len(chans.Channels) <= threshUseDescribeGraph {
+		for _, ch := range chans.Channels {
+			if ch.Private && !unnanounced {
+				continue
+			}
+			c, err := l.GetChanInfo(ctx, ch.ChanId)
+			if err != nil {
+				return nil, err
+			}
+			nodeInfo.Channels = append(nodeInfo.Channels, *c)
+		}
+	} else {
+		graph, err := l.DescribeGraph(ctx, unnanounced)
+		if err != nil {
+			return nil, err
+		}
+		for _, one := range graph.Channels {
+			if one.Node1Pub != info.IdentityPubkey && one.Node2Pub != info.IdentityPubkey {
+				continue
+			}
+			// No need to filter private channels (since we used unnanounced in DescribeGraph)
+			nodeInfo.Channels = append(nodeInfo.Channels, one)
+		}
+	}
 
 	return nodeInfo, nil
 }
@@ -165,7 +201,7 @@ type LightingApiCalls interface {
 	GetInfo(ctx context.Context) (*InfoApi, error)
 	GetChannels(ctx context.Context) (*ChannelsApi, error)
 	DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphApi, error)
-	GetNodeInfoFull(ctx context.Context) (*NodeInfoApi, error)
+	GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoApi, error)
 	GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoApi, error)
 	GetChanInfo(ctx context.Context, chanId uint64) (*NodeChannelApi, error)
 }
