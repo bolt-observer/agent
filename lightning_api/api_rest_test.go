@@ -113,6 +113,10 @@ func TestObtainData(t *testing.T) {
 				t.Fatalf("Failed to marshal")
 				return nil, err
 			}
+		} else if strings.Contains(name, "graph_node") {
+			name = "graph_node"
+		} else if strings.Contains(name, "graph_edge") {
+			name = "graph_edge"
 		}
 
 		f, err := os.OpenFile(fmt.Sprintf("%s/%s.json", FIXTURE_DIR, name), os.O_WRONLY|os.O_CREATE, 0644)
@@ -145,11 +149,27 @@ func TestObtainData(t *testing.T) {
 		t.Fatalf("fail %v", err)
 		return
 	}
-	_, err = api.DescribeGraph(context.Background(), false)
+
+	/*
+		_, err = api.DescribeGraph(context.Background(), false)
+		if err != nil {
+			t.Fatalf("fail %v", err)
+			return
+		}
+	*/
+
+	_, err = api.GetNodeInfo(context.Background(), "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", true)
 	if err != nil {
 		t.Fatalf("fail %v", err)
 		return
 	}
+
+	_, err = api.GetChanInfo(context.Background(), 810130063083110402)
+	if err != nil {
+		t.Fatalf("fail %v", err)
+		return
+	}
+
 }
 
 func common(t *testing.T, name string) ([]byte, *LndRestLightningApi, LightingApiCalls) {
@@ -285,5 +305,70 @@ func TestDescribeGraph(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DescribeGraph failed: %v", err)
 		return
+	}
+}
+
+func TestGetNodeInfo(t *testing.T) {
+	contents, d, api := common(t, "graph_node")
+	pubKey := "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256"
+
+	// Mock
+	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+		if !strings.Contains(req.URL.Path, "v1/graph/node") {
+			t.Fatalf("URL should contain v1/graph/node")
+		}
+
+		r := ioutil.NopCloser(bytes.NewReader(contents))
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	result, err := api.GetNodeInfo(context.Background(), pubKey, true)
+	if err != nil {
+		t.Fatalf("GetNodeInfo failed: %v", err)
+		return
+	}
+
+	if result.Node.PubKey != pubKey || result.Node.Alias != "CrazyConqueror" {
+		t.Fatalf("GetNodeInfo got wrong response: %v", result)
+		return
+	}
+
+	if len(result.Channels) != int(result.NumChannels) {
+		t.Fatalf("GetNodeInfo got wrong channel response: %v", result)
+		return
+	}
+}
+
+func TestGetChanInfo(t *testing.T) {
+	contents, d, api := common(t, "graph_edge")
+	pubKey := "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256"
+	chanid := uint64(810130063083110402)
+
+	// Mock
+	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+		if !strings.Contains(req.URL.Path, "v1/graph/edge") {
+			t.Fatalf("URL should contain v1/graph/edge")
+		}
+
+		r := ioutil.NopCloser(bytes.NewReader(contents))
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	result, err := api.GetChanInfo(context.Background(), chanid)
+	if err != nil {
+		t.Fatalf("GetChanInfo failed: %v", err)
+		return
+	}
+
+	if result.ChannelId != chanid || result.ChanPoint != "72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2" || (result.Node1Pub != pubKey && result.Node2Pub != pubKey) {
+		t.Fatalf("GetChanInfo got wrong response: %v", result)
 	}
 }

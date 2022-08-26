@@ -66,6 +66,8 @@ func TestObtainDataGrpc(t *testing.T) {
 	//api.GetInfo(context.Background())
 	//api.GetChannels(context.Background())
 	//api.DescribeGraph(context.Background(), false)
+	//api.GetNodeInfo(context.Background(), "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", true)
+	//api.GetChanInfo(context.Background(), uint64(810130063083110402))
 }
 
 func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte, LightingApiCalls) {
@@ -135,8 +137,11 @@ func TestGetInfoGrpc(t *testing.T) {
 		GetInfo(gomock.Any(), gomock.Any()).
 		Return(info, nil)
 
-	resp, _ := api.GetInfo(context.Background())
-
+	resp, err := api.GetInfo(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to call GetInfo %v", err)
+		return
+	}
 	if resp.IdentityPubkey != pubKey || resp.Alias != "CrazyConqueror" || resp.Chain != "bitcoin" || resp.Network != "mainnet" {
 		t.Fatalf("GetInfo got wrong response: %v", resp)
 		return
@@ -162,7 +167,12 @@ func TestGetChannelsGrpc(t *testing.T) {
 		ListChannels(gomock.Any(), gomock.Any()).
 		Return(channels, nil)
 
-	resp, _ := api.GetChannels(context.Background())
+	resp, err := api.GetChannels(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to call GetChannels %v", err)
+		return
+	}
+
 	for _, c := range resp.Channels {
 		if !utils.ValidatePubkey(c.RemotePubkey) {
 			t.Fatalf("Invalid pubkey: %v", c.RemotePubkey)
@@ -197,9 +207,92 @@ func TestDescribeGraphGrpc(t *testing.T) {
 		DescribeGraph(gomock.Any(), gomock.Any()).
 		Return(graph, nil)
 
-	resp, _ := api.DescribeGraph(context.Background(), false)
+	resp, err := api.DescribeGraph(context.Background(), false)
+	if err != nil {
+		t.Fatalf("Failed to call DescribeGraph %v", err)
+		return
+	}
 
 	if resp == nil {
 		t.Fatalf("Bad response")
+	}
+}
+
+func TestGetNodeInfoGrpc(t *testing.T) {
+	pubKey := "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256"
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockLightningClient(ctrl)
+	data, api := commonGrpc(t, "graph_node", m)
+
+	var info *lnrpc.NodeInfo
+	err := json.Unmarshal(data, &info)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal info: %v", err)
+		return
+	}
+
+	m.
+		EXPECT().
+		GetNodeInfo(gomock.Any(), gomock.Eq(&lnrpc.NodeInfoRequest{PubKey: pubKey, IncludeChannels: true})).
+		Return(info, nil)
+
+	resp, err := api.GetNodeInfo(context.Background(), pubKey, true)
+	if err != nil {
+		t.Fatalf("Failed to call DescribeGraph %v", err)
+		return
+	}
+
+	if resp == nil {
+		t.Fatalf("Bad response")
+	}
+
+	if resp.Node.PubKey != pubKey || resp.Node.Alias != "CrazyConqueror" {
+		t.Fatalf("GetNodeInfo got wrong response: %v", resp)
+		return
+	}
+
+	if len(resp.Channels) != int(resp.NumChannels) {
+		t.Fatalf("GetNodeInfo got wrong channel response: %v", resp)
+		return
+	}
+}
+
+func TestGetChanInfoGrpc(t *testing.T) {
+	pubKey := "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256"
+	chanid := uint64(810130063083110402)
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockLightningClient(ctrl)
+	data, api := commonGrpc(t, "graph_edge", m)
+
+	var channel *lnrpc.ChannelEdge
+	err := json.Unmarshal(data, &channel)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal info: %v", err)
+		return
+	}
+
+	m.
+		EXPECT().
+		GetChanInfo(gomock.Any(), gomock.Eq(&lnrpc.ChanInfoRequest{ChanId: chanid})).
+		Return(channel, nil)
+
+	resp, err := api.GetChanInfo(context.Background(), chanid)
+	if err != nil {
+		t.Fatalf("Failed to call GetChanInfo %v", err)
+		return
+	}
+
+	if resp == nil {
+		t.Fatalf("Bad response")
+	}
+
+	if resp.ChannelId != chanid || resp.ChanPoint != "72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2" || (resp.Node1Pub != pubKey && resp.Node2Pub != pubKey) {
+		t.Fatalf("GetChanInfo got wrong response: %v", resp)
 	}
 }

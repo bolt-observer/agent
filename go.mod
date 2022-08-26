@@ -3,13 +3,14 @@ module github.com/bolt-observer/agent
 go 1.18
 
 require (
-	github.com/bolt-observer/go_common v0.0.3
+	github.com/bolt-observer/go_common v0.0.4
 	github.com/btcsuite/btcd/btcutil v1.1.1
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang/glog v1.0.0
 	github.com/golang/mock v1.6.0
 	github.com/lightningnetwork/lnd v0.15.0-beta
 	github.com/marpaia/graphite-golang v0.0.0-20190519024811-caf161d2c2b1
+	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/urfave/cli v1.22.4
 	google.golang.org/grpc v1.38.0
 	gopkg.in/macaroon.v2 v2.0.0

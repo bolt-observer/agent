@@ -1,4 +1,4 @@
-package channelchecker
+package nodeinfo
 
 import (
 	"sync"
@@ -49,11 +49,10 @@ func (s *GlobalSettings) Delete(key string) {
 }
 
 type Settings struct {
-	identifier     entities.NodeIdentifier
-	settings       entities.ReportingSettings
-	lastCheck      time.Time
-	lastGraphCheck time.Time
-	lastReport     time.Time
-	callback       entities.BalanceReportCallback
-	getApi         entities.NewApiCall
+	identifier entities.NodeIdentifier
+	lastCheck  time.Time
+	callback   entities.InfoCallback
+	hash       uint64
+	getApi     entities.NewApiCall
+	interval   entities.Interval
 }

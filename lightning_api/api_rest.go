@@ -2,6 +2,7 @@ package lightning_api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -28,9 +29,10 @@ func NewLndRestLightningApi(getData GetDataCall) LightingApiCalls {
 	api.SetTransport(transport)
 
 	return &LndRestLightningApi{
-		Request:   request,
-		Transport: transport,
-		HttpApi:   api,
+		Request:      request,
+		Transport:    transport,
+		HttpApi:      api,
+		LightningApi: LightningApi{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
 
@@ -135,21 +137,13 @@ func (l *LndRestLightningApi) DescribeGraph(ctx context.Context, unannounced boo
 	nodes := make([]DescribeGraphNodeApi, 0)
 
 	for _, node := range resp.GraphNodeOverride {
-		nodes = append(nodes, DescribeGraphNodeApi{PubKey: node.PubKey, Alias: node.Alias})
+		nodes = append(nodes, l.convertNode(node))
 	}
 
-	channels := make([]DescribeGraphChannelApi, 0)
+	channels := make([]NodeChannelApi, 0)
 
 	for _, edge := range resp.GraphEdgesOverride {
-		channels = append(channels, DescribeGraphChannelApi{
-			ChannelId:   stringToUint64(edge.ChannelId),
-			ChanPoint:   edge.ChanPoint,
-			Node1Pub:    edge.Node1Pub,
-			Node2Pub:    edge.Node2Pub,
-			Capacity:    stringToUint64(edge.Capacity),
-			Node1Policy: toPolicyWeb(edge.Node1Policy),
-			Node2Policy: toPolicyWeb(edge.Node2Policy),
-		})
+		channels = append(channels, l.convertChan(edge))
 	}
 
 	ret := &DescribeGraphApi{
@@ -158,4 +152,56 @@ func (l *LndRestLightningApi) DescribeGraph(ctx context.Context, unannounced boo
 	}
 
 	return ret, nil
+}
+
+func (l *LndRestLightningApi) convertNode(node *GraphNodeOverride) DescribeGraphNodeApi {
+	addresses := make([]NodeAddressApi, 0)
+	for _, addr := range node.Addresses {
+		addresses = append(addresses, NodeAddressApi{Addr: addr.Addr, Network: addr.Network})
+	}
+
+	features := make(map[string]NodeFeatureApi)
+	for id, feat := range node.Features {
+		features[fmt.Sprintf("%d", id)] = NodeFeatureApi{Name: feat.Name, IsRequired: feat.IsRequired, IsKnown: feat.IsKnown}
+	}
+
+	return DescribeGraphNodeApi{PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Features: features, Addresses: addresses}
+}
+
+func (l *LndRestLightningApi) convertChan(edge *GraphEdgeOverride) NodeChannelApi {
+	return NodeChannelApi{
+		ChannelId:   stringToUint64(edge.ChannelId),
+		ChanPoint:   edge.ChanPoint,
+		Node1Pub:    edge.Node1Pub,
+		Node2Pub:    edge.Node2Pub,
+		Capacity:    stringToUint64(edge.Capacity),
+		Node1Policy: toPolicyWeb(edge.Node1Policy),
+		Node2Policy: toPolicyWeb(edge.Node2Policy),
+	}
+}
+
+func (l *LndRestLightningApi) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoApi, error) {
+	resp, err := l.HttpApi.HttpGetNodeInfo(ctx, l.Request, l.Transport, pubKey, channels)
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make([]NodeChannelApi, 0)
+
+	for _, edge := range resp.Channels {
+		ch = append(ch, l.convertChan(edge))
+	}
+
+	ret := &NodeInfoApi{Node: l.convertNode(resp.Node), Channels: ch, NumChannels: uint32(resp.NumChannels), TotalCapacity: stringToUint64(resp.TotalCapacity)}
+
+	return ret, nil
+}
+
+func (l *LndRestLightningApi) GetChanInfo(ctx context.Context, chanId uint64) (*NodeChannelApi, error) {
+	resp, err := l.HttpApi.HttpGetChanInfo(ctx, l.Request, l.Transport, chanId)
+	if err != nil {
+		return nil, err
+	}
+	ret := l.convertChan(resp)
+	return &ret, nil
 }
