@@ -195,12 +195,16 @@ func (c *NodeInfo) checkAll() bool {
 			}
 
 			if resp != nil {
-				go func(c *NodeInfo, resp *entities.InfoReport, s Settings, one string) {
-					s.callback(c.ctx, resp)
-				}(c, resp, s, one)
+				go func(c *NodeInfo, resp *entities.InfoReport, s Settings, one string, hash uint64) {
+					if s.callback(c.ctx, resp) {
+						// Update hash only upon success
+						s.hash = hash
+						s.lastCheck = now
+						c.globalSettings.Set(one, s)
+					}
+				}(c, resp, s, one, hash)
 			}
 
-			s.hash = hash
 			s.lastCheck = now
 			c.globalSettings.Set(one, s)
 		}
