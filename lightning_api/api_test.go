@@ -190,9 +190,9 @@ func (m *MockLightningApi) DescribeGraph(ctx context.Context, unannounced bool) 
 	m.Trace += "describegraph" + strconv.FormatBool(unannounced)
 
 	return &DescribeGraphApi{Nodes: []DescribeGraphNodeApi{{PubKey: "fake"}},
-		Channels: []NodeChannelApi{{ChannelId: 1, Capacity: 1}, {ChannelId: 2, Capacity: 2}}}, nil
+		Channels: []NodeChannelApi{{ChannelId: 1, Capacity: 1, Node1Pub: "fake"}, {ChannelId: 2, Capacity: 2, Node2Pub: "fake"}}}, nil
 }
-func (m *MockLightningApi) GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoApi, error) {
+func (m *MockLightningApi) GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoApiExtended, error) {
 	// Do not use
 	m.Trace += "wrong"
 	return nil, nil
@@ -219,6 +219,11 @@ func TestNodeInfoFull(t *testing.T) {
 	}
 	if resp.Node.PubKey != "fake" || resp.NumChannels != 2 || resp.TotalCapacity != 3 {
 		t.Fatalf("Wrong data returned")
+		return
+	}
+
+	if resp.Channels[0].Private || !resp.Channels[1].Private {
+		t.Fatalf("Wrong private data returned")
 		return
 	}
 
@@ -257,6 +262,16 @@ func TestNodeInfoFullWithDescribeGraph(t *testing.T) {
 
 	if strings.Contains(mock.Trace, "getchaninfo") {
 		t.Fatalf("GetChanInfo was invoked")
+		return
+	}
+
+	if resp.Node.PubKey != "fake" || resp.NumChannels != 2 || resp.TotalCapacity != 3 {
+		t.Fatalf("Wrong data returned")
+		return
+	}
+
+	if resp.Channels[0].Private || !resp.Channels[1].Private {
+		t.Fatalf("Wrong private data returned")
 		return
 	}
 }

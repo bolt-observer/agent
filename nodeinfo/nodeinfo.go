@@ -242,9 +242,9 @@ func (c *NodeInfo) checkOne(
 	}
 
 	ret := &entities.InfoReport{
-		UniqueId:    identifier.UniqueId,
-		Timestamp:   entities.JsonTime(time.Now()),
-		NodeInfoApi: *info,
+		UniqueId:            identifier.UniqueId,
+		Timestamp:           entities.JsonTime(time.Now()),
+		NodeInfoApiExtended: *info,
 	}
 
 	return ret, nil
