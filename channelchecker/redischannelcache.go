@@ -2,7 +2,9 @@ package channelchecker
 
 import (
 	"fmt"
+	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +22,12 @@ func (c *RedisChannelCache) Unlock() {
 
 func (c *RedisChannelCache) Get(name string) (string, bool) {
 	id := fmt.Sprintf("%s_%s", c.env, name)
+	err := c.client.Exists(id).Err()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Redis Get error %v\n", err)
+		return "", false
+	}
+
 	exists := c.client.Exists(id).Val() > 0
 	if !exists {
 		return "", false
@@ -30,7 +38,10 @@ func (c *RedisChannelCache) Get(name string) (string, bool) {
 
 func (c *RedisChannelCache) Set(name string, value string) {
 	id := fmt.Sprintf("%s_%s", c.env, name)
-	c.client.Set(id, value, 0*time.Second)
+	status := c.client.Set(id, value, 0*time.Second)
+	if status.Err() != nil {
+		fmt.Fprintf(os.Stderr, "Redis Set error %v\n", status.Err())
+	}
 }
 
 type RedisChannelCache struct {
@@ -40,6 +51,13 @@ type RedisChannelCache struct {
 	deferredCache      map[string]OldNewVal
 }
 
+func sanitizeUrl(url string) string {
+	san := strings.ReplaceAll(strings.ToLower(url), "redis://", "")
+	split := strings.Split(san, "/")
+
+	return split[0]
+}
+
 func NewRedisChannelCache() *RedisChannelCache {
 	db, err := strconv.Atoi(utils.GetEnvWithDefault("REDIS_DB", "1"))
 	if err != nil {
@@ -47,8 +65,9 @@ func NewRedisChannelCache() *RedisChannelCache {
 		return nil
 	}
 
+	addr := sanitizeUrl(utils.GetEnvWithDefault("REDIS_URL", "redis://127.0.0.1:6379"))
 	client := redis.NewClient(&redis.Options{
-		Addr:     utils.GetEnvWithDefault("REDIS_URL", "localhost:6379"),
+		Addr:     addr,
 		Password: utils.GetEnvWithDefault("REDIS_PASSWORD", ""),
 		DB:       db,
 	})
@@ -58,6 +77,11 @@ func NewRedisChannelCache() *RedisChannelCache {
 		env:                utils.GetEnvWithDefault("ENV", "develop"),
 		deferredCacheMutex: sync.Mutex{},
 		deferredCache:      make(map[string]OldNewVal),
+	}
+
+	if client.Info().Err() != nil {
+		fmt.Fprintf(os.Stderr, "Redis seems to be not usable %s\n", addr)
+		return nil
 	}
 
 	return resp

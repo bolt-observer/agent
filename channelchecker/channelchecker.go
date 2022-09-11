@@ -538,6 +538,7 @@ func (c *ChannelChecker) filterList(
 				one.NominatorDiff = 0
 				one.DenominatorDiff = 0
 				one.ActivePrevious = true
+				fmt.Fprintf(os.Stderr, "Error %v happened - val was %v\n", err, val)
 			} else {
 				one.NominatorDiff = int64(one.Nominator) - int64(oldNom)
 				one.DenominatorDiff = int64(one.Denominator) - int64(oldDenom)
