@@ -277,6 +277,29 @@ func getInterval(ctx *cli.Context, name string) (agent_entities.Interval, error)
 	return i, nil
 }
 
+func redirectPost(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+
+	lastReq := via[len(via)-1]
+	if (req.Response.StatusCode == 301 || req.Response.StatusCode == 302) && lastReq.Method == http.MethodPost {
+		req.Method = http.MethodPost
+
+		// Get the body of the original request, set here, since req.Body will be nil if a 302 was returned
+		if via[0].GetBody != nil {
+			var err error
+			req.Body, err = via[0].GetBody()
+			if err != nil {
+				return err
+			}
+			req.ContentLength = via[0].ContentLength
+		}
+	}
+
+	return nil
+}
+
 func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	rep, err := json.Marshal(report)
 	if err != nil {
@@ -300,6 +323,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	req.Header.Set("Content-Type", "application/json")
 
 	client := http.DefaultClient
+	client.CheckRedirect = redirectPost
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -347,6 +371,7 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	req.Header.Set("Content-Type", "application/json")
 
 	client := http.DefaultClient
+	client.CheckRedirect = redirectPost
 
 	resp, err := client.Do(req)
 	if err != nil {
