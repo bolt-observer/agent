@@ -15,6 +15,7 @@ import (
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
 	api "github.com/bolt-observer/agent/lightning_api"
+	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/golang/glog"
 )
@@ -473,7 +474,7 @@ func (c *ChannelChecker) checkOne(
 		Network:           info.Network,
 		PubKey:            identifier.Identifier,
 		UniqueId:          identifier.UniqueId,
-		Timestamp:         entities.JsonTime(time.Now()),
+		Timestamp:         common_entities.JsonTime(time.Now()),
 		ChangedChannels:   channelList,
 		ClosedChannels:    closedChannels,
 	}

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	entities "github.com/bolt-observer/go_common/entities"
 	"github.com/golang/glog"
 )
 
@@ -122,7 +123,7 @@ func toPolicyWeb(policy *RoutingPolicyOverride) *RoutingPolicyApi {
 		BaseFee:       stringToUint64(policy.FeeBaseMsat),
 		FeeRate:       stringToUint64(policy.FeeRateMilliMsat),
 		Disabled:      policy.Disabled,
-		LastUpdate:    time.Unix(int64(policy.LastUpdate), 0),
+		LastUpdate:    entities.JsonTime(time.Unix(int64(policy.LastUpdate), 0)),
 		MaxHtlc:       stringToUint64(policy.MaxHtlcMsat),
 	}
 }

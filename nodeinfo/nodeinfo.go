@@ -12,6 +12,7 @@ import (
 
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
+	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/golang/glog"
 	"github.com/mitchellh/hashstructure/v2"
@@ -243,7 +244,7 @@ func (c *NodeInfo) checkOne(
 
 	ret := &entities.InfoReport{
 		UniqueId:            identifier.UniqueId,
-		Timestamp:           entities.JsonTime(time.Now()),
+		Timestamp:           common_entities.JsonTime(time.Now()),
 		NodeInfoApiExtended: *info,
 	}
 

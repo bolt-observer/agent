@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/bolt-observer/go_common/entities"
 	"github.com/golang/glog"
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
@@ -116,7 +117,7 @@ func toPolicy(policy *lnrpc.RoutingPolicy) *RoutingPolicyApi {
 		BaseFee:       uint64(policy.FeeBaseMsat),
 		FeeRate:       uint64(policy.FeeRateMilliMsat),
 		Disabled:      policy.Disabled,
-		LastUpdate:    time.Unix(int64(policy.LastUpdate), 0),
+		LastUpdate:    entities.JsonTime(time.Unix(int64(policy.LastUpdate), 0)),
 		MaxHtlc:       policy.MaxHtlcMsat,
 	}
 }

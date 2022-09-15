@@ -3,9 +3,10 @@ package entities
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
+
+	entities "github.com/bolt-observer/go_common/entities"
 )
 
 type Interval int
@@ -75,23 +76,6 @@ func (i *Interval) UnmarshalJSON(s []byte) (err error) {
 
 type BalanceReportCallback func(ctx context.Context, report *ChannelBalanceReport) bool
 
-type JsonTime time.Time
-
-func (t JsonTime) MarshalJSON() ([]byte, error) {
-	return []byte(strconv.FormatInt(time.Time(t).Unix(), 10)), nil
-}
-
-func (t *JsonTime) UnmarshalJSON(s []byte) (err error) {
-	r := strings.Replace(string(s), `"`, ``, -1)
-
-	q, err := strconv.ParseInt(r, 10, 64)
-	if err != nil {
-		return err
-	}
-	*(*time.Time)(t) = time.Unix(q, 0)
-	return
-}
-
 type ReportingSettings struct {
 	GraphPollInterval    time.Duration `json:"-"`
 	NoopInterval         time.Duration `json:"-"` // If that much time has passed send null report
@@ -102,13 +86,13 @@ type ReportingSettings struct {
 
 type ChannelBalanceReport struct {
 	ReportingSettings
-	Chain           string           `json:"chain"`   // should be bitcoin (bitcoin, litecoin)
-	Network         string           `json:"network"` // should be mainnet (regtest, testnet, mainnet)
-	PubKey          string           `json:"pubkey"`
-	UniqueId        string           `json:"uniqueId,omitempty"` // optional unique identifier
-	Timestamp       JsonTime         `json:"timestamp"`
-	ChangedChannels []ChannelBalance `json:"changed_channels"`
-	ClosedChannels  []ClosedChannel  `json:"closed_channels"`
+	Chain           string            `json:"chain"`   // should be bitcoin (bitcoin, litecoin)
+	Network         string            `json:"network"` // should be mainnet (regtest, testnet, mainnet)
+	PubKey          string            `json:"pubkey"`
+	UniqueId        string            `json:"uniqueId,omitempty"` // optional unique identifier
+	Timestamp       entities.JsonTime `json:"timestamp"`
+	ChangedChannels []ChannelBalance  `json:"changed_channels"`
+	ClosedChannels  []ClosedChannel   `json:"closed_channels"`
 }
 
 type ClosedChannel struct {

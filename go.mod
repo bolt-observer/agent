@@ -3,7 +3,7 @@ module github.com/bolt-observer/agent
 go 1.18
 
 require (
-	github.com/bolt-observer/go_common v0.0.4
+	github.com/bolt-observer/go_common v0.0.5
 	github.com/btcsuite/btcd/btcutil v1.1.1
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang/glog v1.0.0

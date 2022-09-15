@@ -3,7 +3,6 @@ package lightning_api
 import (
 	"context"
 	"fmt"
-	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
 )
@@ -96,13 +95,13 @@ type NodeChannelApi struct {
 }
 
 type RoutingPolicyApi struct {
-	TimeLockDelta uint32    `json:"time_lock_delta,omitempty"`
-	MinHtlc       uint64    `json:"min_htlc,omitempty"`
-	BaseFee       uint64    `json:"fee_base_msat,omitempty"`
-	FeeRate       uint64    `json:"fee_rate_milli_msat,omitempty"`
-	Disabled      bool      `json:"disabled,omitempty"`
-	LastUpdate    time.Time `json:"-"`
-	MaxHtlc       uint64    `json:"max_htlc_msat,omitempty"`
+	TimeLockDelta uint32            `json:"time_lock_delta,omitempty"`
+	MinHtlc       uint64            `json:"min_htlc,omitempty"`
+	BaseFee       uint64            `json:"fee_base_msat,omitempty"`
+	FeeRate       uint64            `json:"fee_rate_milli_msat,omitempty"`
+	Disabled      bool              `json:"disabled,omitempty"`
+	LastUpdate    entities.JsonTime `json:"last_update,omitempty"`
+	MaxHtlc       uint64            `json:"max_htlc_msat,omitempty"`
 }
 
 type NodeInfoApi struct {
