@@ -1034,7 +1034,7 @@ func TestBasicFlowRedis(t *testing.T) {
 	mr := miniredis.RunT(t)
 	mr.Addr()
 
-	err := os.Setenv("REDIS_URL", mr.Addr())
+	err := os.Setenv("REDIS_URL", fmt.Sprintf("redis://%s/0", mr.Addr()))
 	if err != nil {
 		t.Fatalf("Could not set REDIS_URL")
 		return
