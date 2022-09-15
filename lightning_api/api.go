@@ -66,11 +66,12 @@ type DescribeGraphApi struct {
 }
 
 type DescribeGraphNodeApi struct {
-	PubKey    string                    `json:"pub_key,omitempty"`
-	Alias     string                    `json:"alias,omitempty"`
-	Color     string                    `json:"color,omitempty"`
-	Addresses []NodeAddressApi          `json:"addresses,omitempty"`
-	Features  map[string]NodeFeatureApi `json:"features,omitempty"`
+	PubKey     string                    `json:"pub_key,omitempty"`
+	Alias      string                    `json:"alias,omitempty"`
+	Color      string                    `json:"color,omitempty"`
+	Addresses  []NodeAddressApi          `json:"addresses,omitempty"`
+	Features   map[string]NodeFeatureApi `json:"features,omitempty"`
+	LastUpdate entities.JsonTime         `json:"last_update,omitempty"`
 }
 
 type NodeAddressApi struct {
@@ -92,6 +93,7 @@ type NodeChannelApi struct {
 	Capacity    uint64            `json:"capacity,omitempty"`
 	Node1Policy *RoutingPolicyApi `json:"node1_policy,omitempty"`
 	Node2Policy *RoutingPolicyApi `json:"node2_policy,omitempty"`
+	LastUpdate  entities.JsonTime `json:"last_update,omitempty"`
 }
 
 type RoutingPolicyApi struct {

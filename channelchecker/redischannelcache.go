@@ -3,14 +3,11 @@ package channelchecker
 import (
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/go-redis/redis"
-	"github.com/golang/glog"
 )
 
 func (c *RedisChannelCache) Lock() {
@@ -51,26 +48,16 @@ type RedisChannelCache struct {
 	deferredCache      map[string]OldNewVal
 }
 
-func sanitizeUrl(url string) string {
-	san := strings.ReplaceAll(strings.ToLower(url), "redis://", "")
-	split := strings.Split(san, "/")
-
-	return split[0]
-}
-
 func NewRedisChannelCache() *RedisChannelCache {
-	db, err := strconv.Atoi(utils.GetEnvWithDefault("REDIS_DB", "1"))
+	url := utils.GetEnvWithDefault("REDIS_URL", "redis://127.0.0.1:6379/1")
+
+	opts, err := redis.ParseURL(url)
 	if err != nil {
-		glog.Warningf("Error %+v\n", err)
+		fmt.Fprintf(os.Stderr, "Redis url is bad %s\n", url)
 		return nil
 	}
 
-	addr := sanitizeUrl(utils.GetEnvWithDefault("REDIS_URL", "redis://127.0.0.1:6379"))
-	client := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: utils.GetEnvWithDefault("REDIS_PASSWORD", ""),
-		DB:       db,
-	})
+	client := redis.NewClient(opts)
 
 	resp := &RedisChannelCache{
 		client:             client,
@@ -80,7 +67,7 @@ func NewRedisChannelCache() *RedisChannelCache {
 	}
 
 	if client.Info().Err() != nil {
-		fmt.Fprintf(os.Stderr, "Redis seems to be not usable %s\n", addr)
+		fmt.Fprintf(os.Stderr, "Redis seems to be not usable %s\n", url)
 		return nil
 	}
 

@@ -160,7 +160,8 @@ func (l *LndGrpcLightningApi) convertNode(node *lnrpc.LightningNode) DescribeGra
 		features[fmt.Sprintf("%d", id)] = NodeFeatureApi{Name: feat.Name, IsRequired: feat.IsRequired, IsKnown: feat.IsKnown}
 	}
 
-	return DescribeGraphNodeApi{PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Addresses: addresses, Features: features}
+	return DescribeGraphNodeApi{PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Addresses: addresses, Features: features,
+		LastUpdate: entities.JsonTime(time.Unix(int64(node.LastUpdate), 0))}
 }
 
 func (l *LndGrpcLightningApi) convertChan(edge *lnrpc.ChannelEdge) NodeChannelApi {
@@ -172,6 +173,7 @@ func (l *LndGrpcLightningApi) convertChan(edge *lnrpc.ChannelEdge) NodeChannelAp
 		Capacity:    uint64(edge.Capacity),
 		Node1Policy: toPolicy(edge.Node1Policy),
 		Node2Policy: toPolicy(edge.Node2Policy),
+		LastUpdate:  entities.JsonTime(time.Unix(int64(edge.LastUpdate), 0)),
 	}
 }
 
