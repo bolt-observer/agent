@@ -97,13 +97,13 @@ type NodeChannelApi struct {
 }
 
 type RoutingPolicyApi struct {
-	TimeLockDelta uint32            `json:"time_lock_delta,omitempty"`
-	MinHtlc       uint64            `json:"min_htlc,omitempty"`
-	BaseFee       uint64            `json:"fee_base_msat,omitempty"`
-	FeeRate       uint64            `json:"fee_rate_milli_msat,omitempty"`
+	TimeLockDelta uint32            `json:"time_lock_delta"`
+	MinHtlc       uint64            `json:"min_htlc"`
+	BaseFee       uint64            `json:"fee_base_msat"`
+	FeeRate       uint64            `json:"fee_rate_milli_msat"`
 	Disabled      bool              `json:"disabled,omitempty"`
 	LastUpdate    entities.JsonTime `json:"last_update,omitempty"`
-	MaxHtlc       uint64            `json:"max_htlc_msat,omitempty"`
+	MaxHtlc       uint64            `json:"max_htlc_msat"`
 }
 
 type NodeInfoApi struct {
