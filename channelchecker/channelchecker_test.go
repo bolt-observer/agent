@@ -152,6 +152,14 @@ func initTest(t *testing.T) (string, lightning_api.LightingApiCalls, *lightning_
 	return pubKey, api, d
 }
 
+func TestRemoveQueryParams(t *testing.T) {
+	if removeQueryParams("rediss://burek:6379?ssl_cert_reqs=none") !=
+		"rediss://burek:6379" {
+		t.Fatalf("Query string still present")
+	}
+
+}
+
 func TestBasicFlow(t *testing.T) {
 	pubKey, api, d := initTest(t)
 

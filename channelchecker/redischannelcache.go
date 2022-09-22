@@ -2,6 +2,7 @@ package channelchecker
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"sync"
 	"time"
@@ -48,12 +49,21 @@ type RedisChannelCache struct {
 	deferredCache      map[string]OldNewVal
 }
 
+func removeQueryParams(in string) string {
+	u, err := url.Parse(in)
+	if err != nil {
+		return in
+	}
+	u.RawQuery = ""
+	return u.String()
+}
+
 func NewRedisChannelCache() *RedisChannelCache {
-	url := utils.GetEnvWithDefault("REDIS_URL", "redis://127.0.0.1:6379/1")
+	url := removeQueryParams(utils.GetEnvWithDefault("REDIS_URL", "redis://127.0.0.1:6379/1"))
 
 	opts, err := redis.ParseURL(url)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Redis url is bad %s\n", url)
+		fmt.Fprintf(os.Stderr, "Redis url is bad %s %v\n", url, err)
 		return nil
 	}
 
