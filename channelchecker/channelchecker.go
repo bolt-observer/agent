@@ -424,6 +424,11 @@ func (c *ChannelChecker) checkOne(
 	metricsName := fmt.Sprintf("checkone.%s", identifier.GetId())
 	defer c.monitoring.MetricsTimer(metricsName)()
 
+	if getApi == nil {
+		c.monitoring.MetricsReport(metricsName, "failure")
+		return nil, fmt.Errorf("failed to get client")
+	}
+
 	api := getApi()
 	if api == nil {
 		c.monitoring.MetricsReport(metricsName, "failure")
