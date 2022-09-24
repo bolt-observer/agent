@@ -241,6 +241,9 @@ func (c *NodeInfo) checkOne(
 	if err != nil {
 		return nil, fmt.Errorf("failed to call GetNodeInfoFull %v", err)
 	}
+	if len(info.Channels) != int(info.NumChannels) {
+		return nil, fmt.Errorf("bad NodeInfo obtained %d channels vs. num_channels %d - %v", len(info.Channels), info.NumChannels, info)
+	}
 
 	ret := &entities.InfoReport{
 		UniqueId:            identifier.UniqueId,

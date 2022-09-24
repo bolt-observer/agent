@@ -176,8 +176,8 @@ func getNodeInfoFull(l LightingApiCalls, threshUseDescribeGraph int, ctx context
 		numChans += 1
 	}
 
-	nodeInfo.NumChannels = uint32(numChans)
-	nodeInfo.TotalCapacity = totalCapacity
+	extendedNodeInfo.NumChannels = uint32(numChans)
+	extendedNodeInfo.TotalCapacity = totalCapacity
 
 	if !channels {
 		return extendedNodeInfo, nil
