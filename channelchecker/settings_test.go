@@ -36,8 +36,4 @@ func TestDeleteInTheMiddle(t *testing.T) {
 	if s.identifier.UniqueId != "1337" {
 		t.Fatalf("Wrong stuff returned")
 	}
-
-	s.getApi()
-
-	t.Fatalf("fail at the end")
 }
