@@ -654,14 +654,14 @@ func TestChange(t *testing.T) {
 					t.Fatalf("Bad step 0")
 				}
 			case 1:
-				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].Nominator == 1339 && report.ChangedChannels[0].NominatorDiff == 2 {
+				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].RemoteNominator == 1339 && report.ChangedChannels[0].RemoteNominatorDiff == 2 {
 					step += 1
 				} else {
 					cancel()
 					t.Fatalf("Bad step 1")
 				}
 			case 2:
-				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].Nominator == 1337 && report.ChangedChannels[0].NominatorDiff == -2 {
+				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].RemoteNominator == 1337 && report.ChangedChannels[0].RemoteNominatorDiff == -2 {
 					step += 1
 					cancel()
 				} else {
@@ -938,7 +938,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 					t.Fatalf("Bad step 0")
 				}
 			case 1:
-				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].Nominator == 1338 && report.ChangedChannels[0].NominatorDiff == 1 {
+				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].RemoteNominator == 1338 && report.ChangedChannels[0].RemoteNominatorDiff == 1 {
 					step += 1
 				} else {
 					cancel()
@@ -947,7 +947,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 				// Fail on purpose
 				return false
 			case 2:
-				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].Nominator == 1339 && report.ChangedChannels[0].NominatorDiff == 2 {
+				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].RemoteNominator == 1339 && report.ChangedChannels[0].RemoteNominatorDiff == 2 {
 					step += 1
 					cancel()
 				} else {
