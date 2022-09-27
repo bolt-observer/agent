@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/bolt-observer/go_common v0.0.5
 	github.com/btcsuite/btcd/btcutil v1.1.1
+	github.com/getsentry/sentry-go v0.13.0
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang/glog v1.0.0
 	github.com/golang/mock v1.6.0

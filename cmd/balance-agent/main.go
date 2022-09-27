@@ -445,7 +445,10 @@ func checker(ctx *cli.Context) error {
 		c.GetState("", ctx.String("uniqueId"), mkGetLndApi(ctx), settings, balanceCallback)
 	} else {
 		if ctx.Bool("private") {
-			infochecker.Subscribe("", ctx.String("uniqueId"), nodeinterval, mkGetLndApi(ctx), infoCallback)
+			err := infochecker.Subscribe("", ctx.String("uniqueId"), nodeinterval, mkGetLndApi(ctx), infoCallback)
+			if err != nil {
+				return err
+			}
 		} else {
 			// If you don't allow private data then treat nodeinfo as already reported
 			n := agent_entities.NodeIdentifier{Identifier: "", UniqueId: ctx.String("uniqueId")}

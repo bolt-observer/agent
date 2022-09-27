@@ -17,6 +17,7 @@ import (
 	api "github.com/bolt-observer/agent/lightning_api"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
+	"github.com/getsentry/sentry-go"
 	"github.com/golang/glog"
 )
 
@@ -383,11 +384,13 @@ func (c *ChannelChecker) checkAll() bool {
 			ignoreCache := toBeCheckedBy.Year() <= 1
 			resp, err := c.checkOne(s.identifier, s.getApi, s.settings, ignoreCache, reportAnyway)
 			if err != nil {
+				sentry.CaptureException(err)
 				glog.Warningf("Check failed: %v", err)
 				continue
 			}
 
 			if resp != nil && s.identifier.Identifier != "" && !strings.EqualFold(resp.PubKey, s.identifier.Identifier) {
+				sentry.CaptureMessage(fmt.Sprintf("PubKey mismatch %s vs %s", resp.PubKey, s.identifier.Identifier))
 				glog.Warningf("PubKey mismatch %s vs %s", resp.PubKey, s.identifier.Identifier)
 				continue
 			}
