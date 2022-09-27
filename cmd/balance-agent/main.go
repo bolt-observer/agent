@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/user"
@@ -262,6 +261,8 @@ func getApp() *cli.App {
 		},
 	}
 
+	app.Flags = append(app.Flags, glogFlags...)
+
 	return app
 }
 
@@ -303,14 +304,14 @@ func redirectPost(req *http.Request, via []*http.Request) error {
 func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	rep, err := json.Marshal(report)
 	if err != nil {
-		fmt.Printf("Error marshalling report: %v\n", err)
+		glog.Warningf("Error marshalling report: %v\n", err)
 		return false
 	}
 
 	n := agent_entities.NodeIdentifier{Identifier: report.Node.PubKey, UniqueId: report.UniqueId}
 
 	if nodeurl == "" {
-		glog.Infof("Sent out callback %s\n", string(rep))
+		glog.V(2).Infof("Sent out callback %s\n", string(rep))
 		nodeInfoReported.Store(n.GetId(), struct{}{})
 		return true
 	}
@@ -336,7 +337,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 		return false
 	}
 
-	glog.Infof("Sent out callback %s\n", string(rep))
+	glog.V(2).Infof("Sent out callback %s\n", string(rep))
 	nodeInfoReported.Store(n.GetId(), struct{}{})
 
 	return true
@@ -348,18 +349,18 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueId: report.UniqueId}
 	_, ok := nodeInfoReported.Load(n.GetId())
 	if !ok {
-		glog.Warningf("Node data for %s was not reported yet", n.GetId())
+		glog.V(3).Infof("Node data for %s was not reported yet", n.GetId())
 		return false
 	}
 
 	rep, err := json.Marshal(report)
 	if err != nil {
-		fmt.Printf("Error marshalling report: %v\n", err)
+		glog.Warningf("Error marshalling report: %v\n", err)
 		return false
 	}
 
 	if url == "" {
-		glog.Infof("Sent out callback %s\n", string(rep))
+		glog.V(2).Infof("Sent out callback %s\n", string(rep))
 		return true
 	}
 
@@ -384,7 +385,7 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 		return false
 	}
 
-	glog.Infof("Sent out callback %s\n", string(rep))
+	glog.V(2).Infof("Sent out callback %s\n", string(rep))
 
 	return true
 }
@@ -463,7 +464,7 @@ func checker(ctx *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Waiting for events...")
+		glog.Info("Waiting for events...")
 		utils.WaitAll(infochecker, c)
 	}
 
@@ -474,9 +475,16 @@ func main() {
 	app := getApp()
 	app.Name = "balance-agent"
 	app.Usage = "Utility to monitor channel balances"
-	app.Action = checker
+	app.Action = func(c *cli.Context) error {
+		glogShim(c)
+		if err := checker(c); err != nil {
+			return err
+		}
+
+		return nil
+	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
+		glog.Error(err)
 	}
 }

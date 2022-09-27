@@ -260,7 +260,7 @@ func getContext() context.Context {
 		for {
 			select {
 			case sig := <-sigc:
-				fmt.Printf("%v received!\n", sig)
+				glog.Info("%v received!\n", sig)
 				cancel()
 			default:
 				time.Sleep(10 * time.Millisecond)
@@ -553,7 +553,7 @@ func (c *ChannelChecker) filterList(
 				one.LocalNominatorDiff = 0
 				one.DenominatorDiff = 0
 				one.ActivePrevious = true
-				fmt.Fprintf(os.Stderr, "Error %v happened - val was %v\n", err, val)
+				glog.V(3).Infof("Error %v happened - val was %v\n", err, val)
 			} else {
 				one.RemoteNominatorDiff = int64(one.RemoteNominator) - int64(oldRemoteNom)
 				one.LocalNominatorDiff = int64(one.LocalNominator) - int64(oldLocalNom)
