@@ -110,11 +110,14 @@ type ChannelBalance struct {
 	ChanId       uint64 `json:"chan_id"`
 	Capacity     uint64 `json:"capacity"`
 
-	Nominator   uint64 `json:"nominator"`
-	Denominator uint64 `json:"denominator"`
+	RemoteNominator uint64 `json:"remote_nominator"`
+	LocalNominator  uint64 `json:"local_nominator"`
+	Denominator     uint64 `json:"denominator"`
 
 	// Deprecated
-	NominatorDiff int64 `json:"nominator_diff"`
+	RemoteNominatorDiff int64 `json:"remote_nominator_diff"`
+	// Deprecated
+	LocalNominatorDiff int64 `json:"local_nominator_diff"`
 	// Deprecated
 	DenominatorDiff int64 `json:"denominator_diff"`
 
@@ -124,4 +127,8 @@ type ChannelBalance struct {
 	ActiveLocal          bool `json:"active_local"`
 	// Deprecated
 	ActiveLocalPrevious bool `json:"active_local_previous"`
+
+	// For backward compatibility - will be removed
+	Nominator     uint64 `json:"nominator"`
+	NominatorDiff int64  `json:"nominator_diff"`
 }

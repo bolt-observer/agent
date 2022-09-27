@@ -184,6 +184,7 @@ func (c *ChannelChecker) getChannelList(
 		chanIds[channel.ChanId] = struct{}{}
 
 		remoteBalance := channel.RemoteBalance
+		localBalance := channel.LocalBalance
 		capacity := uint64(channel.Capacity)
 
 		// The first misunderstanding here is assumption that always when remoteBalance goes up
@@ -198,15 +199,18 @@ func (c *ChannelChecker) getChannelList(
 				if htlc.Incoming {
 					// In case of incoming HTLC remoteBalance was already decreased
 					remoteBalance = utils.Min(capacity, remoteBalance+htlc.Amount)
+				} else {
+					localBalance = utils.Min(capacity, localBalance+htlc.Amount)
 				}
-				// in the other case localBalance was already decreased
-				// but this has no effect on remoteBalance!
 			}
 
 			// Smooth out commit fee
 			if !channel.Initiator {
 				// When the other side is initiator of the channel remoteBalance will fluctuate with commitFee
 				remoteBalance = utils.Min(capacity, remoteBalance+channel.CommitFee)
+			} else {
+				// Same for the local case
+				localBalance = utils.Min(capacity, localBalance+channel.CommitFee)
 			}
 		}
 
@@ -223,14 +227,15 @@ func (c *ChannelChecker) getChannelList(
 		_, remotlyDisabled := c.remotlyDisabled[channel.ChanId]
 
 		resp = append(resp, entities.ChannelBalance{
-			Active:       channel.Active,
-			Private:      channel.Private,
-			LocalPubkey:  info.IdentityPubkey,
-			RemotePubkey: channel.RemotePubkey,
-			ChanId:       channel.ChanId,
-			Capacity:     capacity,
-			Nominator:    uint64(math.Round(float64(remoteBalance) / factor)),
-			Denominator:  uint64(math.Round(float64(total) / factor)),
+			Active:          channel.Active,
+			Private:         channel.Private,
+			LocalPubkey:     info.IdentityPubkey,
+			RemotePubkey:    channel.RemotePubkey,
+			ChanId:          channel.ChanId,
+			Capacity:        capacity,
+			RemoteNominator: uint64(math.Round(float64(remoteBalance) / factor)),
+			LocalNominator:  uint64(math.Round(float64(localBalance) / factor)),
+			Denominator:     uint64(math.Round(float64(total) / factor)),
 
 			ActiveRemote: !remotlyDisabled,
 			ActiveLocal:  !locallyDisabled,
@@ -535,24 +540,28 @@ func (c *ChannelChecker) filterList(
 			}
 		*/
 
-		current := fmt.Sprintf("%v-%d-%d", one.Active, one.Nominator, one.Denominator)
+		current := fmt.Sprintf("%v-%d-%d-%d", one.Active, one.RemoteNominator, one.LocalNominator, one.Denominator)
 		if noop || !ok || val != current {
 
-			oldActive, oldNom, oldDenom, err := parseOldValLegacy(val)
+			oldActive, oldRemoteNom, oldLocalNom, oldDenom, err := parseOldValLegacy(val)
 
 			if err != nil {
-				one.NominatorDiff = 0
+				one.RemoteNominatorDiff = 0
+				one.LocalNominatorDiff = 0
 				one.DenominatorDiff = 0
 				one.ActivePrevious = true
 				fmt.Fprintf(os.Stderr, "Error %v happened - val was %v\n", err, val)
 			} else {
-				one.NominatorDiff = int64(one.Nominator) - int64(oldNom)
+				one.RemoteNominatorDiff = int64(one.RemoteNominator) - int64(oldRemoteNom)
+				one.LocalNominatorDiff = int64(one.LocalNominator) - int64(oldLocalNom)
 				one.DenominatorDiff = int64(one.Denominator) - int64(oldDenom)
 				one.ActivePrevious = oldActive
 			}
 
 			one.ActiveLocalPrevious = true
 			one.ActiveRemotePrevious = true
+
+			c.fillLegacyFields(&one)
 
 			resp = append(resp, one)
 
@@ -562,6 +571,12 @@ func (c *ChannelChecker) filterList(
 	}
 
 	return resp
+}
+
+// fillLegacyFields is deprecated and will be removed
+func (c *ChannelChecker) fillLegacyFields(balance *entities.ChannelBalance) {
+	balance.Nominator = balance.RemoteNominator
+	balance.NominatorDiff = balance.RemoteNominatorDiff
 }
 
 func (c *ChannelChecker) commitAllChanges(one string, now time.Time, s Settings) {
@@ -630,26 +645,31 @@ func parseOldVal(val string) (bool, uint64, uint64, bool, bool, error) {
 */
 
 // Deprecated
-func parseOldValLegacy(val string) (bool, uint64, uint64, error) {
+func parseOldValLegacy(val string) (bool, uint64, uint64, uint64, error) {
 	parsed := strings.Split(val, "-")
-	if len(parsed) != 3 {
-		return true, 0, 0, fmt.Errorf("bad old value: %v", val)
+	if len(parsed) != 4 {
+		return true, 0, 0, 0, fmt.Errorf("bad old value: %v", val)
 	}
 
 	b, err := strconv.ParseBool(parsed[0])
 	if err != nil {
-		return true, 0, 0, fmt.Errorf("bad old value: %v", val)
+		return true, 0, 0, 0, fmt.Errorf("bad old value: %v", val)
 	}
 
 	n1, err := strconv.ParseInt(parsed[1], 10, 64)
 	if err != nil {
-		return true, 0, 0, fmt.Errorf("bad old value: %v", val)
+		return true, 0, 0, 0, fmt.Errorf("bad old value: %v", val)
 	}
 
 	n2, err := strconv.ParseInt(parsed[2], 10, 64)
 	if err != nil {
-		return true, 0, 0, fmt.Errorf("bad old value: %v", val)
+		return true, 0, 0, 0, fmt.Errorf("bad old value: %v", val)
 	}
 
-	return b, uint64(n1), uint64(n2), nil
+	n3, err := strconv.ParseInt(parsed[3], 10, 64)
+	if err != nil {
+		return true, 0, 0, 0, fmt.Errorf("bad old value: %v", val)
+	}
+
+	return b, uint64(n1), uint64(n2), uint64(n3), nil
 }
