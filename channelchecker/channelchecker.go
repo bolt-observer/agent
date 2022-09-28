@@ -260,7 +260,7 @@ func getContext() context.Context {
 		for {
 			select {
 			case sig := <-sigc:
-				glog.Info("%v received!\n", sig)
+				glog.Infof("%v received!\n", sig)
 				cancel()
 			default:
 				time.Sleep(10 * time.Millisecond)
