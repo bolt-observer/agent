@@ -59,7 +59,7 @@ func (c *CheckerMonitoring) MetricsTimer(name string) func() {
 	return func() {
 		duration := time.Since(start)
 		g := c.graphite
-		glog.V(2).Infof("Method %s took %d milliseconds\n", name, duration)
+		glog.V(2).Infof("Method %s took %d milliseconds\n", name, duration.Milliseconds())
 		g.SendMetrics([]graphite.Metric{
 			graphite.NewMetric(fmt.Sprintf("%s.%s.%s.%s.duration", PREFIX, c.name, c.env, name), fmt.Sprintf("%d", duration.Milliseconds()), time.Now().Unix()),
 			graphite.NewMetric(fmt.Sprintf("%s.%s.%s.%s.invocation", PREFIX, c.name, c.env, name), "1", time.Now().Unix()),

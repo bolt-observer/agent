@@ -48,6 +48,7 @@ var (
 	GitRevision        = "unknownVersion"
 
 	nodeInfoReported sync.Map
+	private          bool
 )
 
 func getData(ctx *cli.Context) (*entities.Data, error) {
@@ -353,13 +354,16 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 }
 
 func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-	// When nodeinfo was not reported fake as if balance report could not be delivered (because same data
-	// will be eventually retried)
-	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueId: report.UniqueId}
-	_, ok := nodeInfoReported.Load(n.GetId())
-	if !ok {
-		glog.V(3).Infof("Node data for %s was not reported yet", n.GetId())
-		return false
+	if private {
+		// When nodeinfo was not reported fake as if balance report could not be delivered (because same data
+		// will be eventually retried)
+
+		n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueId: report.UniqueId}
+		_, ok := nodeInfoReported.Load(n.GetId())
+		if !ok {
+			glog.V(3).Infof("Node data for %s was not reported yet", n.GetId())
+			return false
+		}
 	}
 
 	rep, err := json.Marshal(report)
@@ -427,6 +431,7 @@ func checker(ctx *cli.Context) error {
 
 	url = ctx.String("url")
 	nodeurl = ctx.String("nodeurl")
+	private = ctx.Bool("private")
 
 	interval, err := getInterval(ctx, "interval")
 	if err != nil {
@@ -455,21 +460,17 @@ func checker(ctx *cli.Context) error {
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: ctx.Bool("private")}
 
 	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
-		if ctx.Bool("private") {
+		if private {
 			infochecker.GetState("", ctx.String("uniqueId"), agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback)
 			time.Sleep(1 * time.Second)
 		}
 		c.GetState("", ctx.String("uniqueId"), mkGetLndApi(ctx), settings, balanceCallback)
 	} else {
-		if ctx.Bool("private") {
+		if private {
 			err := infochecker.Subscribe("", ctx.String("uniqueId"), nodeinterval, mkGetLndApi(ctx), infoCallback)
 			if err != nil {
 				return err
 			}
-		} else {
-			// If you don't allow private data then treat nodeinfo as already reported
-			n := agent_entities.NodeIdentifier{Identifier: "", UniqueId: ctx.String("uniqueId")}
-			nodeInfoReported.Store(n.GetId(), struct{}{})
 		}
 		err = c.Subscribe("", ctx.String("uniqueId"),
 			mkGetLndApi(ctx),

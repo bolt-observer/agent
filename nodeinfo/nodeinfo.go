@@ -227,7 +227,11 @@ func (c *NodeInfo) checkOne(
 	identifier entities.NodeIdentifier,
 	getApi entities.NewApiCall) (*entities.InfoReport, error) {
 
-	metricsName := fmt.Sprintf("checkone.%s", identifier.GetId())
+	name := identifier.GetId()
+	if name == "" {
+		name = "local"
+	}
+	metricsName := fmt.Sprintf("checkone.%s", name)
 	defer c.monitoring.MetricsTimer(metricsName)()
 
 	api := getApi()

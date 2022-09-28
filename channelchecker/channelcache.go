@@ -59,7 +59,7 @@ func (c *InMemoryChannelCache) DeferredSet(name, old, new string) {
 	c.deferredCacheMutex.Lock()
 	defer c.deferredCacheMutex.Unlock()
 
-	glog.V(2).Infof("DeferredSet %s old %s new %s", name, old, new)
+	glog.V(3).Infof("DeferredSet %s old %s new %s", name, old, new)
 
 	c.deferredCache[name] = OldNewVal{OldValue: old, NewValue: new}
 }
@@ -73,10 +73,10 @@ func (c *InMemoryChannelCache) DeferredCommit() bool {
 	for k, v := range c.deferredCache {
 		val, exists := c.Get(k)
 		if !exists || val == v.OldValue {
-			glog.V(2).Infof("Commit ok %s from %s to %s", k, val, v.NewValue)
+			glog.V(3).Infof("Commit ok %s from %s to %s", k, val, v.NewValue)
 			c.Set(k, v.NewValue)
 		} else {
-			glog.V(2).Infof("Commit %s not same value %s vs %s", k, val, v.OldValue)
+			glog.V(3).Infof("Commit %s not same value %s vs %s", k, val, v.OldValue)
 		}
 	}
 
@@ -93,7 +93,7 @@ func (c *InMemoryChannelCache) DeferredRevert() bool {
 	defer c.Unlock()
 	defer c.deferredCacheMutex.Unlock()
 
-	glog.V(2).Infof("Revert")
+	glog.V(3).Infof("DeferredRevert")
 	for k := range c.deferredCache {
 		delete(c.deferredCache, k)
 	}

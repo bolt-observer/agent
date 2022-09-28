@@ -8,7 +8,9 @@ import (
 	"time"
 
 	utils "github.com/bolt-observer/go_common/utils"
+	"github.com/getsentry/sentry-go"
 	"github.com/go-redis/redis"
+	"github.com/golang/glog"
 )
 
 func (c *RedisChannelCache) Lock() {
@@ -63,7 +65,8 @@ func NewRedisChannelCache() *RedisChannelCache {
 
 	opts, err := redis.ParseURL(url)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Redis url is bad %s %v\n", url, err)
+		sentry.CaptureException(err)
+		glog.Warningf("Redis url is bad %s %v", url, err)
 		return nil
 	}
 
@@ -77,7 +80,8 @@ func NewRedisChannelCache() *RedisChannelCache {
 	}
 
 	if client.Info().Err() != nil {
-		fmt.Fprintf(os.Stderr, "Redis seems to be not usable %s\n", url)
+		sentry.CaptureMessage(fmt.Sprintf("Redis seems to be not usable %s", url))
+		glog.Warningf("Redis seems to be not usable %s", url)
 		return nil
 	}
 
@@ -87,6 +91,8 @@ func NewRedisChannelCache() *RedisChannelCache {
 func (c *RedisChannelCache) DeferredSet(name, old, new string) {
 	c.deferredCacheMutex.Lock()
 	defer c.deferredCacheMutex.Unlock()
+
+	glog.V(3).Infof("DeferredSet %s old %s new %s", name, old, new)
 
 	c.deferredCache[name] = OldNewVal{OldValue: old, NewValue: new}
 }
@@ -100,7 +106,10 @@ func (c *RedisChannelCache) DeferredCommit() bool {
 	for k, v := range c.deferredCache {
 		val, exists := c.Get(k)
 		if !exists || val == v.OldValue {
+			glog.V(3).Infof("Commit ok %s from %s to %s", k, val, v.NewValue)
 			c.Set(k, v.NewValue)
+		} else {
+			glog.V(3).Infof("Commit %s not same value %s vs %s", k, val, v.OldValue)
 		}
 	}
 
