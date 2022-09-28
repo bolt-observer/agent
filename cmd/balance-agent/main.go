@@ -217,7 +217,7 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:  "private",
-			Usage: "report private data as well",
+			Usage: "report private data as well (default: false)",
 		},
 		&cli.BoolFlag{
 			Name:   "userest",
@@ -304,14 +304,18 @@ func redirectPost(req *http.Request, via []*http.Request) error {
 func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	rep, err := json.Marshal(report)
 	if err != nil {
-		glog.Warningf("Error marshalling report: %v\n", err)
+		glog.Warningf("Error marshalling report: %v", err)
 		return false
 	}
 
 	n := agent_entities.NodeIdentifier{Identifier: report.Node.PubKey, UniqueId: report.UniqueId}
 
 	if nodeurl == "" {
-		glog.V(2).Infof("Sent out callback %s\n", string(rep))
+		if glog.V(2) {
+			glog.V(2).Infof("Sent out nodeinfo callback %s", string(rep))
+		} else {
+			glog.V(1).Infof("Sent out nodeinfo callback")
+		}
 		nodeInfoReported.Store(n.GetId(), struct{}{})
 		return true
 	}
@@ -337,7 +341,12 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 		return false
 	}
 
-	glog.V(2).Infof("Sent out callback %s\n", string(rep))
+	if glog.V(2) {
+		glog.V(2).Infof("Sent out nodeinfo callback %s", string(rep))
+	} else {
+		glog.V(1).Infof("Sent out nodeinfo callback")
+	}
+
 	nodeInfoReported.Store(n.GetId(), struct{}{})
 
 	return true
@@ -355,12 +364,16 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 
 	rep, err := json.Marshal(report)
 	if err != nil {
-		glog.Warningf("Error marshalling report: %v\n", err)
+		glog.Warningf("Error marshalling report: %v", err)
 		return false
 	}
 
 	if url == "" {
-		glog.V(2).Infof("Sent out callback %s\n", string(rep))
+		if glog.V(2) {
+			glog.V(2).Infof("Sent out callback %s", string(rep))
+		} else {
+			glog.V(1).Infof("Sent out callback")
+		}
 		return true
 	}
 
@@ -385,7 +398,11 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 		return false
 	}
 
-	glog.V(2).Infof("Sent out callback %s\n", string(rep))
+	if glog.V(2) {
+		glog.V(2).Infof("Sent out callback %s", string(rep))
+	} else {
+		glog.V(1).Infof("Sent out callback")
+	}
 
 	return true
 }
@@ -399,7 +416,6 @@ func mkGetLndApi(ctx *cli.Context) agent_entities.NewApiCall {
 }
 
 func checker(ctx *cli.Context) error {
-
 	apiKey = utils.GetEnvWithDefault("API_KEY", "")
 	if apiKey == "" {
 		apiKey = ctx.String("apikey")

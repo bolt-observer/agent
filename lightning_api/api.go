@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	entities "github.com/bolt-observer/go_common/entities"
+	"github.com/getsentry/sentry-go"
 )
 
 type ApiType int
@@ -230,11 +231,13 @@ type GetDataCall func() (*entities.Data, error)
 // Get new API
 func NewApi(apiType ApiType, getData GetDataCall) LightingApiCalls {
 	if getData == nil {
+		sentry.CaptureMessage("getData was nil")
 		return nil
 	}
 
 	data, err := getData()
 	if err != nil {
+		sentry.CaptureException(err)
 		return nil
 	}
 
@@ -259,5 +262,6 @@ func NewApi(apiType ApiType, getData GetDataCall) LightingApiCalls {
 		return NewLndRestLightningApi(getData)
 	}
 
+	sentry.CaptureMessage("Invalid api type")
 	return nil
 }
