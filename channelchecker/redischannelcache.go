@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -51,6 +53,11 @@ type RedisChannelCache struct {
 	deferredCache      map[string]OldNewVal
 }
 
+func censorCredentials(in string) string {
+	var re = regexp.MustCompile(`(.*://)(.*)@(.*)`)
+	return re.ReplaceAllString(in, `$1[credentials]@$3`)
+}
+
 func removeQueryParams(in string) string {
 	u, err := url.Parse(in)
 	if err != nil {
@@ -66,8 +73,24 @@ func NewRedisChannelCache() *RedisChannelCache {
 	opts, err := redis.ParseURL(url)
 	if err != nil {
 		sentry.CaptureException(err)
-		glog.Warningf("Redis url is bad %s %v", url, err)
+		glog.Warningf("Redis url is bad %s %v", censorCredentials(url), err)
 		return nil
+	}
+
+	db := utils.GetEnvWithDefault("REDIS_DB", "")
+	if db != "" {
+		dbNum, err := strconv.Atoi(db)
+		if err != nil {
+			sentry.CaptureException(err)
+			glog.Warningf("Error parsing redis db %s %v", db, err)
+		} else {
+			opts.DB = dbNum
+		}
+	}
+
+	password := utils.GetEnvWithDefault("REDIS_PASSWORD", "")
+	if password != "" {
+		opts.Password = password
 	}
 
 	client := redis.NewClient(opts)
@@ -80,8 +103,8 @@ func NewRedisChannelCache() *RedisChannelCache {
 	}
 
 	if client.Info().Err() != nil {
-		sentry.CaptureMessage(fmt.Sprintf("Redis seems to be not usable %s", url))
-		glog.Warningf("Redis seems to be not usable %s", url)
+		sentry.CaptureMessage(fmt.Sprintf("Redis seems to be not usable %s %v", censorCredentials(url), err))
+		glog.Warningf("Redis seems to be not usable %s %v", censorCredentials(url), err)
 		return nil
 	}
 

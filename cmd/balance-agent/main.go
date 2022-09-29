@@ -49,6 +49,7 @@ var (
 
 	nodeInfoReported sync.Map
 	private          bool
+	timeout          = 5 * time.Second
 )
 
 func getData(ctx *cli.Context) (*entities.Data, error) {
@@ -328,7 +329,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := http.DefaultClient
+	client := &http.Client{Timeout: timeout}
 	client.CheckRedirect = redirectPost
 
 	resp, err := client.Do(req)
@@ -388,7 +389,7 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := http.DefaultClient
+	client := &http.Client{Timeout: timeout}
 	client.CheckRedirect = redirectPost
 
 	resp, err := client.Do(req)

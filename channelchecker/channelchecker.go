@@ -397,11 +397,20 @@ func (c *ChannelChecker) checkAll() bool {
 
 			if resp != nil {
 				go func(c *ChannelChecker, one string, now time.Time, s Settings, resp *entities.ChannelBalanceReport) {
+					// NB: now can be old here
 					if s.callback(c.ctx, resp) {
-						s.lastReport = now
+						s.lastReport = time.Now()
 						c.commitAllChanges(one, now, s)
 					} else {
 						c.revertAllChanges()
+					}
+
+					limit := 2
+
+					dur := time.Since(now).Seconds()
+					if int(math.Round(dur)) > limit {
+						glog.Warningf("Callback for %s took more than %d seconds %v", one, limit, dur)
+						sentry.CaptureMessage(fmt.Sprintf("Callback for %s took more than %d seconds %v", one, limit, dur))
 					}
 				}(c, one, now, s, resp)
 			} else {
