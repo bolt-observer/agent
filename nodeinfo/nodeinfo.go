@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	entities "github.com/bolt-observer/agent/entities"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
+	"github.com/getsentry/sentry-go"
 	"github.com/golang/glog"
 	"github.com/mitchellh/hashstructure/v2"
 )
@@ -23,6 +25,7 @@ type NodeInfo struct {
 	monitoring        *checkermonitoring.CheckerMonitoring
 	eventLoopInterval time.Duration
 	globalSettings    *GlobalSettings
+	reentrancyBlock   *entities.ReentrancyBlock
 }
 
 func getContext() context.Context {
@@ -65,6 +68,7 @@ func NewNodeInfo(ctx context.Context, monitoring *checkermonitoring.CheckerMonit
 		monitoring:        monitoring,
 		eventLoopInterval: 10 * time.Second,
 		globalSettings:    NewGlobalSettings(),
+		reentrancyBlock:   entities.NewReentrancyBlock(),
 	}
 }
 
@@ -197,11 +201,28 @@ func (c *NodeInfo) checkAll() bool {
 
 			if resp != nil {
 				go func(c *NodeInfo, resp *entities.InfoReport, s Settings, one string, hash uint64) {
+					if !c.reentrancyBlock.Enter(one) {
+						glog.Warningf("Reentrancy of node callback for %s not allowed", one)
+						sentry.CaptureMessage(fmt.Sprintf("Reentrancy of node callback for %s not allowed", one))
+						return
+					}
+					defer c.reentrancyBlock.Release(one)
+
+					// NB: now can be old here
+
 					if s.callback(c.ctx, resp) {
 						// Update hash only upon success
 						s.hash = hash
-						s.lastCheck = now
+						s.lastCheck = time.Now()
 						c.globalSettings.Set(one, s)
+					}
+
+					limit := 5
+
+					dur := time.Since(now).Seconds()
+					if int(math.Round(dur)) > limit {
+						glog.Warningf("Nodeinfo callback %s took more than %d seconds %v", one, limit, dur)
+						sentry.CaptureMessage(fmt.Sprintf("Nodeinfo callback %s took more than %d seconds %v", one, limit, dur))
 					}
 				}(c, resp, s, one, hash)
 			}

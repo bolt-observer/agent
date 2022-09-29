@@ -13,6 +13,7 @@ require (
 	github.com/marpaia/graphite-golang v0.0.0-20190519024811-caf161d2c2b1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/urfave/cli v1.22.4
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/grpc v1.38.0
 	gopkg.in/macaroon.v2 v2.0.0
 )

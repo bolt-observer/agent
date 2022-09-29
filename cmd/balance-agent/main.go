@@ -49,7 +49,7 @@ var (
 
 	nodeInfoReported sync.Map
 	private          bool
-	timeout          = 5 * time.Second
+	timeout          = 15 * time.Second
 )
 
 func getData(ctx *cli.Context) (*entities.Data, error) {

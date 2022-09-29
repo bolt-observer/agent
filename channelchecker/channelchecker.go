@@ -36,6 +36,7 @@ type ChannelChecker struct {
 	checkGraph        bool          // Should we check gossip
 	monitoring        *checkermonitoring.CheckerMonitoring
 	eventLoopInterval time.Duration
+	reentrancyBlock   *entities.ReentrancyBlock
 }
 
 func NewDefaultChannelChecker(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *checkermonitoring.CheckerMonitoring) *ChannelChecker {
@@ -64,6 +65,7 @@ func NewChannelChecker(ctx context.Context, cache ChannelCache, keepAlive time.D
 		keepAliveInterval: keepAlive,
 		monitoring:        monitoring,
 		eventLoopInterval: 10 * time.Second,
+		reentrancyBlock:   entities.NewReentrancyBlock(),
 	}
 }
 
@@ -397,15 +399,22 @@ func (c *ChannelChecker) checkAll() bool {
 
 			if resp != nil {
 				go func(c *ChannelChecker, one string, now time.Time, s Settings, resp *entities.ChannelBalanceReport) {
+					if !c.reentrancyBlock.Enter(one) {
+						glog.Warningf("Reentrancy of callback for %s not allowed", one)
+						sentry.CaptureMessage(fmt.Sprintf("Reentrancy of callback for %s not allowed", one))
+						return
+					}
+					defer c.reentrancyBlock.Release(one)
+
 					// NB: now can be old here
 					if s.callback(c.ctx, resp) {
 						s.lastReport = time.Now()
-						c.commitAllChanges(one, now, s)
+						c.commitAllChanges(one, time.Now(), s)
 					} else {
 						c.revertAllChanges()
 					}
 
-					limit := 2
+					limit := 5
 
 					dur := time.Since(now).Seconds()
 					if int(math.Round(dur)) > limit {
