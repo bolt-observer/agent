@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/user"
@@ -303,6 +304,22 @@ func redirectPost(req *http.Request, via []*http.Request) error {
 	return nil
 }
 
+func getHttpClient() *http.Client {
+	var zeroDialer net.Dialer
+
+	httpClient := &http.Client{
+		Timeout: timeout,
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return zeroDialer.DialContext(ctx, "tcp4", addr)
+	}
+	httpClient.Transport = transport
+	httpClient.CheckRedirect = redirectPost
+
+	return httpClient
+}
+
 func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	rep, err := json.Marshal(report)
 	if err != nil {
@@ -326,11 +343,12 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	if err != nil {
 		return false
 	}
+
+	req.Header.Set("User-Agent", fmt.Sprintf("boltobserver-agent/%s", GitRevision))
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: timeout}
-	client.CheckRedirect = redirectPost
+	client := getHttpClient()
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -386,11 +404,12 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	if err != nil {
 		return false
 	}
+
+	req.Header.Set("User-Agent", fmt.Sprintf("boltobserver-agent/%s", GitRevision))
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: timeout}
-	client.CheckRedirect = redirectPost
+	client := getHttpClient()
 
 	resp, err := client.Do(req)
 	if err != nil {
