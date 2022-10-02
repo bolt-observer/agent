@@ -355,10 +355,9 @@ func (c *ChannelChecker) fetchGraph(
 func (c *ChannelChecker) checkAll() bool {
 	defer c.monitoring.MetricsTimer("checkall.global")()
 
-	now := time.Now()
 	for _, one := range c.globalSettings.GetKeys() {
 		s := c.globalSettings.Get(one)
-
+		now := time.Now()
 		if c.checkGraph && s.settings.GraphPollInterval != 0 {
 			graphToBeCheckedBy := s.lastGraphCheck.Add(s.settings.GraphPollInterval)
 
@@ -369,7 +368,7 @@ func (c *ChannelChecker) checkAll() bool {
 					glog.Warningf("Could not fetch graph from %s: %v", s.identifier.Identifier, err)
 				}
 
-				s.lastGraphCheck = now
+				s.lastGraphCheck = time.Now()
 			}
 		}
 
@@ -414,7 +413,7 @@ func (c *ChannelChecker) checkAll() bool {
 						c.revertAllChanges()
 					}
 
-					limit := 5
+					limit := 10
 
 					dur := time.Since(now).Seconds()
 					if int(math.Round(dur)) > limit {
@@ -423,7 +422,7 @@ func (c *ChannelChecker) checkAll() bool {
 					}
 				}(c, one, now, s, resp)
 			} else {
-				c.commitAllChanges(one, now, s)
+				c.commitAllChanges(one, time.Now(), s)
 			}
 		}
 
