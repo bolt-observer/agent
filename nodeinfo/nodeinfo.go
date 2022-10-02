@@ -177,8 +177,8 @@ func (c *NodeInfo) EventLoop() {
 func (c *NodeInfo) checkAll() bool {
 	defer c.monitoring.MetricsTimer("checkall.global")()
 
-	now := time.Now()
 	for _, one := range c.globalSettings.GetKeys() {
+		now := time.Now()
 		s := c.globalSettings.Get(one)
 
 		toBeCheckedBy := s.lastCheck.Add(s.interval.Duration())
@@ -217,7 +217,7 @@ func (c *NodeInfo) checkAll() bool {
 						c.globalSettings.Set(one, s)
 					}
 
-					limit := 5
+					limit := 10
 
 					dur := time.Since(now).Seconds()
 					if int(math.Round(dur)) > limit {
@@ -225,10 +225,10 @@ func (c *NodeInfo) checkAll() bool {
 						sentry.CaptureMessage(fmt.Sprintf("Nodeinfo callback %s took more than %d seconds %v", one, limit, dur))
 					}
 				}(c, resp, s, one, hash)
+			} else {
+				s.lastCheck = time.Now()
+				c.globalSettings.Set(one, s)
 			}
-
-			s.lastCheck = now
-			c.globalSettings.Set(one, s)
 		}
 
 		select {
