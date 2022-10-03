@@ -51,6 +51,7 @@ var (
 	nodeInfoReported sync.Map
 	private          bool
 	timeout          = 15 * time.Second
+	preferipv4       = false
 )
 
 func getData(ctx *cli.Context) (*entities.Data, error) {
@@ -223,6 +224,10 @@ func getApp() *cli.App {
 			Usage: "report private data as well (default: false)",
 		},
 		&cli.BoolFlag{
+			Name:  "preferipv4",
+			Usage: "If you have the choice between IPv6 and IPv6 prefer IPv4 (default: false)",
+		},
+		&cli.BoolFlag{
 			Name:   "userest",
 			Usage:  "Use REST API when true instead of gRPC",
 			Hidden: true,
@@ -310,11 +315,14 @@ func getHttpClient() *http.Client {
 	httpClient := &http.Client{
 		Timeout: timeout,
 	}
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return zeroDialer.DialContext(ctx, "tcp4", addr)
+
+	if preferipv4 {
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return zeroDialer.DialContext(ctx, "tcp4", addr)
+		}
+		httpClient.Transport = transport
 	}
-	httpClient.Transport = transport
 	httpClient.CheckRedirect = redirectPost
 
 	return httpClient
@@ -445,7 +453,7 @@ func checker(ctx *cli.Context) error {
 		apiKey = ctx.String("apikey")
 	}
 
-	if apiKey == "" && ctx.String("url") != "" {
+	if apiKey == "" && (ctx.String("url") != "" || ctx.String("nodeurl") != "") {
 		return fmt.Errorf("missing API key")
 	}
 
@@ -462,6 +470,8 @@ func checker(ctx *cli.Context) error {
 	if err != nil {
 		nodeinterval = interval
 	}
+
+	preferipv4 = ctx.Bool("preferipv4")
 
 	ct := context.Background()
 	infochecker := nodeinfo.NewNodeInfo(ct, checkermonitoring.NewNopCheckerMonitoring("nodeinfo"))
