@@ -1,9 +1,11 @@
 package lightning_api
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
 	"strconv"
 	"strings"
@@ -19,7 +21,63 @@ import (
 	"gopkg.in/macaroon.v2"
 )
 
+func toPubKey(cert *x509.Certificate) string {
+	publicKeyDer, _ := x509.MarshalPKIXPublicKey(cert.PublicKey)
+	publicKeyBlock := pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyDer,
+	}
+
+	return string(pem.EncodeToMemory(&publicKeyBlock))
+}
+
+func getTlsConfig(certBytes []byte, hostname string) (*tls.Config, error) {
+	const DEFAULT_VERIFICATION = false
+
+	if DEFAULT_VERIFICATION {
+		cp := x509.NewCertPool()
+		if !cp.AppendCertsFromPEM(certBytes) {
+			return nil, fmt.Errorf("append cert failed")
+		}
+
+		return &tls.Config{ServerName: "", RootCAs: cp, MinVersion: tls.VersionTLS11}, nil
+	} else {
+		cert, err := x509.ParseCertificate(certBytes)
+		if err != nil {
+			return nil, fmt.Errorf("parse cert failed %v", err)
+		}
+
+		err = cert.VerifyHostname(hostname)
+		if err != nil {
+			return nil, fmt.Errorf("verify hostname failed %v", err)
+		}
+
+		customVerify := func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			actualCert, err := x509.ParseCertificate(rawCerts[0])
+			if err != nil {
+				return err
+			}
+
+			err = actualCert.VerifyHostname(hostname)
+			if err != nil {
+				return err
+			}
+
+			// Verification method is based on public key from original certificate
+			if toPubKey(actualCert) != toPubKey(cert) {
+				return fmt.Errorf("pubkey is different")
+			}
+
+			return nil
+		}
+
+		return &tls.Config{InsecureSkipVerify: true,
+			VerifyPeerCertificate: customVerify, MinVersion: tls.VersionTLS11}, nil
+	}
+}
+
 func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
+
 	var (
 		creds    credentials.TransportCredentials
 		macBytes []byte
@@ -39,12 +97,12 @@ func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
 		return nil, fmt.Errorf("base64 decoding failed %v", err)
 	}
 
-	cp := x509.NewCertPool()
-	if !cp.AppendCertsFromPEM(certBytes) {
-		return nil, fmt.Errorf("append cert failed %v", err)
+	tls, err := getTlsConfig(certBytes, data.Endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("getTlsConfig failed %v", err)
 	}
-	creds = credentials.NewClientTLSFromCert(cp, "")
 
+	creds = credentials.NewTLS(tls)
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
 	}
