@@ -49,15 +49,31 @@ func extractHostname(endpoint string) string {
 	return u.Hostname()
 }
 
-func getTlsConfig(certBytes []byte, hostname string, defaultVerification bool) (*tls.Config, error) {
-	if defaultVerification {
+type CertificateVerification int
+
+const (
+	ALLOW_WHEN_PUBKEY_SAME CertificateVerification = iota
+	STRICT
+	INSECURE
+	PUBLIC_CA
+)
+
+func getTlsConfig(certBytes []byte, hostname string, verification CertificateVerification) (*tls.Config, error) {
+	minVersion := uint16(tls.VersionTLS11)
+
+	switch verification {
+	case INSECURE:
+		return &tls.Config{InsecureSkipVerify: true, MinVersion: minVersion}, nil
+	case PUBLIC_CA:
+		return &tls.Config{RootCAs: nil, MinVersion: minVersion}, nil
+	case STRICT:
 		cp := x509.NewCertPool()
 		if !cp.AppendCertsFromPEM(certBytes) {
 			return nil, fmt.Errorf("append cert failed")
 		}
 
-		return &tls.Config{ServerName: "", RootCAs: cp, MinVersion: tls.VersionTLS11}, nil
-	} else {
+		return &tls.Config{ServerName: "", RootCAs: cp, MinVersion: minVersion}, nil
+	case ALLOW_WHEN_PUBKEY_SAME:
 		var (
 			blocks       [][]byte
 			certPEMBlock []byte
@@ -115,7 +131,9 @@ func getTlsConfig(certBytes []byte, hostname string, defaultVerification bool) (
 		}
 
 		return &tls.Config{InsecureSkipVerify: true,
-			VerifyPeerCertificate: customVerify, MinVersion: tls.VersionTLS11}, nil
+			VerifyPeerCertificate: customVerify, MinVersion: minVersion}, nil
+	default:
+		return nil, fmt.Errorf("unsupported certificate verification mode: %v", verification)
 	}
 }
 
@@ -141,7 +159,7 @@ func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
 	}
 
 	// TODO: verification mode will come from data
-	tls, err := getTlsConfig(certBytes, data.Endpoint, false)
+	tls, err := getTlsConfig(certBytes, data.Endpoint, ALLOW_WHEN_PUBKEY_SAME)
 	if err != nil {
 		return nil, fmt.Errorf("getTlsConfig failed %v", err)
 	}

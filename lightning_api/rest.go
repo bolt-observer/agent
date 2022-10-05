@@ -245,7 +245,7 @@ func (h *HttpApi) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Tran
 	}
 
 	// TODO: verification mode will come from data
-	tls, err := getTlsConfig(certBytes, data.Endpoint, false)
+	tls, err := getTlsConfig(certBytes, data.Endpoint, ALLOW_WHEN_PUBKEY_SAME)
 	if err != nil {
 		return nil, nil, fmt.Errorf("getTlsConfig failed %v", err)
 	}
