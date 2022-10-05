@@ -216,7 +216,7 @@ func getApp() *cli.App {
 		},
 		&cli.StringFlag{
 			Name:  "interval",
-			Usage: "interval to poll - 10s, 1m or 1h",
+			Usage: "interval to poll - 10s, 1m, 10m or 1h",
 			Value: "10s",
 		},
 		&cli.BoolFlag{
@@ -246,18 +246,18 @@ func getApp() *cli.App {
 		&cli.StringFlag{
 			Name:   "url",
 			Usage:  "Report URL",
-			Value:  "https://bolt.observer/api/agent-report",
+			Value:  "https://bolt.observer/api/agent-report/",
 			Hidden: true,
 		},
 		&cli.StringFlag{
 			Name:   "nodeurl",
 			Usage:  "Node report URL",
-			Value:  "https://bolt.observer/api/private-node",
+			Value:  "https://bolt.observer/api/private-node/",
 			Hidden: true,
 		},
 		&cli.StringFlag{
 			Name:   "nodeinterval",
-			Usage:  "interval to poll - 10s, 1m or 1h",
+			Usage:  "interval to poll - 10s, 1m, 10m or 1h",
 			Value:  "1m",
 			Hidden: true,
 		},

@@ -16,6 +16,7 @@ const (
 	SECOND
 	TEN_SECONDS
 	MINUTE
+	TEN_MINUTE
 	HOUR
 )
 
@@ -27,6 +28,8 @@ func (i Interval) Duration() time.Duration {
 		return 10 * time.Second
 	case MINUTE:
 		return 1 * time.Minute
+	case TEN_MINUTE:
+		return 10 * time.Minute
 	case HOUR:
 		return 1 * time.Hour
 	default:
@@ -43,6 +46,8 @@ func (i *Interval) MarshalJSON() ([]byte, error) {
 		str = `"1s"`
 	case TEN_SECONDS:
 		str = `"10s"`
+	case TEN_MINUTE:
+		str = `"10m"`
 	case MINUTE:
 		str = `"1m"`
 	case HOUR:
@@ -65,6 +70,8 @@ func (i *Interval) UnmarshalJSON(s []byte) (err error) {
 		*i = TEN_SECONDS
 	case "1m":
 		*i = MINUTE
+	case "10m":
+		*i = TEN_MINUTE
 	case "1h":
 		*i = HOUR
 	default:
