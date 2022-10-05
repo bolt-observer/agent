@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -31,10 +33,24 @@ func toPubKey(cert *x509.Certificate) string {
 	return string(pem.EncodeToMemory(&publicKeyBlock))
 }
 
-func getTlsConfig(certBytes []byte, hostname string) (*tls.Config, error) {
-	const DEFAULT_VERIFICATION = false
+func extractHostname(endpoint string) string {
+	proto := regexp.MustCompile("^[a-zA-Z0-9_-]+//.*")
+	uri := endpoint
+	if !proto.MatchString(endpoint) {
+		uri = fmt.Sprintf("http://%s", endpoint)
+	}
+	u, err := url.Parse(uri)
 
-	if DEFAULT_VERIFICATION {
+	if err != nil {
+		glog.Warningf("Could not parse endpoint: %s %v", endpoint, err)
+		return endpoint
+	}
+
+	return u.Hostname()
+}
+
+func getTlsConfig(certBytes []byte, hostname string, defaultVerification bool) (*tls.Config, error) {
+	if defaultVerification {
 		cp := x509.NewCertPool()
 		if !cp.AppendCertsFromPEM(certBytes) {
 			return nil, fmt.Errorf("append cert failed")
@@ -42,14 +58,41 @@ func getTlsConfig(certBytes []byte, hostname string) (*tls.Config, error) {
 
 		return &tls.Config{ServerName: "", RootCAs: cp, MinVersion: tls.VersionTLS11}, nil
 	} else {
-		cert, err := x509.ParseCertificate(certBytes)
+		var (
+			blocks       [][]byte
+			certPEMBlock []byte
+		)
+
+		certPEMBlock = certBytes
+
+		for {
+			var certDERBlock *pem.Block
+			certDERBlock, certPEMBlock = pem.Decode(certPEMBlock)
+			if certDERBlock == nil {
+				break
+			}
+
+			if certDERBlock.Type == "CERTIFICATE" {
+				blocks = append(blocks, certDERBlock.Bytes)
+			}
+		}
+
+		if len(blocks) == 0 {
+			return nil, fmt.Errorf("no certificate found")
+		}
+
+		cert, err := x509.ParseCertificate(blocks[0])
 		if err != nil {
 			return nil, fmt.Errorf("parse cert failed %v", err)
 		}
 
-		err = cert.VerifyHostname(hostname)
+		host := extractHostname(hostname)
+
+		err = cert.VerifyHostname(host)
 		if err != nil {
-			return nil, fmt.Errorf("verify hostname failed %v", err)
+			// TODO: this is to make it consistent with simple verification mode
+			glog.Warningf("verify hostname failed %v (%s)", err, host)
+			//return nil, fmt.Errorf("verify hostname failed %v", err)
 		}
 
 		customVerify := func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
@@ -58,7 +101,7 @@ func getTlsConfig(certBytes []byte, hostname string) (*tls.Config, error) {
 				return err
 			}
 
-			err = actualCert.VerifyHostname(hostname)
+			err = actualCert.VerifyHostname(host)
 			if err != nil {
 				return err
 			}
@@ -97,7 +140,8 @@ func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
 		return nil, fmt.Errorf("base64 decoding failed %v", err)
 	}
 
-	tls, err := getTlsConfig(certBytes, data.Endpoint)
+	// TODO: verification mode will come from data
+	tls, err := getTlsConfig(certBytes, data.Endpoint, false)
 	if err != nil {
 		return nil, fmt.Errorf("getTlsConfig failed %v", err)
 	}

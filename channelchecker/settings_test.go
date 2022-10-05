@@ -1,8 +1,6 @@
 package channelchecker
 
 import (
-	"fmt"
-	"os"
 	"testing"
 
 	"github.com/bolt-observer/agent/entities"
@@ -11,7 +9,6 @@ import (
 )
 
 func getApi() api.LightingApiCalls {
-	fmt.Fprintf(os.Stderr, "API call")
 	return nil
 }
 

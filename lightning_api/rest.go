@@ -244,7 +244,8 @@ func (h *HttpApi) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Tran
 		return nil, nil, fmt.Errorf("base64 decode error %s", err)
 	}
 
-	tls, err := getTlsConfig(certBytes, data.Endpoint)
+	// TODO: verification mode will come from data
+	tls, err := getTlsConfig(certBytes, data.Endpoint, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("getTlsConfig failed %v", err)
 	}
