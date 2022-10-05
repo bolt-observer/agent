@@ -385,7 +385,6 @@ func (c *ChannelChecker) checkAll() bool {
 			ignoreCache := toBeCheckedBy.Year() <= 1
 			resp, err := c.checkOne(s.identifier, s.getApi, s.settings, ignoreCache, reportAnyway)
 			if err != nil {
-				sentry.CaptureException(err)
 				glog.Warningf("Check failed: %v", err)
 				continue
 			}
@@ -400,11 +399,12 @@ func (c *ChannelChecker) checkAll() bool {
 				go func(c *ChannelChecker, one string, now time.Time, s Settings, resp *entities.ChannelBalanceReport) {
 					if !c.reentrancyBlock.Enter(one) {
 						glog.Warningf("Reentrancy of callback for %s not allowed", one)
-						sentry.CaptureMessage(fmt.Sprintf("Reentrancy of callback for %s not allowed", one))
 						return
 					}
 					defer c.reentrancyBlock.Release(one)
 
+					metricsName := fmt.Sprintf("checkdelivery.%s", s.identifier.GetId())
+					timer := c.monitoring.MetricsTimer(metricsName)
 					// NB: now can be old here
 					if s.callback(c.ctx, resp) {
 						s.lastReport = time.Now()
@@ -412,14 +412,7 @@ func (c *ChannelChecker) checkAll() bool {
 					} else {
 						c.revertAllChanges()
 					}
-
-					limit := 10
-
-					dur := time.Since(now).Seconds()
-					if int(math.Round(dur)) > limit {
-						glog.Warningf("Callback for %s took more than %d seconds %v", one, limit, dur)
-						sentry.CaptureMessage(fmt.Sprintf("Callback for %s took more than %d seconds %v", one, limit, dur))
-					}
+					timer()
 				}(c, one, now, s, resp)
 			} else {
 				c.commitAllChanges(one, time.Now(), s)
