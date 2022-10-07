@@ -3,7 +3,8 @@ module github.com/bolt-observer/agent
 go 1.18
 
 require (
-	github.com/bolt-observer/go_common v0.0.5
+	github.com/alicebob/miniredis/v2 v2.23.0
+	github.com/bolt-observer/go_common v0.0.6
 	github.com/btcsuite/btcd/btcutil v1.1.1
 	github.com/getsentry/sentry-go v0.13.0
 	github.com/go-redis/redis v6.15.9+incompatible
@@ -22,7 +23,6 @@ require (
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/aead/siphash v1.0.1 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
-	github.com/alicebob/miniredis/v2 v2.23.0 // indirect
 	github.com/andybalholm/brotli v1.0.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.23.1 // indirect
