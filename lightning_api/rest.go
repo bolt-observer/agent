@@ -244,8 +244,12 @@ func (h *HttpApi) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Tran
 		return nil, nil, fmt.Errorf("base64 decode error %s", err)
 	}
 
-	// TODO: verification mode will come from data
-	tls, err := getTlsConfig(certBytes, data.Endpoint, ALLOW_WHEN_PUBKEY_SAME)
+	verification := ALLOW_WHEN_PUBKEY_SAME
+	if data.CertVerificationType != nil {
+		verification = CertificateVerification(*data.CertVerificationType)
+	}
+
+	tls, err := getTlsConfig(certBytes, data.Endpoint, verification)
 	if err != nil {
 		return nil, nil, fmt.Errorf("getTlsConfig failed %v", err)
 	}
