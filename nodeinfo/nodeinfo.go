@@ -78,6 +78,7 @@ func (c *NodeInfo) IsSubscribed(pubKey, uniqueId string) bool {
 func (c *NodeInfo) GetState(
 	pubKey string,
 	uniqueId string,
+	private bool,
 	PollInterval entities.Interval,
 	getApi entities.NewApiCall,
 	optCallback entities.InfoCallback) (*entities.InfoReport, error) {
@@ -86,7 +87,7 @@ func (c *NodeInfo) GetState(
 		return nil, errors.New("invalid pubkey")
 	}
 
-	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId}, getApi)
+	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId}, getApi, private)
 	if err != nil {
 		return nil, err
 	}
@@ -102,6 +103,7 @@ func (c *NodeInfo) GetState(
 func (c *NodeInfo) Subscribe(
 	pubKey string,
 	uniqueId string,
+	private bool,
 	PollInterval entities.Interval,
 	getApi entities.NewApiCall,
 	callback entities.InfoCallback) error {
@@ -131,6 +133,7 @@ func (c *NodeInfo) Subscribe(
 		callback:   callback,
 		getApi:     getApi,
 		hash:       0,
+		private:    private,
 	})
 
 	return nil
@@ -181,7 +184,7 @@ func (c *NodeInfo) checkAll() bool {
 
 		toBeCheckedBy := s.lastCheck.Add(s.interval.Duration())
 		if toBeCheckedBy.Before(now) {
-			resp, err := c.checkOne(s.identifier, s.getApi)
+			resp, err := c.checkOne(s.identifier, s.getApi, s.private)
 			if err != nil {
 				glog.Warningf("Failed to check %v: %v", s.identifier.GetId(), err)
 				continue
@@ -236,7 +239,8 @@ func (c *NodeInfo) checkAll() bool {
 // checkOne checks one specific node
 func (c *NodeInfo) checkOne(
 	identifier entities.NodeIdentifier,
-	getApi entities.NewApiCall) (*entities.InfoReport, error) {
+	getApi entities.NewApiCall,
+	private bool) (*entities.InfoReport, error) {
 
 	name := identifier.GetId()
 	if name == "" {
@@ -252,7 +256,7 @@ func (c *NodeInfo) checkOne(
 	}
 	defer api.Cleanup()
 
-	info, err := api.GetNodeInfoFull(c.ctx, true, true)
+	info, err := api.GetNodeInfoFull(c.ctx, true, private)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call GetNodeInfoFull %v", err)
 	}

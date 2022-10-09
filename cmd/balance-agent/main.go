@@ -225,7 +225,7 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:  "preferipv4",
-			Usage: "If you have the choice between IPv6 and IPv6 prefer IPv4 (default: false)",
+			Usage: "If you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)",
 		},
 		&cli.BoolFlag{
 			Name:   "userest",
@@ -381,16 +381,14 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 }
 
 func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-	if private {
-		// When nodeinfo was not reported fake as if balance report could not be delivered (because same data
-		// will be eventually retried)
+	// When nodeinfo was not reported fake as if balance report could not be delivered (because same data
+	// will be eventually retried)
 
-		n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueId: report.UniqueId}
-		_, ok := nodeInfoReported.Load(n.GetId())
-		if !ok {
-			glog.V(3).Infof("Node data for %s was not reported yet", n.GetId())
-			return false
-		}
+	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueId: report.UniqueId}
+	_, ok := nodeInfoReported.Load(n.GetId())
+	if !ok {
+		glog.V(3).Infof("Node data for %s was not reported yet", n.GetId())
+		return false
 	}
 
 	rep, err := json.Marshal(report)
@@ -490,18 +488,15 @@ func checker(ctx *cli.Context) error {
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: ctx.Bool("private")}
 
 	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
-		if private {
-			infochecker.GetState("", ctx.String("uniqueId"), agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback)
-			time.Sleep(1 * time.Second)
-		}
+		infochecker.GetState("", ctx.String("uniqueId"), private, agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback)
+		time.Sleep(1 * time.Second)
 		c.GetState("", ctx.String("uniqueId"), mkGetLndApi(ctx), settings, balanceCallback)
 	} else {
-		if private {
-			err := infochecker.Subscribe("", ctx.String("uniqueId"), nodeinterval, mkGetLndApi(ctx), infoCallback)
-			if err != nil {
-				return err
-			}
+		err := infochecker.Subscribe("", ctx.String("uniqueId"), private, nodeinterval, mkGetLndApi(ctx), infoCallback)
+		if err != nil {
+			return err
 		}
+
 		err = c.Subscribe("", ctx.String("uniqueId"),
 			mkGetLndApi(ctx),
 			settings,
