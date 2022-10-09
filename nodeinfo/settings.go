@@ -55,4 +55,5 @@ type Settings struct {
 	hash       uint64
 	getApi     entities.NewApiCall
 	interval   entities.Interval
+	private    bool
 }
