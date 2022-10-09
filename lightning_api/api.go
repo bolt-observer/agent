@@ -152,6 +152,14 @@ func getNodeInfoFull(l LightingApiCalls, threshUseDescribeGraph int, ctx context
 
 	if !unnanounced {
 		// We have full info already (fast bailout)
+
+		all := make([]NodeChannelApiExtended, 0)
+		for _, ch := range nodeInfo.Channels {
+			all = append(all, NodeChannelApiExtended{NodeChannelApi: ch, Private: false})
+		}
+
+		extendedNodeInfo.Channels = all
+
 		return extendedNodeInfo, err
 	}
 

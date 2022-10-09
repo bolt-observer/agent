@@ -238,6 +238,25 @@ func TestNodeInfoFull(t *testing.T) {
 	}
 }
 
+func TestNodeInfoFullPublic(t *testing.T) {
+	mock := &MockLightningApi{}
+	resp, err := getNodeInfoFull(mock, 100, context.Background(), true, false)
+	if err != nil {
+		t.Fatalf("Error getting node info: %v", err)
+		return
+	}
+	if resp.Node.PubKey != "fake" || resp.NumChannels != 2 || resp.TotalCapacity != 3 {
+		t.Fatalf("Wrong data returned")
+		return
+	}
+
+	if int(resp.NumChannels) != len(resp.Channels) {
+		t.Fatalf("Not all channels reported")
+		return
+	}
+
+}
+
 func TestNodeInfoFullWithDescribeGraph(t *testing.T) {
 	mock := &MockLightningApi{}
 	resp, err := getNodeInfoFull(mock, 1, context.Background(), true, true)
