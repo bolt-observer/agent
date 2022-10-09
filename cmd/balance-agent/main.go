@@ -225,7 +225,7 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:  "preferipv4",
-			Usage: "If you have the choice between IPv6 and IPv6 prefer IPv4 (default: false)",
+			Usage: "If you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)",
 		},
 		&cli.BoolFlag{
 			Name:   "userest",

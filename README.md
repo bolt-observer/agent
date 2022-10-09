@@ -20,10 +20,10 @@ USAGE:
    balance-agent [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.0.4
+   v0.0.22
 
 COMMANDS:
-     help, h  Shows a list of commands or help for one command
+   help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
    --apikey value             api key
@@ -34,8 +34,10 @@ GLOBAL OPTIONS:
    --network value, -n value  the network lnd is running on e.g. mainnet, testnet, etc. (default: "mainnet")
    --macaroonpath value       path to macaroon file
    --allowedentropy value     allowed entropy in bits for channel balances (default: 64)
-   --interval value           interval to poll - 10s, 1m or 1h (default: "10s")
-   --private                  report private data as well
+   --interval value           interval to poll - 10s, 1m, 10m or 1h (default: "10s")
+   --private                  report private data as well (default: false)
+   --preferipv4               If you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)
+   --verbosity value          log level for V logs (default: 0)
    --help, -h                 show help
    --version, -v              print the version
 ```
@@ -56,22 +58,13 @@ You can use `--userest` to start using REST API (default is as mentioned gRPC) -
 Of course you can also start the agent on a remote node and just point it to the correct endpoint, but since this is not the default
 use cases flags `--userest` and `--rpcserver` are not advertied in help.
 
-## Private data
-
-What the `--private` flag does probably needs a little elaboration. When it's `false` (which is the default) private information never leaves the node.
-Only thing that is not publicly known is balance distribution of the channels (and reporting that is the whole point of `balance-agent`). If don't allow private data no unannounced channel balance will be reported.
-
-On the other hand if you allow private data it means balances will be reported for announced and also unannounced ("private") channels.
-However that is not enough, since just a balance update from a possibly unknown node would not allow us to display a consistent node settings page.
-We also need something akin to `lnrpc getnodeinfo` JSON output except that it contains also your unannounced channels. A component [nodeinfo](./nodeinfo) is responsible for sending out this data periodically. You can control the check frequency through `--nodeinterval` flag which is similar to `--interval`. Note that only if there is a change the JSON will be actually sent to the server. To not overload the node since it does a few RPC calls `--nodeinterval` is by default done once every minute (`1m`).
-
-At startup nodeinfo is always gathered and we make sure it is sent to the server before any other data.
+Flag `--private` means whether you want to report data for private ("unannounced") channels too (when true). The default is false.
 
 ## Components
 
 Internally we use:
 * [channelchecker](./channelchecker): an abstraction for checking all channels
-* [nodeinfo](./nodeinfo): this can basically report `lncli getnodeinfo` for your node (including unnanounced channels) - it is used by the agent when you allow private data access so we have a full view of node info & channels
+* [nodeinfo](./nodeinfo): this can basically report `lncli getnodeinfo` for your node  - it is used by the agent so we have a full view of node info & channels
 * [checkermonitoring](./checkermonitoring): is used for reporting metrics via Graphite (not used directly in balance-agent here)
 * [lightning_api](./lightning_api): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
 
