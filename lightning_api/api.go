@@ -159,6 +159,7 @@ func getNodeInfoFull(l LightingApiCalls, threshUseDescribeGraph int, ctx context
 		}
 
 		extendedNodeInfo.Channels = all
+		extendedNodeInfo.NumChannels = uint32(len(all))
 
 		return extendedNodeInfo, err
 	}
