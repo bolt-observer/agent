@@ -229,7 +229,7 @@ func (h *HttpApi) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Tran
 	}
 
 	myurl := data.Endpoint
-	if !strings.HasPrefix(data.Endpoint, "https") {
+	if !strings.HasPrefix(data.Endpoint, "http") {
 		myurl = fmt.Sprintf("https://%s", data.Endpoint)
 	}
 
@@ -244,7 +244,7 @@ func (h *HttpApi) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Tran
 		return nil, nil, fmt.Errorf("base64 decode error %s", err)
 	}
 
-	verification := ALLOW_WHEN_PUBKEY_SAME
+	verification := PUBLIC_CA_OR_CERT
 	if data.CertVerificationType != nil {
 		verification = CertificateVerification(*data.CertVerificationType)
 	}

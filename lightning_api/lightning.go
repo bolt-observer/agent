@@ -183,7 +183,7 @@ func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
 		return nil, fmt.Errorf("base64 decoding failed %v", err)
 	}
 
-	verification := ALLOW_WHEN_PUBKEY_SAME
+	verification := PUBLIC_CA_OR_CERT
 	if data.CertVerificationType != nil {
 		verification = CertificateVerification(*data.CertVerificationType)
 	}
