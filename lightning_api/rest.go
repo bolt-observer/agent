@@ -2,8 +2,6 @@ package lightning_api
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -231,7 +229,7 @@ func (h *HttpApi) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Tran
 	}
 
 	myurl := data.Endpoint
-	if !strings.HasPrefix(data.Endpoint, "https") {
+	if !strings.HasPrefix(data.Endpoint, "http") {
 		myurl = fmt.Sprintf("https://%s", data.Endpoint)
 	}
 
@@ -246,16 +244,18 @@ func (h *HttpApi) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Tran
 		return nil, nil, fmt.Errorf("base64 decode error %s", err)
 	}
 
-	cp := x509.NewCertPool()
-	if !cp.AppendCertsFromPEM(certBytes) {
-		return nil, nil, fmt.Errorf("append cert error %s", err)
+	verification := PUBLIC_CA_OR_CERT
+	if data.CertVerificationType != nil {
+		verification = CertificateVerification(*data.CertVerificationType)
+	}
+
+	tls, err := getTlsConfig(certBytes, data.Endpoint, verification)
+	if err != nil {
+		return nil, nil, fmt.Errorf("getTlsConfig failed %v", err)
 	}
 
 	trans := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			MinVersion: tls.VersionTLS11,
-			RootCAs:    cp,
-		},
+		TLSClientConfig: tls,
 	}
 
 	return req, trans, nil
