@@ -3,7 +3,6 @@ package lightning_api
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
@@ -34,7 +33,7 @@ func toPubKey(cert *x509.Certificate) string {
 }
 
 func extractHostname(endpoint string) string {
-	proto := regexp.MustCompile("^[a-zA-Z0-9_-]+//.*")
+	proto := regexp.MustCompile("^[:a-zA-Z0-9_-]+//.*")
 	uri := endpoint
 	if !proto.MatchString(endpoint) {
 		uri = fmt.Sprintf("http://%s", endpoint)
@@ -178,7 +177,7 @@ func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
 		return nil, fmt.Errorf("data could not be fetched %v", err)
 	}
 
-	certBytes, err := base64.StdEncoding.DecodeString(data.CertificateBase64)
+	certBytes, err := utils.SafeBase64Decode(data.CertificateBase64)
 	if err != nil {
 		return nil, fmt.Errorf("base64 decoding failed %v", err)
 	}

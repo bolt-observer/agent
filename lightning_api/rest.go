@@ -2,13 +2,14 @@ package lightning_api
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	utils "github.com/bolt-observer/go_common/utils"
 )
 
 type GetDoFunc func(req *http.Request) (*http.Response, error)
@@ -239,7 +240,7 @@ func (h *HttpApi) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Tran
 	}
 	req.Header.Set("Grpc-Metadata-macaroon", data.MacaroonHex)
 
-	certBytes, err := base64.StdEncoding.DecodeString(data.CertificateBase64)
+	certBytes, err := utils.SafeBase64Decode(data.CertificateBase64)
 	if err != nil {
 		return nil, nil, fmt.Errorf("base64 decode error %s", err)
 	}
