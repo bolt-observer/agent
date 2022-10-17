@@ -56,6 +56,7 @@ const (
 	ALLOW_WHEN_PUBKEY_SAME
 	STRICT
 	INSECURE
+	SKIP_HOST_VERIFICATION
 )
 
 func getTlsConfig(certBytes []byte, hostname string, verification CertificateVerification) (*tls.Config, error) {
@@ -65,6 +66,9 @@ func getTlsConfig(certBytes []byte, hostname string, verification CertificateVer
 	case INSECURE:
 		// Do not use this
 		return &tls.Config{InsecureSkipVerify: true}, nil
+	case SKIP_HOST_VERIFICATION:
+		// Do not use this
+		return &tls.Config{ServerName: "", MinVersion: minVersion}, nil
 	case PUBLIC_CA:
 		// RootCAs could be nil too, but make it more explicit
 		cp, err := x509.SystemCertPool()
