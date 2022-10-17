@@ -55,6 +55,9 @@ type ChannelOverride struct {
 	LocalConstraints     *ChannelConstraintsOverride `json:"local_constraints,omitempty"`
 	RemoteConstraints    *ChannelConstraintsOverride `json:"remote_constraints,omitempty"`
 
+	AliasScids            []string `json:"alias_scids,omitempty"`
+	ZeroConfConfirmedScid string   `json:"zero_conf_confirmed_scid,omitempty"`
+
 	lnrpc.Channel
 }
 
