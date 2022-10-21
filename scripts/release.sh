@@ -15,7 +15,7 @@ make all
 cd release
 tag=$(git describe)
 
-find . -type f -executable -exec zip {}.zip {} \;
+find . -type f -exec zip {}.zip {} \;
 echo > "manifest-$tag.txt"
 shasum -a 256 *.zip >> "manifest-$tag.txt"
 

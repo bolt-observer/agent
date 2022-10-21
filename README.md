@@ -70,12 +70,7 @@ Internally we use:
 
 ## Dependencies
 
-Currently the dependencies are still in private git repositories so you need to do something like:
-
-```
-go env -w GOPRIVATE=github.com/bolt-observer/go_common
-git config url."git@github.com:".insteadOf "https://github.com/"
-```
+This code depends on some [common code](https://github.com/bolt-observer/go_common).
 
 ## Verifying the Release
 
@@ -94,6 +89,6 @@ gpg: Good signature from "Gregor Pogacnik <gregor@bolt.observer>" [ultimate]
 
 Do:
 ```
-go get -v github.com/lightningnetwork/lnd@v0.15.0-beta
+go get -v github.com/lightningnetwork/lnd@v0.15.2-beta
 ```
 or else you get an ancient version and everything breaks (should be good due to go.mod/sums now).
