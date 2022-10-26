@@ -111,7 +111,7 @@ type NodeInfoApi struct {
 	Node          DescribeGraphNodeApi `json:"node,omitempty"`
 	Channels      []NodeChannelApi     `json:"channels"`
 	NumChannels   uint32               `json:"num_channels"`
-	TotalCapacity uint64               `json:"total_capacity,omitempty"`
+	TotalCapacity uint64               `json:"total_capacity"`
 }
 
 type NodeChannelApiExtended struct {

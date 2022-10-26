@@ -370,7 +370,9 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		glog.Warningf("Status was not OK but, %d", resp.StatusCode)
 		if glog.V(2) {
-			glog.V(2).Infof("Failed to send out callback %s", string(rep))
+			defer resp.Body.Close()
+			bodyData, _ := ioutil.ReadAll(resp.Body)
+			glog.V(2).Infof("Failed to send out callback %s, server said %s", string(rep), string(bodyData))
 		}
 		return false
 	}
@@ -435,7 +437,9 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		glog.Warningf("Status was not OK but, %d", resp.StatusCode)
 		if glog.V(2) {
-			glog.V(2).Infof("Failed to send out callback %s", string(rep))
+			defer resp.Body.Close()
+			bodyData, _ := ioutil.ReadAll(resp.Body)
+			glog.V(2).Infof("Failed to send out callback %s, server said %s", string(rep), string(bodyData))
 		}
 		return false
 	}
