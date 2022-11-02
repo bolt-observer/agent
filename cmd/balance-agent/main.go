@@ -328,6 +328,17 @@ func getHttpClient() *http.Client {
 	return httpClient
 }
 
+func shouldCrash(status int, body string) {
+	if status != http.StatusUnauthorized {
+		return
+	}
+
+	if strings.Contains(body, "Invalid token") {
+		glog.Warningf("API token is invalid")
+		os.Exit(1)
+	}
+}
+
 func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	rep, err := json.Marshal(report)
 	if err != nil {
@@ -361,19 +372,18 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	resp, err := client.Do(req)
 	if err != nil {
 		glog.Warningf("Error when doing request, %v", err)
-		if glog.V(2) {
-			glog.V(2).Infof("Failed to send out callback %s", string(rep))
-		}
+		glog.V(2).Infof("Failed to send out callback %s", string(rep))
 		return false
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		glog.Warningf("Status was not OK but, %d", resp.StatusCode)
-		if glog.V(2) {
-			defer resp.Body.Close()
-			bodyData, _ := ioutil.ReadAll(resp.Body)
-			glog.V(2).Infof("Failed to send out callback %s, server said %s", string(rep), string(bodyData))
-		}
+		defer resp.Body.Close()
+		bodyData, _ := ioutil.ReadAll(resp.Body)
+
+		glog.V(2).Infof("Failed to send out callback %s, server said %s", string(rep), string(bodyData))
+		shouldCrash(resp.StatusCode, string(bodyData))
+
 		return false
 	}
 
@@ -436,11 +446,12 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		glog.Warningf("Status was not OK but, %d", resp.StatusCode)
-		if glog.V(2) {
-			defer resp.Body.Close()
-			bodyData, _ := ioutil.ReadAll(resp.Body)
-			glog.V(2).Infof("Failed to send out callback %s, server said %s", string(rep), string(bodyData))
-		}
+		defer resp.Body.Close()
+		bodyData, _ := ioutil.ReadAll(resp.Body)
+
+		glog.V(2).Infof("Failed to send out callback %s, server said %s", string(rep), string(bodyData))
+		shouldCrash(resp.StatusCode, string(bodyData))
+
 		return false
 	}
 
