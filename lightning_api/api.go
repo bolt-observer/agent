@@ -6,6 +6,7 @@ import (
 
 	entities "github.com/bolt-observer/go_common/entities"
 	"github.com/getsentry/sentry-go"
+	"github.com/golang/glog"
 )
 
 type ApiType int
@@ -202,7 +203,9 @@ func getNodeInfoFull(l LightingApiCalls, threshUseDescribeGraph int, ctx context
 			}
 			c, err := l.GetChanInfo(ctx, ch.ChanId)
 			if err != nil {
-				return nil, err
+				glog.Warningf("Could not get channel info for %v: %v", ch.ChanId, err)
+				extendedNodeInfo.NumChannels -= 1
+				continue
 			}
 			private, ok := privateMapping[ch.ChanId]
 			extendedNodeInfo.Channels = append(extendedNodeInfo.Channels, NodeChannelApiExtended{NodeChannelApi: *c, Private: ok && private})
