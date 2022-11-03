@@ -65,10 +65,10 @@ func getTlsConfig(certBytes []byte, hostname string, verification CertificateVer
 	switch verification {
 	case INSECURE:
 		// Do not use this
-		return &tls.Config{InsecureSkipVerify: true}, nil
+		return &tls.Config{InsecureSkipVerify: true, ServerName: "", VerifyConnection: func(cs tls.ConnectionState) error { return nil }}, nil
 	case SKIP_HOST_VERIFICATION:
 		// Do not use this
-		return &tls.Config{ServerName: "", MinVersion: minVersion}, nil
+		return &tls.Config{ServerName: "", VerifyConnection: func(cs tls.ConnectionState) error { return nil }, MinVersion: minVersion}, nil
 	case PUBLIC_CA:
 		// RootCAs could be nil too, but make it more explicit
 		cp, err := x509.SystemCertPool()
