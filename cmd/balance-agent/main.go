@@ -334,7 +334,7 @@ func shouldCrash(status int, body string) {
 	}
 
 	if strings.Contains(body, "Invalid token") {
-		glog.Warningf("API token is invalid")
+		glog.Warningf("API key is invalid")
 		os.Exit(1)
 	}
 }
