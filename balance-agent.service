@@ -1,0 +1,24 @@
+# /etc/systemd/system/balance-agent.service
+[Unit]
+Description=BalanceAgent service
+
+[Service]
+Environment="API_KEY=changeme"
+ExecStart=/usr/local/bin/balance-agent
+After=network-online.target
+Requires=network-online.target
+
+Type=simple
+Restart=on-failure
+RestartSec=1200
+TimeoutStartSec=1200
+TimeoutStopSec=3600
+
+PrivateTmp=true
+ProtectSystem=full
+NoNewPrivileges=true
+PrivateDevices=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target
