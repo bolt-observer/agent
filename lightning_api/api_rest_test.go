@@ -368,7 +368,7 @@ func TestGetChanInfo(t *testing.T) {
 		return
 	}
 
-	if result.ChannelId != chanid || result.ChanPoint != "72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2" || (result.Node1Pub != pubKey && result.Node2Pub != pubKey) {
+	if result.ChannelId != chanid || (result.Node1Pub != pubKey && result.Node2Pub != pubKey) {
 		t.Fatalf("GetChanInfo got wrong response: %v", result)
 	}
 }

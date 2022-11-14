@@ -198,12 +198,14 @@ func (c *ChannelChecker) getChannelList(
 		if c.smooth {
 
 			// Smooth out htlcs
-			for _, htlc := range channel.PendingHtlcs {
-				if htlc.Incoming {
-					// In case of incoming HTLC remoteBalance was already decreased
-					remoteBalance = utils.Min(capacity, remoteBalance+htlc.Amount)
-				} else {
-					localBalance = utils.Min(capacity, localBalance+htlc.Amount)
+			if channel.PendingHtlcs != nil {
+				for _, htlc := range channel.PendingHtlcs {
+					if htlc.Incoming {
+						// In case of incoming HTLC remoteBalance was already decreased
+						remoteBalance = utils.Min(capacity, remoteBalance+htlc.Amount)
+					} else {
+						localBalance = utils.Min(capacity, localBalance+htlc.Amount)
+					}
 				}
 			}
 

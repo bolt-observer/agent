@@ -39,14 +39,15 @@ const (
 )
 
 var (
-	defaultLndDir      = btcutil.AppDataDir("lnd", false)
-	defaultTLSCertPath = filepath.Join(defaultLndDir, defaultTLSCertFilename)
-	defaultRPCPort     = utils.GetEnvWithDefault("DEFAULT_GRPC_PORT", "10009")
-	defaultRPCHostPort = "localhost:" + defaultRPCPort
-	apiKey             string
-	url                string
-	nodeurl            string
-	GitRevision        = "unknownVersion"
+	defaultLightningDir = btcutil.AppDataDir("lightning", false)
+	defaultLndDir       = btcutil.AppDataDir("lnd", false)
+	defaultTLSCertPath  = filepath.Join(defaultLndDir, defaultTLSCertFilename)
+	defaultRPCPort      = utils.GetEnvWithDefault("DEFAULT_GRPC_PORT", "10009")
+	defaultRPCHostPort  = "localhost:" + defaultRPCPort
+	apiKey              string
+	url                 string
+	nodeurl             string
+	GitRevision         = "unknownVersion"
 
 	nodeInfoReported sync.Map
 	private          bool
@@ -57,16 +58,41 @@ var (
 func getData(ctx *cli.Context) (*entities.Data, error) {
 
 	resp := &entities.Data{}
+	resp.Endpoint = ctx.String("rpcserver")
+	resp.ApiType = nil
 
-	if ctx.Bool("userest") {
-		v := int(api.LND_REST)
+	// Assume CLN first
+	if !ctx.Bool("ignorecln") {
+		v := int(api.CLN_SOCKET)
 		resp.ApiType = &v
-	} else {
-		v := int(api.LND_GRPC)
-		resp.ApiType = &v
+
+		path := filepath.Join(defaultLightningDir, ctx.String("chain"), "lightning-rpc")
+		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+			path = resp.Endpoint
+			resp.ApiType = nil
+		} else {
+			resp.Endpoint = path
+		}
+
+		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+			resp.ApiType = nil
+		}
 	}
 
-	resp.Endpoint = ctx.String("rpcserver")
+	if resp.ApiType == nil {
+		if ctx.Bool("userest") {
+			v := int(api.LND_REST)
+			resp.ApiType = &v
+		} else {
+			v := int(api.LND_GRPC)
+			resp.ApiType = &v
+		}
+	}
+
+	if resp.ApiType != nil && *resp.ApiType == int(api.CLN_SOCKET) {
+		// CLN socket connection does not need anything else
+		return resp, nil
+	}
 
 	tlsCertPath, macPath, err := extractPathArgs(ctx)
 	if err != nil {
@@ -262,9 +288,15 @@ func getApp() *cli.App {
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:   "uniqueId",
+			Name:   "uniqueid",
 			Usage:  "Unique identifier",
 			Value:  "",
+			Hidden: true,
+		},
+		// TODO: userest and ignorecln should be merged into some sort of API type
+		&cli.BoolFlag{
+			Name:   "ignorecln",
+			Usage:  "Ignore CLN socket",
 			Hidden: true,
 		},
 	}

@@ -13,6 +13,7 @@ require (
 	github.com/lightningnetwork/lnd v0.15.2-beta
 	github.com/marpaia/graphite-golang v0.0.0-20190519024811-caf161d2c2b1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
+	github.com/powerman/rpc-codec v1.2.2
 	github.com/urfave/cli v1.22.9
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/grpc v1.38.0

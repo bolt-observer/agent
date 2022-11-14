@@ -15,13 +15,14 @@ type ApiType int
 const (
 	LND_GRPC ApiType = iota
 	LND_REST
+	CLN_SOCKET
 )
 
 func GetApiType(t *int) (*ApiType, error) {
 	if t == nil {
 		return nil, fmt.Errorf("no api type specified")
 	}
-	if *t != int(LND_GRPC) && *t != int(LND_REST) {
+	if *t != int(LND_GRPC) && *t != int(LND_REST) && *t != int(CLN_SOCKET) {
 		return nil, fmt.Errorf("invalid api type specified")
 	}
 
@@ -90,7 +91,6 @@ type NodeFeatureApi struct {
 
 type NodeChannelApi struct {
 	ChannelId   uint64            `json:"channel_id,omitempty"`
-	ChanPoint   string            `json:"chan_point,omitempty"`
 	Node1Pub    string            `json:"node1_pub,omitempty"`
 	Node2Pub    string            `json:"node2_pub,omitempty"`
 	Capacity    uint64            `json:"capacity,omitempty"`
@@ -274,6 +274,8 @@ func NewApi(apiType ApiType, getData GetDataCall) LightingApiCalls {
 		return NewLndGrpcLightningApi(getData)
 	case LND_REST:
 		return NewLndRestLightningApi(getData)
+	case CLN_SOCKET:
+		return NewClnSocketLightningApi(getData)
 	}
 
 	sentry.CaptureMessage("Invalid api type")

@@ -166,7 +166,6 @@ func getTlsConfig(certBytes []byte, hostname string, verification CertificateVer
 }
 
 func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
-
 	var (
 		creds    credentials.TransportCredentials
 		macBytes []byte

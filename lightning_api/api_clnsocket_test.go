@@ -1,0 +1,184 @@
+package lightning_api
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net"
+	"os"
+	"strings"
+	"testing"
+)
+
+const BUFSIZE = 2048
+
+func TestConvertChanId(t *testing.T) {
+
+	clnId := "761764x816x0"
+	lndId := uint64(837568375674634240)
+
+	id, err := ToLndChanId(clnId)
+	if err != nil {
+		t.Fatalf("Error %v\n", err)
+	}
+	if id != lndId {
+		t.Fatalf("Conversion failed %v vs. %v\n", id, lndId)
+	}
+
+	if FromLndChanId(lndId) != clnId {
+		t.Fatalf("Conversion failed")
+	}
+
+	_, err = ToLndChanId("foobar")
+	if err == nil {
+		t.Fatalf("Should have failed")
+	}
+}
+
+func TestConvertFeatures(t *testing.T) {
+	features := ConvertFeatures("800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000802000888252a1")
+
+	if features == nil {
+		t.Fatalf("Conversion failed")
+	}
+
+	if val, ok := features["2023"]; ok {
+		fmt.Printf("Is ok")
+		if !val.IsKnown {
+			t.Fatalf("IsKnown is false")
+		}
+
+		if val.IsRequired {
+			t.Fatalf("Required is true")
+		}
+
+		return
+	}
+
+	t.Fatalf("Should not happen")
+}
+
+type Handler func(c net.Conn)
+type CloseFunc func()
+
+func socketServer(t *testing.T, handler Handler) (string, CloseFunc) {
+	tempf, err := os.CreateTemp("", "tempsocket-")
+	if err != nil {
+		t.Fatalf("Could not create temporary file: %v", err)
+	}
+
+	// From here...
+	if err := tempf.Close(); err != nil {
+		t.Fatalf("Could not close temporary file: %v", err)
+	}
+	if err := os.RemoveAll(tempf.Name()); err != nil {
+		t.Fatalf("Could not remove temporary file: %v", err)
+	}
+	name := tempf.Name()
+	listener, err := net.Listen("unix", name)
+	if err != nil {
+		t.Fatalf("Could not listen on temporary file: %v", err)
+	}
+	// ... to here there is a possibility of race conditions
+
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				fmt.Printf("Could not accept connection: %v", err)
+				return
+			}
+
+			go handler(conn)
+		}
+	}()
+
+	closer := func() {
+		listener.Close()
+		os.Remove(name)
+	}
+
+	return name, closer
+}
+
+func clnData(t *testing.T, name string) []byte {
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s.json.template", FIXTURE_DIR, name), os.O_RDONLY, 0644)
+	if err != nil {
+		t.Fatalf("Could not open file: %v", err)
+	}
+	defer f.Close()
+
+	contents, err := ioutil.ReadAll(f)
+	if err != nil {
+		t.Fatalf("Could not read file: %v", err)
+	}
+
+	return contents
+}
+
+func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningApi, LightingApiCalls, CloseFunc) {
+	name, closeFunc := socketServer(t, handler)
+
+	api := NewClnSocketLightningApiRaw("unix", name)
+	if api == nil {
+		t.Fatalf("API should not be nil")
+	}
+
+	d, ok := api.(*ClnSocketLightningApi)
+	if !ok {
+		t.Fatalf("Should be CLN_SOCKET")
+	}
+
+	return d, api, closeFunc
+}
+
+type IdExtractor struct {
+	Id int `json:"id"`
+}
+
+func TestClnGetInfo(t *testing.T) {
+	data := clnData(t, "cln_info")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		buf := make([]byte, BUFSIZE)
+		n, err := c.Read(buf)
+		if err != nil {
+			t.Fatalf("Could not read request body: %v", err)
+		}
+
+		// Reslice else the thing contains zero bytes
+		buf = buf[:n]
+		s := string(buf)
+
+		id := IdExtractor{}
+		err = json.Unmarshal(buf, &id)
+		if err != nil {
+			fmt.Printf("Unmarshal error: %v", err)
+		}
+
+		if strings.Contains(s, "getinfo") {
+			reply := fmt.Sprintf(string(data), id.Id)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	resp, err := api.GetInfo(context.Background())
+	if err != nil {
+		t.Fatalf("GetInfo call failed: %v", err)
+	}
+
+	if resp.IdentityPubkey != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" || resp.Alias != "cln1" || resp.Chain != "mainnet" || resp.Network != "bitcoin" {
+		t.Fatalf("wrong response")
+	}
+}
