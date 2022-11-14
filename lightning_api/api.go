@@ -3,6 +3,7 @@ package lightning_api
 import (
 	"context"
 	"fmt"
+	"math"
 
 	entities "github.com/bolt-observer/go_common/entities"
 	"github.com/getsentry/sentry-go"
@@ -213,7 +214,8 @@ func getNodeInfoFull(l LightingApiCalls, threshUseDescribeGraph int, ctx context
 	} else {
 		graph, err := l.DescribeGraph(ctx, unnanounced)
 		if err != nil {
-			return nil, err
+			// This could happen due to too big response (btcpay example with limited nginx), retry with other mode
+			return getNodeInfoFull(l, math.MaxInt, ctx, channels, unnanounced)
 		}
 		for _, one := range graph.Channels {
 			if one.Node1Pub != info.IdentityPubkey && one.Node2Pub != info.IdentityPubkey {
