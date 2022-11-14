@@ -60,6 +60,8 @@ use cases flags `--userest` and `--rpcserver` are not advertied in help.
 
 Flag `--private` means whether you want to report data for private ("unannounced") channels too (when true). The default is false.
 
+For more information about what exactly is reported read [DATA.md](./DATA.md).
+
 ## Install
 
 We provide a standalone statically compiled binary. The targets are `linux` (amd64 build for GNU/Linux), `rasp` (aarch64 build for GNU/Linux) suitable for installation on your Raspberry PI and `darwin` (amd64 build for MacOS).
