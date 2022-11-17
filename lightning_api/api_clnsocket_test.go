@@ -27,12 +27,12 @@ func TestConvertChanId(t *testing.T) {
 	}
 
 	if FromLndChanId(lndId) != clnId {
-		t.Fatalf("Conversion failed")
+		t.Fatal("Conversion failed")
 	}
 
 	_, err = ToLndChanId("foobar")
 	if err == nil {
-		t.Fatalf("Should have failed")
+		t.Fatal("Should have failed")
 	}
 }
 
@@ -44,7 +44,6 @@ func TestConvertFeatures(t *testing.T) {
 	}
 
 	if val, ok := features["2023"]; ok {
-		fmt.Printf("Is ok")
 		if !val.IsKnown {
 			t.Fatalf("IsKnown is false")
 		}
@@ -86,7 +85,7 @@ func socketServer(t *testing.T, handler Handler) (string, CloseFunc) {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				fmt.Printf("Could not accept connection: %v", err)
+				// Swallow the error, but this just means test will fail
 				return
 			}
 
@@ -154,7 +153,7 @@ func TestClnGetInfo(t *testing.T) {
 		id := IdExtractor{}
 		err = json.Unmarshal(buf, &id)
 		if err != nil {
-			fmt.Printf("Unmarshal error: %v", err)
+			t.Fatalf("Unmarshal error: %v", err)
 		}
 
 		if strings.Contains(s, "getinfo") {
@@ -179,6 +178,56 @@ func TestClnGetInfo(t *testing.T) {
 	}
 
 	if resp.IdentityPubkey != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" || resp.Alias != "cln1" || resp.Chain != "mainnet" || resp.Network != "bitcoin" {
-		t.Fatalf("wrong response")
+		t.Fatal("Wrong response")
+	}
+}
+
+func TestClnGetChanInfo(t *testing.T) {
+	data := clnData(t, "cln_listchans")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		buf := make([]byte, BUFSIZE)
+		n, err := c.Read(buf)
+		if err != nil {
+			t.Fatalf("Could not read request body: %v", err)
+		}
+
+		// Reslice else the thing contains zero bytes
+		buf = buf[:n]
+		s := string(buf)
+
+		id := IdExtractor{}
+		err = json.Unmarshal(buf, &id)
+		if err != nil {
+			t.Fatalf("Unmarshal error: %v", err)
+		}
+
+		if strings.Contains(s, "listchannels") {
+			reply := fmt.Sprintf(string(data), id.Id)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	id, err := ToLndChanId("763291x473x0")
+	if err != nil {
+		t.Fatalf("Could not convert id %d", err)
+	}
+	resp, err := api.GetChanInfo(context.Background(), id)
+	if err != nil {
+		t.Fatalf("GetInfo call failed: %v", err)
+	}
+
+	if resp.ChannelId != 839247329907769344 || resp.Node1Pub != "020f63ca0fd5cbb11012727c035b7c087c2d014a26ed8ed5ed2115c783945a3fc7" || resp.Node2Pub != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" {
+		t.Fatal("Wrong response")
 	}
 }
