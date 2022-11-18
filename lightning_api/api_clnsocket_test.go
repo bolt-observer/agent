@@ -14,7 +14,6 @@ import (
 const BUFSIZE = 2048
 
 func TestConvertChanId(t *testing.T) {
-
 	clnId := "761764x816x0"
 	lndId := uint64(837568375674634240)
 
@@ -61,7 +60,7 @@ func TestConvertFeatures(t *testing.T) {
 type Handler func(c net.Conn)
 type CloseFunc func()
 
-func socketServer(t *testing.T, handler Handler) (string, CloseFunc) {
+func ClnSocketServer(t *testing.T, handler Handler) (string, CloseFunc) {
 	tempf, err := os.CreateTemp("", "tempsocket-")
 	if err != nil {
 		t.Fatalf("Could not create temporary file: %v", err)
@@ -89,7 +88,9 @@ func socketServer(t *testing.T, handler Handler) (string, CloseFunc) {
 				return
 			}
 
-			go handler(conn)
+			if handler != nil {
+				go handler(conn)
+			}
 		}
 	}()
 
@@ -117,7 +118,7 @@ func clnData(t *testing.T, name string) []byte {
 }
 
 func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningApi, LightingApiCalls, CloseFunc) {
-	name, closeFunc := socketServer(t, handler)
+	name, closeFunc := ClnSocketServer(t, handler)
 
 	api := NewClnSocketLightningApiRaw("unix", name)
 	if api == nil {

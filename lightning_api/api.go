@@ -131,15 +131,15 @@ type LightningApi struct {
 }
 
 func (l *LndGrpcLightningApi) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
-	return getNodeInfoFull(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
+	return getNodeInfoFullTemplate(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
 }
 
 func (l *LndRestLightningApi) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
-	return getNodeInfoFull(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
+	return getNodeInfoFullTemplate(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
 }
 
 // GetNodeInfoFull returns info for local node possibly including unnanounced channels (as soon as that can be obtained via GetNodeInfo this method is useless)
-func getNodeInfoFull(l LightingApiCalls, threshUseDescribeGraph int, ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
+func getNodeInfoFullTemplate(l LightingApiCalls, threshUseDescribeGraph int, ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
 	info, err := l.GetInfo(ctx)
 	if err != nil {
 		return nil, err
@@ -215,7 +215,7 @@ func getNodeInfoFull(l LightingApiCalls, threshUseDescribeGraph int, ctx context
 		graph, err := l.DescribeGraph(ctx, unnanounced)
 		if err != nil {
 			// This could happen due to too big response (btcpay example with limited nginx), retry with other mode
-			return getNodeInfoFull(l, math.MaxInt, ctx, channels, unnanounced)
+			return getNodeInfoFullTemplate(l, math.MaxInt, ctx, channels, unnanounced)
 		}
 		for _, one := range graph.Channels {
 			if one.Node1Pub != info.IdentityPubkey && one.Node2Pub != info.IdentityPubkey {

@@ -55,27 +55,31 @@ var (
 	preferipv4       = false
 )
 
-func getData(ctx *cli.Context) (*entities.Data, error) {
+func findUnixSocket(paths ...string) string {
+	for _, path := range paths {
+		fs, err := os.Stat(path)
+		if errors.Is(err, os.ErrNotExist) || fs.Mode()&os.ModeSocket != os.ModeSocket {
+			continue
+		} else {
+			return path
+		}
+	}
 
+	return ""
+}
+
+func getData(ctx *cli.Context) (*entities.Data, error) {
 	resp := &entities.Data{}
 	resp.Endpoint = ctx.String("rpcserver")
 	resp.ApiType = nil
 
-	// Assume CLN first
+	// Assume CLN first (shouldn't really matter unless you have CLN and LND on the same machine, then you can select LND through "ignorecln")
 	if !ctx.Bool("ignorecln") {
-		v := int(api.CLN_SOCKET)
-		resp.ApiType = &v
-
-		path := filepath.Join(defaultLightningDir, ctx.String("chain"), "lightning-rpc")
-		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-			path = resp.Endpoint
-			resp.ApiType = nil
-		} else {
+		path := findUnixSocket(filepath.Join(defaultLightningDir, ctx.String("chain"), "lightning-rpc"), resp.Endpoint)
+		if path != "" {
 			resp.Endpoint = path
-		}
-
-		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-			resp.ApiType = nil
+			v := int(api.CLN_SOCKET)
+			resp.ApiType = &v
 		}
 	}
 
@@ -90,7 +94,7 @@ func getData(ctx *cli.Context) (*entities.Data, error) {
 	}
 
 	if resp.ApiType != nil && *resp.ApiType == int(api.CLN_SOCKET) {
-		// CLN socket connection does not need anything else
+		// CLN socket connections do not need anything else
 		return resp, nil
 	}
 
