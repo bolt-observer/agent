@@ -292,7 +292,7 @@ func TestGetChanInfoGrpc(t *testing.T) {
 		t.Fatalf("Bad response")
 	}
 
-	if resp.ChannelId != chanid || resp.ChanPoint != "72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2" || (resp.Node1Pub != pubKey && resp.Node2Pub != pubKey) {
+	if resp.ChannelId != chanid || (resp.Node1Pub != pubKey && resp.Node2Pub != pubKey) {
 		t.Fatalf("GetChanInfo got wrong response: %v", resp)
 	}
 }

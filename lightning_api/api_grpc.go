@@ -18,6 +18,9 @@ type LndGrpcLightningApi struct {
 	LightningApi
 }
 
+// Compile time check for the interface
+var _ LightingApiCalls = &LndGrpcLightningApi{}
+
 func NewLndGrpcLightningApi(getData GetDataCall) LightingApiCalls {
 	client, cleanup, err := GetClient(getData)
 	if err != nil {
@@ -167,7 +170,6 @@ func (l *LndGrpcLightningApi) convertNode(node *lnrpc.LightningNode) DescribeGra
 func (l *LndGrpcLightningApi) convertChan(edge *lnrpc.ChannelEdge) NodeChannelApi {
 	return NodeChannelApi{
 		ChannelId:   edge.ChannelId,
-		ChanPoint:   edge.ChanPoint,
 		Node1Pub:    edge.Node1Pub,
 		Node2Pub:    edge.Node2Pub,
 		Capacity:    uint64(edge.Capacity),

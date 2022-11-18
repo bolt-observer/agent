@@ -39,14 +39,15 @@ const (
 )
 
 var (
-	defaultLndDir      = btcutil.AppDataDir("lnd", false)
-	defaultTLSCertPath = filepath.Join(defaultLndDir, defaultTLSCertFilename)
-	defaultRPCPort     = utils.GetEnvWithDefault("DEFAULT_GRPC_PORT", "10009")
-	defaultRPCHostPort = "localhost:" + defaultRPCPort
-	apiKey             string
-	url                string
-	nodeurl            string
-	GitRevision        = "unknownVersion"
+	defaultLightningDir = btcutil.AppDataDir("lightning", false)
+	defaultLndDir       = btcutil.AppDataDir("lnd", false)
+	defaultTLSCertPath  = filepath.Join(defaultLndDir, defaultTLSCertFilename)
+	defaultRPCPort      = utils.GetEnvWithDefault("DEFAULT_GRPC_PORT", "10009")
+	defaultRPCHostPort  = "localhost:" + defaultRPCPort
+	apiKey              string
+	url                 string
+	nodeurl             string
+	GitRevision         = "unknownVersion"
 
 	nodeInfoReported sync.Map
 	private          bool
@@ -54,19 +55,48 @@ var (
 	preferipv4       = false
 )
 
-func getData(ctx *cli.Context) (*entities.Data, error) {
-
-	resp := &entities.Data{}
-
-	if ctx.Bool("userest") {
-		v := int(api.LND_REST)
-		resp.ApiType = &v
-	} else {
-		v := int(api.LND_GRPC)
-		resp.ApiType = &v
+func findUnixSocket(paths ...string) string {
+	for _, path := range paths {
+		fs, err := os.Stat(path)
+		if errors.Is(err, os.ErrNotExist) || fs.Mode()&os.ModeSocket != os.ModeSocket {
+			continue
+		} else {
+			return path
+		}
 	}
 
+	return ""
+}
+
+func getData(ctx *cli.Context) (*entities.Data, error) {
+	resp := &entities.Data{}
 	resp.Endpoint = ctx.String("rpcserver")
+	resp.ApiType = nil
+
+	// Assume CLN first (shouldn't really matter unless you have CLN and LND on the same machine, then you can select LND through "ignorecln")
+	if !ctx.Bool("ignorecln") {
+		path := findUnixSocket(filepath.Join(defaultLightningDir, ctx.String("chain"), "lightning-rpc"), resp.Endpoint)
+		if path != "" {
+			resp.Endpoint = path
+			v := int(api.CLN_SOCKET)
+			resp.ApiType = &v
+		}
+	}
+
+	if resp.ApiType == nil {
+		if ctx.Bool("userest") {
+			v := int(api.LND_REST)
+			resp.ApiType = &v
+		} else {
+			v := int(api.LND_GRPC)
+			resp.ApiType = &v
+		}
+	}
+
+	if resp.ApiType != nil && *resp.ApiType == int(api.CLN_SOCKET) {
+		// CLN socket connections do not need anything else
+		return resp, nil
+	}
 
 	tlsCertPath, macPath, err := extractPathArgs(ctx)
 	if err != nil {
@@ -262,9 +292,15 @@ func getApp() *cli.App {
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:   "uniqueId",
+			Name:   "uniqueid",
 			Usage:  "Unique identifier",
 			Value:  "",
+			Hidden: true,
+		},
+		// TODO: userest and ignorecln should be merged into some sort of API type
+		&cli.BoolFlag{
+			Name:   "ignorecln",
+			Usage:  "Ignore CLN socket",
 			Hidden: true,
 		},
 	}

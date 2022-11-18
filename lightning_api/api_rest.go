@@ -18,6 +18,9 @@ type LndRestLightningApi struct {
 	LightningApi
 }
 
+// Compile time check for the interface
+var _ LightingApiCalls = &LndRestLightningApi{}
+
 func NewLndRestLightningApi(getData GetDataCall) LightingApiCalls {
 	api := NewHttpApi()
 
@@ -173,7 +176,6 @@ func (l *LndRestLightningApi) convertNode(node *GraphNodeOverride) DescribeGraph
 func (l *LndRestLightningApi) convertChan(edge *GraphEdgeOverride) NodeChannelApi {
 	return NodeChannelApi{
 		ChannelId:   stringToUint64(edge.ChannelId),
-		ChanPoint:   edge.ChanPoint,
 		Node1Pub:    edge.Node1Pub,
 		Node2Pub:    edge.Node2Pub,
 		Capacity:    stringToUint64(edge.Capacity),

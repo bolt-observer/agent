@@ -26,12 +26,32 @@ func TestApiSelection(t *testing.T) {
 	// ApiType in NewApi() is a preference that can be overriden through data
 
 	// Invalid API type
-	api := NewApi(ApiType(3), func() (*entities.Data, error) {
+	api := NewApi(ApiType(500), func() (*entities.Data, error) {
 		return &data, nil
 	})
 
 	if api != nil {
 		t.Fatalf("API should be nil")
+	}
+
+	// Use CLN
+	name, closer := ClnSocketServer(t, nil)
+	defer closer()
+
+	temp := data.Endpoint
+	data.Endpoint = name
+	api = NewApi(CLN_SOCKET, func() (*entities.Data, error) {
+		return &data, nil
+	})
+	data.Endpoint = temp
+
+	if api == nil {
+		t.Fatalf("API should not be nil")
+	}
+
+	_, ok := api.(*ClnSocketLightningApi)
+	if !ok {
+		t.Fatalf("Should be CLN_SOCKET")
 	}
 
 	// Use gRPC
@@ -43,7 +63,7 @@ func TestApiSelection(t *testing.T) {
 		t.Fatalf("API should not be nil")
 	}
 
-	_, ok := api.(*LndGrpcLightningApi)
+	_, ok = api.(*LndGrpcLightningApi)
 	if !ok {
 		t.Fatalf("Should be LND_GRPC")
 	}
@@ -95,7 +115,7 @@ func TestApiSelection(t *testing.T) {
 	}
 
 	// Invalid type
-	v = 3
+	v = 500
 	data.ApiType = &v
 
 	api = NewApi(LND_GRPC, func() (*entities.Data, error) {
@@ -212,7 +232,7 @@ func (m *MockLightningApi) GetChanInfo(ctx context.Context, chanId uint64) (*Nod
 
 func TestNodeInfoFull(t *testing.T) {
 	mock := &MockLightningApi{}
-	resp, err := getNodeInfoFull(mock, 100, context.Background(), true, true)
+	resp, err := getNodeInfoFullTemplate(mock, 100, context.Background(), true, true)
 	if err != nil {
 		t.Fatalf("Error getting node info: %v", err)
 		return
@@ -240,7 +260,7 @@ func TestNodeInfoFull(t *testing.T) {
 
 func TestNodeInfoFullPublic(t *testing.T) {
 	mock := &MockLightningApi{}
-	resp, err := getNodeInfoFull(mock, 100, context.Background(), true, false)
+	resp, err := getNodeInfoFullTemplate(mock, 100, context.Background(), true, false)
 	if err != nil {
 		t.Fatalf("Error getting node info: %v", err)
 		return
@@ -259,7 +279,7 @@ func TestNodeInfoFullPublic(t *testing.T) {
 
 func TestNodeInfoFullWithDescribeGraph(t *testing.T) {
 	mock := &MockLightningApi{}
-	resp, err := getNodeInfoFull(mock, 1, context.Background(), true, true)
+	resp, err := getNodeInfoFullTemplate(mock, 1, context.Background(), true, true)
 	if err != nil {
 		t.Fatalf("Error getting node info: %v", err)
 		return

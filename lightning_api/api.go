@@ -15,13 +15,14 @@ type ApiType int
 const (
 	LND_GRPC ApiType = iota
 	LND_REST
+	CLN_SOCKET
 )
 
 func GetApiType(t *int) (*ApiType, error) {
 	if t == nil {
 		return nil, fmt.Errorf("no api type specified")
 	}
-	if *t != int(LND_GRPC) && *t != int(LND_REST) {
+	if *t != int(LND_GRPC) && *t != int(LND_REST) && *t != int(CLN_SOCKET) {
 		return nil, fmt.Errorf("invalid api type specified")
 	}
 
@@ -90,7 +91,6 @@ type NodeFeatureApi struct {
 
 type NodeChannelApi struct {
 	ChannelId   uint64            `json:"channel_id,omitempty"`
-	ChanPoint   string            `json:"chan_point,omitempty"`
 	Node1Pub    string            `json:"node1_pub,omitempty"`
 	Node2Pub    string            `json:"node2_pub,omitempty"`
 	Capacity    uint64            `json:"capacity,omitempty"`
@@ -131,15 +131,15 @@ type LightningApi struct {
 }
 
 func (l *LndGrpcLightningApi) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
-	return getNodeInfoFull(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
+	return getNodeInfoFullTemplate(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
 }
 
 func (l *LndRestLightningApi) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
-	return getNodeInfoFull(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
+	return getNodeInfoFullTemplate(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
 }
 
 // GetNodeInfoFull returns info for local node possibly including unnanounced channels (as soon as that can be obtained via GetNodeInfo this method is useless)
-func getNodeInfoFull(l LightingApiCalls, threshUseDescribeGraph int, ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
+func getNodeInfoFullTemplate(l LightingApiCalls, threshUseDescribeGraph int, ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
 	info, err := l.GetInfo(ctx)
 	if err != nil {
 		return nil, err
@@ -215,7 +215,7 @@ func getNodeInfoFull(l LightingApiCalls, threshUseDescribeGraph int, ctx context
 		graph, err := l.DescribeGraph(ctx, unnanounced)
 		if err != nil {
 			// This could happen due to too big response (btcpay example with limited nginx), retry with other mode
-			return getNodeInfoFull(l, math.MaxInt, ctx, channels, unnanounced)
+			return getNodeInfoFullTemplate(l, math.MaxInt, ctx, channels, unnanounced)
 		}
 		for _, one := range graph.Channels {
 			if one.Node1Pub != info.IdentityPubkey && one.Node2Pub != info.IdentityPubkey {
@@ -274,6 +274,8 @@ func NewApi(apiType ApiType, getData GetDataCall) LightingApiCalls {
 		return NewLndGrpcLightningApi(getData)
 	case LND_REST:
 		return NewLndRestLightningApi(getData)
+	case CLN_SOCKET:
+		return NewClnSocketLightningApi(getData)
 	}
 
 	sentry.CaptureMessage("Invalid api type")

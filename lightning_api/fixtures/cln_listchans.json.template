@@ -1,0 +1,34 @@
+{
+  "jsonrpc": "2.0",
+  "id": %d,
+  "result": {
+    "channels": [
+      {
+        "source": "020f63ca0fd5cbb11012727c035b7c087c2d014a26ed8ed5ed2115c783945a3fc7",
+        "destination": "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219",
+        "short_channel_id": "763291x473x0",
+        "public": false,
+        "satoshis": 60000,
+        "amount_msat": "60000000msat",
+        "message_flags": 1,
+        "channel_flags": 0,
+        "active": false,
+        "last_update": 1668524168,
+        "base_fee_millisatoshi": 1000,
+        "fee_per_millionth": 1,
+        "delay": 40,
+        "htlc_minimum_msat": "1000msat",
+        "htlc_maximum_msat": "60000000msat",
+        "features": ""
+      },
+      {
+        "source": "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219",
+        "destination": "020f63ca0fd5cbb11012727c035b7c087c2d014a26ed8ed5ed2115c783945a3fc7",
+        "short_channel_id": "763291x473x0",
+        "public": false,
+        "satoshis": 60000,
+        "amount_msat": "60000000msat"
+      }
+    ]
+  }
+}
