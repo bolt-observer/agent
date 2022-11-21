@@ -176,6 +176,7 @@ func (l *LndRestLightningApi) convertNode(node *GraphNodeOverride) DescribeGraph
 func (l *LndRestLightningApi) convertChan(edge *GraphEdgeOverride) NodeChannelApi {
 	return NodeChannelApi{
 		ChannelId:   stringToUint64(edge.ChannelId),
+		ChanPoint:   edge.ChanPoint,
 		Node1Pub:    edge.Node1Pub,
 		Node2Pub:    edge.Node2Pub,
 		Capacity:    stringToUint64(edge.Capacity),

@@ -91,6 +91,7 @@ type NodeFeatureApi struct {
 
 type NodeChannelApi struct {
 	ChannelId   uint64            `json:"channel_id,omitempty"`
+	ChanPoint   string            `json:"chan_point"`
 	Node1Pub    string            `json:"node1_pub,omitempty"`
 	Node2Pub    string            `json:"node2_pub,omitempty"`
 	Capacity    uint64            `json:"capacity,omitempty"`

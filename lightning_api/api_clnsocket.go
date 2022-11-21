@@ -105,6 +105,8 @@ func ConvertChannelInternal(chans []ClnListChan, id uint64) (*NodeChannelApiExte
 		NodeChannelApi: NodeChannelApi{
 			ChannelId: id,
 			Capacity:  chans[0].Capacity,
+			// TODO: we don't have that
+			ChanPoint: "none",
 		},
 		Private: !chans[0].Public,
 	}
