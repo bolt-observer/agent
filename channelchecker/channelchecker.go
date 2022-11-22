@@ -491,7 +491,7 @@ func (c *ChannelChecker) checkOne(
 
 	c.nodeChanIdsNew[identifier.GetId()] = set
 
-	channelList = c.filterList(channelList, ignoreCache)
+	channelList = c.filterList(identifier, channelList, ignoreCache)
 
 	resp := &entities.ChannelBalanceReport{
 		ReportingSettings: settings,
@@ -514,6 +514,7 @@ func (c *ChannelChecker) checkOne(
 
 // filterList will return just the changed channels
 func (c *ChannelChecker) filterList(
+	identifier entities.NodeIdentifier,
 	list []entities.ChannelBalance,
 	noop bool) []entities.ChannelBalance {
 
@@ -525,7 +526,7 @@ func (c *ChannelChecker) filterList(
 	for _, one := range list {
 		// We need local pubkey in case same channel is monitored from two sides
 		// which could trigger invalidations all the time
-		id := fmt.Sprintf("%s-%d", one.LocalPubkey, one.ChanId)
+		id := fmt.Sprintf("%s-%d", identifier.GetId(), one.ChanId)
 		val, ok := c.channelCache.Get(id)
 		// Note that denominator changes based on channel reserve (might use capacity here)
 

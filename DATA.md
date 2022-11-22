@@ -7,7 +7,7 @@ You can always check by running it with following flags, which forces a dry-run 
 ```
 
 basically it will report a JSON similar to https://api.lightning.community/#getnodeinfo every 10 minutes except that if you allow private data to be reported (`-private`) also unnanounced channels are included. The only additional
-field is `timestamp` in UNIX time. We use that data so the information about a node is available (in case gossip data has not arrived yet or won't arrive if node is private).
+field is `timestamp` in UNIX time. We use that data so the information about a node is available (in case gossip data has not arrived yet or won't arrive when node is private).
 
 ```
 {
@@ -69,7 +69,7 @@ and then upon every change (configurable poll interval) it will report something
       "private": false,
       "active_previous": true,
       "local_pubkey": "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a",
-      "remote_pubkey": "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a",
+      "remote_pubkey": "0260fab633066ed7b1d9b9b8a0fac87e1579d1709e874d28a0d171a1f5c43bb877",
       "chan_id": 754581636042522625,
       "capacity": 13371337,
       "remote_nominator": 10000000,
@@ -93,6 +93,9 @@ and then upon every change (configurable poll interval) it will report something
   }
 ```
 
-`poll_interval` is the setting which you used, and `allowed_entropy` is the entropy in bits that you can also specify via `-allowedentropy` flag.
+`poll_interval` is the setting how often to poll for changes and `allowed_entropy` is the entropy in bits that you can also specify via `-allowedentropy` flag.
 `local_nominator / denominator` is the fraction of how much balance is on your side and `remote_nominator / denominator` is on the other side of the channel.
-If you use a high enough entropy `denominator` is same as `capacity` in satoshis and the `nominator` values can then be interpreted as satoshis, but that does not need to be the case.
+If you use a high enough entropy `denominator` is same as `capacity` in satoshis and thus the `nominator` values can then be interpreted as satoshis.
+note that `local + remote balance` is not necessary equal to `capacity` due to channel reserve and other factors.
+
+`nominator` and `nominator_diff` are deprecated and will be removed soon.
