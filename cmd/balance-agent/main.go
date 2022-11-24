@@ -551,16 +551,16 @@ func checker(ctx *cli.Context) error {
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: ctx.Bool("private")}
 
 	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
-		infochecker.GetState("", ctx.String("uniqueId"), private, agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback)
+		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback)
 		time.Sleep(1 * time.Second)
-		c.GetState("", ctx.String("uniqueId"), mkGetLndApi(ctx), settings, balanceCallback)
+		c.GetState("", ctx.String("uniqueid"), mkGetLndApi(ctx), settings, balanceCallback)
 	} else {
-		err := infochecker.Subscribe("", ctx.String("uniqueId"), private, nodeinterval, mkGetLndApi(ctx), infoCallback)
+		err := infochecker.Subscribe("", ctx.String("uniqueid"), private, nodeinterval, mkGetLndApi(ctx), infoCallback)
 		if err != nil {
 			return err
 		}
 
-		err = c.Subscribe("", ctx.String("uniqueId"),
+		err = c.Subscribe("", ctx.String("uniqueid"),
 			mkGetLndApi(ctx),
 			settings,
 			balanceCallback)

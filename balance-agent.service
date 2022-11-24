@@ -5,8 +5,6 @@ Description=BalanceAgent service
 [Service]
 Environment="API_KEY=changeme"
 ExecStart=/usr/local/bin/balance-agent
-After=network-online.target
-Requires=network-online.target
 
 Type=simple
 Restart=on-failure

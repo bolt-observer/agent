@@ -134,8 +134,4 @@ type ChannelBalance struct {
 	ActiveLocal          bool `json:"active_local"`
 	// Deprecated
 	ActiveLocalPrevious bool `json:"active_local_previous"`
-
-	// For backward compatibility - will be removed
-	Nominator     uint64 `json:"nominator"`
-	NominatorDiff int64  `json:"nominator_diff"`
 }
