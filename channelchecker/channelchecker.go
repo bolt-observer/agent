@@ -577,8 +577,6 @@ func (c *ChannelChecker) filterList(
 			one.ActiveLocalPrevious = true
 			one.ActiveRemotePrevious = true
 
-			c.fillLegacyFields(&one)
-
 			resp = append(resp, one)
 
 			c.channelCache.DeferredSet(id, val, current)
@@ -587,12 +585,6 @@ func (c *ChannelChecker) filterList(
 	}
 
 	return resp
-}
-
-// fillLegacyFields is deprecated and will be removed
-func (c *ChannelChecker) fillLegacyFields(balance *entities.ChannelBalance) {
-	balance.Nominator = balance.RemoteNominator
-	balance.NominatorDiff = balance.RemoteNominatorDiff
 }
 
 func (c *ChannelChecker) commitAllChanges(one string, now time.Time, s Settings) {
