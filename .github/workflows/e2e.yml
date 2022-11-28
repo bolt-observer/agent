@@ -1,6 +1,7 @@
 name: End-to-end testing
 
-# Manually invoked or when a tag is pushed
+# E2E tests can be invoked manually.
+# They are invoked automatically when a new tag (version) is pushed however.
 on:
   workflow_dispatch:
   push:
@@ -11,6 +12,11 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: '0'
+
       - name: Invoke tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -18,7 +24,8 @@ jobs:
           API_KEY: ${{ secrets.API_KEY }
         run: |
           export SERVER API_KEY
+          pwd
           cd e2e
-          up.sh
-          polar-test.sh
-          down.sh
+          ./up.sh
+          ./polar-test.sh
+          ./down.sh
