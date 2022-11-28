@@ -26,10 +26,10 @@ repos:
       - id: conventional-pre-commit
         stages: [commit-msg]
 
-  #- repo: https://github.com/rhysd/actionlint
-  #  rev: v1.6.10
-  #  hooks:
-  #    - id: actionlint-docker
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.6.10
+    hooks:
+      - id: actionlint-docker
 
 
 # sets up .pre-commit-ci.yaml to ensure pre-commit dependencies stay up to date

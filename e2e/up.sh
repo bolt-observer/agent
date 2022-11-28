@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-unzip scenario0.zip
-docker-compose -d up
-docker ps
+# https://github.com/actions/runner-images/issues/2821
+sudo systemctl stop mono-xsp4.service || true
+sudo systemctl disable mono-xsp4.service || true
+sudo killall -9 mono || true
+
+unzip scenario1.zip
+docker-compose up -d || true
+docker ps || true
+echo "Up done..."

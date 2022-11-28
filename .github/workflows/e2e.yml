@@ -2,6 +2,7 @@ name: End-to-end testing
 
 # E2E tests can be invoked manually.
 # They are invoked automatically when a new tag (version) is pushed however.
+# TODO: move this to when a new release is made?
 on:
   workflow_dispatch:
   push:
@@ -20,9 +21,10 @@ jobs:
       - name: Invoke tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SERVER: ${{ secrets.SERVER }
-          API_KEY: ${{ secrets.API_KEY }
+          SERVER: ${{ secrets.SERVER }}
+          API_KEY: ${{ secrets.API_KEY }}
         run: |
+          set -eu
           export SERVER API_KEY
           pwd
           cd e2e
