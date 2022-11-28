@@ -12,12 +12,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18
-
-      - name: Set-up private repos
-        env:
-          TOKEN: ${{ secrets.PAT }}
-        run: go env -w GOPRIVATE=github.com/bolt-observer/go_common &&  git config --global --add url."https://$TOKEN@github.com/".insteadOf https://github.com/
+          go-version: 1.19
 
       - name: Update dependencies
         run: go get ./...
@@ -30,3 +25,36 @@ jobs:
 
       - name: Test
         run: go test -v ./...
+
+      - name: Git checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: '0'
+
+      - uses: docker/setup-buildx-action@v2
+
+      - name: Prepare docker build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+
+          echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+          echo "DESCRIBE=$(git describe)" >> $GITHUB_ENV
+          if [ "$GITHUB_REF_TYPE" == "tag" ]; then
+            echo "TAG=$GITHUB_REF_NAME" >> $GITHUB_ENV
+          else
+            echo "TAG=latest" >> $GITHUB_ENV
+          fi
+
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          push: true
+          tags: ghcr.io/bolt-observer/agent:${{ env.TAG }}
+          cache-from: type=gha,scope=$GITHUB_REF_NAME-agent
+          cache-to: type=gha,mode=max,scope=$GITHUB_REF_NAME-agent
+          build-args: |
+            DESCRIBE=${{ env.DESCRIBE }}

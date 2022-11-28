@@ -1,4 +1,5 @@
-REVISION := $(shell git describe)
+REVISION := ${DESCRIBE}
+REVISION += $(shell git describe)
 REVISION += unknown
 REVISION := $(word 1, $(REVISION))
 

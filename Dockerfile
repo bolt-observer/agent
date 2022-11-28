@@ -1,7 +1,6 @@
 FROM golang:1.19 as app-builder
-ARG TOKEN
-ENV ENV_TOKEN $TOKEN
 
+ARG DESCRIBE=""
 WORKDIR /go/src/app
 COPY . .
 RUN make clean linux && ls -ali ./release/balance-agent*linux*
