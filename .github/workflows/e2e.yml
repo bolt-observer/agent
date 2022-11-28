@@ -1,0 +1,24 @@
+name: End-to-end testing
+
+# Manually invoked or when a tag is pushed
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER: ${{ secrets.SERVER }
+          API_KEY: ${{ secrets.API_KEY }
+        run: |
+          export SERVER API_KEY
+          cd e2e
+          up.sh
+          polar-test.sh
+          down.sh
