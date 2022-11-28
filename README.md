@@ -119,6 +119,16 @@ systemctl enable balance-agent
 systemctl start balance-agent
 ```
 
+## Docker
+
+You can use the docker image from GitHub:
+
+Usage:
+
+```
+docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.0.35
+```
+
 ## Components
 
 Internally we use:
@@ -135,6 +145,6 @@ This code depends on some [common code](https://github.com/bolt-observer/go_comm
 
 Do:
 ```
-go get -v github.com/lightningnetwork/lnd@v0.15.2-beta
+go get -v github.com/lightningnetwork/lnd@v0.15.4-beta
 ```
 or else you get an ancient version and everything breaks (should be good due to go.mod/sums now).
