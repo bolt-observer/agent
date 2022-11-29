@@ -51,8 +51,6 @@ fi
 
 chmod 666 $DIR/*
 
-echo "API KEY is $API_KEY"
-echo "SERVER is $SERVER"
 echo "----"
 docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/agent-report" --nodeurl "https://$SERVER/api/private-node" --verbosity 3
 echo "----"
@@ -65,8 +63,8 @@ grep -q "Sent out nodeinfo callback" $DIR/output.txt || { echo "Failed to send n
 grep -q "Sent out callback" $DIR/output.txt || { echo "Failed to send callback"; exit 1; }
 
 NUM_CHANS=$(cat $DIR/output.txt | grep "Sent out nodeinfo callback" | sed -E 's/.* Sent out nodeinfo callback (.*)/\1/g' | jq '.num_channels' | tr -d " ")
-if [ "$NUM_CHANS" != "1" ]; then
-  echo "Number of channels wrong $NUM_CHANS - should be 1"
+if [ "$NUM_CHANS" != "2" ]; then
+  echo "Number of channels wrong $NUM_CHANS - should be 2"
   exit 1
 fi
 
@@ -78,8 +76,8 @@ grep -q "Sent out nodeinfo callback" $DIR/output.txt || { echo "Failed to send n
 grep -q "Sent out callback" $DIR/output.txt || { echo "Failed to send callback"; exit 1; }
 
 NUM_CHANS=$(cat $DIR/output.txt | grep "Sent out nodeinfo callback" | sed -E 's/.* Sent out nodeinfo callback (.*)/\1/g' | jq '.num_channels' | tr -d " ")
-if [ "$NUM_CHANS" != "2" ]; then
-  echo "Number of channels wrong $NUM_CHANS - should be 2"
+if [ "$NUM_CHANS" != "3" ]; then
+  echo "Number of channels wrong $NUM_CHANS - should be 3"
   exit 1
 fi
 
