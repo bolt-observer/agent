@@ -6,7 +6,7 @@ sudo systemctl stop mono-xsp4.service || true
 sudo systemctl disable mono-xsp4.service || true
 sudo killall -9 mono || true
 
-unzip scenario1.zip
+unzip scenario1.zip >/dev/null
 docker-compose up -d || true
 docker ps || true
 echo "Up done..."

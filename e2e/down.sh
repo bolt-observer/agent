@@ -3,4 +3,4 @@ set -euo pipefail
 
 docker-compose down || true
 docker ps
-rm -rf docker-compose.yml volumes export.json || true
+sudo rm -rf docker-compose.yml volumes export.json || true

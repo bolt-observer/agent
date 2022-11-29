@@ -83,5 +83,5 @@ fi
 
 rm -rf $DIR
 
-echo "Success"
+echo "Scenario1 is running... SUCCESS"
 exit 0

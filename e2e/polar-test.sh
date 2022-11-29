@@ -5,4 +5,4 @@ export SERVER API_KEY || true
 echo "Invoking scenarios..."
 ./scenario1.sh || exit 1
 
-echo "Invokin scenarios... done"
+echo "Invoking scenarios... done"
