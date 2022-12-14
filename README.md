@@ -20,7 +20,7 @@ USAGE:
    balance-agent [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.0.22
+   v0.0.38
 
 COMMANDS:
    help, h  Shows a list of commands or help for one command
@@ -28,8 +28,8 @@ COMMANDS:
 GLOBAL OPTIONS:
    --apikey value             api key
    --rpcserver value          host:port of ln daemon (default: "localhost:10009")
-   --lnddir value             path to lnd's base directory (default: "/home/user/lnd")
-   --tlscertpath value        path to TLS certificate (default: "/home/user/lnd/tls.cert")
+   --lnddir value             path to lnd's base directory (default: "/home/user/.lnd")
+   --tlscertpath value        path to TLS certificate (default: "/home/user/.lnd/tls.cert")
    --chain value, -c value    the chain lnd is running on e.g. bitcoin (default: "bitcoin")
    --network value, -n value  the network lnd is running on e.g. mainnet, testnet, etc. (default: "mainnet")
    --macaroonpath value       path to macaroon file
@@ -37,6 +37,7 @@ GLOBAL OPTIONS:
    --interval value           interval to poll - 10s, 1m, 10m or 1h (default: "10s")
    --private                  report private data as well (default: false)
    --preferipv4               If you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)
+   --filter value             Path to filter file
    --verbosity value          log level for V logs (default: 0)
    --help, -h                 show help
    --version, -v              print the version
@@ -129,11 +130,34 @@ Usage:
 docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.0.35
 ```
 
+## Filtering on agent side
+
+You can limit what channnels are reported using `--filter` option. It specifies a path of a local file to be used as a whitelist of what channels to report.
+`--filter` implies `--private` (and specifying both is a mistake). The format of the file is simple:
+
+```
+# Comments start with a # character
+# You can list pubkeys ala
+0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a # bolt.observer
+# which means any channel where peer pubkey is this
+# or you can specify a specific short channel id ala
+759930760125546497
+# too, invalid lines like
+whatever
+# will be ignored (and logged as a warning, aliases also don't work!)
+# Validity for channel id is not checked (it just has to be numeric), thus:
+1337
+# is perfectly valid (altho it won't match and thus allow the reporting of
+# any additional channel).
+# Empty files means nothing - in whitelist context: do not report anything.
+```
+
 ## Components
 
 Internally we use:
 * [channelchecker](./channelchecker): an abstraction for checking all channels
 * [nodeinfo](./nodeinfo): this can basically report `lncli getnodeinfo` for your node  - it is used by the agent so we have a full view of node info & channels
+* [filter](./filter): this is used to filter specific channels on the agent side
 * [checkermonitoring](./checkermonitoring): is used for reporting metrics via Graphite (not used directly in balance-agent here)
 * [lightning_api](./lightning_api): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
 

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	agent_entities "github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/filter"
 	lightning_api "github.com/bolt-observer/agent/lightning_api"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
@@ -31,7 +32,7 @@ func getChannelJson(remote uint64, private, active bool) string {
 				"channels": [
 				  {
 					"chan_id": "1",
-					"capacity": "50000",
+					"capacity": "10000",
 					"local_balance": "7331",
 					"remote_balance": "%d",
 					"commit_fee": "2345",
@@ -122,10 +123,17 @@ func getNodeInfoJson(pubKey string) string {
 	`, pubKey)
 }
 
-func getChanInfo() string {
-	return `
-		{"channel_id":"810130063083110402", "chan_point":"72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2", "last_update":1661455399, "node1_pub":"02004c625d622245606a1ea2c1c69cfb4516b703b47945a3647713c05fe4aaeb1c", "node2_pub":"02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", "capacity":"50000", "node1_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"49500000", "last_update":1661455399}, "node2_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"49500000", "last_update":1661395514}}
-	`
+func getChanInfo(url string) string {
+	s := strings.ReplaceAll(url, "/v1/graph/edge/", "")
+	id, err := strconv.Atoi(s)
+
+	if err != nil {
+		return ""
+	}
+
+	return fmt.Sprintf(`
+		{"channel_id":"%d", "chan_point":"72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2", "last_update":1661455399, "node1_pub":"02004c625d622245606a1ea2c1c69cfb4516b703b47945a3647713c05fe4aaeb1c", "node2_pub":"02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", "capacity":"%d", "node1_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"49500000", "last_update":1661455399}, "node2_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"49500000", "last_update":1661395514}}
+	`, id, id*10000)
 }
 
 func initTest(t *testing.T) (string, lightning_api.LightingApiCalls, *lightning_api.LndRestLightningApi) {
@@ -185,11 +193,13 @@ func TestSubscription(t *testing.T) {
 		return
 	}
 
+	f, _ := filter.NewAllowAllFilter()
 	err := c.Subscribe(
 		pubKey, "random_id", true,
 		agent_entities.SECOND,
 		func() lightning_api.LightingApiCalls { return api },
 		nil,
+		f,
 	)
 	if err != nil {
 		t.Fatalf("Subscribe failed: %v", err)
@@ -224,7 +234,7 @@ func TestBasicFlow(t *testing.T) {
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
 			contents = getChannelJson(1337, false, true)
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
-			contents = getChanInfo()
+			contents = getChanInfo(req.URL.Path)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
 			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
@@ -245,6 +255,7 @@ func TestBasicFlow(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 	was_called := false
 
+	f, _ := filter.NewAllowAllFilter()
 	c.Subscribe(
 		pubKey, "random_id", true,
 		agent_entities.SECOND,
@@ -254,6 +265,70 @@ func TestBasicFlow(t *testing.T) {
 			cancel()
 			return true
 		},
+		f,
+	)
+
+	c.EventLoop()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("Took too long")
+	case <-ctx.Done():
+		if !was_called {
+			t.Fatalf("Callback was not correctly invoked")
+		}
+	}
+}
+
+func TestBasicFlowFilter(t *testing.T) {
+	pubKey, api, d := initTest(t)
+
+	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+		contents := ""
+		if strings.Contains(req.URL.Path, "v1/getinfo") {
+			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else if strings.Contains(req.URL.Path, "v1/channels") {
+			contents = getChannelJson(1337, false, true)
+		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
+			contents = getChanInfo(req.URL.Path)
+		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
+			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		}
+
+		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+
+	c := NewNodeInfo(ctx, nil)
+
+	// Make everything a bit faster
+	c.OverrideLoopInterval(1 * time.Second)
+	was_called := false
+
+	f, _ := filter.NewUnitTestFilter()
+	fd := f.(*filter.UnitTestFilter)
+	fd.AddAllowChanId(1)
+	fd.AddAllowChanId(1337)
+
+	c.Subscribe(
+		pubKey, "random_id", true,
+		agent_entities.SECOND,
+		func() lightning_api.LightingApiCalls { return api },
+		func(ctx context.Context, report *agent_entities.InfoReport) bool {
+			if report.NumChannels == 1 && report.TotalCapacity == 10000 {
+				was_called = true
+				cancel()
+			}
+
+			return true
+		},
+		f,
 	)
 
 	c.EventLoop()
@@ -278,7 +353,7 @@ func TestContextCanBeNil(t *testing.T) {
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
 			contents = getChannelJson(1337, false, true)
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
-			contents = getChanInfo()
+			contents = getChanInfo(req.URL.Path)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
 			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
@@ -297,6 +372,8 @@ func TestContextCanBeNil(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 	was_called := false
 
+	f, _ := filter.NewAllowAllFilter()
+
 	c.Subscribe(
 		pubKey, "random_id", true,
 		agent_entities.SECOND,
@@ -305,6 +382,7 @@ func TestContextCanBeNil(t *testing.T) {
 			was_called = true
 			return true
 		},
+		f,
 	)
 
 	go c.EventLoop()
@@ -327,7 +405,7 @@ func TestGetState(t *testing.T) {
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
 			contents = getChannelJson(1337, false, true)
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
-			contents = getChanInfo()
+			contents = getChanInfo(req.URL.Path)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
 			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
@@ -345,11 +423,14 @@ func TestGetState(t *testing.T) {
 
 	c := NewNodeInfo(ctx, nil)
 
+	f, _ := filter.NewAllowAllFilter()
+
 	resp, err := c.GetState(
 		pubKey, "random_id", true,
 		agent_entities.SECOND,
 		func() lightning_api.LightingApiCalls { return api },
 		nil,
+		f,
 	)
 
 	if err != nil {
@@ -373,7 +454,7 @@ func TestGetStateCallback(t *testing.T) {
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
 			contents = getChannelJson(1337, false, true)
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
-			contents = getChanInfo()
+			contents = getChanInfo(req.URL.Path)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
 			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
@@ -393,6 +474,8 @@ func TestGetStateCallback(t *testing.T) {
 	var callresp *agent_entities.InfoReport
 	callresp = nil
 
+	f, _ := filter.NewAllowAllFilter()
+
 	resp, err := c.GetState(
 		pubKey, "random_id", true,
 		agent_entities.SECOND,
@@ -401,6 +484,7 @@ func TestGetStateCallback(t *testing.T) {
 			callresp = report
 			return true
 		},
+		f,
 	)
 
 	if err != nil {

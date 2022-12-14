@@ -14,6 +14,7 @@ import (
 
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning_api"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
@@ -109,6 +110,11 @@ func (c *ChannelChecker) Subscribe(
 		settings.NoopInterval = c.keepAliveInterval
 	}
 
+	if settings.Filter == nil {
+		f, _ := filter.NewAllowAllFilter()
+		settings.Filter = f
+	}
+
 	c.globalSettings.Set(info.IdentityPubkey+uniqueId, Settings{
 		identifier:     entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId},
 		settings:       settings,
@@ -140,6 +146,11 @@ func (c *ChannelChecker) GetState(
 		return nil, errors.New("invalid pubkey")
 	}
 
+	if settings.Filter == nil {
+		f, _ := filter.NewAllowAllFilter()
+		settings.Filter = f
+	}
+
 	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId}, getApi, settings, true, false)
 	if err != nil {
 		return nil, err
@@ -156,7 +167,9 @@ func (c *ChannelChecker) getChannelList(
 	api api.LightingApiCalls,
 	info *api.InfoApi,
 	precisionBits int,
-	allowPrivateChans bool) ([]entities.ChannelBalance, SetOfChanIds, error) {
+	allowPrivateChans bool,
+	filter filter.FilterInterface,
+) ([]entities.ChannelBalance, SetOfChanIds, error) {
 
 	defer c.monitoring.MetricsTimer(fmt.Sprintf("channellist.%s", info.IdentityPubkey))()
 
@@ -180,6 +193,10 @@ func (c *ChannelChecker) getChannelList(
 
 	for _, channel := range channels.Channels {
 		if channel.Private && !allowPrivateChans {
+			continue
+		}
+
+		if !filter.AllowChanId(channel.ChanId) && !filter.AllowPubKey(channel.RemotePubkey) {
 			continue
 		}
 
@@ -471,7 +488,7 @@ func (c *ChannelChecker) checkOne(
 		identifier.Identifier = info.IdentityPubkey
 	}
 
-	channelList, set, err := c.getChannelList(api, info, settings.AllowedEntropy, settings.AllowPrivateChannels)
+	channelList, set, err := c.getChannelList(api, info, settings.AllowedEntropy, settings.AllowPrivateChannels, settings.Filter)
 	if err != nil {
 		c.monitoring.MetricsReport(metricsName, "failure")
 		return nil, err

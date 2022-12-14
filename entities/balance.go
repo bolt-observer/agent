@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bolt-observer/agent/filter"
 	entities "github.com/bolt-observer/go_common/entities"
 )
 
@@ -84,11 +85,12 @@ func (i *Interval) UnmarshalJSON(s []byte) (err error) {
 type BalanceReportCallback func(ctx context.Context, report *ChannelBalanceReport) bool
 
 type ReportingSettings struct {
-	GraphPollInterval    time.Duration `json:"-"`
-	NoopInterval         time.Duration `json:"-"` // If that much time has passed send null report
-	PollInterval         Interval      `json:"poll_interval"`
-	AllowedEntropy       int           `json:"allowed_entropy"`        // 64 bits is the default
-	AllowPrivateChannels bool          `json:"allow_private_channels"` // default is false
+	GraphPollInterval    time.Duration          `json:"-"`
+	NoopInterval         time.Duration          `json:"-"` // If that much time has passed send null report
+	Filter               filter.FilterInterface `json:"-"`
+	PollInterval         Interval               `json:"poll_interval"`
+	AllowedEntropy       int                    `json:"allowed_entropy"`        // 64 bits is the default
+	AllowPrivateChannels bool                   `json:"allow_private_channels"` // default is false
 }
 
 type ChannelBalanceReport struct {

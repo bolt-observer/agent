@@ -11,10 +11,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
@@ -23,6 +25,7 @@ import (
 
 	channelchecker "github.com/bolt-observer/agent/channelchecker"
 	"github.com/bolt-observer/agent/checkermonitoring"
+	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning_api"
 	"github.com/bolt-observer/agent/nodeinfo"
 	entities "github.com/bolt-observer/go_common/entities"
@@ -303,6 +306,10 @@ func getApp() *cli.App {
 			Usage:  "Ignore CLN socket",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:  "filter",
+			Usage: "Path to filter file",
+		},
 	}
 
 	app.Flags = append(app.Flags, glogFlags...)
@@ -508,6 +515,54 @@ func mkGetLndApi(ctx *cli.Context) agent_entities.NewApiCall {
 	}
 }
 
+func reloadConfig(ctx context.Context, f *filter.FileFilter) {
+	glog.Info("Reloading configuration...")
+
+	if f != nil {
+		err := f.Reload()
+		if err != nil {
+			glog.Warningf("Error while reloading configuration %v", err)
+		}
+	}
+}
+
+func signalHandler(ctx context.Context, f filter.FilterInterface) {
+	ff, ok := f.(*filter.FileFilter)
+
+	signal_chan := make(chan os.Signal, 1)
+	exit_chan := make(chan int)
+
+	signal.Notify(signal_chan,
+		syscall.SIGHUP)
+	go func() {
+		for {
+			select {
+			case s := <-signal_chan:
+				switch s {
+				case syscall.SIGHUP:
+					if ok {
+						reloadConfig(ctx, ff)
+					} else {
+						reloadConfig(ctx, nil)
+					}
+
+				case syscall.SIGTERM:
+					exit_chan <- 0
+				case syscall.SIGQUIT:
+					exit_chan <- 0
+				default:
+					fmt.Println("Unknown signal.")
+					exit_chan <- 1
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	code := <-exit_chan
+	os.Exit(code)
+}
+
 func checker(ctx *cli.Context) error {
 	apiKey = utils.GetEnvWithDefault("API_KEY", "")
 	if apiKey == "" {
@@ -518,9 +573,31 @@ func checker(ctx *cli.Context) error {
 		return fmt.Errorf("missing API key")
 	}
 
+	if ctx.String("filter") != "" && ctx.Bool("private") {
+		return fmt.Errorf("filter implies private already, do not set both options")
+	}
+
+	ct := context.Background()
+
+	var err error
+
+	f, _ := filter.NewAllowAllFilter()
+	if ctx.String("filter") != "" {
+		if _, err = os.Stat(ctx.String("filter")); err != nil {
+			return fmt.Errorf("filter points to non-existing file")
+		}
+
+		f, err = filter.NewFilterFromFile(ct, ctx.String("filter"), 10*time.Minute)
+		if err != nil {
+			return err
+		}
+	}
+
+	go signalHandler(ct, f)
+
 	url = ctx.String("url")
 	nodeurl = ctx.String("nodeurl")
-	private = ctx.Bool("private")
+	private = ctx.Bool("private") || ctx.String("filter") != ""
 
 	interval, err := getInterval(ctx, "interval")
 	if err != nil {
@@ -534,7 +611,6 @@ func checker(ctx *cli.Context) error {
 
 	preferipv4 = ctx.Bool("preferipv4")
 
-	ct := context.Background()
 	infochecker := nodeinfo.NewNodeInfo(ct, checkermonitoring.NewNopCheckerMonitoring("nodeinfo"))
 	c := channelchecker.NewDefaultChannelChecker(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), checkermonitoring.NewNopCheckerMonitoring("channelchecker"))
 
@@ -551,11 +627,11 @@ func checker(ctx *cli.Context) error {
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: ctx.Bool("private")}
 
 	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
-		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback)
+		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback, f)
 		time.Sleep(1 * time.Second)
 		c.GetState("", ctx.String("uniqueid"), mkGetLndApi(ctx), settings, balanceCallback)
 	} else {
-		err := infochecker.Subscribe("", ctx.String("uniqueid"), private, nodeinterval, mkGetLndApi(ctx), infoCallback)
+		err := infochecker.Subscribe("", ctx.String("uniqueid"), private, nodeinterval, mkGetLndApi(ctx), infoCallback, f)
 		if err != nil {
 			return err
 		}
