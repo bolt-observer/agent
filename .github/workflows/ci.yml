@@ -35,15 +35,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # shellcheck disable=SC2086
           git config user.name "GitHub Actions Bot"
+          # shellcheck disable=SC2086
           git config user.email "<>"
 
+          # shellcheck disable=SC2086
           echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
+          # shellcheck disable=SC2086
           echo "DESCRIBE=$(git describe)" >> $GITHUB_ENV
           if [ "$GITHUB_REF_TYPE" == "tag" ]; then
+            # shellcheck disable=SC2086
             echo "TAG=$GITHUB_REF_NAME" >> $GITHUB_ENV
           else
+            # shellcheck disable=SC2086
             echo "TAG=latest" >> $GITHUB_ENV
           fi
 
