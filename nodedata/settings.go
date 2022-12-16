@@ -49,14 +49,13 @@ func (s *GlobalSettings) Delete(key string) {
 }
 
 type Settings struct {
-	callback       entities.BalanceReportCallback
-	getApi         entities.NewApiCall
-	hash           uint64
-	identifier     entities.NodeIdentifier
-	interval       entities.Interval // Is this needed, it is not being set?
-	lastCheck      time.Time
-	lastGraphCheck time.Time
-	lastReport     time.Time
-	private        bool
-	settings       entities.ReportingSettings
+	balanceReportCallback entities.BalanceReportCallback
+	infoCallback          entities.InfoCallback
+	getApi                entities.NewApiCall
+	hash                  uint64
+	identifier            entities.NodeIdentifier
+	lastCheck             time.Time
+	lastGraphCheck        time.Time
+	lastReport            time.Time
+	settings              entities.ReportingSettings
 }
