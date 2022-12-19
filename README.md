@@ -26,21 +26,21 @@ COMMANDS:
    help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --apikey value             api key
-   --rpcserver value          host:port of ln daemon (default: "localhost:10009")
-   --lnddir value             path to lnd's base directory (default: "/home/user/.lnd")
-   --tlscertpath value        path to TLS certificate (default: "/home/user/.lnd/tls.cert")
-   --chain value, -c value    the chain lnd is running on e.g. bitcoin (default: "bitcoin")
-   --network value, -n value  the network lnd is running on e.g. mainnet, testnet, etc. (default: "mainnet")
-   --macaroonpath value       path to macaroon file
-   --allowedentropy value     allowed entropy in bits for channel balances (default: 64)
-   --interval value           interval to poll - 10s, 1m, 10m or 1h (default: "10s")
-   --private                  report private data as well (default: false)
-   --preferipv4               If you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)
-   --filter value             Path to filter file
-   --verbosity value          log level for V logs (default: 0)
-   --help, -h                 show help
-   --version, -v              print the version
+   --apikey value              api key
+   --rpcserver value           host:port of ln daemon (default: "localhost:10009")
+   --lnddir value              path to lnd's base directory (default: "/home/user/.lnd")
+   --tlscertpath value         path to TLS certificate (default: "/home/user/.lnd/tls.cert")
+   --chain value, -c value     the chain lnd is running on e.g. bitcoin (default: "bitcoin")
+   --network value, -n value   the network lnd is running on e.g. mainnet, testnet, etc. (default: "mainnet")
+   --macaroonpath value        path to macaroon file
+   --allowedentropy value      allowed entropy in bits for channel balances (default: 64)
+   --interval value            interval to poll - 10s, 1m, 10m or 1h (default: "10s")
+   --private                   report private data as well (default: false)
+   --preferipv4                If you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)
+   --channels-whitelist value  Path to file containing a whitelist of channels
+   --verbosity value           log level for V logs (default: 0)
+   --help, -h                  show help
+   --version, -v               print the version
 ```
 
 It tries the best to have sane defaults so you can just start it up on your node without further hassle.
@@ -132,15 +132,15 @@ docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.0.35
 
 ## Filtering on agent side
 
-You can limit what channnels are reported using `--filter` option. It specifies a path of a local file to be used as a whitelist of what channels to report.
-`--filter` implies `--private` (and specifying both is a mistake). The format of the file is simple:
+You can limit what channnels are reported using `--channels-whitelist` option. It specifies a path of a local file to be used as a whitelist of what channels to report.
+`--channels-whitelist` implies `--private` (and specifying both is a mistake). The format of the file is simple:
 
 ```
 # Comments start with a # character
-# You can list pubkeys ala
+# You can list pubkeys for example:
 0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a # bolt.observer
 # which means any channel where peer pubkey is this
-# or you can specify a specific short channel id ala
+# or you can specify a specific short channel id e.g.,
 759930760125546497
 # too, invalid lines like
 whatever

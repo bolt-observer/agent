@@ -8,8 +8,6 @@ type FilterInterface interface {
 type Filter struct {
 	chanIdWhitelist map[uint64]struct{}
 	nodeIdWhitelist map[string]struct{}
-
-	// Here we could have blacklists too
 }
 
 func (f *Filter) AllowPubKey(id string) bool {

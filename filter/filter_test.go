@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFile(t *testing.T) {
@@ -34,23 +36,11 @@ func TestFile(t *testing.T) {
 		t.Fatalf("Got error %v\n", err)
 	}
 
-	if !fil.AllowChanId(1) {
-		t.Fatalf("Should be allowed")
+	for _, chanid := range []uint64{1, 2, 3} {
+		assert.Equal(t, true, fil.AllowChanId(chanid), "Should be allowed")
 	}
 
-	if !fil.AllowChanId(2) {
-		t.Fatalf("Should be allowed")
-	}
-
-	if !fil.AllowChanId(3) {
-		t.Fatalf("Should be allowed")
-	}
-
-	if fil.AllowChanId(4) {
-		t.Fatalf("Should not be allowed")
-	}
-
-	if fil.AllowChanId(1337) {
-		t.Fatalf("Should not be allowed")
+	for _, chanid := range []uint64{4, 1337} {
+		assert.Equal(t, false, fil.AllowChanId(chanid), "Should not be allowed")
 	}
 }

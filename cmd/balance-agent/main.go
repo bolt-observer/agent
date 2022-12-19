@@ -307,8 +307,8 @@ func getApp() *cli.App {
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:  "filter",
-			Usage: "Path to filter file",
+			Name:  "channels-whitelist",
+			Usage: "Path to file containing a whitelist of channels",
 		},
 	}
 
@@ -573,8 +573,8 @@ func checker(ctx *cli.Context) error {
 		return fmt.Errorf("missing API key")
 	}
 
-	if ctx.String("filter") != "" && ctx.Bool("private") {
-		return fmt.Errorf("filter implies private already, do not set both options")
+	if ctx.String("channels-whitelist") != "" && ctx.Bool("private") {
+		return fmt.Errorf("channels-whitelist implies private already, do not set both options")
 	}
 
 	ct := context.Background()
@@ -582,12 +582,12 @@ func checker(ctx *cli.Context) error {
 	var err error
 
 	f, _ := filter.NewAllowAllFilter()
-	if ctx.String("filter") != "" {
-		if _, err = os.Stat(ctx.String("filter")); err != nil {
-			return fmt.Errorf("filter points to non-existing file")
+	if ctx.String("channels-whitelist") != "" {
+		if _, err = os.Stat(ctx.String("channels-whitelist")); err != nil {
+			return fmt.Errorf("channels-whitelist points to non-existing file")
 		}
 
-		f, err = filter.NewFilterFromFile(ct, ctx.String("filter"), 10*time.Minute)
+		f, err = filter.NewFilterFromFile(ct, ctx.String("channels-whitelist"), 10*time.Minute)
 		if err != nil {
 			return err
 		}
@@ -597,7 +597,7 @@ func checker(ctx *cli.Context) error {
 
 	url = ctx.String("url")
 	nodeurl = ctx.String("nodeurl")
-	private = ctx.Bool("private") || ctx.String("filter") != ""
+	private = ctx.Bool("private") || ctx.String("channels-whitelist") != ""
 
 	interval, err := getInterval(ctx, "interval")
 	if err != nil {

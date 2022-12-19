@@ -11,6 +11,7 @@ import (
 	"time"
 
 	utils "github.com/bolt-observer/go_common/utils"
+	"github.com/fsnotify/fsnotify"
 	"github.com/golang/glog"
 )
 
@@ -68,6 +69,8 @@ func (f *FileFilter) Reload() error {
 }
 
 func NewFilterFromFile(ctx context.Context, filePath string, interval time.Duration) (FilterInterface, error) {
+	var ticker *time.Ticker
+
 	f := &FileFilter{
 		WhitelistFilePath: filePath,
 	}
@@ -77,23 +80,40 @@ func NewFilterFromFile(ctx context.Context, filePath string, interval time.Durat
 		return nil, err
 	}
 
-	if interval > 0*time.Second {
-		// nosemgrep
-		ticker := time.NewTicker(interval)
-
-		go func() {
-			for {
-				select {
-				case <-ticker.C:
-					f.Reload()
-
-				case <-ctx.Done():
-					ticker.Stop()
-					return
-				}
-			}
-		}()
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, err
 	}
+
+	if interval > 0*time.Second {
+		ticker = time.NewTicker(interval)
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				f.Reload()
+			case event, ok := <-watcher.Events:
+				if !ok {
+					continue
+				}
+				if event.Op&fsnotify.Write == fsnotify.Write {
+					f.Reload()
+				}
+			case err := <-watcher.Errors:
+				glog.Warningf("Watcher error %v\n", err)
+			case <-ctx.Done():
+				if ticker != nil {
+					ticker.Stop()
+				}
+				if watcher != nil {
+					watcher.Close()
+				}
+				return
+			}
+		}
+	}()
 
 	return f, nil
 }

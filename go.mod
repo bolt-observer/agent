@@ -6,6 +6,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.23.0
 	github.com/bolt-observer/go_common v0.0.8
 	github.com/btcsuite/btcd/btcutil v1.1.2
+	github.com/fsnotify/fsnotify v1.4.9
 	github.com/getsentry/sentry-go v0.13.0
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang/glog v1.0.0
