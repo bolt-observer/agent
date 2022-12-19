@@ -5,13 +5,13 @@ go 1.18
 require (
 	github.com/alicebob/miniredis/v2 v2.23.0
 	github.com/bolt-observer/go_common v0.0.8
+	github.com/bolt-observer/graphite-golang v0.0.0-20221216134649-94ce8603f234
 	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/getsentry/sentry-go v0.13.0
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang/glog v1.0.0
 	github.com/golang/mock v1.6.0
 	github.com/lightningnetwork/lnd v0.15.4-beta
-	github.com/marpaia/graphite-golang v0.0.0-20190519024811-caf161d2c2b1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/powerman/rpc-codec v1.2.2
 	github.com/urfave/cli v1.22.9
