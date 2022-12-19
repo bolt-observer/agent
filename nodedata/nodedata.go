@@ -504,9 +504,7 @@ func (c *NodeData) checkOne(
 		return nil, fmt.Errorf("pubkey and reported pubkey are not the same")
 	}
 
-	if identifier.Identifier == "" {
-		identifier.Identifier = channelInfo.IdentityPubkey
-	}
+	identifier.Identifier = channelInfo.IdentityPubkey
 
 	channelList, set, err := c.getChannelList(api, channelInfo, settings.AllowedEntropy, settings.AllowPrivateChannels)
 	if err != nil {
@@ -546,7 +544,7 @@ func (c *NodeData) checkOne(
 	}
 
 	// Get node info
-	nodeInfo, err := api.GetNodeInfoFull(c.ctx, true, true) // Set private as always true, is this correct?
+	nodeInfo, err := api.GetNodeInfoFull(c.ctx, true, settings.AllowPrivateChannels)
 	var nodeReport *entities.InfoReport
 	if err != nil {
 		fmt.Printf("failed to call GetNodeInfoFull %v", err)
