@@ -111,6 +111,7 @@ func (c *ChannelChecker) Subscribe(
 	}
 
 	if settings.Filter == nil {
+		glog.V(3).Infof("Filter was nil, allowing everything")
 		f, _ := filter.NewAllowAllFilter()
 		settings.Filter = f
 	}
@@ -193,10 +194,12 @@ func (c *ChannelChecker) getChannelList(
 
 	for _, channel := range channels.Channels {
 		if channel.Private && !allowPrivateChans {
+			glog.V(3).Infof("Skipping private channel %v", channel.ChanId)
 			continue
 		}
 
 		if !filter.AllowChanId(channel.ChanId) && !filter.AllowPubKey(channel.RemotePubkey) {
+			glog.V(3).Infof("Filtering channel %v", channel.ChanId)
 			continue
 		}
 

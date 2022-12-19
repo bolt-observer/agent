@@ -574,7 +574,7 @@ func checker(ctx *cli.Context) error {
 	}
 
 	if ctx.String("channels-whitelist") != "" && ctx.Bool("private") {
-		return fmt.Errorf("channels-whitelist implies private already, do not set both options")
+		return fmt.Errorf("channels-whitelist implies private, do not set both options")
 	}
 
 	ct := context.Background()
@@ -624,7 +624,7 @@ func checker(ctx *cli.Context) error {
 		nodeinterval = agent_entities.TEN_SECONDS
 	}
 
-	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: ctx.Bool("private")}
+	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
 	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
 		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback, f)

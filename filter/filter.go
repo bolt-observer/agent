@@ -65,6 +65,8 @@ func (f *FileFilter) Reload() error {
 		}
 	}
 
+	glog.V(3).Infof("Filter reloaded")
+
 	return nil
 }
 
@@ -89,7 +91,12 @@ func NewFilterFromFile(ctx context.Context, filePath string, interval time.Durat
 		ticker = time.NewTicker(interval)
 	}
 
-	go func() {
+	err = watcher.Add(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	go func(watcher *fsnotify.Watcher) {
 		for {
 			select {
 			case <-ticker.C:
@@ -98,8 +105,15 @@ func NewFilterFromFile(ctx context.Context, filePath string, interval time.Durat
 				if !ok {
 					continue
 				}
-				if event.Op&fsnotify.Write == fsnotify.Write {
-					f.Reload()
+
+				f.Reload()
+
+				if event.Op&fsnotify.Rename == fsnotify.Rename || event.Op&fsnotify.Remove == fsnotify.Remove {
+					// Happens when you save the changes via text editor
+					err := watcher.Add(event.Name)
+					if err != nil {
+						glog.Warningf("Watcher error %v\n", err)
+					}
 				}
 			case err := <-watcher.Errors:
 				glog.Warningf("Watcher error %v\n", err)
@@ -113,7 +127,7 @@ func NewFilterFromFile(ctx context.Context, filePath string, interval time.Durat
 				return
 			}
 		}
-	}()
+	}(watcher)
 
 	return f, nil
 }
