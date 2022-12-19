@@ -279,13 +279,13 @@ func getApp() *cli.App {
 		&cli.StringFlag{
 			Name:   "url",
 			Usage:  "Report URL",
-			Value:  "https://bolt.observer/api/agent-report/",
+			Value:  "https://ingress.bolt.observer/api/agent-report/",
 			Hidden: true,
 		},
 		&cli.StringFlag{
 			Name:   "nodeurl",
 			Usage:  "Node report URL",
-			Value:  "https://bolt.observer/api/private-node/",
+			Value:  "https://ingress.bolt.observer/api/private-node/",
 			Hidden: true,
 		},
 		&cli.StringFlag{

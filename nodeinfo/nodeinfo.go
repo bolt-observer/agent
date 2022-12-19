@@ -187,7 +187,7 @@ func (c *NodeInfo) EventLoop() {
 }
 
 func (c *NodeInfo) checkAll() bool {
-	defer c.monitoring.MetricsTimer("checkall.global")()
+	defer c.monitoring.MetricsTimer("checkall.global", nil)()
 
 	for _, one := range c.globalSettings.GetKeys() {
 		now := time.Now()
@@ -219,8 +219,7 @@ func (c *NodeInfo) checkAll() bool {
 					}
 					defer c.reentrancyBlock.Release(one)
 
-					metricsName := fmt.Sprintf("checkdelivery.%s", s.identifier.GetId())
-					timer := c.monitoring.MetricsTimer(metricsName)
+					timer := c.monitoring.MetricsTimer("checkdeliver", map[string]string{"pubkey": s.identifier.GetId()})
 					if s.callback(c.ctx, resp) {
 						// Update hash only upon success
 						s.hash = hash
@@ -243,7 +242,7 @@ func (c *NodeInfo) checkAll() bool {
 		}
 	}
 
-	c.monitoring.MetricsReport("checkall.global", "success")
+	c.monitoring.MetricsReport("checkall.global", "success", nil)
 	return true
 }
 
@@ -276,28 +275,30 @@ func (c *NodeInfo) checkOne(
 	filter filter.FilterInterface,
 ) (*entities.InfoReport, error) {
 
-	name := identifier.GetId()
-	if name == "" {
-		name = "local"
+	pubkey := identifier.GetId()
+	if pubkey == "" {
+		pubkey = "local"
 	}
-	metricsName := fmt.Sprintf("checkone.%s", name)
-	defer c.monitoring.MetricsTimer(metricsName)()
+
+	defer c.monitoring.MetricsTimer("checkone", map[string]string{"pubkey": pubkey})()
 
 	api := getApi()
 	if api == nil {
-		c.monitoring.MetricsReport(metricsName, "failure")
+		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("failed to get client")
 	}
 	defer api.Cleanup()
 
 	info, err := api.GetNodeInfoFull(c.ctx, true, private)
 	if err != nil {
+		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("failed to call GetNodeInfoFull %v", err)
 	}
 
 	info = applyFilter(info, filter)
 
 	if len(info.Channels) != int(info.NumChannels) {
+		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("bad NodeInfo obtained %d channels vs. num_channels %d - %v", len(info.Channels), info.NumChannels, info)
 	}
 
