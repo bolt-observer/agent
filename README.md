@@ -26,18 +26,16 @@ COMMANDS:
    help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --apikey value              api key
-   --rpcserver value           host:port of ln daemon (default: "localhost:10009")
-   --lnddir value              path to lnd's base directory (default: "/home/user/.lnd")
-   --tlscertpath value         path to TLS certificate (default: "/home/user/.lnd/tls.cert")
-   --chain value, -c value     the chain lnd is running on e.g. bitcoin (default: "bitcoin")
-   --network value, -n value   the network lnd is running on e.g. mainnet, testnet, etc. (default: "mainnet")
-   --macaroonpath value        path to macaroon file
    --allowedentropy value      allowed entropy in bits for channel balances (default: 64)
+   --apikey value              api key
    --interval value            interval to poll - 10s, 1m, 10m or 1h (default: "10s")
+   --lnddir value              path to lnd's base directory (default: "/home/user/.lnd")
+   --macaroonpath value        path to macaroon file
    --private                   report private data as well (default: false)
    --preferipv4                If you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)
-   --channels-whitelist value  Path to file containing a whitelist of channels
+   --rpcserver value           host:port of ln daemon (default: "localhost:10009")
+   --tlscertpath value         path to TLS certificate (default: "/home/user/.lnd/tls.cert")
+   --channel-whitelist value   Path to file containing a whitelist of channels
    --verbosity value           log level for V logs (default: 0)
    --help, -h                  show help
    --version, -v               print the version
@@ -132,8 +130,13 @@ docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.0.35
 
 ## Filtering on agent side
 
-You can limit what channnels are reported using `--channels-whitelist` option. It specifies a path of a local file to be used as a whitelist of what channels to report.
-`--channels-whitelist` implies `--private` (and specifying both is a mistake). The format of the file is simple:
+You can limit what channnels are reported using `--channel-whitelist` option. It specifies a local file path to be used as a whitelist of what channels to report.
+When adding `--private` to `--channel-whitelist` this means every private channel AND whatever is listed in the file. There is also `--public` to allow all public channels.
+Using the options without `--channel-whitelist` makes no sense since by default all public channels are reported however it has to be explicit with `--channel-whitelist` in order
+to automatically allow all public channels (beside what is allowed through the file).
+If you set `--private` and `--public` then no matter what you add to the `--channel-whitelist` file everything will be reported.
+
+The format of the file is simple:
 
 ```
 # Comments start with a # character

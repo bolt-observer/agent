@@ -9,7 +9,7 @@ import (
 )
 
 func TestFile(t *testing.T) {
-	f, err := os.CreateTemp("", "tmpfile-") // in Go version older than 1.17 you can use ioutil.TempFile
+	f, err := os.CreateTemp("", "tmpfile-")
 	if err != nil {
 		t.Fatalf("Got error %v\n", err)
 	}
@@ -30,7 +30,7 @@ func TestFile(t *testing.T) {
 		t.Fatalf("Got error %v\n", err)
 	}
 
-	fil, err := NewFilterFromFile(context.TODO(), f.Name())
+	fil, err := NewFilterFromFile(context.TODO(), f.Name(), None)
 	if err != nil {
 		t.Fatalf("Got error %v\n", err)
 	}
@@ -42,4 +42,32 @@ func TestFile(t *testing.T) {
 	for _, chanid := range []uint64{4, 1337} {
 		assert.Equal(t, false, fil.AllowChanId(chanid), "Should not be allowed")
 	}
+}
+
+func TestOptions(t *testing.T) {
+	f, err := os.CreateTemp("", "tmpfile-")
+	if err != nil {
+		t.Fatalf("Got error %v\n", err)
+	}
+
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	data := []byte(`
+	###
+	# Demo file
+	###
+	public
+	`)
+	if _, err := f.Write(data); err != nil {
+		t.Fatalf("Got error %v\n", err)
+	}
+
+	fil, err := NewFilterFromFile(context.TODO(), f.Name(), AllowAllPrivate)
+	if err != nil {
+		t.Fatalf("Got error %v\n", err)
+	}
+
+	assert.Equal(t, true, fil.AllowSpecial(true), "Private channels should be allowed")
+	assert.Equal(t, true, fil.AllowSpecial(false), "Publlic channels should be allowed")
 }

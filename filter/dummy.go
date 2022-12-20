@@ -16,6 +16,10 @@ func (f *AllowAllFilter) AllowChanId(id uint64) bool {
 	return true
 }
 
+func (f *AllowAllFilter) AllowSpecial(private bool) bool {
+	return true
+}
+
 type UnitTestFilter struct {
 	Filter
 }
@@ -37,4 +41,8 @@ func (u *UnitTestFilter) AddAllowPubKey(id string) {
 
 func (u *UnitTestFilter) AddAllowChanId(id uint64) {
 	u.chanIdWhitelist[id] = struct{}{}
+}
+
+func (f *UnitTestFilter) ChangeOptions(options Options) {
+	f.Options = options
 }

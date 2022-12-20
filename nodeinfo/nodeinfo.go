@@ -256,7 +256,7 @@ func applyFilter(info *lightning_api.NodeInfoApiExtended, filter filter.FilterIn
 		nodeAllowed := (filter.AllowPubKey(c.Node1Pub) && info.Node.PubKey != c.Node1Pub) || (filter.AllowPubKey(c.Node2Pub) && info.Node.PubKey != c.Node2Pub)
 		chanAllowed := filter.AllowChanId(c.ChannelId)
 
-		if nodeAllowed || chanAllowed {
+		if nodeAllowed || chanAllowed || filter.AllowSpecial(c.Private) {
 			ret.Channels = append(ret.Channels, c)
 		} else {
 			ret.NumChannels -= 1
