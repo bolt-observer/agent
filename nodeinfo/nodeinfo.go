@@ -12,6 +12,8 @@ import (
 
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/filter"
+	"github.com/bolt-observer/agent/lightning_api"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/golang/glog"
@@ -81,13 +83,15 @@ func (c *NodeInfo) GetState(
 	private bool,
 	PollInterval entities.Interval,
 	getApi entities.NewApiCall,
-	optCallback entities.InfoCallback) (*entities.InfoReport, error) {
+	optCallback entities.InfoCallback,
+	filter filter.FilterInterface,
+) (*entities.InfoReport, error) {
 
 	if pubKey != "" && !utils.ValidatePubkey(pubKey) {
 		return nil, errors.New("invalid pubkey")
 	}
 
-	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId}, getApi, private)
+	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId}, getApi, private, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +110,9 @@ func (c *NodeInfo) Subscribe(
 	private bool,
 	PollInterval entities.Interval,
 	getApi entities.NewApiCall,
-	callback entities.InfoCallback) error {
+	callback entities.InfoCallback,
+	f filter.FilterInterface,
+) error {
 
 	if pubKey != "" && !utils.ValidatePubkey(pubKey) {
 		return errors.New("invalid pubkey")
@@ -127,6 +133,10 @@ func (c *NodeInfo) Subscribe(
 		return fmt.Errorf("pubkey and reported pubkey are not the same %s vs %s", info.IdentityPubkey, pubKey)
 	}
 
+	if f == nil {
+		f, _ = filter.NewAllowAllFilter()
+	}
+
 	c.globalSettings.Set(info.IdentityPubkey+uniqueId, Settings{
 		identifier: entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId},
 		lastCheck:  time.Time{},
@@ -134,6 +144,7 @@ func (c *NodeInfo) Subscribe(
 		getApi:     getApi,
 		hash:       0,
 		private:    private,
+		filter:     f,
 	})
 
 	return nil
@@ -184,7 +195,7 @@ func (c *NodeInfo) checkAll() bool {
 
 		toBeCheckedBy := s.lastCheck.Add(s.interval.Duration())
 		if toBeCheckedBy.Before(now) {
-			resp, err := c.checkOne(s.identifier, s.getApi, s.private)
+			resp, err := c.checkOne(s.identifier, s.getApi, s.private, s.filter)
 			if err != nil {
 				glog.Warningf("Failed to check %v: %v", s.identifier.GetId(), err)
 				continue
@@ -235,11 +246,34 @@ func (c *NodeInfo) checkAll() bool {
 	return true
 }
 
+func applyFilter(info *lightning_api.NodeInfoApiExtended, filter filter.FilterInterface) *lightning_api.NodeInfoApiExtended {
+	ret := &lightning_api.NodeInfoApiExtended{
+		NodeInfoApi: info.NodeInfoApi,
+		Channels:    make([]lightning_api.NodeChannelApiExtended, 0),
+	}
+
+	for _, c := range info.Channels {
+		nodeAllowed := (filter.AllowPubKey(c.Node1Pub) && info.Node.PubKey != c.Node1Pub) || (filter.AllowPubKey(c.Node2Pub) && info.Node.PubKey != c.Node2Pub)
+		chanAllowed := filter.AllowChanId(c.ChannelId)
+
+		if nodeAllowed || chanAllowed || filter.AllowSpecial(c.Private) {
+			ret.Channels = append(ret.Channels, c)
+		} else {
+			ret.NumChannels -= 1
+			ret.TotalCapacity -= c.Capacity
+		}
+	}
+
+	return ret
+}
+
 // checkOne checks one specific node
 func (c *NodeInfo) checkOne(
 	identifier entities.NodeIdentifier,
 	getApi entities.NewApiCall,
-	private bool) (*entities.InfoReport, error) {
+	private bool,
+	filter filter.FilterInterface,
+) (*entities.InfoReport, error) {
 
 	pubkey := identifier.GetId()
 	if pubkey == "" {
@@ -260,6 +294,9 @@ func (c *NodeInfo) checkOne(
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("failed to call GetNodeInfoFull %v", err)
 	}
+
+	info = applyFilter(info, filter)
+
 	if len(info.Channels) != int(info.NumChannels) {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("bad NodeInfo obtained %d channels vs. num_channels %d - %v", len(info.Channels), info.NumChannels, info)

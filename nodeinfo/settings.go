@@ -5,6 +5,7 @@ import (
 	"time"
 
 	entities "github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/filter"
 )
 
 type GlobalSettings struct {
@@ -56,4 +57,5 @@ type Settings struct {
 	getApi     entities.NewApiCall
 	interval   entities.Interval
 	private    bool
+	filter     filter.FilterInterface
 }

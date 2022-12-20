@@ -204,6 +204,7 @@ func getNodeInfoFullTemplate(l LightingApiCalls, threshUseDescribeGraph int, ctx
 				continue
 			}
 			c, err := l.GetChanInfo(ctx, ch.ChanId)
+
 			if err != nil {
 				glog.Warningf("Could not get channel info for %v: %v", ch.ChanId, err)
 				extendedNodeInfo.NumChannels -= 1

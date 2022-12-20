@@ -11,10 +11,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
@@ -23,6 +25,7 @@ import (
 
 	channelchecker "github.com/bolt-observer/agent/channelchecker"
 	"github.com/bolt-observer/agent/checkermonitoring"
+	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning_api"
 	"github.com/bolt-observer/agent/nodeinfo"
 	entities "github.com/bolt-observer/go_common/entities"
@@ -36,6 +39,7 @@ const (
 	defaultChainSubDir      = "chain"
 	defaultTLSCertFilename  = "tls.cert"
 	defaultMacaroonFilename = "readonly.macaroon"
+	whitelist               = "channel-whitelist"
 )
 
 var (
@@ -204,15 +208,20 @@ func getApp() *cli.App {
 	app.Version = GitRevision
 
 	app.Flags = []cli.Flag{
+		&cli.IntFlag{
+			Name:  "allowedentropy",
+			Usage: "allowed entropy in bits for channel balances",
+			Value: 64,
+		},
 		&cli.StringFlag{
 			Name:  "apikey",
 			Value: "",
 			Usage: "api key",
 		},
 		&cli.StringFlag{
-			Name:  "rpcserver",
-			Value: defaultRPCHostPort,
-			Usage: "host:port of ln daemon",
+			Name:  "interval",
+			Usage: "interval to poll - 10s, 1m, 10m or 1h",
+			Value: "10s",
 		},
 		&cli.StringFlag{
 			Name:  "lnddir",
@@ -220,42 +229,36 @@ func getApp() *cli.App {
 			Usage: "path to lnd's base directory",
 		},
 		&cli.StringFlag{
-			Name:  "tlscertpath",
-			Value: defaultTLSCertPath,
-			Usage: "path to TLS certificate",
-		},
-		&cli.StringFlag{
-			Name:  "chain, c",
-			Usage: "the chain lnd is running on e.g. bitcoin",
-			Value: "bitcoin",
-		},
-		&cli.StringFlag{
-			Name: "network, n",
-			Usage: "the network lnd is running on e.g. mainnet, " +
-				"testnet, etc.",
-			Value: "mainnet",
-		},
-		&cli.StringFlag{
 			Name:  "macaroonpath",
 			Usage: "path to macaroon file",
-		},
-		&cli.IntFlag{
-			Name:  "allowedentropy",
-			Usage: "allowed entropy in bits for channel balances",
-			Value: 64,
-		},
-		&cli.StringFlag{
-			Name:  "interval",
-			Usage: "interval to poll - 10s, 1m, 10m or 1h",
-			Value: "10s",
 		},
 		&cli.BoolFlag{
 			Name:  "private",
 			Usage: "report private data as well (default: false)",
 		},
 		&cli.BoolFlag{
+			Name:   "public",
+			Usage:  fmt.Sprintf("report public data - useful with %s (default: false)", whitelist),
+			Hidden: true,
+		},
+		&cli.BoolFlag{
 			Name:  "preferipv4",
 			Usage: "If you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)",
+		},
+		&cli.StringFlag{
+			Name:  "rpcserver",
+			Value: defaultRPCHostPort,
+			Usage: "host:port of ln daemon",
+		},
+		&cli.StringFlag{
+			Name:  "tlscertpath",
+			Value: defaultTLSCertPath,
+			Usage: "path to TLS certificate",
+		},
+		&cli.StringFlag{
+			Name:   whitelist,
+			Usage:  "Path to file containing a whitelist of channels",
+			Hidden: true,
 		},
 		&cli.BoolFlag{
 			Name:   "userest",
@@ -301,6 +304,20 @@ func getApp() *cli.App {
 		&cli.BoolFlag{
 			Name:   "ignorecln",
 			Usage:  "Ignore CLN socket",
+			Hidden: true,
+		},
+
+		&cli.StringFlag{
+			Name:   "chain, c",
+			Usage:  "the chain lnd is running on e.g. bitcoin",
+			Value:  "bitcoin",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name: "network, n",
+			Usage: "the network lnd is running on e.g. mainnet, " +
+				"testnet, etc.",
+			Value:  "mainnet",
 			Hidden: true,
 		},
 	}
@@ -508,6 +525,54 @@ func mkGetLndApi(ctx *cli.Context) agent_entities.NewApiCall {
 	}
 }
 
+func reloadConfig(ctx context.Context, f *filter.FileFilter) {
+	glog.Info("Reloading configuration...")
+
+	if f != nil {
+		err := f.Reload()
+		if err != nil {
+			glog.Warningf("Error while reloading configuration %v", err)
+		}
+	}
+}
+
+func signalHandler(ctx context.Context, f filter.FilterInterface) {
+	ff, ok := f.(*filter.FileFilter)
+
+	signal_chan := make(chan os.Signal, 1)
+	exit_chan := make(chan int)
+
+	signal.Notify(signal_chan,
+		syscall.SIGHUP)
+	go func() {
+		for {
+			select {
+			case s := <-signal_chan:
+				switch s {
+				case syscall.SIGHUP:
+					if ok {
+						reloadConfig(ctx, ff)
+					} else {
+						reloadConfig(ctx, nil)
+					}
+
+				case syscall.SIGTERM:
+					exit_chan <- 0
+				case syscall.SIGQUIT:
+					exit_chan <- 0
+				default:
+					fmt.Println("Unknown signal.")
+					exit_chan <- 1
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	code := <-exit_chan
+	os.Exit(code)
+}
+
 func checker(ctx *cli.Context) error {
 	apiKey = utils.GetEnvWithDefault("API_KEY", "")
 	if apiKey == "" {
@@ -515,12 +580,44 @@ func checker(ctx *cli.Context) error {
 	}
 
 	if apiKey == "" && (ctx.String("url") != "" || ctx.String("nodeurl") != "") {
-		return fmt.Errorf("missing API key")
+		// We don't return error here since we don't want glog to handle it
+		fmt.Fprintf(os.Stderr, "missing API key (use --apikey or set API_KEY environment variable)\n")
+		os.Exit(1)
 	}
+
+	ct := context.Background()
+
+	var err error
+
+	f, _ := filter.NewAllowAllFilter()
+	if ctx.String(whitelist) != "" {
+		if _, err = os.Stat(ctx.String(whitelist)); err != nil {
+			// We don't return error here since we don't want glog to handle it
+			fmt.Fprintf(os.Stderr, "%s points to non-existing file", whitelist)
+			os.Exit(1)
+		}
+
+		o := filter.None
+
+		if ctx.Bool("private") {
+			o |= filter.AllowAllPrivate
+		}
+
+		if ctx.Bool("public") {
+			o |= filter.AllowAllPublic
+		}
+
+		f, err = filter.NewFilterFromFile(ct, ctx.String(whitelist), o)
+		if err != nil {
+			return err
+		}
+	}
+
+	go signalHandler(ct, f)
 
 	url = ctx.String("url")
 	nodeurl = ctx.String("nodeurl")
-	private = ctx.Bool("private")
+	private = ctx.Bool("private") || ctx.String(whitelist) != ""
 
 	interval, err := getInterval(ctx, "interval")
 	if err != nil {
@@ -534,7 +631,6 @@ func checker(ctx *cli.Context) error {
 
 	preferipv4 = ctx.Bool("preferipv4")
 
-	ct := context.Background()
 	infochecker := nodeinfo.NewNodeInfo(ct, checkermonitoring.NewNopCheckerMonitoring("nodeinfo"))
 	c := channelchecker.NewDefaultChannelChecker(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), checkermonitoring.NewNopCheckerMonitoring("channelchecker"))
 
@@ -548,14 +644,14 @@ func checker(ctx *cli.Context) error {
 		nodeinterval = agent_entities.TEN_SECONDS
 	}
 
-	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: ctx.Bool("private")}
+	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
 	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
-		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback)
+		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback, f)
 		time.Sleep(1 * time.Second)
 		c.GetState("", ctx.String("uniqueid"), mkGetLndApi(ctx), settings, balanceCallback)
 	} else {
-		err := infochecker.Subscribe("", ctx.String("uniqueid"), private, nodeinterval, mkGetLndApi(ctx), infoCallback)
+		err := infochecker.Subscribe("", ctx.String("uniqueid"), private, nodeinterval, mkGetLndApi(ctx), infoCallback, f)
 		if err != nil {
 			return err
 		}
