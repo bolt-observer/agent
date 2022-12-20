@@ -51,7 +51,9 @@ but that should be it.
 
 Only thing that is mandatory is apikey which can also be provided through `API_KEY` environment variable.
 
-By default it will try to communicate with LND using local gRPC connection and `readonly.macaroon`.
+To obtain an API key, you will need a <a href="https://bolt.observer">bolt.observer</a> account.
+
+By default it will try to communicate with LND using local gRPC connection and `readonly.macaroon`. Once you have an account and have added a node, from the node screen click "OWN THIS NODE? ENROLL IN LIQUIDOPS" -> "ENROLL WITH AGENT" -> "GENERATE API KEY" and then save the API key for use with the agent.
 
 You can use `--userest` to start using REST API (default is as mentioned gRPC) - in that case `--rpcserver` can be complete URL to the endpoint.
 
