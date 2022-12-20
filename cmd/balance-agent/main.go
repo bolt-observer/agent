@@ -581,7 +581,7 @@ func checker(ctx *cli.Context) error {
 
 	if apiKey == "" && (ctx.String("url") != "" || ctx.String("nodeurl") != "") {
 		// We don't return error here since we don't want glog to handle it
-		fmt.Fprintf(os.Stderr, "missing API key\n")
+		fmt.Fprintf(os.Stderr, "missing API key (use --apikey or set API_KEY environment variable)\n")
 		os.Exit(1)
 	}
 

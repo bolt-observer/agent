@@ -198,7 +198,7 @@ func (c *ChannelChecker) getChannelList(
 			continue
 		}
 
-		if !filter.AllowChanId(channel.ChanId) && !filter.AllowPubKey(channel.RemotePubkey) || !filter.AllowSpecial(channel.Private) {
+		if !filter.AllowChanId(channel.ChanId) && !filter.AllowPubKey(channel.RemotePubkey) && !filter.AllowSpecial(channel.Private) {
 			glog.V(3).Infof("Filtering channel %v", channel.ChanId)
 			continue
 		}
