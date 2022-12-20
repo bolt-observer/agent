@@ -136,7 +136,7 @@ Using the options without `--channel-whitelist` makes no sense since by default 
 to automatically allow all public channels (beside what is allowed through the file).
 If you set `--private` and `--public` then no matter what you add to the `--channel-whitelist` file everything will be reported.
 
-The format of the file is simple:
+The file looks like this:
 
 ```
 # Comments start with a # character
