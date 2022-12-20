@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/fsnotify/fsnotify"
@@ -70,9 +69,7 @@ func (f *FileFilter) Reload() error {
 	return nil
 }
 
-func NewFilterFromFile(ctx context.Context, filePath string, interval time.Duration) (FilterInterface, error) {
-	var ticker *time.Ticker
-
+func NewFilterFromFile(ctx context.Context, filePath string) (FilterInterface, error) {
 	f := &FileFilter{
 		WhitelistFilePath: filePath,
 	}
@@ -86,11 +83,6 @@ func NewFilterFromFile(ctx context.Context, filePath string, interval time.Durat
 	if err != nil {
 		return nil, err
 	}
-
-	if interval > 0*time.Second {
-		ticker = time.NewTicker(interval)
-	}
-
 	err = watcher.Add(filePath)
 	if err != nil {
 		return nil, err
@@ -99,8 +91,6 @@ func NewFilterFromFile(ctx context.Context, filePath string, interval time.Durat
 	go func(watcher *fsnotify.Watcher) {
 		for {
 			select {
-			case <-ticker.C:
-				f.Reload()
 			case event, ok := <-watcher.Events:
 				if !ok {
 					continue
@@ -118,9 +108,6 @@ func NewFilterFromFile(ctx context.Context, filePath string, interval time.Durat
 			case err := <-watcher.Errors:
 				glog.Warningf("Watcher error %v\n", err)
 			case <-ctx.Done():
-				if ticker != nil {
-					ticker.Stop()
-				}
 				if watcher != nil {
 					watcher.Close()
 				}

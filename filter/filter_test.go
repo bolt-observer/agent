@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -31,7 +30,7 @@ func TestFile(t *testing.T) {
 		t.Fatalf("Got error %v\n", err)
 	}
 
-	fil, err := NewFilterFromFile(context.TODO(), f.Name(), 0*time.Second)
+	fil, err := NewFilterFromFile(context.TODO(), f.Name())
 	if err != nil {
 		t.Fatalf("Got error %v\n", err)
 	}

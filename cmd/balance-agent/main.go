@@ -587,7 +587,7 @@ func checker(ctx *cli.Context) error {
 			return fmt.Errorf("channels-whitelist points to non-existing file")
 		}
 
-		f, err = filter.NewFilterFromFile(ct, ctx.String("channels-whitelist"), 10*time.Minute)
+		f, err = filter.NewFilterFromFile(ct, ctx.String("channels-whitelist"))
 		if err != nil {
 			return err
 		}
