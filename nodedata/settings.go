@@ -49,12 +49,10 @@ func (s *GlobalSettings) Delete(key string) {
 }
 
 type Settings struct {
-	balanceReportCallback entities.BalanceReportCallback
-	infoCallback          entities.InfoCallback
+	nodeDataCallback 			entities.NodeDataReportCallback
 	getApi                entities.NewApiCall
 	hash                  uint64
 	identifier            entities.NodeIdentifier
-	lastCheck             time.Time
 	lastGraphCheck        time.Time
 	lastReport            time.Time
 	settings              entities.ReportingSettings

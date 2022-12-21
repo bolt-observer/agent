@@ -21,10 +21,8 @@ import (
 	"github.com/golang/glog"
 	cli "github.com/urfave/cli"
 
-	channelchecker "github.com/bolt-observer/agent/channelchecker"
-	"github.com/bolt-observer/agent/checkermonitoring"
+	"github.com/bolt-observer/agent/nodedata"
 	api "github.com/bolt-observer/agent/lightning_api"
-	"github.com/bolt-observer/agent/nodeinfo"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 
@@ -46,7 +44,6 @@ var (
 	defaultRPCHostPort  = "localhost:" + defaultRPCPort
 	apiKey              string
 	url                 string
-	nodeurl             string
 	GitRevision         = "unknownVersion"
 
 	nodeInfoReported sync.Map
@@ -375,70 +372,8 @@ func shouldCrash(status int, body string) {
 	}
 }
 
-func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
-	rep, err := json.Marshal(report)
-	if err != nil {
-		glog.Warningf("Error marshalling report: %v", err)
-		return false
-	}
-
-	n := agent_entities.NodeIdentifier{Identifier: report.Node.PubKey, UniqueId: report.UniqueId}
-
-	if nodeurl == "" {
-		if glog.V(2) {
-			glog.V(2).Infof("Sent out nodeinfo callback %s", string(rep))
-		} else {
-			glog.V(1).Infof("Sent out nodeinfo callback")
-		}
-		nodeInfoReported.Store(n.GetId(), struct{}{})
-		return true
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, nodeurl, strings.NewReader(string(rep)))
-	if err != nil {
-		return false
-	}
-
-	req.Header.Set("User-Agent", fmt.Sprintf("boltobserver-agent/%s", GitRevision))
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
-	req.Header.Set("Content-Type", "application/json")
-
-	client := getHttpClient()
-
-	resp, err := client.Do(req)
-	if err != nil {
-		glog.Warningf("Error when doing request, %v", err)
-		glog.V(2).Infof("Failed to send out callback %s", string(rep))
-		return false
-	}
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		glog.Warningf("Status was not OK but, %d", resp.StatusCode)
-		defer resp.Body.Close()
-		bodyData, _ := ioutil.ReadAll(resp.Body)
-
-		glog.V(2).Infof("Failed to send out callback %s, server said %s", string(rep), string(bodyData))
-		shouldCrash(resp.StatusCode, string(bodyData))
-
-		return false
-	}
-
-	if glog.V(2) {
-		glog.V(2).Infof("Sent out nodeinfo callback %s", string(rep))
-	} else {
-		glog.V(1).Infof("Sent out nodeinfo callback")
-	}
-
-	nodeInfoReported.Store(n.GetId(), struct{}{})
-
-	return true
-}
-
-func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-	// When nodeinfo was not reported fake as if balance report could not be delivered (because same data
-	// will be eventually retried)
-
-	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueId: report.UniqueId}
+func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+	n := agent_entities.NodeIdentifier{Identifier: report.ChannelReport.PubKey, UniqueId: report.ChannelReport.UniqueId}
 	_, ok := nodeInfoReported.Load(n.GetId())
 	if !ok {
 		glog.V(3).Infof("Node data for %s was not reported yet", n.GetId())
@@ -519,7 +454,6 @@ func checker(ctx *cli.Context) error {
 	}
 
 	url = ctx.String("url")
-	nodeurl = ctx.String("nodeurl")
 	private = ctx.Bool("private")
 
 	interval, err := getInterval(ctx, "interval")
@@ -535,8 +469,7 @@ func checker(ctx *cli.Context) error {
 	preferipv4 = ctx.Bool("preferipv4")
 
 	ct := context.Background()
-	infochecker := nodeinfo.NewNodeInfo(ct, checkermonitoring.NewNopCheckerMonitoring("nodeinfo"))
-	c := channelchecker.NewDefaultChannelChecker(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), checkermonitoring.NewNopCheckerMonitoring("channelchecker"))
+	nodeData := nodedata.NewDefaultNodeData(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedatachecker"))
 
 	if interval == agent_entities.SECOND {
 		// Second is just for testing purposes
@@ -551,26 +484,23 @@ func checker(ctx *cli.Context) error {
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: ctx.Bool("private")}
 
 	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
-		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback)
-		time.Sleep(1 * time.Second)
-		c.GetState("", ctx.String("uniqueid"), mkGetLndApi(ctx), settings, balanceCallback)
+		nodeData.GetState("", ctx.String("uniqueid"), mkGetLndApi(ctx), settings, nodeDataCallback)
 	} else {
-		err := infochecker.Subscribe("", ctx.String("uniqueid"), private, nodeinterval, mkGetLndApi(ctx), infoCallback)
-		if err != nil {
-			return err
-		}
-
-		err = c.Subscribe("", ctx.String("uniqueid"),
+		err = nodeData.Subscribe(
+			nodeDataCallback,
 			mkGetLndApi(ctx),
+			nodeinterval,
+			"",
 			settings,
-			balanceCallback)
+			ctx.String("uniqueid"),
+		)
 
 		if err != nil {
 			return err
 		}
 
 		glog.Info("Waiting for events...")
-		utils.WaitAll(infochecker, c)
+		utils.WaitAll(nodeData)
 	}
 
 	return nil

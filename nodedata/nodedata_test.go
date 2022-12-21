@@ -292,134 +292,133 @@ func TestContextCanBeNil(t *testing.T) {
 	}
 }
 
-// TODO: Can remove if GetState is removed
-// func TestGetState(t *testing.T) {
-// 	pubKey, api, d := initTest(t)
+func TestGetState(t *testing.T) {
+	pubKey, api, d := initTest(t)
 
-// 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-// 		contents := ""
-// 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-// 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
-// 		} else if strings.Contains(req.URL.Path, "v1/channels") {
-// 			contents = getChannelJson(1337, false, true)
-// 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
-// 			contents = getChanInfo()
-// 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-// 			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
-// 		}
+	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+		contents := ""
+		if strings.Contains(req.URL.Path, "v1/getinfo") {
+			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else if strings.Contains(req.URL.Path, "v1/channels") {
+			contents = getChannelJson(1337, false, true)
+		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
+			contents = getChanInfo()
+		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
+			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		}
 
-// 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
 
-// 		return &http.Response{
-// 			StatusCode: 200,
-// 			Body:       r,
-// 		}, nil
-// 	}
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
 
-// 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
-// 	defer cancel()
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	defer cancel()
 
-// 	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
 
-// 	resp, err := c.GetState(
-// 		pubKey, "random_id",
-// 		func() lightning_api.LightingApiCalls { return api },
-// 		agent_entities.ReportingSettings{
-// 			AllowedEntropy:       64,
-// 			PollInterval:         agent_entities.SECOND,
-// 			AllowPrivateChannels: true,
-// 		},
-// 		nil,
-// 	)
+	resp, err := c.GetState(
+		pubKey, "random_id",
+		func() lightning_api.LightingApiCalls { return api },
+		agent_entities.ReportingSettings{
+			AllowedEntropy:       64,
+			PollInterval:         agent_entities.SECOND,
+			AllowPrivateChannels: true,
+		},
+		nil,
+	)
 
-// 	if err != nil {
-// 		t.Fatalf("GetState returned error: %v", err)
-// 		return
-// 	}
+	if err != nil {
+		t.Fatalf("GetState returned error: %v", err)
+		return
+	}
 
-// 	if len(resp.AgentReport.ChangedChannels) != 2 || resp.AgentReport.UniqueId != "random_id" || resp.NodeReport.Node.Alias != "CrazyConqueror" {
-// 		t.Fatalf("GetState returned bad data: %+v", resp)
-// 		return
-// 	}
-// }
+	if len(resp.AgentReport.ChangedChannels) != 2 || resp.AgentReport.UniqueId != "random_id" || resp.NodeReport.Node.Alias != "CrazyConqueror" {
+		t.Fatalf("GetState returned bad data: %+v", resp)
+		return
+	}
+}
 
-// func TestGetStateCallback(t *testing.T) {
-// 	pubKey, api, d := initTest(t)
+func TestGetStateCallback(t *testing.T) {
+	pubKey, api, d := initTest(t)
 
-// 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-// 		contents := ""
-// 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-// 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
-// 		} else if strings.Contains(req.URL.Path, "v1/channels") {
-// 			contents = getChannelJson(1337, false, true)
-// 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
-// 			contents = getChanInfo()
-// 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-// 			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
-// 		}
+	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+		contents := ""
+		if strings.Contains(req.URL.Path, "v1/getinfo") {
+			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else if strings.Contains(req.URL.Path, "v1/channels") {
+			contents = getChannelJson(1337, false, true)
+		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
+			contents = getChanInfo()
+		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
+			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		}
 
-// 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
 
-// 		return &http.Response{
-// 			StatusCode: 200,
-// 			Body:       r,
-// 		}, nil
-// 	}
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
 
-// 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
-// 	defer cancel()
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	defer cancel()
 
-// 	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
 
-// 	var callresp *agent_entities.ChannelBalanceReport
-// 	callresp = nil
+	var callresp *agent_entities.ChannelBalanceReport
+	callresp = nil
 
-// 	resp, err := c.GetState(
-// 		pubKey, "random_id",
-// 		func() lightning_api.LightingApiCalls { return api },
-// 		agent_entities.ReportingSettings{
-// 			AllowedEntropy:       64,
-// 			PollInterval:         agent_entities.SECOND,
-// 			AllowPrivateChannels: true,
-// 		},
-// 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-// 			callresp = report
-// 			return true
-// 		},
-// 	)
+	resp, err := c.GetState(
+		pubKey, "random_id",
+		func() lightning_api.LightingApiCalls { return api },
+		agent_entities.ReportingSettings{
+			AllowedEntropy:       64,
+			PollInterval:         agent_entities.SECOND,
+			AllowPrivateChannels: true,
+		},
+		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+			callresp = report
+			return true
+		},
+	)
 
-// 	if err != nil {
-// 		t.Fatalf("GetState returned error: %v", err)
-// 		return
-// 	}
+	if err != nil {
+		t.Fatalf("GetState returned error: %v", err)
+		return
+	}
 
-// 	if len(resp.AgentReport.ChangedChannels) != 2 || resp.AgentReport.UniqueId != "random_id" {
-// 		t.Fatalf("GetState returned bad data: %+v", resp)
-// 		return
-// 	}
+	if len(resp.AgentReport.ChangedChannels) != 2 || resp.AgentReport.UniqueId != "random_id" {
+		t.Fatalf("GetState returned bad data: %+v", resp)
+		return
+	}
 
-// 	if callresp == nil {
-// 		t.Fatalf("GetState returned wrong data")
-// 		return
-// 	}
+	if callresp == nil {
+		t.Fatalf("GetState returned wrong data")
+		return
+	}
 
-// 	hash1, err := hashstructure.Hash(*resp, hashstructure.FormatV2, nil)
-// 	if err != nil {
-// 		t.Fatalf("Hash returned error: %v", err)
-// 		return
-// 	}
+	hash1, err := hashstructure.Hash(*resp, hashstructure.FormatV2, nil)
+	if err != nil {
+		t.Fatalf("Hash returned error: %v", err)
+		return
+	}
 
-// 	hash2, err := hashstructure.Hash(*callresp, hashstructure.FormatV2, nil)
-// 	if err != nil {
-// 		t.Fatalf("Hash returned error: %v", err)
-// 		return
-// 	}
+	hash2, err := hashstructure.Hash(*callresp, hashstructure.FormatV2, nil)
+	if err != nil {
+		t.Fatalf("Hash returned error: %v", err)
+		return
+	}
 
-// 	if hash1 != hash2 {
-// 		t.Fatalf("Two datastructures are not equal")
-// 		return
-// 	}
-// }
+	if hash1 != hash2 {
+		t.Fatalf("Two datastructures are not equal")
+		return
+	}
+}
 
 func TestSubscription(t *testing.T) {
 	pubKey, api, d := initTest(t)
