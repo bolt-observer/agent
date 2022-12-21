@@ -71,6 +71,8 @@ github.com/bolt-observer/go_common v0.0.8 h1:CPLcugh2o72MBcdIy6SbVagT3mKa/Ck9PvB
 github.com/bolt-observer/go_common v0.0.8/go.mod h1:/tOf/W6jiCUrJg35Dqu6Km3cnxdjTPwV331jyhKXRX8=
 github.com/bolt-observer/graphite-golang v0.0.0-20221216134649-94ce8603f234 h1:NdepgoShvMsblllsHTS/mKhaPwMxQ93NI+FhaB7U114=
 github.com/bolt-observer/graphite-golang v0.0.0-20221216134649-94ce8603f234/go.mod h1:tdXQQVSVYYnJFMoPpQK1UerqZUfKe1q3+ds7hQ9WLKU=
+github.com/bolt-observer/graphite-golang v0.0.1 h1:8rnmQ1uJBQedj5Ql/2opkVrjtfWb4I2MdLI3h60bE0w=
+github.com/bolt-observer/graphite-golang v0.0.1/go.mod h1:tdXQQVSVYYnJFMoPpQK1UerqZUfKe1q3+ds7hQ9WLKU=
 github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3/go.mod h1:3J08xEfcugPacsc34/LKRU2yO7YmuT8yt28J8k2+rrI=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
 github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c/go.mod h1:tjmYdS6MLJ5/s0Fj4DbLgSbDHbEqLJrtnHecBFkdz5M=

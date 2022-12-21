@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/alicebob/miniredis/v2 v2.23.0
 	github.com/bolt-observer/go_common v0.0.8
-	github.com/bolt-observer/graphite-golang v0.0.0-20221216134649-94ce8603f234
+	github.com/bolt-observer/graphite-golang v0.0.1
 	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/getsentry/sentry-go v0.13.0
