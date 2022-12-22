@@ -14,6 +14,7 @@ import (
 
 	miniredis "github.com/alicebob/miniredis/v2"
 	agent_entities "github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/filter"
 	lightning_api "github.com/bolt-observer/agent/lightning_api"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
@@ -193,6 +194,129 @@ func TestBasicFlow(t *testing.T) {
 			AllowedEntropy:       64,
 			PollInterval:         agent_entities.SECOND,
 			AllowPrivateChannels: true,
+		},
+		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+			if len(report.ChangedChannels) == 2 && report.UniqueId == "random_id" {
+				was_called = true
+			}
+
+			cancel()
+			return true
+		},
+	)
+
+	c.EventLoop()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("Took too long")
+	case <-ctx.Done():
+		if !was_called {
+			t.Fatalf("Callback was not correctly invoked")
+		}
+	}
+}
+
+func TestBasicFlowFilterOne(t *testing.T) {
+	pubKey, api, d := initTest(t)
+
+	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+		contents := ""
+		if strings.Contains(req.URL.Path, "v1/getinfo") {
+			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else if strings.Contains(req.URL.Path, "v1/channels") {
+			contents = getChannelJson(1337, false, true)
+		}
+
+		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+
+	c := NewDefaultChannelChecker(ctx, time.Duration(0), true, false, nil)
+	// Make everything a bit faster
+	c.OverrideLoopInterval(1 * time.Second)
+	was_called := false
+
+	f, _ := filter.NewUnitTestFilter()
+	fd := f.(*filter.UnitTestFilter)
+	fd.AddAllowChanId(1)
+	fd.AddAllowChanId(1337)
+
+	c.Subscribe(
+		pubKey, "random_id",
+		func() lightning_api.LightingApiCalls { return api },
+		agent_entities.ReportingSettings{
+			AllowedEntropy:       64,
+			PollInterval:         agent_entities.SECOND,
+			AllowPrivateChannels: true,
+			Filter:               f,
+		},
+		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+			if len(report.ChangedChannels) == 1 && report.UniqueId == "random_id" {
+				was_called = true
+			}
+
+			cancel()
+			return true
+		},
+	)
+
+	c.EventLoop()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("Took too long")
+	case <-ctx.Done():
+		if !was_called {
+			t.Fatalf("Callback was not correctly invoked")
+		}
+	}
+}
+
+func TestBasicFlowFilterTwo(t *testing.T) {
+	pubKey, api, d := initTest(t)
+
+	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+		contents := ""
+		if strings.Contains(req.URL.Path, "v1/getinfo") {
+			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else if strings.Contains(req.URL.Path, "v1/channels") {
+			contents = getChannelJson(1337, false, true)
+		}
+
+		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+
+	c := NewDefaultChannelChecker(ctx, time.Duration(0), true, false, nil)
+	// Make everything a bit faster
+	c.OverrideLoopInterval(1 * time.Second)
+	was_called := false
+
+	f, _ := filter.NewUnitTestFilter()
+	fd := f.(*filter.UnitTestFilter)
+	fd.AddAllowPubKey("02004c625d622245606a1ea2c1c69cfb4516b703b47945a3647713c05fe4aaeb1c")
+
+	c.Subscribe(
+		pubKey, "random_id",
+		func() lightning_api.LightingApiCalls { return api },
+		agent_entities.ReportingSettings{
+			AllowedEntropy:       64,
+			PollInterval:         agent_entities.SECOND,
+			AllowPrivateChannels: true,
+			Filter:               f,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
 			if len(report.ChangedChannels) == 2 && report.UniqueId == "random_id" {

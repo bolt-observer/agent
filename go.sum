@@ -69,6 +69,10 @@ github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kB
 github.com/bketelsen/crypt v0.0.3-0.20200106085610-5cbc8cc4026c/go.mod h1:MKsuJmJgSg28kpZDP6UIiPt0e0Oz0kqKNGyRaWEPv84=
 github.com/bolt-observer/go_common v0.0.8 h1:CPLcugh2o72MBcdIy6SbVagT3mKa/Ck9PvB9dhglJmw=
 github.com/bolt-observer/go_common v0.0.8/go.mod h1:/tOf/W6jiCUrJg35Dqu6Km3cnxdjTPwV331jyhKXRX8=
+github.com/bolt-observer/graphite-golang v0.0.0-20221216134649-94ce8603f234 h1:NdepgoShvMsblllsHTS/mKhaPwMxQ93NI+FhaB7U114=
+github.com/bolt-observer/graphite-golang v0.0.0-20221216134649-94ce8603f234/go.mod h1:tdXQQVSVYYnJFMoPpQK1UerqZUfKe1q3+ds7hQ9WLKU=
+github.com/bolt-observer/graphite-golang v0.0.1 h1:8rnmQ1uJBQedj5Ql/2opkVrjtfWb4I2MdLI3h60bE0w=
+github.com/bolt-observer/graphite-golang v0.0.1/go.mod h1:tdXQQVSVYYnJFMoPpQK1UerqZUfKe1q3+ds7hQ9WLKU=
 github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3/go.mod h1:3J08xEfcugPacsc34/LKRU2yO7YmuT8yt28J8k2+rrI=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
 github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c/go.mod h1:tjmYdS6MLJ5/s0Fj4DbLgSbDHbEqLJrtnHecBFkdz5M=
@@ -472,8 +476,6 @@ github.com/ltcsuite/ltcd v0.0.0-20190101042124-f37f8bf35796/go.mod h1:3p7ZTf9V1s
 github.com/ltcsuite/ltcutil v0.0.0-20181217130922-17f3b04680b6/go.mod h1:8Vg/LTOO0KYa/vlHWJ6XZAevPQThGH5sufO0Hrou/lA=
 github.com/lunixbochs/vtclean v0.0.0-20160125035106-4fbf7632a2c6/go.mod h1:pHhQNgMf3btfWnGBVipUOjRYhoOsdGqdm/+2c2E2WMI=
 github.com/magiconair/properties v1.8.1/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
-github.com/marpaia/graphite-golang v0.0.0-20190519024811-caf161d2c2b1 h1:lODGHy+2Namopi4v7AeiqW106eo4QMXqj9aE8jVXcO4=
-github.com/marpaia/graphite-golang v0.0.0-20190519024811-caf161d2c2b1/go.mod h1:llZw8JbFm5CvdRrtgdjaQNlZR1bQhAWsBKtb0HTX+sw=
 github.com/mattn/go-colorable v0.0.6/go.mod h1:9vuHe8Xs5qXnSaW/c/ABM9alt+Vo+STaOChaDxuIBZU=
 github.com/mattn/go-colorable v0.0.9/go.mod h1:9vuHe8Xs5qXnSaW/c/ABM9alt+Vo+STaOChaDxuIBZU=
 github.com/mattn/go-colorable v0.1.1/go.mod h1:FuOcm+DKB9mbwrcAfNl7/TZVBZ6rcnceauSikq3lYCQ=
