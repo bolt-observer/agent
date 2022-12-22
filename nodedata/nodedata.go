@@ -111,12 +111,13 @@ func (c *NodeData) Subscribe(
 	}
 
 	c.globalSettings.Set(info.IdentityPubkey+uniqueId, Settings{
-		nodeDataCallback:      nodeDataCallback,
-		hash:                  0,
-		identifier:            entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId},
-		lastGraphCheck:        time.Time{},
-		lastReport:            time.Time{},
-		settings:              settings,
+		nodeDataCallback: nodeDataCallback,
+		hash:             0,
+		identifier:       entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId},
+		lastGraphCheck:   time.Time{},
+		lastReport:       time.Time{},
+		settings:         settings,
+		getApi:           getApi,
 	})
 
 	return nil
@@ -356,6 +357,8 @@ func (c *NodeData) checkAll() bool {
 	defer c.monitoring.MetricsTimer("checkall.global")()
 
 	for _, one := range c.globalSettings.GetKeys() {
+		fmt.Println("Key")
+		fmt.Println(one)
 		s := c.globalSettings.Get(one)
 		now := time.Now()
 		if c.checkGraph && s.settings.GraphPollInterval != 0 {
@@ -389,7 +392,12 @@ func (c *NodeData) checkAll() bool {
 				continue
 			}
 
-			if resp != nil && s.identifier.Identifier != "" && !strings.EqualFold(resp.ChannelReport.PubKey, s.identifier.Identifier) {
+			fmt.Println("Identifier")
+			fmt.Println(s.identifier.Identifier)
+			fmt.Println("PubKey")
+			fmt.Println(resp.ChannelReport.PubKey)
+
+			if resp != nil && s.identifier.Identifier != "" && resp.ChannelReport.PubKey != "" && !strings.EqualFold(resp.ChannelReport.PubKey, s.identifier.Identifier) {
 				sentry.CaptureMessage(fmt.Sprintf("PubKey mismatch %s vs %s", resp.ChannelReport.PubKey, s.identifier.Identifier))
 				glog.Warningf("PubKey mismatch %s vs %s", resp.ChannelReport.PubKey, s.identifier.Identifier)
 				continue
@@ -534,7 +542,7 @@ func (c *NodeData) checkOne(
 	}
 
 	nodeData := &entities.NodeDataReport{
-		NodeReport:  nodeReport,
+		NodeReport:    nodeReport,
 		ChannelReport: channelBalanceReport,
 	}
 
