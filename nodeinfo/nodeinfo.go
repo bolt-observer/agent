@@ -252,15 +252,19 @@ func applyFilter(info *lightning_api.NodeInfoApiExtended, filter filter.FilterIn
 		Channels:    make([]lightning_api.NodeChannelApiExtended, 0),
 	}
 
+	ret.NumChannels = 0
+	ret.TotalCapacity = 0
+	ret.NodeInfoApi.NumChannels = 0
+	ret.NodeInfoApi.TotalCapacity = 0
+
 	for _, c := range info.Channels {
 		nodeAllowed := (filter.AllowPubKey(c.Node1Pub) && info.Node.PubKey != c.Node1Pub) || (filter.AllowPubKey(c.Node2Pub) && info.Node.PubKey != c.Node2Pub)
 		chanAllowed := filter.AllowChanId(c.ChannelId)
 
 		if nodeAllowed || chanAllowed || filter.AllowSpecial(c.Private) {
 			ret.Channels = append(ret.Channels, c)
-		} else {
-			ret.NumChannels -= 1
-			ret.TotalCapacity -= c.Capacity
+			ret.NumChannels += 1
+			ret.TotalCapacity += c.Capacity
 		}
 	}
 
@@ -298,8 +302,8 @@ func (c *NodeInfo) checkOne(
 	info = applyFilter(info, filter)
 
 	if len(info.Channels) != int(info.NumChannels) {
-		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
-		return nil, fmt.Errorf("bad NodeInfo obtained %d channels vs. num_channels %d - %v", len(info.Channels), info.NumChannels, info)
+		glog.Warningf("Bad NodeInfo obtained %d channels vs. num_channels %d - info %+v", len(info.Channels), info.NumChannels, info)
+		info.NumChannels = uint32(len(info.Channels))
 	}
 
 	ret := &entities.InfoReport{
