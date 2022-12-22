@@ -1,4 +1,4 @@
-package lightningApi
+package lightningapi
 
 import (
 	"bytes"

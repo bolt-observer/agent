@@ -1,5 +1,6 @@
 package filter
 
+// Options 
 type Options uint8
 
 const (

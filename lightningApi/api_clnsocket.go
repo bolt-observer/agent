@@ -1,4 +1,4 @@
-package lightningApi
+package lightningapi
 
 import (
 	"context"
@@ -194,7 +194,7 @@ func (l *ClnSocketLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, 
 			return nil, err
 		}
 		for _, two := range listChanReply.Channels {
-			if two.Destination != one.PeerId {
+			if two.Destination != one.PeerID {
 				continue
 			}
 
@@ -213,7 +213,7 @@ func (l *ClnSocketLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, 
 				Active:        two.Active,
 				Private:       !two.Public,
 				Capacity:      two.Capacity,
-				RemotePubkey:  one.PeerId,
+				RemotePubkey:  one.PeerID,
 				ChanId:        lndchan,
 				RemoteBalance: remoteBalance,
 				LocalBalance:  one.OurAmount,

@@ -1,4 +1,4 @@
-package lightningApi
+package lightningapi
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	"github.com/lightningnetwork/lnd/lnrpc"
 
-	mocks "github.com/bolt-observer/agent/lightningApi/mocks"
+	mocks "github.com/bolt-observer/agent/lightningapi/mocks"
 )
 
 func TestObtainDataGrpc(t *testing.T) {

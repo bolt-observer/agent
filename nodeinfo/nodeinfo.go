@@ -13,7 +13,7 @@ import (
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
-	"github.com/bolt-observer/agent/lightningApi"
+	"github.com/bolt-observer/agent/lightningapi"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/golang/glog"
@@ -246,10 +246,10 @@ func (c *NodeInfo) checkAll() bool {
 	return true
 }
 
-func applyFilter(info *lightningApi.NodeInfoApiExtended, filter filter.FilterInterface) *lightningApi.NodeInfoApiExtended {
-	ret := &lightningApi.NodeInfoApiExtended{
+func applyFilter(info *lightningapi.NodeInfoApiExtended, filter filter.FilterInterface) *lightningapi.NodeInfoApiExtended {
+	ret := &lightningapi.NodeInfoApiExtended{
 		NodeInfoApi: info.NodeInfoApi,
-		Channels:    make([]lightningApi.NodeChannelApiExtended, 0),
+		Channels:    make([]lightningapi.NodeChannelApiExtended, 0),
 	}
 
 	for _, c := range info.Channels {

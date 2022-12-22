@@ -26,7 +26,7 @@ import (
 	channelchecker "github.com/bolt-observer/agent/channelchecker"
 	"github.com/bolt-observer/agent/checkermonitoring"
 	"github.com/bolt-observer/agent/filter"
-	api "github.com/bolt-observer/agent/lightningApi"
+	api "github.com/bolt-observer/agent/lightningapi"
 	"github.com/bolt-observer/agent/nodeinfo"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"

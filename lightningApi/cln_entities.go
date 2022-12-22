@@ -1,4 +1,4 @@
-package lightningApi
+package lightningapi
 
 import (
 	"errors"
@@ -17,7 +17,7 @@ var (
 	ErrInvalidResponse = errors.New("invalid response")
 )
 
-// ClnInfo
+// ClnInfo struct
 type ClnInfo struct {
 	PubKey    string            `json:"id"`
 	Alias     string            `json:"alias"`
@@ -27,7 +27,7 @@ type ClnInfo struct {
 	Features  ClnFeatures       `json:"our_features"`
 }
 
-// ClnFeatures
+// ClnFeatures struct
 type ClnFeatures struct {
 	Init    string `json:"init"`
 	Node    string `json:"node"`
@@ -35,7 +35,7 @@ type ClnFeatures struct {
 	Invoice string `json:"invoice"`
 }
 
-// ClnSetChan
+// ClnSetChan struct
 type ClnSetChan struct {
 	PeerID         string `json:"peer_id"`
 	LongChanID     string `json:"channel_id"`
@@ -46,12 +46,12 @@ type ClnSetChan struct {
 	ShortChannelID string `json:"short_channel_id,omitempty"`
 }
 
-// ClnSetChanResp
+// ClnSetChanResp struct
 type ClnSetChanResp struct {
 	Settings []ClnSetChan `json:"channels,omitempty"`
 }
 
-// ClnListChan
+// ClnListChan struct
 type ClnListChan struct {
 	Source         string            `json:"source"`
 	Destination    string            `json:"destination"`
@@ -67,14 +67,14 @@ type ClnListChan struct {
 	Delay          uint64            `json:"delay"`
 }
 
-// ClnListChanResp
+// ClnListChanResp struct
 type ClnListChanResp struct {
 	Channels []ClnListChan `json:"channels,omitempty"`
 }
 
-// ClnFundsChan
+// ClnFundsChan struct
 type ClnFundsChan struct {
-	PeerId         string `json:"peer_id"`
+	PeerID         string `json:"peer_id"`
 	Connected      bool   `json:"connected,omitempty"`
 	ShortChannelID string `json:"short_channel_id"`
 	State          string `json:"state"`
@@ -84,26 +84,26 @@ type ClnFundsChan struct {
 	FundingOutput  int    `json:"funding_output"`
 }
 
-// ClnFundsChanResp
+// ClnFundsChanResp struct
 type ClnFundsChanResp struct {
 	Channels []ClnFundsChan `json:"channels,omitempty"`
 }
 
-// ClnSocketLightningApi
+// ClnSocketLightningApi struct
 type ClnSocketLightningApi struct {
 	LightningApi
 	Client  *rpc.Client
 	Timeout time.Duration
 }
 
-// ClnListNodeAddr
+// ClnListNodeAddr struct
 type ClnListNodeAddr struct {
 	Type    string `json:"type"`
 	Address string `json:"address"`
 	Port    int    `json:"port"`
 }
 
-// ClnListNode
+// ClnListNode struct
 type ClnListNode struct {
 	PubKey     string             `json:"nodeid"`
 	Alias      string             `json:"alias,omitempty"`
@@ -113,7 +113,7 @@ type ClnListNode struct {
 	LastUpdate *entities.JsonTime `json:"last_update,omitempty"`
 }
 
-// ClnListNodeResp
+// ClnListNodeResp struct
 type ClnListNodeResp struct {
 	Nodes []ClnListNode `json:"nodes,omitempty"`
 }
