@@ -24,6 +24,7 @@ import (
 	cli "github.com/urfave/cli"
 
 	"github.com/bolt-observer/agent/nodedata"
+	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning_api"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"

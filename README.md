@@ -177,3 +177,9 @@ Do:
 go get -v github.com/lightningnetwork/lnd@v0.15.4-beta
 ```
 or else you get an ancient version and everything breaks (should be good due to go.mod/sums now).
+
+## Development
+We are using <a href="https://pre-commit.com/">pre-commit</a> hooks to ensure code quality. Before committing code, please run and ensure all checks pass:
+```
+pre-commit run --all-files
+```

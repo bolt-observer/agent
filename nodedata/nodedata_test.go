@@ -17,6 +17,7 @@ import (
 	lightning_api "github.com/bolt-observer/agent/lightning_api"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
+	"github.com/mitchellh/hashstructure/v2"
 )
 
 func getInfoJson(pubkey string) string {
@@ -202,8 +203,8 @@ func TestBasicFlow(t *testing.T) {
 	was_called := false
 
 	c.Subscribe(
-		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-			if len(report.ChangedChannels) == 2 && report.UniqueId == "random_id" {
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+			if len(report.ChannelReport.ChangedChannels) == 2 && report.ChannelReport.UniqueId == "random_id" {
 				was_called = true
 			}
 
@@ -211,7 +212,6 @@ func TestBasicFlow(t *testing.T) {
 			return true
 		},
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -263,15 +263,14 @@ func TestContextCanBeNil(t *testing.T) {
 	was_called := false
 
 	c.Subscribe(
-		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-			if len(report.ChangedChannels) == 2 && report.UniqueId == "random_id" {
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+			if len(report.ChannelReport.ChangedChannels) == 2 && report.ChannelReport.UniqueId == "random_id" {
 				was_called = true
 			}
 
 			return true
 		},
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -336,7 +335,7 @@ func TestGetState(t *testing.T) {
 		return
 	}
 
-	if len(resp.AgentReport.ChangedChannels) != 2 || resp.AgentReport.UniqueId != "random_id" || resp.NodeReport.Node.Alias != "CrazyConqueror" {
+	if len(resp.ChannelReport.ChangedChannels) != 2 || resp.ChannelReport.UniqueId != "random_id" || resp.NodeReport.Node.Alias != "CrazyConqueror" {
 		t.Fatalf("GetState returned bad data: %+v", resp)
 		return
 	}
@@ -370,7 +369,7 @@ func TestGetStateCallback(t *testing.T) {
 
 	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
 
-	var callresp *agent_entities.ChannelBalanceReport
+	var callresp *agent_entities.NodeDataReport
 	callresp = nil
 
 	resp, err := c.GetState(
@@ -381,7 +380,7 @@ func TestGetStateCallback(t *testing.T) {
 			PollInterval:         agent_entities.SECOND,
 			AllowPrivateChannels: true,
 		},
-		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 			callresp = report
 			return true
 		},
@@ -392,7 +391,7 @@ func TestGetStateCallback(t *testing.T) {
 		return
 	}
 
-	if len(resp.AgentReport.ChangedChannels) != 2 || resp.AgentReport.UniqueId != "random_id" {
+	if len(resp.ChannelReport.ChangedChannels) != 2 || resp.ChannelReport.UniqueId != "random_id" {
 		t.Fatalf("GetState returned bad data: %+v", resp)
 		return
 	}
@@ -450,7 +449,6 @@ func TestSubscription(t *testing.T) {
 	err := c.Subscribe(
 		nil,
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -469,7 +467,6 @@ func TestSubscription(t *testing.T) {
 	err = c.Subscribe(
 		nil,
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -529,8 +526,8 @@ func TestPrivateChannelsExcluded(t *testing.T) {
 	was_called := false
 
 	c.Subscribe(
-		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-			if len(report.ChangedChannels) == 1 {
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+			if len(report.ChannelReport.ChangedChannels) == 1 {
 				was_called = true
 			}
 
@@ -538,7 +535,6 @@ func TestPrivateChannelsExcluded(t *testing.T) {
 			return true
 		},
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -595,24 +591,24 @@ func TestInactiveFlow(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 			switch step {
 			case 0:
-				if len(report.ChangedChannels) == 2 {
+				if len(report.ChannelReport.ChangedChannels) == 2 {
 					step += 1
 				} else {
 					cancel()
 					t.Fatalf("Bad step 0")
 				}
 			case 1:
-				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].Active == false && report.ChangedChannels[0].ActivePrevious == true {
+				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].Active == false && report.ChannelReport.ChangedChannels[0].ActivePrevious == true {
 					step += 1
 				} else {
 					cancel()
 					t.Fatalf("Bad step 1")
 				}
 			case 2:
-				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].Active == true && report.ChangedChannels[0].ActivePrevious == false {
+				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].Active == true && report.ChannelReport.ChangedChannels[0].ActivePrevious == false {
 					step += 1
 					cancel()
 				} else {
@@ -625,7 +621,6 @@ func TestInactiveFlow(t *testing.T) {
 
 		},
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -682,24 +677,24 @@ func TestChange(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 			switch step {
 			case 0:
-				if len(report.ChangedChannels) == 2 {
+				if len(report.ChannelReport.ChangedChannels) == 2 {
 					step += 1
 				} else {
 					cancel()
 					t.Fatalf("Bad step 0")
 				}
 			case 1:
-				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].RemoteNominator == 1339 && report.ChangedChannels[0].RemoteNominatorDiff == 2 {
+				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].RemoteNominator == 1339 && report.ChannelReport.ChangedChannels[0].RemoteNominatorDiff == 2 {
 					step += 1
 				} else {
 					cancel()
 					t.Fatalf("Bad step 1")
 				}
 			case 2:
-				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].RemoteNominator == 1337 && report.ChangedChannels[0].RemoteNominatorDiff == -2 {
+				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].RemoteNominator == 1337 && report.ChannelReport.ChangedChannels[0].RemoteNominatorDiff == -2 {
 					step += 1
 					cancel()
 				} else {
@@ -712,7 +707,6 @@ func TestChange(t *testing.T) {
 
 		},
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -759,7 +753,6 @@ func TestPubkeyWrong(t *testing.T) {
 	err := c.Subscribe(
 		nil,
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -811,21 +804,20 @@ func TestKeepAliveIsSent(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-			//fmt.Fprintf(os.Stderr, "%d) %+v\n\n", step, report.ChangedChannels)
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 
 			if step == 1 {
-				if len(report.ChangedChannels) != 2 {
+				if len(report.ChannelReport.ChangedChannels) != 2 {
 					t.Fatalf("Not correct change step %d", step)
 					cancel()
 				}
 			} else if step == 2 {
-				if len(report.ChangedChannels) != 1 {
+				if len(report.ChannelReport.ChangedChannels) != 1 {
 					t.Fatalf("Not correct change step %d", step)
 					cancel()
 				}
 			} else if step > 2 {
-				if len(report.ChangedChannels) != 0 {
+				if len(report.ChannelReport.ChangedChannels) != 0 {
 					t.Fatalf("Not correct change step %d", step)
 					cancel()
 				}
@@ -839,7 +831,6 @@ func TestKeepAliveIsSent(t *testing.T) {
 
 		},
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -899,11 +890,11 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 			//fmt.Fprintf(os.Stderr, "%d) %+v\n\n", step, report.ChangedChannels)
 
 			if step == 1 {
-				if len(report.ChangedChannels) != 2 {
+				if len(report.ChannelReport.ChangedChannels) != 2 {
 					t.Fatalf("Not correct change step %d", step)
 					cancel()
 				}
@@ -917,7 +908,6 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 
 		},
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -976,17 +966,17 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 			switch step {
 			case 0:
-				if len(report.ChangedChannels) == 2 {
+				if len(report.ChannelReport.ChangedChannels) == 2 {
 					step += 1
 				} else {
 					cancel()
 					t.Fatalf("Bad step 0")
 				}
 			case 1:
-				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].RemoteNominator == 1338 && report.ChangedChannels[0].RemoteNominatorDiff == 1 {
+				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].RemoteNominator == 1338 && report.ChannelReport.ChangedChannels[0].RemoteNominatorDiff == 1 {
 					step += 1
 				} else {
 					cancel()
@@ -995,7 +985,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 				// Fail on purpose
 				return false
 			case 2:
-				if len(report.ChangedChannels) == 1 && report.ChangedChannels[0].RemoteNominator == 1339 && report.ChangedChannels[0].RemoteNominatorDiff == 2 {
+				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].RemoteNominator == 1339 && report.ChannelReport.ChangedChannels[0].RemoteNominatorDiff == 2 {
 					step += 1
 					cancel()
 				} else {
@@ -1008,7 +998,6 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 
 		},
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -1067,11 +1056,10 @@ func TestGraphIsRequested(t *testing.T) {
 	c.OverrideLoopInterval(1 * time.Second)
 
 	c.Subscribe(
-		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 			return true
 		},
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
@@ -1134,8 +1122,8 @@ func TestBasicFlowRedis(t *testing.T) {
 	was_called := false
 
 	c.Subscribe(
-		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-			if len(report.ChangedChannels) == 2 {
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+			if len(report.ChannelReport.ChangedChannels) == 2 {
 				was_called = true
 			}
 
@@ -1143,7 +1131,6 @@ func TestBasicFlowRedis(t *testing.T) {
 			return true
 		},
 		func() lightning_api.LightingApiCalls { return api },
-		nil,
 		agent_entities.SECOND,
 		pubKey,
 		agent_entities.ReportingSettings{
