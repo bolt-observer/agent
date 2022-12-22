@@ -13,7 +13,7 @@ import (
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
-	"github.com/bolt-observer/agent/lightning_api"
+	"github.com/bolt-observer/agent/lightningApi"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/golang/glog"
@@ -246,15 +246,15 @@ func (c *NodeInfo) checkAll() bool {
 	return true
 }
 
-func applyFilter(info *lightning_api.NodeInfoApiExtended, filter filter.FilterInterface) *lightning_api.NodeInfoApiExtended {
-	ret := &lightning_api.NodeInfoApiExtended{
+func applyFilter(info *lightningApi.NodeInfoApiExtended, filter filter.FilterInterface) *lightningApi.NodeInfoApiExtended {
+	ret := &lightningApi.NodeInfoApiExtended{
 		NodeInfoApi: info.NodeInfoApi,
-		Channels:    make([]lightning_api.NodeChannelApiExtended, 0),
+		Channels:    make([]lightningApi.NodeChannelApiExtended, 0),
 	}
 
 	for _, c := range info.Channels {
 		nodeAllowed := (filter.AllowPubKey(c.Node1Pub) && info.Node.PubKey != c.Node1Pub) || (filter.AllowPubKey(c.Node2Pub) && info.Node.PubKey != c.Node2Pub)
-		chanAllowed := filter.AllowChanId(c.ChannelId)
+		chanAllowed := filter.AllowChanID(c.ChannelId)
 
 		if nodeAllowed || chanAllowed || filter.AllowSpecial(c.Private) {
 			ret.Channels = append(ret.Channels, c)

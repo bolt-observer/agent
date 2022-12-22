@@ -15,7 +15,7 @@ import (
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
-	api "github.com/bolt-observer/agent/lightning_api"
+	api "github.com/bolt-observer/agent/lightningApi"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/getsentry/sentry-go"
@@ -123,7 +123,7 @@ func (c *ChannelChecker) Subscribe(
 		lastGraphCheck: time.Time{},
 		lastReport:     time.Time{},
 		callback:       callback,
-		getApi:         getApi,
+		getAPI:         getApi,
 	})
 
 	return nil
@@ -198,7 +198,7 @@ func (c *ChannelChecker) getChannelList(
 			continue
 		}
 
-		if !filter.AllowChanId(channel.ChanId) && !filter.AllowPubKey(channel.RemotePubkey) && !filter.AllowSpecial(channel.Private) {
+		if !filter.AllowChanID(channel.ChanId) && !filter.AllowPubKey(channel.RemotePubkey) && !filter.AllowSpecial(channel.Private) {
 			glog.V(3).Infof("Filtering channel %v", channel.ChanId)
 			continue
 		}
@@ -385,7 +385,7 @@ func (c *ChannelChecker) checkAll() bool {
 
 			if graphToBeCheckedBy.Before(now) && s.identifier.Identifier != "" {
 				// Beware: here the graph is fetched just per node
-				err := c.fetchGraph(s.identifier.Identifier, s.getApi, s.settings)
+				err := c.fetchGraph(s.identifier.Identifier, s.getAPI, s.settings)
 				if err != nil {
 					glog.Warningf("Could not fetch graph from %s: %v", s.identifier.Identifier, err)
 				}
@@ -405,7 +405,7 @@ func (c *ChannelChecker) checkAll() bool {
 
 			// Subscribe will set lastCheck to min value and you expect update in such a case
 			ignoreCache := toBeCheckedBy.Year() <= 1
-			resp, err := c.checkOne(s.identifier, s.getApi, s.settings, ignoreCache, reportAnyway)
+			resp, err := c.checkOne(s.identifier, s.getAPI, s.settings, ignoreCache, reportAnyway)
 			if err != nil {
 				glog.Warningf("Check failed: %v", err)
 				continue

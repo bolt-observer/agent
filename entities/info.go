@@ -3,7 +3,7 @@ package entities
 import (
 	"context"
 
-	api "github.com/bolt-observer/agent/lightning_api"
+	api "github.com/bolt-observer/agent/lightningApi"
 	entities "github.com/bolt-observer/go_common/entities"
 )
 

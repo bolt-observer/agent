@@ -14,6 +14,7 @@ import (
 	"github.com/golang/glog"
 )
 
+// FileFilter sturct
 type FileFilter struct {
 	Filter
 	WhitelistFilePath string
@@ -21,6 +22,7 @@ type FileFilter struct {
 	DefaultOptions    Options
 }
 
+// Reload from file
 func (f *FileFilter) Reload() error {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
@@ -75,6 +77,7 @@ func (f *FileFilter) Reload() error {
 	return nil
 }
 
+// NewFilterFromFile create new FileFilter
 func NewFilterFromFile(ctx context.Context, filePath string, options Options) (FilterInterface, error) {
 	f := &FileFilter{
 		WhitelistFilePath: filePath,
@@ -127,6 +130,7 @@ func NewFilterFromFile(ctx context.Context, filePath string, options Options) (F
 	return f, nil
 }
 
+// AllowPubKey checks whether pubkey is allowed
 func (f *FileFilter) AllowPubKey(id string) bool {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
@@ -135,7 +139,8 @@ func (f *FileFilter) AllowPubKey(id string) bool {
 	return ok
 }
 
-func (f *FileFilter) AllowChanId(id uint64) bool {
+// AllowChanID checks short channel id
+func (f *FileFilter) AllowChanID(id uint64) bool {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
 
@@ -144,13 +149,13 @@ func (f *FileFilter) AllowChanId(id uint64) bool {
 	return ok
 }
 
+// AllowSpecial is used to allow all private/public chans
 func (f *FileFilter) AllowSpecial(private bool) bool {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
 
 	if private {
 		return f.Options&AllowAllPrivate == AllowAllPrivate
-	} else {
-		return f.Options&AllowAllPublic == AllowAllPublic
 	}
+	return f.Options&AllowAllPublic == AllowAllPublic
 }

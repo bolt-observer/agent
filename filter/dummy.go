@@ -12,7 +12,7 @@ func (f *AllowAllFilter) AllowPubKey(id string) bool {
 	return true
 }
 
-func (f *AllowAllFilter) AllowChanId(id uint64) bool {
+func (f *AllowAllFilter) AllowChanID(id uint64) bool {
 	return true
 }
 
@@ -39,7 +39,7 @@ func (u *UnitTestFilter) AddAllowPubKey(id string) {
 	u.nodeIdWhitelist[id] = struct{}{}
 }
 
-func (u *UnitTestFilter) AddAllowChanId(id uint64) {
+func (u *UnitTestFilter) AddAllowChanID(id uint64) {
 	u.chanIdWhitelist[id] = struct{}{}
 }
 

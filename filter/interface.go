@@ -10,7 +10,7 @@ const (
 
 type FilterInterface interface {
 	AllowPubKey(id string) bool
-	AllowChanId(id uint64) bool
+	AllowChanID(id uint64) bool
 	AllowSpecial(private bool) bool
 }
 
@@ -28,7 +28,7 @@ func (f *Filter) AllowPubKey(id string) bool {
 	return ok
 }
 
-func (f *Filter) AllowChanId(id uint64) bool {
+func (f *Filter) AllowChanID(id uint64) bool {
 	_, ok := f.chanIdWhitelist[id]
 
 	return ok

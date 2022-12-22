@@ -13,7 +13,7 @@ import (
 
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
-	lightning_api "github.com/bolt-observer/agent/lightning_api"
+	lightning_api "github.com/bolt-observer/agent/lightningApi"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/mitchellh/hashstructure/v2"
@@ -313,8 +313,8 @@ func TestBasicFlowFilter(t *testing.T) {
 
 	f, _ := filter.NewUnitTestFilter()
 	fd := f.(*filter.UnitTestFilter)
-	fd.AddAllowChanId(1)
-	fd.AddAllowChanId(1337)
+	fd.AddAllowChanID(1)
+	fd.AddAllowChanID(1337)
 
 	c.Subscribe(
 		pubKey, "random_id", true,

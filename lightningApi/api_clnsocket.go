@@ -1,4 +1,4 @@
-package lightning_api
+package lightningApi
 
 import (
 	"context"
@@ -189,7 +189,7 @@ func (l *ClnSocketLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, 
 
 	for _, one := range fundsReply.Channels {
 
-		err = l.CallWithTimeout(LISTCHANNELS, []string{one.ShortChannelId}, &listChanReply)
+		err = l.CallWithTimeout(LISTCHANNELS, []string{one.ShortChannelID}, &listChanReply)
 		if err != nil {
 			return nil, err
 		}
@@ -198,7 +198,7 @@ func (l *ClnSocketLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, 
 				continue
 			}
 
-			lndchan, err := ToLndChanId(one.ShortChannelId)
+			lndchan, err := ToLndChanId(one.ShortChannelID)
 			if err != nil {
 				return nil, err
 			}
@@ -417,15 +417,15 @@ func (l *ClnSocketLightningApi) GetInternalChannels(pubKey string) (map[string][
 	}
 
 	for _, one := range listChanReply.Channels {
-		if one.ShortChannelId == "" {
+		if one.ShortChannelID == "" {
 			continue
 		}
 
-		if _, ok := result[one.ShortChannelId]; !ok {
-			result[one.ShortChannelId] = make([]ClnListChan, 0)
+		if _, ok := result[one.ShortChannelID]; !ok {
+			result[one.ShortChannelID] = make([]ClnListChan, 0)
 		}
 
-		result[one.ShortChannelId] = append(result[one.ShortChannelId], one)
+		result[one.ShortChannelID] = append(result[one.ShortChannelID], one)
 	}
 
 	err = l.CallWithTimeout(LISTCHANNELS, []interface{}{nil, nil, pubKey}, &listChanReply)
@@ -434,15 +434,15 @@ func (l *ClnSocketLightningApi) GetInternalChannels(pubKey string) (map[string][
 	}
 
 	for _, one := range listChanReply.Channels {
-		if one.ShortChannelId == "" {
+		if one.ShortChannelID == "" {
 			continue
 		}
 
-		if _, ok := result[one.ShortChannelId]; !ok {
-			result[one.ShortChannelId] = make([]ClnListChan, 0)
+		if _, ok := result[one.ShortChannelID]; !ok {
+			result[one.ShortChannelID] = make([]ClnListChan, 0)
 		}
 
-		result[one.ShortChannelId] = append(result[one.ShortChannelId], one)
+		result[one.ShortChannelID] = append(result[one.ShortChannelID], one)
 	}
 
 	return result, nil
@@ -458,15 +458,15 @@ func (l *ClnSocketLightningApi) GetInternalChannelsAll() (map[string][]ClnListCh
 	}
 
 	for _, one := range listChanReply.Channels {
-		if one.ShortChannelId == "" {
+		if one.ShortChannelID == "" {
 			continue
 		}
 
-		if _, ok := result[one.ShortChannelId]; !ok {
-			result[one.ShortChannelId] = make([]ClnListChan, 0)
+		if _, ok := result[one.ShortChannelID]; !ok {
+			result[one.ShortChannelID] = make([]ClnListChan, 0)
 		}
 
-		result[one.ShortChannelId] = append(result[one.ShortChannelId], one)
+		result[one.ShortChannelID] = append(result[one.ShortChannelID], one)
 	}
 
 	return result, nil

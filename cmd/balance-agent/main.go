@@ -26,7 +26,7 @@ import (
 	channelchecker "github.com/bolt-observer/agent/channelchecker"
 	"github.com/bolt-observer/agent/checkermonitoring"
 	"github.com/bolt-observer/agent/filter"
-	api "github.com/bolt-observer/agent/lightning_api"
+	api "github.com/bolt-observer/agent/lightningApi"
 	"github.com/bolt-observer/agent/nodeinfo"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
@@ -51,7 +51,8 @@ var (
 	apiKey              string
 	url                 string
 	nodeurl             string
-	GitRevision         = "unknownVersion"
+	// GitRevision is set with build
+	GitRevision = "unknownVersion"
 
 	nodeInfoReported sync.Map
 	private          bool
@@ -362,7 +363,7 @@ func redirectPost(req *http.Request, via []*http.Request) error {
 	return nil
 }
 
-func getHttpClient() *http.Client {
+func getHTTPClient() *http.Client {
 	var zeroDialer net.Dialer
 
 	httpClient := &http.Client{
@@ -420,7 +421,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := getHttpClient()
+	client := getHTTPClient()
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -486,7 +487,7 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := getHttpClient()
+	client := getHTTPClient()
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -517,7 +518,7 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	return true
 }
 
-func mkGetLndApi(ctx *cli.Context) agent_entities.NewApiCall {
+func mkGetLndAPI(ctx *cli.Context) agent_entities.NewApiCall {
 	return func() api.LightingApiCalls {
 		return api.NewApi(api.LND_GRPC, func() (*entities.Data, error) {
 			return getData(ctx)
@@ -539,15 +540,15 @@ func reloadConfig(ctx context.Context, f *filter.FileFilter) {
 func signalHandler(ctx context.Context, f filter.FilterInterface) {
 	ff, ok := f.(*filter.FileFilter)
 
-	signal_chan := make(chan os.Signal, 1)
-	exit_chan := make(chan int)
+	signalChan := make(chan os.Signal, 1)
+	exitChan := make(chan int)
 
-	signal.Notify(signal_chan,
+	signal.Notify(signalChan,
 		syscall.SIGHUP)
 	go func() {
 		for {
 			select {
-			case s := <-signal_chan:
+			case s := <-signalChan:
 				switch s {
 				case syscall.SIGHUP:
 					if ok {
@@ -557,19 +558,19 @@ func signalHandler(ctx context.Context, f filter.FilterInterface) {
 					}
 
 				case syscall.SIGTERM:
-					exit_chan <- 0
+					exitChan <- 0
 				case syscall.SIGQUIT:
-					exit_chan <- 0
+					exitChan <- 0
 				default:
 					fmt.Println("Unknown signal.")
-					exit_chan <- 1
+					exitChan <- 1
 				}
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
-	code := <-exit_chan
+	code := <-exitChan
 	os.Exit(code)
 }
 
@@ -647,17 +648,17 @@ func checker(ctx *cli.Context) error {
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
 	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
-		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback, f)
+		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.MANUAL_REQUEST, mkGetLndAPI(ctx), infoCallback, f)
 		time.Sleep(1 * time.Second)
-		c.GetState("", ctx.String("uniqueid"), mkGetLndApi(ctx), settings, balanceCallback)
+		c.GetState("", ctx.String("uniqueid"), mkGetLndAPI(ctx), settings, balanceCallback)
 	} else {
-		err := infochecker.Subscribe("", ctx.String("uniqueid"), private, nodeinterval, mkGetLndApi(ctx), infoCallback, f)
+		err := infochecker.Subscribe("", ctx.String("uniqueid"), private, nodeinterval, mkGetLndAPI(ctx), infoCallback, f)
 		if err != nil {
 			return err
 		}
 
 		err = c.Subscribe("", ctx.String("uniqueid"),
-			mkGetLndApi(ctx),
+			mkGetLndAPI(ctx),
 			settings,
 			balanceCallback)
 
