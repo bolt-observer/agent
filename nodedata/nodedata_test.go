@@ -236,9 +236,11 @@ func TestBasicFlow(t *testing.T) {
 
 func TestContextCanBeNil(t *testing.T) {
 	pubKey, api, d := initTest(t)
+	var urlPath string
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
+		urlPath = req.URL.Path
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -264,10 +266,13 @@ func TestContextCanBeNil(t *testing.T) {
 
 	c.Subscribe(
 		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
-			if len(report.ChannelReport.ChangedChannels) == 2 && report.ChannelReport.UniqueId == "random_id" {
+			if strings.Contains(urlPath, "v1/getinfo") || strings.Contains(urlPath, "v1/channels") {
+				if len(report.ChannelReport.ChangedChannels) == 2 && report.ChannelReport.UniqueId == "random_id" {
+					was_called = true
+				}
+			} else {
 				was_called = true
 			}
-
 			return true
 		},
 		func() lightning_api.LightingApiCalls { return api },

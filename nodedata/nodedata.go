@@ -357,8 +357,6 @@ func (c *NodeData) checkAll() bool {
 	defer c.monitoring.MetricsTimer("checkall.global")()
 
 	for _, one := range c.globalSettings.GetKeys() {
-		fmt.Println("Key")
-		fmt.Println(one)
 		s := c.globalSettings.Get(one)
 		now := time.Now()
 		if c.checkGraph && s.settings.GraphPollInterval != 0 {
@@ -392,12 +390,7 @@ func (c *NodeData) checkAll() bool {
 				continue
 			}
 
-			fmt.Println("Identifier")
-			fmt.Println(s.identifier.Identifier)
-			fmt.Println("PubKey")
-			fmt.Println(resp.ChannelReport.PubKey)
-
-			if resp != nil && s.identifier.Identifier != "" && resp.ChannelReport.PubKey != "" && !strings.EqualFold(resp.ChannelReport.PubKey, s.identifier.Identifier) {
+			if resp.ChannelReport != nil && s.identifier.Identifier != "" && resp.ChannelReport.PubKey != "" && !strings.EqualFold(resp.ChannelReport.PubKey, s.identifier.Identifier) {
 				sentry.CaptureMessage(fmt.Sprintf("PubKey mismatch %s vs %s", resp.ChannelReport.PubKey, s.identifier.Identifier))
 				glog.Warningf("PubKey mismatch %s vs %s", resp.ChannelReport.PubKey, s.identifier.Identifier)
 				continue
