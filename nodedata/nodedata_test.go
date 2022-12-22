@@ -176,7 +176,7 @@ func TestBasicFlow(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -238,7 +238,7 @@ func TestContextCanBeNil(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -295,7 +295,7 @@ func TestGetState(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -345,7 +345,7 @@ func TestGetStateCallback(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -423,7 +423,7 @@ func TestSubscription(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
@@ -503,7 +503,7 @@ func TestPrivateChannelsExcluded(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -563,7 +563,7 @@ func TestInactiveFlow(t *testing.T) {
 	step := 0
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -649,7 +649,7 @@ func TestChange(t *testing.T) {
 	step := 0
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -733,7 +733,7 @@ func TestPubkeyWrong(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("wrong")
 		}
@@ -776,7 +776,7 @@ func TestKeepAliveIsSent(t *testing.T) {
 	success := false
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -862,7 +862,7 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 	success := true
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -938,7 +938,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 	step := 0
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -1028,7 +1028,7 @@ func TestGraphIsRequested(t *testing.T) {
 	success := false
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
@@ -1098,7 +1098,7 @@ func TestBasicFlowRedis(t *testing.T) {
 	}
 
 	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
-		contents := ""
+		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
