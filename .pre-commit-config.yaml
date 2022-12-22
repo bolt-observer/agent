@@ -11,7 +11,7 @@ repos:
       - id: check-json
       - id: check-merge-conflict
       - id: detect-aws-credentials
-        args: ['--allow-missing-credentials']
+        args: ["--allow-missing-credentials"]
 
   - repo: https://github.com/Bahjat/pre-commit-golang
     rev: v1.0.1
@@ -31,9 +31,8 @@ repos:
     hooks:
       - id: actionlint-docker
 
-
 # sets up .pre-commit-ci.yaml to ensure pre-commit dependencies stay up to date
 ci:
-    autoupdate_schedule: weekly
-    skip: []
-    submodules: false
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

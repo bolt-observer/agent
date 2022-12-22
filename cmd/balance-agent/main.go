@@ -23,9 +23,9 @@ import (
 	"github.com/golang/glog"
 	cli "github.com/urfave/cli"
 
-	"github.com/bolt-observer/agent/nodedata"
 	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning_api"
+	"github.com/bolt-observer/agent/nodedata"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 
@@ -565,7 +565,6 @@ func checker(ctx *cli.Context) error {
 
 	preferipv4 = ctx.Bool("preferipv4")
 
-	ct := context.Background()
 	nodeData := nodedata.NewDefaultNodeData(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedatachecker"))
 
 	if interval == agent_entities.SECOND {
