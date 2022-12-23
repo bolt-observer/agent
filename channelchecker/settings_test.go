@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/bolt-observer/agent/entities"
-	api "github.com/bolt-observer/agent/lightningApi"
+	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/go_common/utils"
 )
 

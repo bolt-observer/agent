@@ -15,7 +15,7 @@ import (
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
-	api "github.com/bolt-observer/agent/lightningApi"
+	api "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/getsentry/sentry-go"

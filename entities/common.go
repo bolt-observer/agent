@@ -3,7 +3,7 @@ package entities
 import (
 	"sync"
 
-	api "github.com/bolt-observer/agent/lightningApi"
+	api "github.com/bolt-observer/agent/lightning"
 	"golang.org/x/sync/semaphore"
 )
 

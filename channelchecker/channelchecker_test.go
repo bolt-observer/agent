@@ -15,7 +15,7 @@ import (
 	miniredis "github.com/alicebob/miniredis/v2"
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
-	lightning_api "github.com/bolt-observer/agent/lightningApi"
+	lightning_api "github.com/bolt-observer/agent/lightning"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/mitchellh/hashstructure/v2"
