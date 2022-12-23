@@ -192,11 +192,11 @@ func TestBasicFlow(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-			if len(report.ChangedChannels) == 2 && report.UniqueId == "random_id" {
+			if len(report.ChangedChannels) == 2 && report.UniqueID == "random_id" {
 				was_called = true
 			}
 
@@ -253,12 +253,12 @@ func TestBasicFlowFilterOne(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 			Filter:               f,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-			if len(report.ChangedChannels) == 1 && report.UniqueId == "random_id" {
+			if len(report.ChangedChannels) == 1 && report.UniqueID == "random_id" {
 				was_called = true
 			}
 
@@ -314,12 +314,12 @@ func TestBasicFlowFilterTwo(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 			Filter:               f,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-			if len(report.ChangedChannels) == 2 && report.UniqueId == "random_id" {
+			if len(report.ChangedChannels) == 2 && report.UniqueID == "random_id" {
 				was_called = true
 			}
 
@@ -369,11 +369,11 @@ func TestContextCanBeNil(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-			if len(report.ChangedChannels) == 2 && report.UniqueId == "random_id" {
+			if len(report.ChangedChannels) == 2 && report.UniqueID == "random_id" {
 				was_called = true
 			}
 
@@ -420,7 +420,7 @@ func TestGetState(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		nil,
@@ -431,7 +431,7 @@ func TestGetState(t *testing.T) {
 		return
 	}
 
-	if len(resp.ChangedChannels) != 2 || resp.UniqueId != "random_id" {
+	if len(resp.ChangedChannels) != 2 || resp.UniqueID != "random_id" {
 		t.Fatalf("GetState returned bad data: %+v", resp)
 		return
 	}
@@ -469,7 +469,7 @@ func TestGetStateCallback(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
@@ -483,7 +483,7 @@ func TestGetStateCallback(t *testing.T) {
 		return
 	}
 
-	if len(resp.ChangedChannels) != 2 || resp.UniqueId != "random_id" {
+	if len(resp.ChangedChannels) != 2 || resp.UniqueID != "random_id" {
 		t.Fatalf("GetState returned bad data: %+v", resp)
 		return
 	}
@@ -543,7 +543,7 @@ func TestSubscription(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		nil,
@@ -559,7 +559,7 @@ func TestSubscription(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		nil,
@@ -618,7 +618,7 @@ func TestPrivateChannelsExcluded(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: false,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
@@ -681,7 +681,7 @@ func TestInactiveFlow(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
@@ -765,7 +765,7 @@ func TestChange(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
@@ -837,7 +837,7 @@ func TestPubkeyWrong(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		nil,
@@ -888,7 +888,7 @@ func TestKeepAliveIsSent(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 			NoopInterval:         2 * time.Second,
 		},
@@ -974,7 +974,7 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 			NoopInterval:         2 * time.Second,
 		},
@@ -1049,7 +1049,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
@@ -1137,7 +1137,7 @@ func TestGraphIsRequested(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 			GraphPollInterval:    1 * time.Second,
 		},
@@ -1201,7 +1201,7 @@ func TestBasicFlowRedis(t *testing.T) {
 		func() lightning_api.LightingApiCalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		func(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {

@@ -89,8 +89,8 @@ type ClnFundsChanResp struct {
 	Channels []ClnFundsChan `json:"channels,omitempty"`
 }
 
-// ClnSocketLightningApi struct
-type ClnSocketLightningApi struct {
+// ClnSocketLightningAPI struct
+type ClnSocketLightningAPI struct {
 	LightningApi
 	Client  *rpc.Client
 	Timeout time.Duration

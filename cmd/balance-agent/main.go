@@ -334,7 +334,7 @@ func getInterval(ctx *cli.Context, name string) (agent_entities.Interval, error)
 
 	err := i.UnmarshalJSON([]byte(s))
 	if err != nil {
-		return agent_entities.TEN_SECONDS, fmt.Errorf("unknown interval specified %s", s)
+		return agent_entities.TenSeconds, fmt.Errorf("unknown interval specified %s", s)
 	}
 
 	return i, nil
@@ -400,7 +400,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 		return false
 	}
 
-	n := agent_entities.NodeIdentifier{Identifier: report.Node.PubKey, UniqueId: report.UniqueId}
+	n := agent_entities.NodeIdentifier{Identifier: report.Node.PubKey, UniqueID: report.UniqueId}
 
 	if nodeurl == "" {
 		if glog.V(2) {
@@ -408,7 +408,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 		} else {
 			glog.V(1).Infof("Sent out nodeinfo callback")
 		}
-		nodeInfoReported.Store(n.GetId(), struct{}{})
+		nodeInfoReported.Store(n.GetID(), struct{}{})
 		return true
 	}
 
@@ -447,7 +447,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 		glog.V(1).Infof("Sent out nodeinfo callback")
 	}
 
-	nodeInfoReported.Store(n.GetId(), struct{}{})
+	nodeInfoReported.Store(n.GetID(), struct{}{})
 
 	return true
 }
@@ -456,10 +456,10 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	// When nodeinfo was not reported fake as if balance report could not be delivered (because same data
 	// will be eventually retried)
 
-	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueId: report.UniqueId}
-	_, ok := nodeInfoReported.Load(n.GetId())
+	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueID: report.UniqueID}
+	_, ok := nodeInfoReported.Load(n.GetID())
 	if !ok {
-		glog.V(3).Infof("Node data for %s was not reported yet", n.GetId())
+		glog.V(3).Infof("Node data for %s was not reported yet", n.GetID())
 		return false
 	}
 
@@ -518,7 +518,7 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	return true
 }
 
-func mkGetLndAPI(ctx *cli.Context) agent_entities.NewApiCall {
+func mkGetLndAPI(ctx *cli.Context) agent_entities.NewAPICall {
 	return func() api.LightingApiCalls {
 		return api.NewApi(api.LND_GRPC, func() (*entities.Data, error) {
 			return getData(ctx)
@@ -537,7 +537,7 @@ func reloadConfig(ctx context.Context, f *filter.FileFilter) {
 	}
 }
 
-func signalHandler(ctx context.Context, f filter.FilterInterface) {
+func signalHandler(ctx context.Context, f filter.FilteringInterface) {
 	ff, ok := f.(*filter.FileFilter)
 
 	signalChan := make(chan os.Signal, 1)
@@ -635,20 +635,20 @@ func checker(ctx *cli.Context) error {
 	infochecker := nodeinfo.NewNodeInfo(ct, checkermonitoring.NewNopCheckerMonitoring("nodeinfo"))
 	c := channelchecker.NewDefaultChannelChecker(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), checkermonitoring.NewNopCheckerMonitoring("channelchecker"))
 
-	if interval == agent_entities.SECOND {
+	if interval == agent_entities.Second {
 		// Second is just for testing purposes
-		interval = agent_entities.TEN_SECONDS
+		interval = agent_entities.TenSeconds
 	}
 
-	if nodeinterval == agent_entities.SECOND {
+	if nodeinterval == agent_entities.Second {
 		// Second is just for testing purposes
-		nodeinterval = agent_entities.TEN_SECONDS
+		nodeinterval = agent_entities.TenSeconds
 	}
 
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
-	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
-		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.MANUAL_REQUEST, mkGetLndAPI(ctx), infoCallback, f)
+	if settings.PollInterval == agent_entities.ManualRequest {
+		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.ManualRequest, mkGetLndAPI(ctx), infoCallback, f)
 		time.Sleep(1 * time.Second)
 		c.GetState("", ctx.String("uniqueid"), mkGetLndAPI(ctx), settings, balanceCallback)
 	} else {

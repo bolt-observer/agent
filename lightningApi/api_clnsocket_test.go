@@ -117,7 +117,7 @@ func clnData(t *testing.T, name string) []byte {
 	return contents
 }
 
-func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningApi, LightingApiCalls, CloseFunc) {
+func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningAPI, LightingApiCalls, CloseFunc) {
 	name, closeFunc := ClnSocketServer(t, handler)
 
 	api := NewClnSocketLightningApiRaw("unix", name)
@@ -125,7 +125,7 @@ func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningApi, LightingA
 		t.Fatalf("API should not be nil")
 	}
 
-	d, ok := api.(*ClnSocketLightningApi)
+	d, ok := api.(*ClnSocketLightningAPI)
 	if !ok {
 		t.Fatalf("Should be CLN_SOCKET")
 	}

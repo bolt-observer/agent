@@ -49,7 +49,7 @@ func TestApiSelection(t *testing.T) {
 		t.Fatalf("API should not be nil")
 	}
 
-	_, ok := api.(*ClnSocketLightningApi)
+	_, ok := api.(*ClnSocketLightningAPI)
 	if !ok {
 		t.Fatalf("Should be CLN_SOCKET")
 	}

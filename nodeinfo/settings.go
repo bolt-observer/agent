@@ -54,8 +54,8 @@ type Settings struct {
 	lastCheck  time.Time
 	callback   entities.InfoCallback
 	hash       uint64
-	getApi     entities.NewApiCall
+	getApi     entities.NewAPICall
 	interval   entities.Interval
 	private    bool
-	filter     filter.FilterInterface
+	filter     filter.FilteringInterface
 }

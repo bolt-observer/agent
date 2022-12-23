@@ -62,5 +62,5 @@ type Settings struct {
 	lastGraphCheck time.Time
 	lastReport     time.Time
 	callback       entities.BalanceReportCallback
-	getAPI         entities.NewApiCall
+	getAPI         entities.NewAPICall
 }

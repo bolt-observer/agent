@@ -37,8 +37,8 @@ func (f *FileFilter) Reload() error {
 
 	defer readFile.Close()
 
-	f.nodeIdWhitelist = make(map[string]struct{})
-	f.chanIdWhitelist = make(map[uint64]struct{})
+	f.nodeIDWhitelist = make(map[string]struct{})
+	f.chanIDWhitelist = make(map[uint64]struct{})
 	f.Options = f.DefaultOptions
 
 	fileScanner := bufio.NewScanner(readFile)
@@ -56,7 +56,7 @@ func (f *FileFilter) Reload() error {
 		}
 
 		if utils.ValidatePubkey(line) {
-			f.nodeIdWhitelist[line] = struct{}{}
+			f.nodeIDWhitelist[line] = struct{}{}
 		} else if strings.ToLower(line) == "private" {
 			f.Options |= AllowAllPrivate
 		} else if strings.ToLower(line) == "public" {
@@ -68,7 +68,7 @@ func (f *FileFilter) Reload() error {
 				continue
 			}
 
-			f.chanIdWhitelist[val] = struct{}{}
+			f.chanIDWhitelist[val] = struct{}{}
 		}
 	}
 
@@ -78,7 +78,7 @@ func (f *FileFilter) Reload() error {
 }
 
 // NewFilterFromFile create new FileFilter
-func NewFilterFromFile(ctx context.Context, filePath string, options Options) (FilterInterface, error) {
+func NewFilterFromFile(ctx context.Context, filePath string, options Options) (FilteringInterface, error) {
 	f := &FileFilter{
 		WhitelistFilePath: filePath,
 	}
@@ -134,7 +134,7 @@ func NewFilterFromFile(ctx context.Context, filePath string, options Options) (F
 func (f *FileFilter) AllowPubKey(id string) bool {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
-	_, ok := f.nodeIdWhitelist[id]
+	_, ok := f.nodeIDWhitelist[id]
 
 	return ok
 }
@@ -144,7 +144,7 @@ func (f *FileFilter) AllowChanID(id uint64) bool {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
 
-	_, ok := f.chanIdWhitelist[id]
+	_, ok := f.chanIDWhitelist[id]
 
 	return ok
 }

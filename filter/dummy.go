@@ -4,7 +4,7 @@ type AllowAllFilter struct {
 	Filter
 }
 
-func NewAllowAllFilter() (FilterInterface, error) {
+func NewAllowAllFilter() (FilteringInterface, error) {
 	return &AllowAllFilter{}, nil
 }
 
@@ -24,11 +24,11 @@ type UnitTestFilter struct {
 	Filter
 }
 
-func NewUnitTestFilter() (FilterInterface, error) {
+func NewUnitTestFilter() (FilteringInterface, error) {
 	f := &UnitTestFilter{
 		Filter: Filter{
-			chanIdWhitelist: make(map[uint64]struct{}),
-			nodeIdWhitelist: make(map[string]struct{}),
+			chanIDWhitelist: make(map[uint64]struct{}),
+			nodeIDWhitelist: make(map[string]struct{}),
 		},
 	}
 
@@ -36,11 +36,11 @@ func NewUnitTestFilter() (FilterInterface, error) {
 }
 
 func (u *UnitTestFilter) AddAllowPubKey(id string) {
-	u.nodeIdWhitelist[id] = struct{}{}
+	u.nodeIDWhitelist[id] = struct{}{}
 }
 
 func (u *UnitTestFilter) AddAllowChanID(id uint64) {
-	u.chanIdWhitelist[id] = struct{}{}
+	u.chanIDWhitelist[id] = struct{}{}
 }
 
 func (f *UnitTestFilter) ChangeOptions(options Options) {

@@ -82,16 +82,16 @@ func (c *NodeInfo) GetState(
 	uniqueId string,
 	private bool,
 	PollInterval entities.Interval,
-	getApi entities.NewApiCall,
+	getApi entities.NewAPICall,
 	optCallback entities.InfoCallback,
-	filter filter.FilterInterface,
+	filter filter.FilteringInterface,
 ) (*entities.InfoReport, error) {
 
 	if pubKey != "" && !utils.ValidatePubkey(pubKey) {
 		return nil, errors.New("invalid pubkey")
 	}
 
-	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId}, getApi, private, filter)
+	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId}, getApi, private, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -109,9 +109,9 @@ func (c *NodeInfo) Subscribe(
 	uniqueId string,
 	private bool,
 	PollInterval entities.Interval,
-	getApi entities.NewApiCall,
+	getApi entities.NewAPICall,
 	callback entities.InfoCallback,
-	f filter.FilterInterface,
+	f filter.FilteringInterface,
 ) error {
 
 	if pubKey != "" && !utils.ValidatePubkey(pubKey) {
@@ -138,7 +138,7 @@ func (c *NodeInfo) Subscribe(
 	}
 
 	c.globalSettings.Set(info.IdentityPubkey+uniqueId, Settings{
-		identifier: entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId},
+		identifier: entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId},
 		lastCheck:  time.Time{},
 		callback:   callback,
 		getApi:     getApi,
@@ -197,7 +197,7 @@ func (c *NodeInfo) checkAll() bool {
 		if toBeCheckedBy.Before(now) {
 			resp, err := c.checkOne(s.identifier, s.getApi, s.private, s.filter)
 			if err != nil {
-				glog.Warningf("Failed to check %v: %v", s.identifier.GetId(), err)
+				glog.Warningf("Failed to check %v: %v", s.identifier.GetID(), err)
 				continue
 			}
 
@@ -219,7 +219,7 @@ func (c *NodeInfo) checkAll() bool {
 					}
 					defer c.reentrancyBlock.Release(one)
 
-					timer := c.monitoring.MetricsTimer("checkdeliver", map[string]string{"pubkey": s.identifier.GetId()})
+					timer := c.monitoring.MetricsTimer("checkdeliver", map[string]string{"pubkey": s.identifier.GetID()})
 					if s.callback(c.ctx, resp) {
 						// Update hash only upon success
 						s.hash = hash
@@ -246,7 +246,7 @@ func (c *NodeInfo) checkAll() bool {
 	return true
 }
 
-func applyFilter(info *lightningapi.NodeInfoApiExtended, filter filter.FilterInterface) *lightningapi.NodeInfoApiExtended {
+func applyFilter(info *lightningapi.NodeInfoApiExtended, filter filter.FilteringInterface) *lightningapi.NodeInfoApiExtended {
 	ret := &lightningapi.NodeInfoApiExtended{
 		NodeInfoApi: info.NodeInfoApi,
 		Channels:    make([]lightningapi.NodeChannelApiExtended, 0),
@@ -270,12 +270,12 @@ func applyFilter(info *lightningapi.NodeInfoApiExtended, filter filter.FilterInt
 // checkOne checks one specific node
 func (c *NodeInfo) checkOne(
 	identifier entities.NodeIdentifier,
-	getApi entities.NewApiCall,
+	getApi entities.NewAPICall,
 	private bool,
-	filter filter.FilterInterface,
+	filter filter.FilteringInterface,
 ) (*entities.InfoReport, error) {
 
-	pubkey := identifier.GetId()
+	pubkey := identifier.GetID()
 	if pubkey == "" {
 		pubkey = "local"
 	}
@@ -303,7 +303,7 @@ func (c *NodeInfo) checkOne(
 	}
 
 	ret := &entities.InfoReport{
-		UniqueId:            identifier.UniqueId,
+		UniqueId:            identifier.UniqueID,
 		Timestamp:           common_entities.JsonTime(time.Now()),
 		NodeInfoApiExtended: *info,
 	}

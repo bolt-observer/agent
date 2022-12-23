@@ -196,7 +196,7 @@ func TestSubscription(t *testing.T) {
 	f, _ := filter.NewAllowAllFilter()
 	err := c.Subscribe(
 		pubKey, "random_id", true,
-		agent_entities.SECOND,
+		agent_entities.Second,
 		func() lightning_api.LightingApiCalls { return api },
 		nil,
 		f,
@@ -258,7 +258,7 @@ func TestBasicFlow(t *testing.T) {
 	f, _ := filter.NewAllowAllFilter()
 	c.Subscribe(
 		pubKey, "random_id", true,
-		agent_entities.SECOND,
+		agent_entities.Second,
 		func() lightning_api.LightingApiCalls { return api },
 		func(ctx context.Context, report *agent_entities.InfoReport) bool {
 			was_called = true
@@ -318,7 +318,7 @@ func TestBasicFlowFilter(t *testing.T) {
 
 	c.Subscribe(
 		pubKey, "random_id", true,
-		agent_entities.SECOND,
+		agent_entities.Second,
 		func() lightning_api.LightingApiCalls { return api },
 		func(ctx context.Context, report *agent_entities.InfoReport) bool {
 			if report.NumChannels == 1 && report.TotalCapacity == 10000 {
@@ -376,7 +376,7 @@ func TestContextCanBeNil(t *testing.T) {
 
 	c.Subscribe(
 		pubKey, "random_id", true,
-		agent_entities.SECOND,
+		agent_entities.Second,
 		func() lightning_api.LightingApiCalls { return api },
 		func(ctx context.Context, report *agent_entities.InfoReport) bool {
 			was_called = true
@@ -427,7 +427,7 @@ func TestGetState(t *testing.T) {
 
 	resp, err := c.GetState(
 		pubKey, "random_id", true,
-		agent_entities.SECOND,
+		agent_entities.Second,
 		func() lightning_api.LightingApiCalls { return api },
 		nil,
 		f,
@@ -478,7 +478,7 @@ func TestGetStateCallback(t *testing.T) {
 
 	resp, err := c.GetState(
 		pubKey, "random_id", true,
-		agent_entities.SECOND,
+		agent_entities.Second,
 		func() lightning_api.LightingApiCalls { return api },
 		func(ctx context.Context, report *agent_entities.InfoReport) bool {
 			callresp = report

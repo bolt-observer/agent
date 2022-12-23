@@ -79,7 +79,7 @@ func (c *ChannelChecker) IsSubscribed(pubKey, uniqueId string) bool {
 func (c *ChannelChecker) Subscribe(
 	pubKey string,
 	uniqueId string,
-	getApi entities.NewApiCall,
+	getApi entities.NewAPICall,
 	settings entities.ReportingSettings,
 	callback entities.BalanceReportCallback) error {
 
@@ -117,7 +117,7 @@ func (c *ChannelChecker) Subscribe(
 	}
 
 	c.globalSettings.Set(info.IdentityPubkey+uniqueId, Settings{
-		identifier:     entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId},
+		identifier:     entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId},
 		settings:       settings,
 		lastCheck:      time.Time{},
 		lastGraphCheck: time.Time{},
@@ -139,7 +139,7 @@ func (c *ChannelChecker) Unsubscribe(pubkey, uniqueId string) error {
 func (c *ChannelChecker) GetState(
 	pubKey string,
 	uniqueId string,
-	getApi entities.NewApiCall,
+	getApi entities.NewAPICall,
 	settings entities.ReportingSettings,
 	optCallback entities.BalanceReportCallback) (*entities.ChannelBalanceReport, error) {
 
@@ -152,12 +152,12 @@ func (c *ChannelChecker) GetState(
 		settings.Filter = f
 	}
 
-	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId}, getApi, settings, true, false)
+	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId}, getApi, settings, true, false)
 	if err != nil {
 		return nil, err
 	}
 
-	resp.PollInterval = entities.MANUAL_REQUEST
+	resp.PollInterval = entities.ManualRequest
 	if optCallback != nil {
 		optCallback(c.ctx, resp)
 	}
@@ -169,7 +169,7 @@ func (c *ChannelChecker) getChannelList(
 	info *api.InfoApi,
 	precisionBits int,
 	allowPrivateChans bool,
-	filter filter.FilterInterface,
+	filter filter.FilteringInterface,
 ) ([]entities.ChannelBalance, SetOfChanIds, error) {
 
 	defer c.monitoring.MetricsTimer("channellist", map[string]string{"pubkey": info.IdentityPubkey})()
@@ -256,7 +256,7 @@ func (c *ChannelChecker) getChannelList(
 			Private:         channel.Private,
 			LocalPubkey:     info.IdentityPubkey,
 			RemotePubkey:    channel.RemotePubkey,
-			ChanId:          channel.ChanId,
+			ChanID:          channel.ChanId,
 			Capacity:        capacity,
 			RemoteNominator: uint64(math.Round(float64(remoteBalance) / factor)),
 			LocalNominator:  uint64(math.Round(float64(localBalance) / factor)),
@@ -328,7 +328,7 @@ func (c *ChannelChecker) EventLoop() {
 
 func (c *ChannelChecker) fetchGraph(
 	pubKey string,
-	getApi entities.NewApiCall,
+	getApi entities.NewAPICall,
 	settings entities.ReportingSettings,
 ) error {
 
@@ -425,7 +425,7 @@ func (c *ChannelChecker) checkAll() bool {
 					}
 					defer c.reentrancyBlock.Release(one)
 
-					timer := c.monitoring.MetricsTimer("checkdelivery", map[string]string{"pubkey": s.identifier.GetId()})
+					timer := c.monitoring.MetricsTimer("checkdelivery", map[string]string{"pubkey": s.identifier.GetID()})
 					// NB: now can be old here
 					if s.callback(c.ctx, resp) {
 						s.lastReport = time.Now()
@@ -455,12 +455,12 @@ func (c *ChannelChecker) checkAll() bool {
 // checkOne checks one specific node
 func (c *ChannelChecker) checkOne(
 	identifier entities.NodeIdentifier,
-	getApi entities.NewApiCall,
+	getApi entities.NewAPICall,
 	settings entities.ReportingSettings,
 	ignoreCache bool,
 	reportAnyway bool) (*entities.ChannelBalanceReport, error) {
 
-	pubkey := identifier.GetId()
+	pubkey := identifier.GetID()
 	if pubkey == "" {
 		pubkey = "local"
 	}
@@ -502,17 +502,17 @@ func (c *ChannelChecker) checkOne(
 
 	closedChannels := make([]entities.ClosedChannel, 0)
 
-	if len(c.nodeChanIds[identifier.GetId()]) > 0 {
+	if len(c.nodeChanIds[identifier.GetID()]) > 0 {
 		// We must have some old channel set
 
 		// diff between new -> old
-		closed := utils.SetDiff(set, c.nodeChanIds[identifier.GetId()])
+		closed := utils.SetDiff(set, c.nodeChanIds[identifier.GetID()])
 		for k := range closed {
-			closedChannels = append(closedChannels, entities.ClosedChannel{ChannelId: k})
+			closedChannels = append(closedChannels, entities.ClosedChannel{ChannelID: k})
 		}
 	}
 
-	c.nodeChanIdsNew[identifier.GetId()] = set
+	c.nodeChanIdsNew[identifier.GetID()] = set
 
 	channelList = c.filterList(identifier, channelList, ignoreCache)
 
@@ -521,7 +521,7 @@ func (c *ChannelChecker) checkOne(
 		Chain:             info.Chain,
 		Network:           info.Network,
 		PubKey:            identifier.Identifier,
-		UniqueId:          identifier.UniqueId,
+		UniqueID:          identifier.UniqueID,
 		Timestamp:         common_entities.JsonTime(time.Now()),
 		ChangedChannels:   channelList,
 		ClosedChannels:    closedChannels,
@@ -549,7 +549,7 @@ func (c *ChannelChecker) filterList(
 	for _, one := range list {
 		// We need local pubkey in case same channel is monitored from two sides
 		// which could trigger invalidations all the time
-		id := fmt.Sprintf("%s-%d", identifier.GetId(), one.ChanId)
+		id := fmt.Sprintf("%s-%d", identifier.GetID(), one.ChanID)
 		val, ok := c.channelCache.Get(id)
 		// Note that denominator changes based on channel reserve (might use capacity here)
 

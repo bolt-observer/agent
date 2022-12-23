@@ -16,21 +16,21 @@ func TestDeleteInTheMiddle(t *testing.T) {
 
 	settings := NewGlobalSettings()
 
-	settings.Set("burek", Settings{identifier: entities.NodeIdentifier{Identifier: "1337", UniqueId: "1337"}, getAPI: getAPI})
+	settings.Set("burek", Settings{identifier: entities.NodeIdentifier{Identifier: "1337", UniqueID: "1337"}, getAPI: getAPI})
 
 	if !utils.Contains(settings.GetKeys(), "burek") {
 		t.Fatalf("Element not present")
 	}
 
 	s := settings.Get("burek")
-	if s.identifier.UniqueId != "1337" {
+	if s.identifier.UniqueID != "1337" {
 		t.Fatalf("Wrong stuff returned")
 	}
 
 	s.getAPI()
 
 	settings.Delete("burek")
-	if s.identifier.UniqueId != "1337" {
+	if s.identifier.UniqueID != "1337" {
 		t.Fatalf("Wrong stuff returned")
 	}
 }
