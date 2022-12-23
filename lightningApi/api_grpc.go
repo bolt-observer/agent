@@ -12,26 +12,28 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
-type LndGrpcLightningApi struct {
+// LndGrpcLightningAPI struct
+type LndGrpcLightningAPI struct {
 	Client      lnrpc.LightningClient
 	CleanupFunc func()
-	LightningApi
+	LightningAPI
 }
 
 // Compile time check for the interface
-var _ LightingApiCalls = &LndGrpcLightningApi{}
+var _ LightingAPICalls = &LndGrpcLightningAPI{}
 
-func NewLndGrpcLightningApi(getData GetDataCall) LightingApiCalls {
+// NewLndGrpcLightningAPI - creates new lightning API
+func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
 	client, cleanup, err := GetClient(getData)
 	if err != nil {
 		glog.Warningf("Failed to get client: %v", err)
 		return nil
 	}
 
-	return &LndGrpcLightningApi{
+	return &LndGrpcLightningAPI{
 		Client:       client,
 		CleanupFunc:  cleanup,
-		LightningApi: LightningApi{GetNodeInfoFullThreshUseDescribeGraph: 500},
+		LightningAPI: LightningAPI{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
 
@@ -45,13 +47,14 @@ func debugOutput(resp *lnrpc.ChannelEdge) {
 	fmt.Fprintf(f, "%s\n", string(bodyData))
 }
 
-func (l *LndGrpcLightningApi) GetInfo(ctx context.Context) (*InfoApi, error) {
+// GetInfo API
+func (l *LndGrpcLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	resp, err := l.Client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return nil, err
 	}
 
-	ret := &InfoApi{
+	ret := &InfoAPI{
 		Alias:          resp.Alias,
 		IdentityPubkey: resp.IdentityPubkey,
 		Chain:          resp.Chains[0].Chain,
@@ -61,23 +64,25 @@ func (l *LndGrpcLightningApi) GetInfo(ctx context.Context) (*InfoApi, error) {
 	return ret, err
 }
 
-func (l *LndGrpcLightningApi) Cleanup() {
+// Cleanup API
+func (l *LndGrpcLightningAPI) Cleanup() {
 	l.CleanupFunc()
 }
 
-func (l *LndGrpcLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, error) {
+// GetChannels API
+func (l *LndGrpcLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
 	resp, err := l.Client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
 
 	if err != nil {
 		return nil, err
 	}
 
-	chans := make([]ChannelApi, 0)
+	chans := make([]ChannelAPI, 0)
 	for _, channel := range resp.Channels {
 
-		htlcs := make([]HtlcApi, 0)
+		htlcs := make([]HtlcAPI, 0)
 		for _, h := range channel.PendingHtlcs {
-			htlcs = append(htlcs, HtlcApi{
+			htlcs = append(htlcs, HtlcAPI{
 				Amount:              uint64(h.Amount),
 				Incoming:            h.Incoming,
 				ForwardingChannel:   h.ForwardingChannel,
@@ -85,11 +90,11 @@ func (l *LndGrpcLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, er
 			})
 		}
 
-		chans = append(chans, ChannelApi{
+		chans = append(chans, ChannelAPI{
 			Private:               channel.Private,
 			Active:                channel.Active,
 			RemotePubkey:          channel.RemotePubkey,
-			ChanId:                channel.ChanId,
+			ChanID:                channel.ChanId,
 			RemoteBalance:         uint64(channel.RemoteBalance),
 			LocalBalance:          uint64(channel.LocalBalance),
 			Capacity:              uint64(channel.Capacity),
@@ -102,19 +107,19 @@ func (l *LndGrpcLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, er
 		})
 	}
 
-	ret := &ChannelsApi{
+	ret := &ChannelsAPI{
 		Channels: chans,
 	}
 
 	return ret, nil
 }
 
-func toPolicy(policy *lnrpc.RoutingPolicy) *RoutingPolicyApi {
+func toPolicy(policy *lnrpc.RoutingPolicy) *RoutingPolicyAPI {
 	if policy == nil {
 		return nil
 	}
 
-	return &RoutingPolicyApi{
+	return &RoutingPolicyAPI{
 		TimeLockDelta: policy.TimeLockDelta,
 		MinHtlc:       uint64(policy.MinHtlc),
 		BaseFee:       uint64(policy.FeeBaseMsat),
@@ -125,26 +130,27 @@ func toPolicy(policy *lnrpc.RoutingPolicy) *RoutingPolicyApi {
 	}
 }
 
-func (l *LndGrpcLightningApi) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphApi, error) {
+// DescribeGraph API
+func (l *LndGrpcLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
 	resp, err := l.Client.DescribeGraph(ctx, &lnrpc.ChannelGraphRequest{IncludeUnannounced: unannounced})
 
 	if err != nil {
 		return nil, err
 	}
 
-	nodes := make([]DescribeGraphNodeApi, 0)
+	nodes := make([]DescribeGraphNodeAPI, 0)
 
 	for _, node := range resp.Nodes {
 		nodes = append(nodes, l.convertNode(node))
 	}
 
-	channels := make([]NodeChannelApi, 0)
+	channels := make([]NodeChannelAPI, 0)
 
 	for _, edge := range resp.Edges {
 		channels = append(channels, l.convertChan(edge))
 	}
 
-	ret := &DescribeGraphApi{
+	ret := &DescribeGraphAPI{
 		Nodes:    nodes,
 		Channels: channels,
 	}
@@ -152,24 +158,24 @@ func (l *LndGrpcLightningApi) DescribeGraph(ctx context.Context, unannounced boo
 	return ret, nil
 }
 
-func (l *LndGrpcLightningApi) convertNode(node *lnrpc.LightningNode) DescribeGraphNodeApi {
-	addresses := make([]NodeAddressApi, 0)
+func (l *LndGrpcLightningAPI) convertNode(node *lnrpc.LightningNode) DescribeGraphNodeAPI {
+	addresses := make([]NodeAddressAPI, 0)
 	for _, addr := range node.Addresses {
-		addresses = append(addresses, NodeAddressApi{Addr: addr.Addr, Network: addr.Network})
+		addresses = append(addresses, NodeAddressAPI{Addr: addr.Addr, Network: addr.Network})
 	}
 
-	features := make(map[string]NodeFeatureApi)
+	features := make(map[string]NodeFeatureAPI)
 	for id, feat := range node.Features {
-		features[fmt.Sprintf("%d", id)] = NodeFeatureApi{Name: feat.Name, IsRequired: feat.IsRequired, IsKnown: feat.IsKnown}
+		features[fmt.Sprintf("%d", id)] = NodeFeatureAPI{Name: feat.Name, IsRequired: feat.IsRequired, IsKnown: feat.IsKnown}
 	}
 
-	return DescribeGraphNodeApi{PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Addresses: addresses, Features: features,
+	return DescribeGraphNodeAPI{PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Addresses: addresses, Features: features,
 		LastUpdate: entities.JsonTime(time.Unix(int64(node.LastUpdate), 0))}
 }
 
-func (l *LndGrpcLightningApi) convertChan(edge *lnrpc.ChannelEdge) NodeChannelApi {
-	return NodeChannelApi{
-		ChannelId:   edge.ChannelId,
+func (l *LndGrpcLightningAPI) convertChan(edge *lnrpc.ChannelEdge) NodeChannelAPI {
+	return NodeChannelAPI{
+		ChannelID:   edge.ChannelId,
 		ChanPoint:   edge.ChanPoint,
 		Node1Pub:    edge.Node1Pub,
 		Node2Pub:    edge.Node2Pub,
@@ -180,25 +186,27 @@ func (l *LndGrpcLightningApi) convertChan(edge *lnrpc.ChannelEdge) NodeChannelAp
 	}
 }
 
-func (l *LndGrpcLightningApi) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoApi, error) {
+// GetNodeInfo API
+func (l *LndGrpcLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
 	resp, err := l.Client.GetNodeInfo(ctx, &lnrpc.NodeInfoRequest{PubKey: pubKey, IncludeChannels: channels})
 
 	if err != nil {
 		return nil, err
 	}
 
-	ch := make([]NodeChannelApi, 0)
+	ch := make([]NodeChannelAPI, 0)
 
 	for _, edge := range resp.Channels {
 		ch = append(ch, l.convertChan(edge))
 	}
 
-	ret := &NodeInfoApi{Node: l.convertNode(resp.Node), Channels: ch, NumChannels: resp.NumChannels, TotalCapacity: uint64(resp.TotalCapacity)}
+	ret := &NodeInfoAPI{Node: l.convertNode(resp.Node), Channels: ch, NumChannels: resp.NumChannels, TotalCapacity: uint64(resp.TotalCapacity)}
 	return ret, nil
 }
 
-func (l *LndGrpcLightningApi) GetChanInfo(ctx context.Context, chanId uint64) (*NodeChannelApi, error) {
-	resp, err := l.Client.GetChanInfo(ctx, &lnrpc.ChanInfoRequest{ChanId: chanId})
+// GetChanInfo API
+func (l *LndGrpcLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
+	resp, err := l.Client.GetChanInfo(ctx, &lnrpc.ChanInfoRequest{ChanId: chanID})
 
 	if err != nil {
 		return nil, err

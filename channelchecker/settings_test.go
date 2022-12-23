@@ -8,7 +8,7 @@ import (
 	"github.com/bolt-observer/go_common/utils"
 )
 
-func getAPI() api.LightingApiCalls {
+func getAPI() api.LightingAPICalls {
 	return nil
 }
 

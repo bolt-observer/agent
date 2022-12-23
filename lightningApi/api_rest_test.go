@@ -49,7 +49,7 @@ func TestObtainData(t *testing.T) {
 		return
 	}
 
-	api := NewApi(LND_REST, func() (*entities.Data, error) {
+	api := NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -172,7 +172,7 @@ func TestObtainData(t *testing.T) {
 
 }
 
-func common(t *testing.T, name string) ([]byte, *LndRestLightningAPI, LightingApiCalls) {
+func common(t *testing.T, name string) ([]byte, *LndRestLightningAPI, LightingAPICalls) {
 	pubKey := "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256"
 	cert := utils.ObtainCert("bolt.observer:443")
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
@@ -198,7 +198,7 @@ func common(t *testing.T, name string) ([]byte, *LndRestLightningAPI, LightingAp
 		return nil, nil, nil
 	}
 
-	api := NewApi(LND_REST, func() (*entities.Data, error) {
+	api := NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -275,7 +275,7 @@ func TestGetChannels(t *testing.T) {
 			return
 		}
 
-		if c.ChanId == 1337 {
+		if c.ChanID == 1337 {
 			if c.LocalBalance != 1337 && c.RemoteBalance != 3771 && c.Active != false && c.Private {
 				t.Fatalf("Wrong response")
 				return
@@ -368,7 +368,7 @@ func TestGetChanInfo(t *testing.T) {
 		return
 	}
 
-	if result.ChannelId != chanid || result.ChanPoint != "72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2" || (result.Node1Pub != pubKey && result.Node2Pub != pubKey) {
+	if result.ChannelID != chanid || result.ChanPoint != "72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2" || (result.Node1Pub != pubKey && result.Node2Pub != pubKey) {
 		t.Fatalf("GetChanInfo got wrong response: %v", result)
 	}
 }

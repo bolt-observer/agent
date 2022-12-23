@@ -15,5 +15,5 @@ type InfoReport struct {
 	UniqueID  string            `json:"uniqueId,omitempty"` // optional unique identifier
 	Timestamp entities.JsonTime `json:"timestamp"`
 
-	api.NodeInfoApiExtended
+	api.NodeInfoAPIExtended
 }

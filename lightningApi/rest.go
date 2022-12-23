@@ -42,8 +42,8 @@ func (h *HTTPAPI) SetTransport(transport *http.Transport) {
 	h.client = &http.Client{Transport: transport}
 }
 
-// HttpGetInfo - invokes GetInfo method
-func (h *HTTPAPI) HttpGetInfo(ctx context.Context, req *http.Request, trans *http.Transport) (*GetInfoResponseOverride, error) {
+// HTTPGetInfo - invokes GetInfo method
+func (h *HTTPAPI) HTTPGetInfo(ctx context.Context, req *http.Request, trans *http.Transport) (*GetInfoResponseOverride, error) {
 	var info GetInfoResponseOverride
 
 	req = req.WithContext(ctx)
@@ -79,8 +79,8 @@ func (h *HTTPAPI) HttpGetInfo(ctx context.Context, req *http.Request, trans *htt
 	return &info, nil
 }
 
-// HttpGetChannels - invokes GetChannels method
-func (h *HTTPAPI) HttpGetChannels(ctx context.Context, req *http.Request, trans *http.Transport) (*Channels, error) {
+// HTTPGetChannels - invokes GetChannels method
+func (h *HTTPAPI) HTTPGetChannels(ctx context.Context, req *http.Request, trans *http.Transport) (*Channels, error) {
 	var info Channels
 
 	req = req.WithContext(ctx)
@@ -116,8 +116,8 @@ func (h *HTTPAPI) HttpGetChannels(ctx context.Context, req *http.Request, trans 
 	return &info, nil
 }
 
-// HttpGetGraph - invokes GetGraph method
-func (h *HTTPAPI) HttpGetGraph(ctx context.Context, req *http.Request, trans *http.Transport, unannounced bool) (*Graph, error) {
+// HTTPGetGraph - invokes GetGraph method
+func (h *HTTPAPI) HTTPGetGraph(ctx context.Context, req *http.Request, trans *http.Transport, unannounced bool) (*Graph, error) {
 	var graph Graph
 
 	req = req.WithContext(ctx)
@@ -153,8 +153,8 @@ func (h *HTTPAPI) HttpGetGraph(ctx context.Context, req *http.Request, trans *ht
 	return &graph, nil
 }
 
-// HttpGetNodeInfo - invokes GetNodeInfo method
-func (h *HTTPAPI) HttpGetNodeInfo(ctx context.Context, req *http.Request, trans *http.Transport, pubKey string, channels bool) (*GetNodeInfoOverride, error) {
+// HTTPGetNodeInfo - invokes GetNodeInfo method
+func (h *HTTPAPI) HTTPGetNodeInfo(ctx context.Context, req *http.Request, trans *http.Transport, pubKey string, channels bool) (*GetNodeInfoOverride, error) {
 	var graph GetNodeInfoOverride
 
 	req = req.WithContext(ctx)
@@ -190,15 +190,15 @@ func (h *HTTPAPI) HttpGetNodeInfo(ctx context.Context, req *http.Request, trans 
 	return &graph, nil
 }
 
-// HttpGetChanInfo - invokes GetChanInfo method
-func (h *HTTPAPI) HttpGetChanInfo(ctx context.Context, req *http.Request, trans *http.Transport, chanId uint64) (*GraphEdgeOverride, error) {
+// HTTPGetChanInfo - invokes GetChanInfo method
+func (h *HTTPAPI) HTTPGetChanInfo(ctx context.Context, req *http.Request, trans *http.Transport, chanID uint64) (*GraphEdgeOverride, error) {
 	var graph GraphEdgeOverride
 
 	req = req.WithContext(ctx)
 
 	req.Method = http.MethodGet
 
-	u, err := url.Parse(fmt.Sprintf("%s/v1/graph/edge/%d", req.URL, chanId))
+	u, err := url.Parse(fmt.Sprintf("%s/v1/graph/edge/%d", req.URL, chanID))
 	if err != nil {
 		return nil, fmt.Errorf("invalid url %s", err)
 	}
@@ -227,8 +227,8 @@ func (h *HTTPAPI) HttpGetChanInfo(ctx context.Context, req *http.Request, trans 
 	return &graph, nil
 }
 
-// GetHttpRequest - generic method for doing HTTP requests
-func (h *HTTPAPI) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Transport, error) {
+// GetHTTPRequest - generic method for doing HTTP requests
+func (h *HTTPAPI) GetHTTPRequest(getData GetDataCall) (*http.Request, *http.Transport, error) {
 
 	if getData == nil {
 		return nil, nil, fmt.Errorf("getData is nil")

@@ -136,7 +136,7 @@ func getChanInfo(url string) string {
 	`, id, id*10000)
 }
 
-func initTest(t *testing.T) (string, lightning_api.LightingApiCalls, *lightning_api.LndRestLightningAPI) {
+func initTest(t *testing.T) (string, lightning_api.LightingAPICalls, *lightning_api.LndRestLightningAPI) {
 	pubKey := "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256"
 	cert := utils.ObtainCert("bolt.observer:443")
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
@@ -148,7 +148,7 @@ func initTest(t *testing.T) (string, lightning_api.LightingApiCalls, *lightning_
 		Endpoint:          "bolt.observer:443",
 	}
 
-	api := lightning_api.NewApi(lightning_api.LND_REST, func() (*entities.Data, error) {
+	api := lightning_api.NewAPI(lightning_api.LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -197,7 +197,7 @@ func TestSubscription(t *testing.T) {
 	err := c.Subscribe(
 		pubKey, "random_id", true,
 		agent_entities.Second,
-		func() lightning_api.LightingApiCalls { return api },
+		func() lightning_api.LightingAPICalls { return api },
 		nil,
 		f,
 	)
@@ -259,7 +259,7 @@ func TestBasicFlow(t *testing.T) {
 	c.Subscribe(
 		pubKey, "random_id", true,
 		agent_entities.Second,
-		func() lightning_api.LightingApiCalls { return api },
+		func() lightning_api.LightingAPICalls { return api },
 		func(ctx context.Context, report *agent_entities.InfoReport) bool {
 			wasCalled = true
 			cancel()
@@ -319,7 +319,7 @@ func TestBasicFlowFilter(t *testing.T) {
 	c.Subscribe(
 		pubKey, "random_id", true,
 		agent_entities.Second,
-		func() lightning_api.LightingApiCalls { return api },
+		func() lightning_api.LightingAPICalls { return api },
 		func(ctx context.Context, report *agent_entities.InfoReport) bool {
 			if report.NumChannels == 1 && report.TotalCapacity == 10000 {
 				wasCalled = true
@@ -377,7 +377,7 @@ func TestContextCanBeNil(t *testing.T) {
 	c.Subscribe(
 		pubKey, "random_id", true,
 		agent_entities.Second,
-		func() lightning_api.LightingApiCalls { return api },
+		func() lightning_api.LightingAPICalls { return api },
 		func(ctx context.Context, report *agent_entities.InfoReport) bool {
 			wasCalled = true
 			return true
@@ -428,7 +428,7 @@ func TestGetState(t *testing.T) {
 	resp, err := c.GetState(
 		pubKey, "random_id", true,
 		agent_entities.Second,
-		func() lightning_api.LightingApiCalls { return api },
+		func() lightning_api.LightingAPICalls { return api },
 		nil,
 		f,
 	)
@@ -479,7 +479,7 @@ func TestGetStateCallback(t *testing.T) {
 	resp, err := c.GetState(
 		pubKey, "random_id", true,
 		agent_entities.Second,
-		func() lightning_api.LightingApiCalls { return api },
+		func() lightning_api.LightingAPICalls { return api },
 		func(ctx context.Context, report *agent_entities.InfoReport) bool {
 			callresp = report
 			return true

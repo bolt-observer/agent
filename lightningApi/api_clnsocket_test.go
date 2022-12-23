@@ -117,7 +117,7 @@ func clnData(t *testing.T, name string) []byte {
 	return contents
 }
 
-func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningAPI, LightingApiCalls, CloseFunc) {
+func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningAPI, LightingAPICalls, CloseFunc) {
 	name, closeFunc := ClnSocketServer(t, handler)
 
 	api := NewClnSocketLightningAPIRaw("unix", name)
@@ -228,7 +228,7 @@ func TestClnGetChanInfo(t *testing.T) {
 		t.Fatalf("GetInfo call failed: %v", err)
 	}
 
-	if resp.ChannelId != 839247329907769344 || resp.Node1Pub != "020f63ca0fd5cbb11012727c035b7c087c2d014a26ed8ed5ed2115c783945a3fc7" || resp.Node2Pub != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" {
+	if resp.ChannelID != 839247329907769344 || resp.Node1Pub != "020f63ca0fd5cbb11012727c035b7c087c2d014a26ed8ed5ed2115c783945a3fc7" || resp.Node2Pub != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" {
 		t.Fatal("Wrong response")
 	}
 }

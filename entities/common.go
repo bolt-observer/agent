@@ -19,7 +19,7 @@ func (n *NodeIdentifier) GetID() string {
 }
 
 // NewAPICall is the signature of the function to get Lightning API
-type NewAPICall func() api.LightingApiCalls
+type NewAPICall func() api.LightingAPICalls
 
 // ReentrancyBlock is used to block reentrancy based on string ID
 type ReentrancyBlock struct {

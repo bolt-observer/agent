@@ -169,8 +169,8 @@ func (c *ChannelChecker) GetState(
 }
 
 func (c *ChannelChecker) getChannelList(
-	api api.LightingApiCalls,
-	info *api.InfoApi,
+	api api.LightingAPICalls,
+	info *api.InfoAPI,
 	precisionBits int,
 	allowPrivateChans bool,
 	filter filter.FilteringInterface,
@@ -198,17 +198,17 @@ func (c *ChannelChecker) getChannelList(
 
 	for _, channel := range channels.Channels {
 		if channel.Private && !allowPrivateChans {
-			glog.V(3).Infof("Skipping private channel %v", channel.ChanId)
+			glog.V(3).Infof("Skipping private channel %v", channel.ChanID)
 			continue
 		}
 
-		if !filter.AllowChanID(channel.ChanId) && !filter.AllowPubKey(channel.RemotePubkey) && !filter.AllowSpecial(channel.Private) {
-			glog.V(3).Infof("Filtering channel %v", channel.ChanId)
+		if !filter.AllowChanID(channel.ChanID) && !filter.AllowPubKey(channel.RemotePubkey) && !filter.AllowSpecial(channel.Private) {
+			glog.V(3).Infof("Filtering channel %v", channel.ChanID)
 			continue
 		}
 
 		// Save channel ID
-		chanIds[channel.ChanId] = struct{}{}
+		chanIds[channel.ChanID] = struct{}{}
 
 		remoteBalance := channel.RemoteBalance
 		localBalance := channel.LocalBalance
@@ -252,15 +252,15 @@ func (c *ChannelChecker) getChannelList(
 			factor = float64(total) / float64(precision)
 		}
 
-		_, locallyDisabled := c.locallyDisabled[channel.ChanId]
-		_, remotlyDisabled := c.remotlyDisabled[channel.ChanId]
+		_, locallyDisabled := c.locallyDisabled[channel.ChanID]
+		_, remotlyDisabled := c.remotlyDisabled[channel.ChanID]
 
 		resp = append(resp, entities.ChannelBalance{
 			Active:          channel.Active,
 			Private:         channel.Private,
 			LocalPubkey:     info.IdentityPubkey,
 			RemotePubkey:    channel.RemotePubkey,
-			ChanID:          channel.ChanId,
+			ChanID:          channel.ChanID,
 			Capacity:        capacity,
 			RemoteNominator: uint64(math.Round(float64(remoteBalance) / factor)),
 			LocalNominator:  uint64(math.Round(float64(localBalance) / factor)),
@@ -365,11 +365,11 @@ func (c *ChannelChecker) fetchGraph(
 		}
 
 		if localPolicy != nil && localPolicy.Disabled {
-			locallyDisabled[channel.ChannelId] = struct{}{}
+			locallyDisabled[channel.ChannelID] = struct{}{}
 		}
 
 		if remotePolicy != nil && remotePolicy.Disabled {
-			remotlyDisabled[channel.ChannelId] = struct{}{}
+			remotlyDisabled[channel.ChannelID] = struct{}{}
 		}
 	}
 

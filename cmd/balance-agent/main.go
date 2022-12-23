@@ -83,22 +83,22 @@ func getData(ctx *cli.Context) (*entities.Data, error) {
 		path := findUnixSocket(filepath.Join(defaultLightningDir, ctx.String("chain"), "lightning-rpc"), resp.Endpoint)
 		if path != "" {
 			resp.Endpoint = path
-			v := int(api.CLN_SOCKET)
+			v := int(api.ClnSocket)
 			resp.ApiType = &v
 		}
 	}
 
 	if resp.ApiType == nil {
 		if ctx.Bool("userest") {
-			v := int(api.LND_REST)
+			v := int(api.LndRest)
 			resp.ApiType = &v
 		} else {
-			v := int(api.LND_GRPC)
+			v := int(api.LndGrpc)
 			resp.ApiType = &v
 		}
 	}
 
-	if resp.ApiType != nil && *resp.ApiType == int(api.CLN_SOCKET) {
+	if resp.ApiType != nil && *resp.ApiType == int(api.ClnSocket) {
 		// CLN socket connections do not need anything else
 		return resp, nil
 	}
@@ -519,8 +519,8 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 }
 
 func mkGetLndAPI(ctx *cli.Context) agent_entities.NewAPICall {
-	return func() api.LightingApiCalls {
-		return api.NewApi(api.LND_GRPC, func() (*entities.Data, error) {
+	return func() api.LightingAPICalls {
+		return api.NewAPI(api.LndGrpc, func() (*entities.Data, error) {
 			return getData(ctx)
 		})
 	}

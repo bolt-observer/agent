@@ -91,7 +91,7 @@ type ClnFundsChanResp struct {
 
 // ClnSocketLightningAPI struct
 type ClnSocketLightningAPI struct {
-	LightningApi
+	LightningAPI
 	Client  *rpc.Client
 	Timeout time.Duration
 }

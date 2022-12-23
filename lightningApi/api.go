@@ -10,97 +10,110 @@ import (
 	"github.com/golang/glog"
 )
 
-type ApiType int
+// APIType enum
+type APIType int
 
+// ApiTypes
 const (
-	LND_GRPC ApiType = iota
-	LND_REST
-	CLN_SOCKET
+	LndGrpc APIType = iota
+	LndRest
+	ClnSocket
 )
 
-func GetApiType(t *int) (*ApiType, error) {
+// GetAPIType from integer
+func GetAPIType(t *int) (*APIType, error) {
 	if t == nil {
 		return nil, fmt.Errorf("no api type specified")
 	}
-	if *t != int(LND_GRPC) && *t != int(LND_REST) && *t != int(CLN_SOCKET) {
+	if *t != int(LndGrpc) && *t != int(LndRest) && *t != int(ClnSocket) {
 		return nil, fmt.Errorf("invalid api type specified")
 	}
 
-	ret := ApiType(*t)
+	ret := APIType(*t)
 	return &ret, nil
 }
 
-type InfoApi struct {
+// InfoAPI struct
+type InfoAPI struct {
 	IdentityPubkey string
 	Alias          string
 	Chain          string
 	Network        string
 }
 
-type ChannelsApi struct {
-	Channels []ChannelApi
+// ChannelsAPI struct
+type ChannelsAPI struct {
+	Channels []ChannelAPI
 }
 
-type ChannelApi struct {
+// ChannelAPI struct
+type ChannelAPI struct {
 	Private               bool
 	Active                bool
 	RemotePubkey          string
 	Initiator             bool
 	CommitFee             uint64
-	ChanId                uint64
+	ChanID                uint64
 	RemoteBalance         uint64
 	LocalBalance          uint64
 	Capacity              uint64
-	PendingHtlcs          []HtlcApi
+	PendingHtlcs          []HtlcAPI
 	TotalSatoshisSent     uint64
 	TotalSatoshisReceived uint64
 	NumUpdates            uint64
 }
 
-type HtlcApi struct {
+// HtlcAPI struct
+type HtlcAPI struct {
 	Amount              uint64
 	Incoming            bool
 	ForwardingChannel   uint64
 	ForwardingHtlcIndex uint64
 }
 
-type DescribeGraphApi struct {
-	Nodes    []DescribeGraphNodeApi
-	Channels []NodeChannelApi
+// DescribeGraphAPI struct
+type DescribeGraphAPI struct {
+	Nodes    []DescribeGraphNodeAPI
+	Channels []NodeChannelAPI
 }
 
-type DescribeGraphNodeApi struct {
+// DescribeGraphNodeAPI struct
+type DescribeGraphNodeAPI struct {
 	PubKey     string                    `json:"pub_key,omitempty"`
 	Alias      string                    `json:"alias,omitempty"`
 	Color      string                    `json:"color,omitempty"`
-	Addresses  []NodeAddressApi          `json:"addresses,omitempty"`
-	Features   map[string]NodeFeatureApi `json:"features,omitempty"`
+	Addresses  []NodeAddressAPI          `json:"addresses,omitempty"`
+	Features   map[string]NodeFeatureAPI `json:"features,omitempty"`
 	LastUpdate entities.JsonTime         `json:"last_update,omitempty"`
 }
 
-type NodeAddressApi struct {
+// NodeAddressAPI struct
+type NodeAddressAPI struct {
 	Network string `json:"network,omitempty"`
 	Addr    string `json:"addr,omitempty"`
 }
 
-type NodeFeatureApi struct {
+// NodeFeatureAPI struct
+type NodeFeatureAPI struct {
 	Name       string `json:"name,omitempty"`
 	IsRequired bool   `json:"is_required,omitempty"`
 	IsKnown    bool   `json:"is_known,omitempty"`
 }
 
-type NodeChannelApi struct {
-	ChannelId   uint64            `json:"channel_id,omitempty"`
+// NodeChannelAPI struct
+type NodeChannelAPI struct {
+	ChannelID   uint64            `json:"channel_id,omitempty"`
 	ChanPoint   string            `json:"chan_point"`
 	Node1Pub    string            `json:"node1_pub,omitempty"`
 	Node2Pub    string            `json:"node2_pub,omitempty"`
 	Capacity    uint64            `json:"capacity,omitempty"`
-	Node1Policy *RoutingPolicyApi `json:"node1_policy,omitempty"`
-	Node2Policy *RoutingPolicyApi `json:"node2_policy,omitempty"`
+	Node1Policy *RoutingPolicyAPI `json:"node1_policy,omitempty"`
+	Node2Policy *RoutingPolicyAPI `json:"node2_policy,omitempty"`
 	LastUpdate  entities.JsonTime `json:"last_update,omitempty"`
 }
 
-type RoutingPolicyApi struct {
+// RoutingPolicyAPI struct
+type RoutingPolicyAPI struct {
 	TimeLockDelta uint32            `json:"time_lock_delta"`
 	MinHtlc       uint64            `json:"min_htlc"`
 	BaseFee       uint64            `json:"fee_base_msat"`
@@ -110,37 +123,43 @@ type RoutingPolicyApi struct {
 	MaxHtlc       uint64            `json:"max_htlc_msat"`
 }
 
-type NodeInfoApi struct {
-	Node          DescribeGraphNodeApi `json:"node,omitempty"`
-	Channels      []NodeChannelApi     `json:"channels"`
+// NodeInfoAPI struct
+type NodeInfoAPI struct {
+	Node          DescribeGraphNodeAPI `json:"node,omitempty"`
+	Channels      []NodeChannelAPI     `json:"channels"`
 	NumChannels   uint32               `json:"num_channels"`
 	TotalCapacity uint64               `json:"total_capacity"`
 }
 
-type NodeChannelApiExtended struct {
+// NodeChannelAPIExtended struct
+type NodeChannelAPIExtended struct {
 	Private bool `json:"private,omitempty"`
-	NodeChannelApi
+	NodeChannelAPI
 }
 
-type NodeInfoApiExtended struct {
-	NodeInfoApi
-	Channels []NodeChannelApiExtended `json:"channels"`
+// NodeInfoAPIExtended struct
+type NodeInfoAPIExtended struct {
+	NodeInfoAPI
+	Channels []NodeChannelAPIExtended `json:"channels"`
 }
 
-type LightningApi struct {
+// LightningAPI - generic API settings
+type LightningAPI struct {
 	GetNodeInfoFullThreshUseDescribeGraph int // If node has more than that number of channels use DescribeGraph else do GetChanInfo for each one
 }
 
-func (l *LndGrpcLightningApi) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
-	return getNodeInfoFullTemplate(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
+// GetNodeInfoFull - GetNodeInfoFull API (GRPC interface)
+func (l *LndGrpcLightningAPI) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoAPIExtended, error) {
+	return getNodeInfoFullTemplate(ctx, l, l.GetNodeInfoFullThreshUseDescribeGraph, channels, unnanounced)
 }
 
-func (l *LndRestLightningAPI) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
-	return getNodeInfoFullTemplate(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
+// GetNodeInfoFull - GetNodeInfoFull API (REST interface)
+func (l *LndRestLightningAPI) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoAPIExtended, error) {
+	return getNodeInfoFullTemplate(ctx, l, l.GetNodeInfoFullThreshUseDescribeGraph, channels, unnanounced)
 }
 
-// GetNodeInfoFull returns info for local node possibly including unnanounced channels (as soon as that can be obtained via GetNodeInfo this method is useless)
-func getNodeInfoFullTemplate(l LightingApiCalls, threshUseDescribeGraph int, ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
+// getNodeInfoFullTemplate returns info for local node possibly including unnanounced channels (as soon as that can be obtained via GetNodeInfo this method is useless)
+func getNodeInfoFullTemplate(ctx context.Context, l LightingAPICalls, threshUseDescribeGraph int, channels, unnanounced bool) (*NodeInfoAPIExtended, error) {
 	info, err := l.GetInfo(ctx)
 	if err != nil {
 		return nil, err
@@ -151,14 +170,14 @@ func getNodeInfoFullTemplate(l LightingApiCalls, threshUseDescribeGraph int, ctx
 		return nil, err
 	}
 
-	extendedNodeInfo := &NodeInfoApiExtended{NodeInfoApi: *nodeInfo}
+	extendedNodeInfo := &NodeInfoAPIExtended{NodeInfoAPI: *nodeInfo}
 
 	if !unnanounced {
 		// We have full info already (fast bailout)
 
-		all := make([]NodeChannelApiExtended, 0)
+		all := make([]NodeChannelAPIExtended, 0)
 		for _, ch := range nodeInfo.Channels {
-			all = append(all, NodeChannelApiExtended{NodeChannelApi: ch, Private: false})
+			all = append(all, NodeChannelAPIExtended{NodeChannelAPI: ch, Private: false})
 		}
 
 		extendedNodeInfo.Channels = all
@@ -184,9 +203,9 @@ func getNodeInfoFullTemplate(l LightingApiCalls, threshUseDescribeGraph int, ctx
 			continue
 		}
 
-		privateMapping[ch.ChanId] = ch.Private
+		privateMapping[ch.ChanID] = ch.Private
 		totalCapacity += ch.Capacity
-		numChans += 1
+		numChans++
 	}
 
 	extendedNodeInfo.NumChannels = uint32(numChans)
@@ -196,56 +215,58 @@ func getNodeInfoFullTemplate(l LightingApiCalls, threshUseDescribeGraph int, ctx
 		return extendedNodeInfo, nil
 	}
 
-	extendedNodeInfo.Channels = make([]NodeChannelApiExtended, 0)
+	extendedNodeInfo.Channels = make([]NodeChannelAPIExtended, 0)
 
 	if len(chans.Channels) <= threshUseDescribeGraph {
 		for _, ch := range chans.Channels {
 			if ch.Private && !unnanounced {
 				continue
 			}
-			c, err := l.GetChanInfo(ctx, ch.ChanId)
+			c, err := l.GetChanInfo(ctx, ch.ChanID)
 
 			if err != nil {
-				glog.Warningf("Could not get channel info for %v: %v", ch.ChanId, err)
-				extendedNodeInfo.NumChannels -= 1
+				glog.Warningf("Could not get channel info for %v: %v", ch.ChanID, err)
+				extendedNodeInfo.NumChannels--
 				continue
 			}
-			private, ok := privateMapping[ch.ChanId]
-			extendedNodeInfo.Channels = append(extendedNodeInfo.Channels, NodeChannelApiExtended{NodeChannelApi: *c, Private: ok && private})
+			private, ok := privateMapping[ch.ChanID]
+			extendedNodeInfo.Channels = append(extendedNodeInfo.Channels, NodeChannelAPIExtended{NodeChannelAPI: *c, Private: ok && private})
 		}
 	} else {
 		graph, err := l.DescribeGraph(ctx, unnanounced)
 		if err != nil {
 			// This could happen due to too big response (btcpay example with limited nginx), retry with other mode
-			return getNodeInfoFullTemplate(l, math.MaxInt, ctx, channels, unnanounced)
+			return getNodeInfoFullTemplate(ctx, l, math.MaxInt, channels, unnanounced)
 		}
 		for _, one := range graph.Channels {
 			if one.Node1Pub != info.IdentityPubkey && one.Node2Pub != info.IdentityPubkey {
 				continue
 			}
 			// No need to filter private channels (since we used unnanounced in DescribeGraph)
-			private, ok := privateMapping[one.ChannelId]
-			extendedNodeInfo.Channels = append(extendedNodeInfo.Channels, NodeChannelApiExtended{NodeChannelApi: one, Private: ok && private})
+			private, ok := privateMapping[one.ChannelID]
+			extendedNodeInfo.Channels = append(extendedNodeInfo.Channels, NodeChannelAPIExtended{NodeChannelAPI: one, Private: ok && private})
 		}
 	}
 
 	return extendedNodeInfo, nil
 }
 
-type LightingApiCalls interface {
+// LightingAPICalls is the interface for lightning API
+type LightingAPICalls interface {
 	Cleanup()
-	GetInfo(ctx context.Context) (*InfoApi, error)
-	GetChannels(ctx context.Context) (*ChannelsApi, error)
-	DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphApi, error)
-	GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoApiExtended, error)
-	GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoApi, error)
-	GetChanInfo(ctx context.Context, chanId uint64) (*NodeChannelApi, error)
+	GetInfo(ctx context.Context) (*InfoAPI, error)
+	GetChannels(ctx context.Context) (*ChannelsAPI, error)
+	DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error)
+	GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoAPIExtended, error)
+	GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error)
+	GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error)
 }
 
+// GetDataCall - signature of function for retrieving data
 type GetDataCall func() (*entities.Data, error)
 
-// Get new API
-func NewApi(apiType ApiType, getData GetDataCall) LightingApiCalls {
+// NewAPI - gets new lightning API
+func NewAPI(apiType APIType, getData GetDataCall) LightingAPICalls {
 	if getData == nil {
 		sentry.CaptureMessage("getData was nil")
 		return nil
@@ -257,12 +278,12 @@ func NewApi(apiType ApiType, getData GetDataCall) LightingApiCalls {
 		return nil
 	}
 
-	t := LND_GRPC
+	t := LndGrpc
 
 	if data.ApiType != nil {
-		foo, err := GetApiType(data.ApiType)
+		foo, err := GetAPIType(data.ApiType)
 		if err != nil {
-			t = LND_GRPC
+			t = LndGrpc
 		} else {
 			t = *foo
 		}
@@ -272,11 +293,11 @@ func NewApi(apiType ApiType, getData GetDataCall) LightingApiCalls {
 	}
 
 	switch t {
-	case LND_GRPC:
-		return NewLndGrpcLightningApi(getData)
-	case LND_REST:
+	case LndGrpc:
+		return NewLndGrpcLightningAPI(getData)
+	case LndRest:
 		return NewLndRestLightningAPI(getData)
-	case CLN_SOCKET:
+	case ClnSocket:
 		return NewClnSocketLightningAPI(getData)
 	}
 

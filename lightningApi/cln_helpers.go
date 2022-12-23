@@ -58,7 +58,7 @@ func ConvertAmount(s string) uint64 {
 }
 
 // ConvertFeatures - convert bitmask to LND like feature map
-func ConvertFeatures(features string) map[string]NodeFeatureApi {
+func ConvertFeatures(features string) map[string]NodeFeatureAPI {
 	n := new(big.Int)
 
 	n, ok := n.SetString(features, 16)
@@ -66,7 +66,7 @@ func ConvertFeatures(features string) map[string]NodeFeatureApi {
 		return nil
 	}
 
-	result := make(map[string]NodeFeatureApi)
+	result := make(map[string]NodeFeatureAPI)
 
 	m := big.NewInt(0)
 	zero := big.NewInt(0)
@@ -82,7 +82,7 @@ func ConvertFeatures(features string) map[string]NodeFeatureApi {
 			continue
 		}
 
-		result[fmt.Sprintf("%d", bit)] = NodeFeatureApi{
+		result[fmt.Sprintf("%d", bit)] = NodeFeatureAPI{
 			Name:       "",
 			IsKnown:    true,
 			IsRequired: bit%2 == 0,
@@ -95,7 +95,7 @@ func ConvertFeatures(features string) map[string]NodeFeatureApi {
 }
 
 // SumCapacitySimple - get sum of channel capacity
-func SumCapacitySimple(channels []NodeChannelApi) uint64 {
+func SumCapacitySimple(channels []NodeChannelAPI) uint64 {
 	sum := uint64(0)
 	for _, channel := range channels {
 		sum += channel.Capacity
@@ -105,7 +105,7 @@ func SumCapacitySimple(channels []NodeChannelApi) uint64 {
 }
 
 // SumCapacityExtended - get sum of channel capacity
-func SumCapacityExtended(channels []NodeChannelApiExtended) uint64 {
+func SumCapacityExtended(channels []NodeChannelAPIExtended) uint64 {
 	sum := uint64(0)
 	for _, channel := range channels {
 		sum += channel.Capacity

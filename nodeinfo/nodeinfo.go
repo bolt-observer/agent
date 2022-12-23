@@ -13,13 +13,14 @@ import (
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
-	"github.com/bolt-observer/agent/lightningApi"
+	lightningapi "github.com/bolt-observer/agent/lightningApi"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/golang/glog"
 	"github.com/mitchellh/hashstructure/v2"
 )
 
+// NodeInfo struct
 type NodeInfo struct {
 	ctx               context.Context
 	monitoring        *checkermonitoring.CheckerMonitoring
@@ -54,6 +55,7 @@ func getContext() context.Context {
 	return ctx
 }
 
+// NewNodeInfo constructs new NodeInfo checker
 func NewNodeInfo(ctx context.Context, monitoring *checkermonitoring.CheckerMonitoring) *NodeInfo {
 	if ctx == nil {
 		ctx = getContext()
@@ -72,17 +74,18 @@ func NewNodeInfo(ctx context.Context, monitoring *checkermonitoring.CheckerMonit
 	}
 }
 
-// Check if we are subscribed for a certain public key
-func (c *NodeInfo) IsSubscribed(pubKey, uniqueId string) bool {
-	return utils.Contains(c.globalSettings.GetKeys(), pubKey+uniqueId)
+// IsSubscribed - check if we are subscribed for a certain public key
+func (c *NodeInfo) IsSubscribed(pubKey, uniqueID string) bool {
+	return utils.Contains(c.globalSettings.GetKeys(), pubKey+uniqueID)
 }
 
+// GetState - get current state
 func (c *NodeInfo) GetState(
 	pubKey string,
-	uniqueId string,
+	uniqueID string,
 	private bool,
 	PollInterval entities.Interval,
-	getApi entities.NewAPICall,
+	getAPI entities.NewAPICall,
 	optCallback entities.InfoCallback,
 	filter filter.FilteringInterface,
 ) (*entities.InfoReport, error) {
@@ -91,7 +94,7 @@ func (c *NodeInfo) GetState(
 		return nil, errors.New("invalid pubkey")
 	}
 
-	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId}, getApi, private, filter)
+	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, private, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -103,13 +106,13 @@ func (c *NodeInfo) GetState(
 	return resp, err
 }
 
-// Subscribe to notifications
+// Subscribe - subscribe for a pubkey
 func (c *NodeInfo) Subscribe(
 	pubKey string,
-	uniqueId string,
+	uniqueID string,
 	private bool,
 	PollInterval entities.Interval,
-	getApi entities.NewAPICall,
+	getAPI entities.NewAPICall,
 	callback entities.InfoCallback,
 	f filter.FilteringInterface,
 ) error {
@@ -118,7 +121,7 @@ func (c *NodeInfo) Subscribe(
 		return errors.New("invalid pubkey")
 	}
 
-	api := getApi()
+	api := getAPI()
 	if api == nil {
 		return fmt.Errorf("failed to get client")
 	}
@@ -137,11 +140,11 @@ func (c *NodeInfo) Subscribe(
 		f, _ = filter.NewAllowAllFilter()
 	}
 
-	c.globalSettings.Set(info.IdentityPubkey+uniqueId, Settings{
-		identifier: entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId},
+	c.globalSettings.Set(info.IdentityPubkey+uniqueID, Settings{
+		identifier: entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID},
 		lastCheck:  time.Time{},
 		callback:   callback,
-		getAPI:     getApi,
+		getAPI:     getAPI,
 		hash:       0,
 		private:    private,
 		filter:     f,
@@ -150,17 +153,18 @@ func (c *NodeInfo) Subscribe(
 	return nil
 }
 
-// Unsubscribe from a pubkey
-func (c *NodeInfo) Unsubscribe(pubkey, uniqueId string) error {
-	c.globalSettings.Delete(pubkey + uniqueId)
+// Unsubscribe - unsubscribe from a pubkey
+func (c *NodeInfo) Unsubscribe(pubkey, uniqueID string) error {
+	c.globalSettings.Delete(pubkey + uniqueID)
 	return nil
 }
 
-// WARNING: this should not be used except for unit testing
+// OverrideLoopInterval - WARNING: this should not be used except for unit testing
 func (c *NodeInfo) OverrideLoopInterval(duration time.Duration) {
 	c.eventLoopInterval = duration
 }
 
+// EventLoop - invoke event loop
 func (c *NodeInfo) EventLoop() {
 	// nosemgrep
 	ticker := time.NewTicker(c.eventLoopInterval)
@@ -246,20 +250,20 @@ func (c *NodeInfo) checkAll() bool {
 	return true
 }
 
-func applyFilter(info *lightningapi.NodeInfoApiExtended, filter filter.FilteringInterface) *lightningapi.NodeInfoApiExtended {
-	ret := &lightningapi.NodeInfoApiExtended{
-		NodeInfoApi: info.NodeInfoApi,
-		Channels:    make([]lightningapi.NodeChannelApiExtended, 0),
+func applyFilter(info *lightningapi.NodeInfoAPIExtended, filter filter.FilteringInterface) *lightningapi.NodeInfoAPIExtended {
+	ret := &lightningapi.NodeInfoAPIExtended{
+		NodeInfoAPI: info.NodeInfoAPI,
+		Channels:    make([]lightningapi.NodeChannelAPIExtended, 0),
 	}
 
 	for _, c := range info.Channels {
 		nodeAllowed := (filter.AllowPubKey(c.Node1Pub) && info.Node.PubKey != c.Node1Pub) || (filter.AllowPubKey(c.Node2Pub) && info.Node.PubKey != c.Node2Pub)
-		chanAllowed := filter.AllowChanID(c.ChannelId)
+		chanAllowed := filter.AllowChanID(c.ChannelID)
 
 		if nodeAllowed || chanAllowed || filter.AllowSpecial(c.Private) {
 			ret.Channels = append(ret.Channels, c)
 		} else {
-			ret.NumChannels -= 1
+			ret.NumChannels--
 			ret.TotalCapacity -= c.Capacity
 		}
 	}
@@ -270,7 +274,7 @@ func applyFilter(info *lightningapi.NodeInfoApiExtended, filter filter.Filtering
 // checkOne checks one specific node
 func (c *NodeInfo) checkOne(
 	identifier entities.NodeIdentifier,
-	getApi entities.NewAPICall,
+	getAPI entities.NewAPICall,
 	private bool,
 	filter filter.FilteringInterface,
 ) (*entities.InfoReport, error) {
@@ -282,7 +286,7 @@ func (c *NodeInfo) checkOne(
 
 	defer c.monitoring.MetricsTimer("checkone", map[string]string{"pubkey": pubkey})()
 
-	api := getApi()
+	api := getAPI()
 	if api == nil {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("failed to get client")
@@ -305,7 +309,7 @@ func (c *NodeInfo) checkOne(
 	ret := &entities.InfoReport{
 		UniqueID:            identifier.UniqueID,
 		Timestamp:           common_entities.JsonTime(time.Now()),
-		NodeInfoApiExtended: *info,
+		NodeInfoAPIExtended: *info,
 	}
 
 	return ret, nil
