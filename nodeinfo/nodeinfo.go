@@ -13,18 +13,19 @@ import (
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
-	"github.com/bolt-observer/agent/lightning_api"
+	lightningapi "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/golang/glog"
 	"github.com/mitchellh/hashstructure/v2"
 )
 
+// NodeInfo struct
 type NodeInfo struct {
 	ctx               context.Context
 	monitoring        *checkermonitoring.CheckerMonitoring
 	eventLoopInterval time.Duration
-	globalSettings    *GlobalSettings
+	perNodeSettings    *PerNodeSettings
 	reentrancyBlock   *entities.ReentrancyBlock
 }
 
@@ -54,6 +55,7 @@ func getContext() context.Context {
 	return ctx
 }
 
+// NewNodeInfo constructs new NodeInfo checker
 func NewNodeInfo(ctx context.Context, monitoring *checkermonitoring.CheckerMonitoring) *NodeInfo {
 	if ctx == nil {
 		ctx = getContext()
@@ -67,31 +69,32 @@ func NewNodeInfo(ctx context.Context, monitoring *checkermonitoring.CheckerMonit
 		ctx:               ctx,
 		monitoring:        monitoring,
 		eventLoopInterval: 10 * time.Second,
-		globalSettings:    NewGlobalSettings(),
+		perNodeSettings:    NewPerNodeSettings(),
 		reentrancyBlock:   entities.NewReentrancyBlock(),
 	}
 }
 
-// Check if we are subscribed for a certain public key
-func (c *NodeInfo) IsSubscribed(pubKey, uniqueId string) bool {
-	return utils.Contains(c.globalSettings.GetKeys(), pubKey+uniqueId)
+// IsSubscribed - check if we are subscribed for a certain public key
+func (c *NodeInfo) IsSubscribed(pubKey, uniqueID string) bool {
+	return utils.Contains(c.perNodeSettings.GetKeys(), pubKey+uniqueID)
 }
 
+// GetState - get current state
 func (c *NodeInfo) GetState(
 	pubKey string,
-	uniqueId string,
+	uniqueID string,
 	private bool,
 	PollInterval entities.Interval,
-	getApi entities.NewApiCall,
+	getAPI entities.NewAPICall,
 	optCallback entities.InfoCallback,
-	filter filter.FilterInterface,
+	filter filter.FilteringInterface,
 ) (*entities.InfoReport, error) {
 
 	if pubKey != "" && !utils.ValidatePubkey(pubKey) {
 		return nil, errors.New("invalid pubkey")
 	}
 
-	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId}, getApi, private, filter)
+	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, private, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -103,22 +106,22 @@ func (c *NodeInfo) GetState(
 	return resp, err
 }
 
-// Subscribe to notifications
+// Subscribe - subscribe for a pubkey
 func (c *NodeInfo) Subscribe(
 	pubKey string,
-	uniqueId string,
+	uniqueID string,
 	private bool,
 	PollInterval entities.Interval,
-	getApi entities.NewApiCall,
+	getAPI entities.NewAPICall,
 	callback entities.InfoCallback,
-	f filter.FilterInterface,
+	f filter.FilteringInterface,
 ) error {
 
 	if pubKey != "" && !utils.ValidatePubkey(pubKey) {
 		return errors.New("invalid pubkey")
 	}
 
-	api := getApi()
+	api := getAPI()
 	if api == nil {
 		return fmt.Errorf("failed to get client")
 	}
@@ -137,11 +140,11 @@ func (c *NodeInfo) Subscribe(
 		f, _ = filter.NewAllowAllFilter()
 	}
 
-	c.globalSettings.Set(info.IdentityPubkey+uniqueId, Settings{
-		identifier: entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId},
+	c.perNodeSettings.Set(info.IdentityPubkey+uniqueID, Settings{
+		identifier: entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID},
 		lastCheck:  time.Time{},
 		callback:   callback,
-		getApi:     getApi,
+		getAPI:     getAPI,
 		hash:       0,
 		private:    private,
 		filter:     f,
@@ -150,17 +153,18 @@ func (c *NodeInfo) Subscribe(
 	return nil
 }
 
-// Unsubscribe from a pubkey
-func (c *NodeInfo) Unsubscribe(pubkey, uniqueId string) error {
-	c.globalSettings.Delete(pubkey + uniqueId)
+// Unsubscribe - unsubscribe from a pubkey
+func (c *NodeInfo) Unsubscribe(pubkey, uniqueID string) error {
+	c.perNodeSettings.Delete(pubkey + uniqueID)
 	return nil
 }
 
-// WARNING: this should not be used except for unit testing
+// OverrideLoopInterval - WARNING: this should not be used except for unit testing
 func (c *NodeInfo) OverrideLoopInterval(duration time.Duration) {
 	c.eventLoopInterval = duration
 }
 
+// EventLoop - invoke event loop
 func (c *NodeInfo) EventLoop() {
 	// nosemgrep
 	ticker := time.NewTicker(c.eventLoopInterval)
@@ -189,15 +193,15 @@ func (c *NodeInfo) EventLoop() {
 func (c *NodeInfo) checkAll() bool {
 	defer c.monitoring.MetricsTimer("checkall.global", nil)()
 
-	for _, one := range c.globalSettings.GetKeys() {
+	for _, one := range c.perNodeSettings.GetKeys() {
 		now := time.Now()
-		s := c.globalSettings.Get(one)
+		s := c.perNodeSettings.Get(one)
 
 		toBeCheckedBy := s.lastCheck.Add(s.interval.Duration())
 		if toBeCheckedBy.Before(now) {
-			resp, err := c.checkOne(s.identifier, s.getApi, s.private, s.filter)
+			resp, err := c.checkOne(s.identifier, s.getAPI, s.private, s.filter)
 			if err != nil {
-				glog.Warningf("Failed to check %v: %v", s.identifier.GetId(), err)
+				glog.Warningf("Failed to check %v: %v", s.identifier.GetID(), err)
 				continue
 			}
 
@@ -219,18 +223,18 @@ func (c *NodeInfo) checkAll() bool {
 					}
 					defer c.reentrancyBlock.Release(one)
 
-					timer := c.monitoring.MetricsTimer("checkdeliver", map[string]string{"pubkey": s.identifier.GetId()})
+					timer := c.monitoring.MetricsTimer("checkdeliver", map[string]string{"pubkey": s.identifier.GetID()})
 					if s.callback(c.ctx, resp) {
 						// Update hash only upon success
 						s.hash = hash
 						s.lastCheck = time.Now()
-						c.globalSettings.Set(one, s)
+						c.perNodeSettings.Set(one, s)
 					}
 					timer()
 				}(c, resp, s, one, hash)
 			} else {
 				s.lastCheck = time.Now()
-				c.globalSettings.Set(one, s)
+				c.perNodeSettings.Set(one, s)
 			}
 		}
 
@@ -246,24 +250,24 @@ func (c *NodeInfo) checkAll() bool {
 	return true
 }
 
-func applyFilter(info *lightning_api.NodeInfoApiExtended, filter filter.FilterInterface) *lightning_api.NodeInfoApiExtended {
-	ret := &lightning_api.NodeInfoApiExtended{
-		NodeInfoApi: info.NodeInfoApi,
-		Channels:    make([]lightning_api.NodeChannelApiExtended, 0),
+func applyFilter(info *lightningapi.NodeInfoAPIExtended, filter filter.FilteringInterface) *lightningapi.NodeInfoAPIExtended {
+	ret := &lightningapi.NodeInfoAPIExtended{
+		NodeInfoAPI: info.NodeInfoAPI,
+		Channels:    make([]lightningapi.NodeChannelAPIExtended, 0),
 	}
 
 	ret.NumChannels = 0
 	ret.TotalCapacity = 0
-	ret.NodeInfoApi.NumChannels = 0
-	ret.NodeInfoApi.TotalCapacity = 0
+	ret.NodeInfoAPI.NumChannels = 0
+	ret.NodeInfoAPI.TotalCapacity = 0
 
 	for _, c := range info.Channels {
 		nodeAllowed := (filter.AllowPubKey(c.Node1Pub) && info.Node.PubKey != c.Node1Pub) || (filter.AllowPubKey(c.Node2Pub) && info.Node.PubKey != c.Node2Pub)
-		chanAllowed := filter.AllowChanId(c.ChannelId)
+		chanAllowed := filter.AllowChanID(c.ChannelID)
 
 		if nodeAllowed || chanAllowed || filter.AllowSpecial(c.Private) {
 			ret.Channels = append(ret.Channels, c)
-			ret.NumChannels += 1
+			ret.NumChannels++
 			ret.TotalCapacity += c.Capacity
 		}
 	}
@@ -274,19 +278,19 @@ func applyFilter(info *lightning_api.NodeInfoApiExtended, filter filter.FilterIn
 // checkOne checks one specific node
 func (c *NodeInfo) checkOne(
 	identifier entities.NodeIdentifier,
-	getApi entities.NewApiCall,
+	getAPI entities.NewAPICall,
 	private bool,
-	filter filter.FilterInterface,
+	filter filter.FilteringInterface,
 ) (*entities.InfoReport, error) {
 
-	pubkey := identifier.GetId()
+	pubkey := identifier.GetID()
 	if pubkey == "" {
 		pubkey = "local"
 	}
 
 	defer c.monitoring.MetricsTimer("checkone", map[string]string{"pubkey": pubkey})()
 
-	api := getApi()
+	api := getAPI()
 	if api == nil {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("failed to get client")
@@ -307,9 +311,9 @@ func (c *NodeInfo) checkOne(
 	}
 
 	ret := &entities.InfoReport{
-		UniqueId:            identifier.UniqueId,
+		UniqueID:            identifier.UniqueID,
 		Timestamp:           common_entities.JsonTime(time.Now()),
-		NodeInfoApiExtended: *info,
+		NodeInfoAPIExtended: *info,
 	}
 
 	return ret, nil

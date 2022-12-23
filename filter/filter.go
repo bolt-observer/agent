@@ -14,6 +14,7 @@ import (
 	"github.com/golang/glog"
 )
 
+// FileFilter struct
 type FileFilter struct {
 	Filter
 	WhitelistFilePath string
@@ -21,6 +22,7 @@ type FileFilter struct {
 	DefaultOptions    Options
 }
 
+// Reload from file
 func (f *FileFilter) Reload() error {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
@@ -35,8 +37,8 @@ func (f *FileFilter) Reload() error {
 
 	defer readFile.Close()
 
-	f.nodeIdWhitelist = make(map[string]struct{})
-	f.chanIdWhitelist = make(map[uint64]struct{})
+	f.nodeIDWhitelist = make(map[string]struct{})
+	f.chanIDWhitelist = make(map[uint64]struct{})
 	f.Options = f.DefaultOptions
 
 	fileScanner := bufio.NewScanner(readFile)
@@ -54,7 +56,7 @@ func (f *FileFilter) Reload() error {
 		}
 
 		if utils.ValidatePubkey(line) {
-			f.nodeIdWhitelist[line] = struct{}{}
+			f.nodeIDWhitelist[line] = struct{}{}
 		} else if strings.ToLower(line) == "private" {
 			f.Options |= AllowAllPrivate
 		} else if strings.ToLower(line) == "public" {
@@ -66,7 +68,7 @@ func (f *FileFilter) Reload() error {
 				continue
 			}
 
-			f.chanIdWhitelist[val] = struct{}{}
+			f.chanIDWhitelist[val] = struct{}{}
 		}
 	}
 
@@ -75,7 +77,8 @@ func (f *FileFilter) Reload() error {
 	return nil
 }
 
-func NewFilterFromFile(ctx context.Context, filePath string, options Options) (FilterInterface, error) {
+// NewFilterFromFile create new FileFilter
+func NewFilterFromFile(ctx context.Context, filePath string, options Options) (FilteringInterface, error) {
 	f := &FileFilter{
 		WhitelistFilePath: filePath,
 	}
@@ -127,30 +130,32 @@ func NewFilterFromFile(ctx context.Context, filePath string, options Options) (F
 	return f, nil
 }
 
+// AllowPubKey checks whether pubkey is allowed
 func (f *FileFilter) AllowPubKey(id string) bool {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
-	_, ok := f.nodeIdWhitelist[id]
+	_, ok := f.nodeIDWhitelist[id]
 
 	return ok
 }
 
-func (f *FileFilter) AllowChanId(id uint64) bool {
+// AllowChanID checks short channel id
+func (f *FileFilter) AllowChanID(id uint64) bool {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
 
-	_, ok := f.chanIdWhitelist[id]
+	_, ok := f.chanIDWhitelist[id]
 
 	return ok
 }
 
+// AllowSpecial is used to allow all private/public chans
 func (f *FileFilter) AllowSpecial(private bool) bool {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
 
 	if private {
 		return f.Options&AllowAllPrivate == AllowAllPrivate
-	} else {
-		return f.Options&AllowAllPublic == AllowAllPublic
 	}
+	return f.Options&AllowAllPublic == AllowAllPublic
 }

@@ -1,4 +1,4 @@
-package lightning_api
+package lightningapi
 
 import (
 	"errors"
@@ -9,11 +9,15 @@ import (
 )
 
 var (
-	ErrNoNode          = errors.New("node not found")
-	ErrNoChan          = errors.New("channel not found")
+	// ErrNoNode means node was not found
+	ErrNoNode = errors.New("node not found")
+	// ErrNoChan means channel was not found
+	ErrNoChan = errors.New("channel not found")
+	// ErrInvalidResponse indicates invaid response
 	ErrInvalidResponse = errors.New("invalid response")
 )
 
+// ClnInfo struct
 type ClnInfo struct {
 	PubKey    string            `json:"id"`
 	Alias     string            `json:"alias"`
@@ -23,6 +27,7 @@ type ClnInfo struct {
 	Features  ClnFeatures       `json:"our_features"`
 }
 
+// ClnFeatures struct
 type ClnFeatures struct {
 	Init    string `json:"init"`
 	Node    string `json:"node"`
@@ -30,20 +35,23 @@ type ClnFeatures struct {
 	Invoice string `json:"invoice"`
 }
 
+// ClnSetChan struct
 type ClnSetChan struct {
-	PeerId         string `json:"peer_id"`
-	LongChanId     string `json:"channel_id"`
+	PeerID         string `json:"peer_id"`
+	LongChanID     string `json:"channel_id"`
 	FeeBase        string `json:"fee_base_msat"`
 	FeePpm         string `json:"fee_proportional_milli"`
 	MiHtlc         string `json:"minimum_htlc_out_msat"`
 	MaxHtlc        string `json:"maximum_htlc_out_msat"`
-	ShortChannelId string `json:"short_channel_id,omitempty"`
+	ShortChannelID string `json:"short_channel_id,omitempty"`
 }
 
+// ClnSetChanResp struct
 type ClnSetChanResp struct {
 	Settings []ClnSetChan `json:"channels,omitempty"`
 }
 
+// ClnListChan struct
 type ClnListChan struct {
 	Source         string            `json:"source"`
 	Destination    string            `json:"destination"`
@@ -55,41 +63,47 @@ type ClnListChan struct {
 	FeePpm         uint64            `json:"fee_per_millionth"`
 	MinHtlc        string            `json:"htlc_minimum_msat"`
 	MaxHtlc        string            `json:"htlc_maximum_msat"`
-	ShortChannelId string            `json:"short_channel_id,omitempty"`
+	ShortChannelID string            `json:"short_channel_id,omitempty"`
 	Delay          uint64            `json:"delay"`
 }
 
+// ClnListChanResp struct
 type ClnListChanResp struct {
 	Channels []ClnListChan `json:"channels,omitempty"`
 }
 
+// ClnFundsChan struct
 type ClnFundsChan struct {
-	PeerId         string `json:"peer_id"`
+	PeerID         string `json:"peer_id"`
 	Connected      bool   `json:"connected,omitempty"`
-	ShortChannelId string `json:"short_channel_id"`
+	ShortChannelID string `json:"short_channel_id"`
 	State          string `json:"state"`
 	Capacity       uint64 `json:"channel_total_sat"`
 	OurAmount      uint64 `json:"channel_sat"`
-	FundingTxId    string `json:"funding_tx_id"`
+	FundingTxID    string `json:"funding_tx_id"`
 	FundingOutput  int    `json:"funding_output"`
 }
 
+// ClnFundsChanResp struct
 type ClnFundsChanResp struct {
 	Channels []ClnFundsChan `json:"channels,omitempty"`
 }
 
-type ClnSocketLightningApi struct {
-	LightningApi
+// ClnSocketLightningAPI struct
+type ClnSocketLightningAPI struct {
+	LightningAPI
 	Client  *rpc.Client
 	Timeout time.Duration
 }
 
+// ClnListNodeAddr struct
 type ClnListNodeAddr struct {
 	Type    string `json:"type"`
 	Address string `json:"address"`
 	Port    int    `json:"port"`
 }
 
+// ClnListNode struct
 type ClnListNode struct {
 	PubKey     string             `json:"nodeid"`
 	Alias      string             `json:"alias,omitempty"`
@@ -99,6 +113,7 @@ type ClnListNode struct {
 	LastUpdate *entities.JsonTime `json:"last_update,omitempty"`
 }
 
+// ClnListNodeResp struct
 type ClnListNodeResp struct {
 	Nodes []ClnListNode `json:"nodes,omitempty"`
 }

@@ -1,4 +1,4 @@
-package lightning_api
+package lightningapi
 
 import (
 	"context"
@@ -11,20 +11,22 @@ import (
 	"github.com/golang/glog"
 )
 
-type LndRestLightningApi struct {
+// LndRestLightningAPI struct
+type LndRestLightningAPI struct {
 	Request   *http.Request
 	Transport *http.Transport
-	HttpApi   *HttpApi
-	LightningApi
+	HTTPAPI   *HTTPAPI
+	LightningAPI
 }
 
 // Compile time check for the interface
-var _ LightingApiCalls = &LndRestLightningApi{}
+var _ LightingAPICalls = &LndRestLightningAPI{}
 
-func NewLndRestLightningApi(getData GetDataCall) LightingApiCalls {
-	api := NewHttpApi()
+// NewLndRestLightningAPI constructs new lightning API
+func NewLndRestLightningAPI(getData GetDataCall) LightingAPICalls {
+	api := NewHTTPAPI()
 
-	request, transport, err := api.GetHttpRequest(getData)
+	request, transport, err := api.GetHTTPRequest(getData)
 	if err != nil {
 		glog.Warningf("Failed to get client: %v", err)
 		return nil
@@ -32,23 +34,24 @@ func NewLndRestLightningApi(getData GetDataCall) LightingApiCalls {
 
 	api.SetTransport(transport)
 
-	return &LndRestLightningApi{
+	return &LndRestLightningAPI{
 		Request:      request,
 		Transport:    transport,
-		HttpApi:      api,
-		LightningApi: LightningApi{GetNodeInfoFullThreshUseDescribeGraph: 500},
+		HTTPAPI:      api,
+		LightningAPI: LightningAPI{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
 
-func (l *LndRestLightningApi) GetInfo(ctx context.Context) (*InfoApi, error) {
+// GetInfo - GetInfo API
+func (l *LndRestLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 
-	resp, err := l.HttpApi.HttpGetInfo(ctx, l.Request, l.Transport)
+	resp, err := l.HTTPAPI.HTTPGetInfo(ctx, l.Request, l.Transport)
 
 	if err != nil {
 		return nil, err
 	}
 
-	ret := &InfoApi{
+	ret := &InfoAPI{
 		Alias:          resp.Alias,
 		IdentityPubkey: resp.IdentityPubkey,
 		Chain:          resp.Chains[0].Chain,
@@ -58,7 +61,8 @@ func (l *LndRestLightningApi) GetInfo(ctx context.Context) (*InfoApi, error) {
 	return ret, err
 }
 
-func (l *LndRestLightningApi) Cleanup() {
+// Cleanup - clean up
+func (l *LndRestLightningAPI) Cleanup() {
 	// Nothing to do here
 }
 
@@ -71,19 +75,20 @@ func stringToUint64(str string) uint64 {
 	return ret
 }
 
-func (l *LndRestLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, error) {
-	resp, err := l.HttpApi.HttpGetChannels(ctx, l.Request, l.Transport)
+// GetChannels - GetChannels API
+func (l *LndRestLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
+	resp, err := l.HTTPAPI.HTTPGetChannels(ctx, l.Request, l.Transport)
 
 	if err != nil {
 		return nil, err
 	}
 
-	chans := make([]ChannelApi, 0)
+	chans := make([]ChannelAPI, 0)
 	for _, channel := range resp.Channels {
 
-		htlcs := make([]HtlcApi, 0)
+		htlcs := make([]HtlcAPI, 0)
 		for _, h := range channel.PendingHtlcs {
-			htlcs = append(htlcs, HtlcApi{
+			htlcs = append(htlcs, HtlcAPI{
 				Amount:              stringToUint64(h.Amount),
 				Incoming:            h.Incoming,
 				ForwardingChannel:   stringToUint64(h.ForwardingChannel),
@@ -91,11 +96,11 @@ func (l *LndRestLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, er
 			})
 		}
 
-		chans = append(chans, ChannelApi{
+		chans = append(chans, ChannelAPI{
 			Private:               channel.Private,
 			Active:                channel.Active,
 			RemotePubkey:          channel.RemotePubkey,
-			ChanId:                stringToUint64(channel.ChanId),
+			ChanID:                stringToUint64(channel.ChanID),
 			RemoteBalance:         stringToUint64(channel.RemoteBalance),
 			LocalBalance:          stringToUint64(channel.LocalBalance),
 			Capacity:              stringToUint64(channel.Capacity),
@@ -108,19 +113,19 @@ func (l *LndRestLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, er
 		})
 	}
 
-	ret := &ChannelsApi{
+	ret := &ChannelsAPI{
 		Channels: chans,
 	}
 
 	return ret, nil
 }
 
-func toPolicyWeb(policy *RoutingPolicyOverride) *RoutingPolicyApi {
+func toPolicyWeb(policy *RoutingPolicyOverride) *RoutingPolicyAPI {
 	if policy == nil {
 		return nil
 	}
 
-	return &RoutingPolicyApi{
+	return &RoutingPolicyAPI{
 		TimeLockDelta: policy.TimeLockDelta,
 		MinHtlc:       stringToUint64(policy.MinHtlc),
 		BaseFee:       stringToUint64(policy.FeeBaseMsat),
@@ -131,26 +136,27 @@ func toPolicyWeb(policy *RoutingPolicyOverride) *RoutingPolicyApi {
 	}
 }
 
-func (l *LndRestLightningApi) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphApi, error) {
+// DescribeGraph - DescribeGraph API
+func (l *LndRestLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
 
-	resp, err := l.HttpApi.HttpGetGraph(ctx, l.Request, l.Transport, unannounced)
+	resp, err := l.HTTPAPI.HTTPGetGraph(ctx, l.Request, l.Transport, unannounced)
 	if err != nil {
 		return nil, err
 	}
 
-	nodes := make([]DescribeGraphNodeApi, 0)
+	nodes := make([]DescribeGraphNodeAPI, 0)
 
 	for _, node := range resp.GraphNodeOverride {
 		nodes = append(nodes, l.convertNode(node))
 	}
 
-	channels := make([]NodeChannelApi, 0)
+	channels := make([]NodeChannelAPI, 0)
 
 	for _, edge := range resp.GraphEdgesOverride {
 		channels = append(channels, l.convertChan(edge))
 	}
 
-	ret := &DescribeGraphApi{
+	ret := &DescribeGraphAPI{
 		Nodes:    nodes,
 		Channels: channels,
 	}
@@ -158,24 +164,24 @@ func (l *LndRestLightningApi) DescribeGraph(ctx context.Context, unannounced boo
 	return ret, nil
 }
 
-func (l *LndRestLightningApi) convertNode(node *GraphNodeOverride) DescribeGraphNodeApi {
-	addresses := make([]NodeAddressApi, 0)
+func (l *LndRestLightningAPI) convertNode(node *GraphNodeOverride) DescribeGraphNodeAPI {
+	addresses := make([]NodeAddressAPI, 0)
 	for _, addr := range node.Addresses {
-		addresses = append(addresses, NodeAddressApi{Addr: addr.Addr, Network: addr.Network})
+		addresses = append(addresses, NodeAddressAPI{Addr: addr.Addr, Network: addr.Network})
 	}
 
-	features := make(map[string]NodeFeatureApi)
+	features := make(map[string]NodeFeatureAPI)
 	for id, feat := range node.Features {
-		features[fmt.Sprintf("%d", id)] = NodeFeatureApi{Name: feat.Name, IsRequired: feat.IsRequired, IsKnown: feat.IsKnown}
+		features[fmt.Sprintf("%d", id)] = NodeFeatureAPI{Name: feat.Name, IsRequired: feat.IsRequired, IsKnown: feat.IsKnown}
 	}
 
-	return DescribeGraphNodeApi{PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Features: features, Addresses: addresses,
+	return DescribeGraphNodeAPI{PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Features: features, Addresses: addresses,
 		LastUpdate: entities.JsonTime(time.Unix(int64(node.LastUpdate), 0))}
 }
 
-func (l *LndRestLightningApi) convertChan(edge *GraphEdgeOverride) NodeChannelApi {
-	return NodeChannelApi{
-		ChannelId:   stringToUint64(edge.ChannelId),
+func (l *LndRestLightningAPI) convertChan(edge *GraphEdgeOverride) NodeChannelAPI {
+	return NodeChannelAPI{
+		ChannelID:   stringToUint64(edge.ChannelID),
 		ChanPoint:   edge.ChanPoint,
 		Node1Pub:    edge.Node1Pub,
 		Node2Pub:    edge.Node2Pub,
@@ -186,25 +192,27 @@ func (l *LndRestLightningApi) convertChan(edge *GraphEdgeOverride) NodeChannelAp
 	}
 }
 
-func (l *LndRestLightningApi) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoApi, error) {
-	resp, err := l.HttpApi.HttpGetNodeInfo(ctx, l.Request, l.Transport, pubKey, channels)
+// GetNodeInfo - GetNodeInfo API
+func (l *LndRestLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
+	resp, err := l.HTTPAPI.HTTPGetNodeInfo(ctx, l.Request, l.Transport, pubKey, channels)
 	if err != nil {
 		return nil, err
 	}
 
-	ch := make([]NodeChannelApi, 0)
+	ch := make([]NodeChannelAPI, 0)
 
 	for _, edge := range resp.Channels {
 		ch = append(ch, l.convertChan(edge))
 	}
 
-	ret := &NodeInfoApi{Node: l.convertNode(resp.Node), Channels: ch, NumChannels: uint32(resp.NumChannels), TotalCapacity: stringToUint64(resp.TotalCapacity)}
+	ret := &NodeInfoAPI{Node: l.convertNode(resp.Node), Channels: ch, NumChannels: uint32(resp.NumChannels), TotalCapacity: stringToUint64(resp.TotalCapacity)}
 
 	return ret, nil
 }
 
-func (l *LndRestLightningApi) GetChanInfo(ctx context.Context, chanId uint64) (*NodeChannelApi, error) {
-	resp, err := l.HttpApi.HttpGetChanInfo(ctx, l.Request, l.Transport, chanId)
+// GetChanInfo - GetChanInfo API
+func (l *LndRestLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
+	resp, err := l.HTTPAPI.HTTPGetChanInfo(ctx, l.Request, l.Transport, chanID)
 	if err != nil {
 		return nil, err
 	}
