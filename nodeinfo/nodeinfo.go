@@ -13,7 +13,7 @@ import (
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
-	"github.com/bolt-observer/agent/lightningapi"
+	"github.com/bolt-observer/agent/lightningApi"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/golang/glog"
@@ -141,7 +141,7 @@ func (c *NodeInfo) Subscribe(
 		identifier: entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId},
 		lastCheck:  time.Time{},
 		callback:   callback,
-		getApi:     getApi,
+		getAPI:     getApi,
 		hash:       0,
 		private:    private,
 		filter:     f,
@@ -195,7 +195,7 @@ func (c *NodeInfo) checkAll() bool {
 
 		toBeCheckedBy := s.lastCheck.Add(s.interval.Duration())
 		if toBeCheckedBy.Before(now) {
-			resp, err := c.checkOne(s.identifier, s.getApi, s.private, s.filter)
+			resp, err := c.checkOne(s.identifier, s.getAPI, s.private, s.filter)
 			if err != nil {
 				glog.Warningf("Failed to check %v: %v", s.identifier.GetID(), err)
 				continue
@@ -303,7 +303,7 @@ func (c *NodeInfo) checkOne(
 	}
 
 	ret := &entities.InfoReport{
-		UniqueId:            identifier.UniqueID,
+		UniqueID:            identifier.UniqueID,
 		Timestamp:           common_entities.JsonTime(time.Now()),
 		NodeInfoApiExtended: *info,
 	}

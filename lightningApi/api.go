@@ -135,7 +135,7 @@ func (l *LndGrpcLightningApi) GetNodeInfoFull(ctx context.Context, channels, unn
 	return getNodeInfoFullTemplate(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
 }
 
-func (l *LndRestLightningApi) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
+func (l *LndRestLightningAPI) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoApiExtended, error) {
 	return getNodeInfoFullTemplate(l, l.GetNodeInfoFullThreshUseDescribeGraph, ctx, channels, unnanounced)
 }
 
@@ -275,9 +275,9 @@ func NewApi(apiType ApiType, getData GetDataCall) LightingApiCalls {
 	case LND_GRPC:
 		return NewLndGrpcLightningApi(getData)
 	case LND_REST:
-		return NewLndRestLightningApi(getData)
+		return NewLndRestLightningAPI(getData)
 	case CLN_SOCKET:
-		return NewClnSocketLightningApi(getData)
+		return NewClnSocketLightningAPI(getData)
 	}
 
 	sentry.CaptureMessage("Invalid api type")

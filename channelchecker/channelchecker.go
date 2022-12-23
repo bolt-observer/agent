@@ -15,15 +15,17 @@ import (
 	checkermonitoring "github.com/bolt-observer/agent/checkermonitoring"
 	entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
-	api "github.com/bolt-observer/agent/lightningapi"
+	api "github.com/bolt-observer/agent/lightningApi"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/getsentry/sentry-go"
 	"github.com/golang/glog"
 )
 
+// SetOfChanIds is a set of channel IDs
 type SetOfChanIds map[uint64]struct{}
 
+// ChannelChecker struct
 type ChannelChecker struct {
 	ctx               context.Context
 	globalSettings    *GlobalSettings
@@ -40,10 +42,12 @@ type ChannelChecker struct {
 	reentrancyBlock   *entities.ReentrancyBlock
 }
 
+// NewDefaultChannelChecker constructs a new ChannelChecker
 func NewDefaultChannelChecker(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *checkermonitoring.CheckerMonitoring) *ChannelChecker {
 	return NewChannelChecker(ctx, NewInMemoryChannelCache(), keepAlive, smooth, checkGraph, monitoring)
 }
 
+// NewChannelChecker constructs a new ChannelChecker
 func NewChannelChecker(ctx context.Context, cache ChannelCache, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *checkermonitoring.CheckerMonitoring) *ChannelChecker {
 	if ctx == nil {
 		ctx = getContext()
@@ -70,16 +74,16 @@ func NewChannelChecker(ctx context.Context, cache ChannelCache, keepAlive time.D
 	}
 }
 
-// Check if we are subscribed for a certain public key
-func (c *ChannelChecker) IsSubscribed(pubKey, uniqueId string) bool {
-	return utils.Contains(c.globalSettings.GetKeys(), pubKey+uniqueId)
+// IsSubscribed - check if we are subscribed for a certain public key
+func (c *ChannelChecker) IsSubscribed(pubKey, uniqueID string) bool {
+	return utils.Contains(c.globalSettings.GetKeys(), pubKey+uniqueID)
 }
 
-// Subscribe to notifications about channel changes (if already subscribed this will force a callback, use IsSubscribed to check)
+// Subscribe - subscribe to notifications about channel changes (if already subscribed this will force a callback, use IsSubscribed to check)
 func (c *ChannelChecker) Subscribe(
 	pubKey string,
-	uniqueId string,
-	getApi entities.NewAPICall,
+	uniqueID string,
+	getAPI entities.NewAPICall,
 	settings entities.ReportingSettings,
 	callback entities.BalanceReportCallback) error {
 
@@ -87,7 +91,7 @@ func (c *ChannelChecker) Subscribe(
 		return errors.New("invalid pubkey")
 	}
 
-	api := getApi()
+	api := getAPI()
 	if api == nil {
 		return fmt.Errorf("failed to get client")
 	}
@@ -116,30 +120,30 @@ func (c *ChannelChecker) Subscribe(
 		settings.Filter = f
 	}
 
-	c.globalSettings.Set(info.IdentityPubkey+uniqueId, Settings{
-		identifier:     entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId},
+	c.globalSettings.Set(info.IdentityPubkey+uniqueID, Settings{
+		identifier:     entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID},
 		settings:       settings,
 		lastCheck:      time.Time{},
 		lastGraphCheck: time.Time{},
 		lastReport:     time.Time{},
 		callback:       callback,
-		getAPI:         getApi,
+		getAPI:         getAPI,
 	})
 
 	return nil
 }
 
-// Unsubscribe from a pubkey
-func (c *ChannelChecker) Unsubscribe(pubkey, uniqueId string) error {
-	c.globalSettings.Delete(pubkey + uniqueId)
+// Unsubscribe - unsubscribe from a pubkey
+func (c *ChannelChecker) Unsubscribe(pubkey, uniqueID string) error {
+	c.globalSettings.Delete(pubkey + uniqueID)
 	return nil
 }
 
-// Get current state (settings.pollInterval is ignored)
+// GetState - get current state (settings.pollInterval is ignored)
 func (c *ChannelChecker) GetState(
 	pubKey string,
-	uniqueId string,
-	getApi entities.NewAPICall,
+	uniqueID string,
+	getAPI entities.NewAPICall,
 	settings entities.ReportingSettings,
 	optCallback entities.BalanceReportCallback) (*entities.ChannelBalanceReport, error) {
 
@@ -152,7 +156,7 @@ func (c *ChannelChecker) GetState(
 		settings.Filter = f
 	}
 
-	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId}, getApi, settings, true, false)
+	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, settings, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -296,11 +300,12 @@ func getContext() context.Context {
 	return ctx
 }
 
-// WARNING: this should not be used except for unit testing
+// OverrideLoopInterval - WARNING: this should not be used except for unit testing
 func (c *ChannelChecker) OverrideLoopInterval(duration time.Duration) {
 	c.eventLoopInterval = duration
 }
 
+// EventLoop - invoke the event loop
 func (c *ChannelChecker) EventLoop() {
 	// nosemgrep
 	ticker := time.NewTicker(c.eventLoopInterval)
@@ -328,11 +333,11 @@ func (c *ChannelChecker) EventLoop() {
 
 func (c *ChannelChecker) fetchGraph(
 	pubKey string,
-	getApi entities.NewAPICall,
+	getAPI entities.NewAPICall,
 	settings entities.ReportingSettings,
 ) error {
 
-	api := getApi()
+	api := getAPI()
 	if api == nil {
 		return fmt.Errorf("failed to get client")
 	}
@@ -455,7 +460,7 @@ func (c *ChannelChecker) checkAll() bool {
 // checkOne checks one specific node
 func (c *ChannelChecker) checkOne(
 	identifier entities.NodeIdentifier,
-	getApi entities.NewAPICall,
+	getAPI entities.NewAPICall,
 	settings entities.ReportingSettings,
 	ignoreCache bool,
 	reportAnyway bool) (*entities.ChannelBalanceReport, error) {
@@ -467,12 +472,12 @@ func (c *ChannelChecker) checkOne(
 
 	defer c.monitoring.MetricsTimer("checkone", map[string]string{"pubkey": pubkey})()
 
-	if getApi == nil {
+	if getAPI == nil {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("failed to get client - getApi was nil")
 	}
 
-	api := getApi()
+	api := getAPI()
 	if api == nil {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("failed to get client - getApi returned nil")
@@ -611,18 +616,18 @@ func (c *ChannelChecker) filterList(
 }
 
 func (c *ChannelChecker) commitAllChanges(one string, now time.Time, s Settings) {
-	c.commitChanIdChanges()
+	c.commitChanIDChanges()
 	c.channelCache.DeferredCommit()
 	s.lastCheck = now
 	c.globalSettings.Set(one, s)
 }
 
 func (c *ChannelChecker) revertAllChanges() {
-	c.revertChanIdChanges()
+	c.revertChanIDChanges()
 	c.channelCache.DeferredRevert()
 }
 
-func (c *ChannelChecker) commitChanIdChanges() {
+func (c *ChannelChecker) commitChanIDChanges() {
 	for k, v := range c.nodeChanIdsNew {
 		c.nodeChanIds[k] = v
 	}
@@ -632,7 +637,7 @@ func (c *ChannelChecker) commitChanIdChanges() {
 	}
 }
 
-func (c *ChannelChecker) revertChanIdChanges() {
+func (c *ChannelChecker) revertChanIDChanges() {
 	for k := range c.nodeChanIdsNew {
 		delete(c.nodeChanIdsNew, k)
 	}

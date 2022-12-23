@@ -12,14 +12,17 @@ import (
 	utils "github.com/bolt-observer/go_common/utils"
 )
 
+// GetDoFunc = signature for Do function
 type GetDoFunc func(req *http.Request) (*http.Response, error)
 
-type HttpApi struct {
+// HTTPAPI struct
+type HTTPAPI struct {
 	DoFunc GetDoFunc
 	client *http.Client
 }
 
-func (h *HttpApi) Do(req *http.Request) (*http.Response, error) {
+// Do - invokes HTTP request
+func (h *HTTPAPI) Do(req *http.Request) (*http.Response, error) {
 	if h.DoFunc != nil {
 		return h.DoFunc(req)
 	} else if h.client != nil {
@@ -29,15 +32,18 @@ func (h *HttpApi) Do(req *http.Request) (*http.Response, error) {
 	return nil, fmt.Errorf("no way to fulfill request")
 }
 
-func NewHttpApi() *HttpApi {
-	return &HttpApi{client: nil, DoFunc: nil}
+// NewHTTPAPI returns a new HTTPAPI
+func NewHTTPAPI() *HTTPAPI {
+	return &HTTPAPI{client: nil, DoFunc: nil}
 }
 
-func (h *HttpApi) SetTransport(transport *http.Transport) {
+// SetTransport - sets HTTP transport
+func (h *HTTPAPI) SetTransport(transport *http.Transport) {
 	h.client = &http.Client{Transport: transport}
 }
 
-func (h *HttpApi) HttpGetInfo(ctx context.Context, req *http.Request, trans *http.Transport) (*GetInfoResponseOverride, error) {
+// HttpGetInfo - invokes GetInfo method
+func (h *HTTPAPI) HttpGetInfo(ctx context.Context, req *http.Request, trans *http.Transport) (*GetInfoResponseOverride, error) {
 	var info GetInfoResponseOverride
 
 	req = req.WithContext(ctx)
@@ -73,7 +79,8 @@ func (h *HttpApi) HttpGetInfo(ctx context.Context, req *http.Request, trans *htt
 	return &info, nil
 }
 
-func (h *HttpApi) HttpGetChannels(ctx context.Context, req *http.Request, trans *http.Transport) (*Channels, error) {
+// HttpGetChannels - invokes GetChannels method
+func (h *HTTPAPI) HttpGetChannels(ctx context.Context, req *http.Request, trans *http.Transport) (*Channels, error) {
 	var info Channels
 
 	req = req.WithContext(ctx)
@@ -109,7 +116,8 @@ func (h *HttpApi) HttpGetChannels(ctx context.Context, req *http.Request, trans 
 	return &info, nil
 }
 
-func (h *HttpApi) HttpGetGraph(ctx context.Context, req *http.Request, trans *http.Transport, unannounced bool) (*Graph, error) {
+// HttpGetGraph - invokes GetGraph method
+func (h *HTTPAPI) HttpGetGraph(ctx context.Context, req *http.Request, trans *http.Transport, unannounced bool) (*Graph, error) {
 	var graph Graph
 
 	req = req.WithContext(ctx)
@@ -145,7 +153,8 @@ func (h *HttpApi) HttpGetGraph(ctx context.Context, req *http.Request, trans *ht
 	return &graph, nil
 }
 
-func (h *HttpApi) HttpGetNodeInfo(ctx context.Context, req *http.Request, trans *http.Transport, pubKey string, channels bool) (*GetNodeInfoOverride, error) {
+// HttpGetNodeInfo - invokes GetNodeInfo method
+func (h *HTTPAPI) HttpGetNodeInfo(ctx context.Context, req *http.Request, trans *http.Transport, pubKey string, channels bool) (*GetNodeInfoOverride, error) {
 	var graph GetNodeInfoOverride
 
 	req = req.WithContext(ctx)
@@ -181,7 +190,8 @@ func (h *HttpApi) HttpGetNodeInfo(ctx context.Context, req *http.Request, trans 
 	return &graph, nil
 }
 
-func (h *HttpApi) HttpGetChanInfo(ctx context.Context, req *http.Request, trans *http.Transport, chanId uint64) (*GraphEdgeOverride, error) {
+// HttpGetChanInfo - invokes GetChanInfo method
+func (h *HTTPAPI) HttpGetChanInfo(ctx context.Context, req *http.Request, trans *http.Transport, chanId uint64) (*GraphEdgeOverride, error) {
 	var graph GraphEdgeOverride
 
 	req = req.WithContext(ctx)
@@ -217,7 +227,8 @@ func (h *HttpApi) HttpGetChanInfo(ctx context.Context, req *http.Request, trans 
 	return &graph, nil
 }
 
-func (h *HttpApi) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Transport, error) {
+// GetHttpRequest - generic method for doing HTTP requests
+func (h *HTTPAPI) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Transport, error) {
 
 	if getData == nil {
 		return nil, nil, fmt.Errorf("getData is nil")
@@ -245,12 +256,12 @@ func (h *HttpApi) GetHttpRequest(getData GetDataCall) (*http.Request, *http.Tran
 		return nil, nil, fmt.Errorf("base64 decode error %s", err)
 	}
 
-	verification := PUBLIC_CA_OR_CERT
+	verification := PublicCAorCert
 	if data.CertVerificationType != nil {
 		verification = CertificateVerification(*data.CertVerificationType)
 	}
 
-	tls, err := getTlsConfig(certBytes, data.Endpoint, verification)
+	tls, err := getTLSConfig(certBytes, data.Endpoint, verification)
 	if err != nil {
 		return nil, nil, fmt.Errorf("getTlsConfig failed %v", err)
 	}

@@ -9,13 +9,14 @@ import (
 	"github.com/golang/glog"
 )
 
-func ToLndChanId(id string) (uint64, error) {
+// ToLndChanID - converts from CLN to LND channel id
+func ToLndChanID(id string) (uint64, error) {
 	split := strings.Split(strings.ToLower(id), "x")
 	if len(split) != 3 {
 		return 0, fmt.Errorf("wrong channel id: %v", id)
 	}
 
-	blockId, err := strconv.ParseUint(split[0], 10, 64)
+	blockID, err := strconv.ParseUint(split[0], 10, 64)
 	if err != nil {
 		return 0, err
 	}
@@ -30,19 +31,21 @@ func ToLndChanId(id string) (uint64, error) {
 		return 0, err
 	}
 
-	result := (blockId&0xffffff)<<40 | (txIdx&0xffffff)<<16 | (outputIdx & 0xffff)
+	result := (blockID&0xffffff)<<40 | (txIdx&0xffffff)<<16 | (outputIdx & 0xffff)
 
 	return result, nil
 }
 
-func FromLndChanId(chanId uint64) string {
-	blockId := int64((chanId & 0xffffff0000000000) >> 40)
-	txIdx := int((chanId & 0x000000ffffff0000) >> 16)
-	outputIdx := int(chanId & 0x000000000000ffff)
+// FromLndChanID - converts from LND to CLN channel id
+func FromLndChanID(chanID uint64) string {
+	blockID := int64((chanID & 0xffffff0000000000) >> 40)
+	txIdx := int((chanID & 0x000000ffffff0000) >> 16)
+	outputIdx := int(chanID & 0x000000000000ffff)
 
-	return fmt.Sprintf("%dx%dx%d", blockId, txIdx, outputIdx)
+	return fmt.Sprintf("%dx%dx%d", blockID, txIdx, outputIdx)
 }
 
+// ConvertAmount - converts string amount to satoshis
 func ConvertAmount(s string) uint64 {
 	x := strings.ReplaceAll(s, "msat", "")
 	ret, err := strconv.ParseUint(x, 10, 64)
@@ -54,6 +57,7 @@ func ConvertAmount(s string) uint64 {
 	return ret
 }
 
+// ConvertFeatures - convert bitmask to LND like feature map
 func ConvertFeatures(features string) map[string]NodeFeatureApi {
 	n := new(big.Int)
 
@@ -90,6 +94,7 @@ func ConvertFeatures(features string) map[string]NodeFeatureApi {
 	return result
 }
 
+// SumCapacitySimple - get sum of channel capacity
 func SumCapacitySimple(channels []NodeChannelApi) uint64 {
 	sum := uint64(0)
 	for _, channel := range channels {
@@ -99,6 +104,7 @@ func SumCapacitySimple(channels []NodeChannelApi) uint64 {
 	return sum
 }
 
+// SumCapacityExtended - get sum of channel capacity
 func SumCapacityExtended(channels []NodeChannelApiExtended) uint64 {
 	sum := uint64(0)
 	for _, channel := range channels {

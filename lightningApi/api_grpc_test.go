@@ -14,7 +14,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	"github.com/lightningnetwork/lnd/lnrpc"
 
-	mocks "github.com/bolt-observer/agent/lightningapi/mocks"
+	mocks "github.com/bolt-observer/agent/lightningApi/mocks"
 )
 
 func TestObtainDataGrpc(t *testing.T) {
@@ -34,8 +34,8 @@ func TestObtainDataGrpc(t *testing.T) {
 		return
 	}
 
-	if _, err := os.Stat(FIXTURE_DIR); errors.Is(err, os.ErrNotExist) {
-		err := os.Mkdir(FIXTURE_DIR, os.ModePerm)
+	if _, err := os.Stat(FixtureDir); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(FixtureDir, os.ModePerm)
 		if err != nil {
 			t.Fatalf("Could not create directory: %v", err)
 			return
@@ -83,7 +83,7 @@ func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte
 	}
 
 	// Prepare mock data
-	f, err := os.OpenFile(fmt.Sprintf("%s/%s_grpc.json", FIXTURE_DIR, name), os.O_RDONLY, 0644)
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s_grpc.json", FixtureDir, name), os.O_RDONLY, 0644)
 	if err != nil {
 		t.Fatalf("Could not open file: %v", err)
 		return nil, nil

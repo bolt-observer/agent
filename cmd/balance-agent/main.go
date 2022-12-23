@@ -26,7 +26,7 @@ import (
 	channelchecker "github.com/bolt-observer/agent/channelchecker"
 	"github.com/bolt-observer/agent/checkermonitoring"
 	"github.com/bolt-observer/agent/filter"
-	api "github.com/bolt-observer/agent/lightningapi"
+	api "github.com/bolt-observer/agent/lightningApi"
 	"github.com/bolt-observer/agent/nodeinfo"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
@@ -400,7 +400,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 		return false
 	}
 
-	n := agent_entities.NodeIdentifier{Identifier: report.Node.PubKey, UniqueID: report.UniqueId}
+	n := agent_entities.NodeIdentifier{Identifier: report.Node.PubKey, UniqueID: report.UniqueID}
 
 	if nodeurl == "" {
 		if glog.V(2) {

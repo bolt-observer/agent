@@ -77,7 +77,7 @@ func TestApiSelection(t *testing.T) {
 		t.Fatalf("API should not be nil")
 	}
 
-	_, ok = api.(*LndRestLightningApi)
+	_, ok = api.(*LndRestLightningAPI)
 	if !ok {
 		t.Fatalf("Should be LND_REST")
 	}
@@ -109,7 +109,7 @@ func TestApiSelection(t *testing.T) {
 		t.Fatalf("API should not be nil")
 	}
 
-	_, ok = api.(*LndRestLightningApi)
+	_, ok = api.(*LndRestLightningAPI)
 	if !ok {
 		t.Fatalf("Should be LND_REST")
 	}
@@ -191,33 +191,33 @@ func TestRestDoesNotOpenConnection(t *testing.T) {
 	}
 }
 
-type MockLightningApi struct {
+type MockLightningAPI struct {
 	Trace string
 }
 
-func (m *MockLightningApi) Cleanup() {}
-func (m *MockLightningApi) GetInfo(ctx context.Context) (*InfoApi, error) {
+func (m *MockLightningAPI) Cleanup() {}
+func (m *MockLightningAPI) GetInfo(ctx context.Context) (*InfoApi, error) {
 	m.Trace += "getinfo"
 	return &InfoApi{IdentityPubkey: "fake"}, nil
 }
 
-func (m *MockLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, error) {
+func (m *MockLightningAPI) GetChannels(ctx context.Context) (*ChannelsApi, error) {
 	m.Trace += "getchannels"
 	return &ChannelsApi{Channels: []ChannelApi{{ChanId: 1, Capacity: 1}, {ChanId: 2, Capacity: 2, Private: true}}}, nil
 }
 
-func (m *MockLightningApi) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphApi, error) {
+func (m *MockLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphApi, error) {
 	m.Trace += "describegraph" + strconv.FormatBool(unannounced)
 
 	return &DescribeGraphApi{Nodes: []DescribeGraphNodeApi{{PubKey: "fake"}},
 		Channels: []NodeChannelApi{{ChannelId: 1, Capacity: 1, Node1Pub: "fake"}, {ChannelId: 2, Capacity: 2, Node2Pub: "fake"}}}, nil
 }
-func (m *MockLightningApi) GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoApiExtended, error) {
+func (m *MockLightningAPI) GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoApiExtended, error) {
 	// Do not use
 	m.Trace += "wrong"
 	return nil, nil
 }
-func (m *MockLightningApi) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoApi, error) {
+func (m *MockLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoApi, error) {
 	m.Trace += "getnodeinfo" + pubKey + strconv.FormatBool(channels)
 
 	return &NodeInfoApi{Node: DescribeGraphNodeApi{PubKey: "fake"},
@@ -225,13 +225,13 @@ func (m *MockLightningApi) GetNodeInfo(ctx context.Context, pubKey string, chann
 		NumChannels: 2, TotalCapacity: 3}, nil
 }
 
-func (m *MockLightningApi) GetChanInfo(ctx context.Context, chanId uint64) (*NodeChannelApi, error) {
-	m.Trace += fmt.Sprintf("getchaninfo%d", chanId)
-	return &NodeChannelApi{ChannelId: chanId, Capacity: chanId}, nil
+func (m *MockLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelApi, error) {
+	m.Trace += fmt.Sprintf("getchaninfo%d", chanID)
+	return &NodeChannelApi{ChannelId: chanID, Capacity: chanID}, nil
 }
 
 func TestNodeInfoFull(t *testing.T) {
-	mock := &MockLightningApi{}
+	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(mock, 100, context.Background(), true, true)
 	if err != nil {
 		t.Fatalf("Error getting node info: %v", err)
@@ -259,7 +259,7 @@ func TestNodeInfoFull(t *testing.T) {
 }
 
 func TestNodeInfoFullPublic(t *testing.T) {
-	mock := &MockLightningApi{}
+	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(mock, 100, context.Background(), true, false)
 	if err != nil {
 		t.Fatalf("Error getting node info: %v", err)
@@ -278,7 +278,7 @@ func TestNodeInfoFullPublic(t *testing.T) {
 }
 
 func TestNodeInfoFullWithDescribeGraph(t *testing.T) {
-	mock := &MockLightningApi{}
+	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(mock, 1, context.Background(), true, true)
 	if err != nil {
 		t.Fatalf("Error getting node info: %v", err)
