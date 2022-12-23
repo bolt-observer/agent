@@ -20,6 +20,9 @@ jobs:
       - name: Update dependencies
         run: go get ./...
 
+      - name: Install golint
+        run: sudo apt-get install -y golint
+
       - name: Install and Run Pre-commit
         uses: pre-commit/action@v3.0.0
 
