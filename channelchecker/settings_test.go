@@ -14,7 +14,7 @@ func getAPI() api.LightingAPICalls {
 
 func TestDeleteInTheMiddle(t *testing.T) {
 
-	settings := NewGlobalSettings()
+	settings := NewPerNodeSettings()
 
 	settings.Set("burek", Settings{identifier: entities.NodeIdentifier{Identifier: "1337", UniqueID: "1337"}, getAPI: getAPI})
 

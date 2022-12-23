@@ -28,7 +28,7 @@ type SetOfChanIds map[uint64]struct{}
 // ChannelChecker struct
 type ChannelChecker struct {
 	ctx               context.Context
-	globalSettings    *GlobalSettings
+	perNodeSettings   *PerNodeSettings
 	channelCache      ChannelCache
 	nodeChanIds       map[string]SetOfChanIds
 	nodeChanIdsNew    map[string]SetOfChanIds
@@ -59,7 +59,7 @@ func NewChannelChecker(ctx context.Context, cache ChannelCache, keepAlive time.D
 
 	return &ChannelChecker{
 		ctx:               ctx,
-		globalSettings:    NewGlobalSettings(),
+		perNodeSettings:   NewPerNodeSettings(),
 		channelCache:      cache,
 		nodeChanIds:       make(map[string]SetOfChanIds),
 		nodeChanIdsNew:    make(map[string]SetOfChanIds),
@@ -76,7 +76,7 @@ func NewChannelChecker(ctx context.Context, cache ChannelCache, keepAlive time.D
 
 // IsSubscribed - check if we are subscribed for a certain public key
 func (c *ChannelChecker) IsSubscribed(pubKey, uniqueID string) bool {
-	return utils.Contains(c.globalSettings.GetKeys(), pubKey+uniqueID)
+	return utils.Contains(c.perNodeSettings.GetKeys(), pubKey+uniqueID)
 }
 
 // Subscribe - subscribe to notifications about channel changes (if already subscribed this will force a callback, use IsSubscribed to check)
@@ -120,7 +120,7 @@ func (c *ChannelChecker) Subscribe(
 		settings.Filter = f
 	}
 
-	c.globalSettings.Set(info.IdentityPubkey+uniqueID, Settings{
+	c.perNodeSettings.Set(info.IdentityPubkey+uniqueID, Settings{
 		identifier:     entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID},
 		settings:       settings,
 		lastCheck:      time.Time{},
@@ -135,7 +135,7 @@ func (c *ChannelChecker) Subscribe(
 
 // Unsubscribe - unsubscribe from a pubkey
 func (c *ChannelChecker) Unsubscribe(pubkey, uniqueID string) error {
-	c.globalSettings.Delete(pubkey + uniqueID)
+	c.perNodeSettings.Delete(pubkey + uniqueID)
 	return nil
 }
 
@@ -382,8 +382,8 @@ func (c *ChannelChecker) fetchGraph(
 func (c *ChannelChecker) checkAll() bool {
 	defer c.monitoring.MetricsTimer("checkall.global", nil)()
 
-	for _, one := range c.globalSettings.GetKeys() {
-		s := c.globalSettings.Get(one)
+	for _, one := range c.perNodeSettings.GetKeys() {
+		s := c.perNodeSettings.Get(one)
 		now := time.Now()
 		if c.checkGraph && s.settings.GraphPollInterval != 0 {
 			graphToBeCheckedBy := s.lastGraphCheck.Add(s.settings.GraphPollInterval)
@@ -619,7 +619,7 @@ func (c *ChannelChecker) commitAllChanges(one string, now time.Time, s Settings)
 	c.commitChanIDChanges()
 	c.channelCache.DeferredCommit()
 	s.lastCheck = now
-	c.globalSettings.Set(one, s)
+	c.perNodeSettings.Set(one, s)
 }
 
 func (c *ChannelChecker) revertAllChanges() {

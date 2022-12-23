@@ -14,7 +14,7 @@ import (
 	"github.com/golang/glog"
 )
 
-// FileFilter sturct
+// FileFilter struct
 type FileFilter struct {
 	Filter
 	WhitelistFilePath string

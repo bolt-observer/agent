@@ -25,7 +25,7 @@ type NodeInfo struct {
 	ctx               context.Context
 	monitoring        *checkermonitoring.CheckerMonitoring
 	eventLoopInterval time.Duration
-	globalSettings    *GlobalSettings
+	perNodeSettings    *PerNodeSettings
 	reentrancyBlock   *entities.ReentrancyBlock
 }
 
@@ -69,14 +69,14 @@ func NewNodeInfo(ctx context.Context, monitoring *checkermonitoring.CheckerMonit
 		ctx:               ctx,
 		monitoring:        monitoring,
 		eventLoopInterval: 10 * time.Second,
-		globalSettings:    NewGlobalSettings(),
+		perNodeSettings:    NewPerNodeSettings(),
 		reentrancyBlock:   entities.NewReentrancyBlock(),
 	}
 }
 
 // IsSubscribed - check if we are subscribed for a certain public key
 func (c *NodeInfo) IsSubscribed(pubKey, uniqueID string) bool {
-	return utils.Contains(c.globalSettings.GetKeys(), pubKey+uniqueID)
+	return utils.Contains(c.perNodeSettings.GetKeys(), pubKey+uniqueID)
 }
 
 // GetState - get current state
@@ -140,7 +140,7 @@ func (c *NodeInfo) Subscribe(
 		f, _ = filter.NewAllowAllFilter()
 	}
 
-	c.globalSettings.Set(info.IdentityPubkey+uniqueID, Settings{
+	c.perNodeSettings.Set(info.IdentityPubkey+uniqueID, Settings{
 		identifier: entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID},
 		lastCheck:  time.Time{},
 		callback:   callback,
@@ -155,7 +155,7 @@ func (c *NodeInfo) Subscribe(
 
 // Unsubscribe - unsubscribe from a pubkey
 func (c *NodeInfo) Unsubscribe(pubkey, uniqueID string) error {
-	c.globalSettings.Delete(pubkey + uniqueID)
+	c.perNodeSettings.Delete(pubkey + uniqueID)
 	return nil
 }
 
@@ -193,9 +193,9 @@ func (c *NodeInfo) EventLoop() {
 func (c *NodeInfo) checkAll() bool {
 	defer c.monitoring.MetricsTimer("checkall.global", nil)()
 
-	for _, one := range c.globalSettings.GetKeys() {
+	for _, one := range c.perNodeSettings.GetKeys() {
 		now := time.Now()
-		s := c.globalSettings.Get(one)
+		s := c.perNodeSettings.Get(one)
 
 		toBeCheckedBy := s.lastCheck.Add(s.interval.Duration())
 		if toBeCheckedBy.Before(now) {
@@ -228,13 +228,13 @@ func (c *NodeInfo) checkAll() bool {
 						// Update hash only upon success
 						s.hash = hash
 						s.lastCheck = time.Now()
-						c.globalSettings.Set(one, s)
+						c.perNodeSettings.Set(one, s)
 					}
 					timer()
 				}(c, resp, s, one, hash)
 			} else {
 				s.lastCheck = time.Now()
-				c.globalSettings.Set(one, s)
+				c.perNodeSettings.Set(one, s)
 			}
 		}
 
