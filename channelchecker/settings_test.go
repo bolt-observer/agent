@@ -4,33 +4,33 @@ import (
 	"testing"
 
 	"github.com/bolt-observer/agent/entities"
-	api "github.com/bolt-observer/agent/lightning_api"
+	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/go_common/utils"
 )
 
-func getApi() api.LightingApiCalls {
+func getAPI() api.LightingAPICalls {
 	return nil
 }
 
 func TestDeleteInTheMiddle(t *testing.T) {
 
-	settings := NewGlobalSettings()
+	settings := NewPerNodeSettings()
 
-	settings.Set("burek", Settings{identifier: entities.NodeIdentifier{Identifier: "1337", UniqueId: "1337"}, getApi: getApi})
+	settings.Set("burek", Settings{identifier: entities.NodeIdentifier{Identifier: "1337", UniqueID: "1337"}, getAPI: getAPI})
 
 	if !utils.Contains(settings.GetKeys(), "burek") {
 		t.Fatalf("Element not present")
 	}
 
 	s := settings.Get("burek")
-	if s.identifier.UniqueId != "1337" {
+	if s.identifier.UniqueID != "1337" {
 		t.Fatalf("Wrong stuff returned")
 	}
 
-	s.getApi()
+	s.getAPI()
 
 	settings.Delete("burek")
-	if s.identifier.UniqueId != "1337" {
+	if s.identifier.UniqueID != "1337" {
 		t.Fatalf("Wrong stuff returned")
 	}
 }

@@ -1,4 +1,4 @@
-package lightning_api
+package lightningapi
 
 import (
 	"context"
@@ -14,28 +14,28 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	"github.com/lightningnetwork/lnd/lnrpc"
 
-	mocks "github.com/bolt-observer/agent/lightning_api/mocks"
+	mocks "github.com/bolt-observer/agent/lightning/mocks"
 )
 
 func TestObtainDataGrpc(t *testing.T) {
 	// This is used as a way to gather raw fixtures
 
 	var data entities.Data
-	const FIXTURE_SECRET = "fixture-grpc.secret"
+	const FixtureSecret = "fixture-grpc.secret"
 
-	if _, err := os.Stat(FIXTURE_SECRET); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(FixtureSecret); errors.Is(err, os.ErrNotExist) {
 		// If file with credentials does not exist succeed
 		return
 	}
 
-	content, err := ioutil.ReadFile(FIXTURE_SECRET)
+	content, err := ioutil.ReadFile(FixtureSecret)
 	if err != nil {
 		t.Fatalf("Error when opening file: %v", err)
 		return
 	}
 
-	if _, err := os.Stat(FIXTURE_DIR); errors.Is(err, os.ErrNotExist) {
-		err := os.Mkdir(FIXTURE_DIR, os.ModePerm)
+	if _, err := os.Stat(FixtureDir); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(FixtureDir, os.ModePerm)
 		if err != nil {
 			t.Fatalf("Could not create directory: %v", err)
 			return
@@ -48,7 +48,7 @@ func TestObtainDataGrpc(t *testing.T) {
 		return
 	}
 
-	api := NewApi(LND_GRPC, func() (*entities.Data, error) {
+	api := NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -57,7 +57,7 @@ func TestObtainDataGrpc(t *testing.T) {
 		return
 	}
 
-	_, ok := api.(*LndGrpcLightningApi)
+	_, ok := api.(*LndGrpcLightningAPI)
 	if !ok {
 		t.Fatalf("Should be LND_GRPC")
 		return
@@ -70,7 +70,7 @@ func TestObtainDataGrpc(t *testing.T) {
 	//api.GetChanInfo(context.Background(), uint64(810130063083110402))
 }
 
-func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte, LightingApiCalls) {
+func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte, LightingAPICalls) {
 	pubKey := "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256"
 	cert := utils.ObtainCert("bolt.observer:443")
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
@@ -83,7 +83,7 @@ func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte
 	}
 
 	// Prepare mock data
-	f, err := os.OpenFile(fmt.Sprintf("%s/%s_grpc.json", FIXTURE_DIR, name), os.O_RDONLY, 0644)
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s_grpc.json", FixtureDir, name), os.O_RDONLY, 0644)
 	if err != nil {
 		t.Fatalf("Could not open file: %v", err)
 		return nil, nil
@@ -96,7 +96,7 @@ func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte
 		return nil, nil
 	}
 
-	api := NewApi(LND_GRPC, func() (*entities.Data, error) {
+	api := NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -105,7 +105,7 @@ func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte
 		return nil, nil
 	}
 
-	d, ok := api.(*LndGrpcLightningApi)
+	d, ok := api.(*LndGrpcLightningAPI)
 	if !ok {
 		t.Fatalf("Should be LND_GRPC")
 		return nil, nil
@@ -179,7 +179,7 @@ func TestGetChannelsGrpc(t *testing.T) {
 			return
 		}
 
-		if c.ChanId == 1337 {
+		if c.ChanID == 1337 {
 			if c.LocalBalance != 1337 {
 				t.Fatalf("Wrong response")
 				return
@@ -292,7 +292,7 @@ func TestGetChanInfoGrpc(t *testing.T) {
 		t.Fatalf("Bad response")
 	}
 
-	if resp.ChannelId != chanid || resp.ChanPoint != "72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2" || (resp.Node1Pub != pubKey && resp.Node2Pub != pubKey) {
+	if resp.ChannelID != chanid || resp.ChanPoint != "72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2" || (resp.Node1Pub != pubKey && resp.Node2Pub != pubKey) {
 		t.Fatalf("GetChanInfo got wrong response: %v", resp)
 	}
 }

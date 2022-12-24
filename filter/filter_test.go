@@ -36,11 +36,11 @@ func TestFile(t *testing.T) {
 	}
 
 	for _, chanid := range []uint64{1, 2, 3} {
-		assert.Equal(t, true, fil.AllowChanId(chanid), "Should be allowed")
+		assert.Equal(t, true, fil.AllowChanID(chanid), "Should be allowed")
 	}
 
 	for _, chanid := range []uint64{4, 1337} {
-		assert.Equal(t, false, fil.AllowChanId(chanid), "Should not be allowed")
+		assert.Equal(t, false, fil.AllowChanID(chanid), "Should not be allowed")
 	}
 }
 

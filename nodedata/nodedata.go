@@ -13,7 +13,7 @@ import (
 	"time"
 
 	entities "github.com/bolt-observer/agent/entities"
-	api "github.com/bolt-observer/agent/lightning_api"
+	api "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/getsentry/sentry-go"
@@ -77,7 +77,7 @@ func (c *NodeData) IsSubscribed(pubKey, uniqueId string) bool {
 // Subscribe to notifications about channel changes (if already subscribed this will force a callback, use IsSubscribed to check)
 func (c *NodeData) Subscribe(
 	nodeDataCallback entities.NodeDataReportCallback,
-	getApi entities.NewApiCall,
+	getApi entities.NewAPICall,
 	PollInterval entities.Interval,
 	pubKey string,
 	settings entities.ReportingSettings,
@@ -113,7 +113,7 @@ func (c *NodeData) Subscribe(
 	c.globalSettings.Set(info.IdentityPubkey+uniqueId, Settings{
 		nodeDataCallback: nodeDataCallback,
 		hash:             0,
-		identifier:       entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId},
+		identifier:       entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId},
 		lastGraphCheck:   time.Time{},
 		lastReport:       time.Time{},
 		settings:         settings,
@@ -133,7 +133,7 @@ func (c *NodeData) Unsubscribe(pubkey, uniqueId string) error {
 func (c *NodeData) GetState(
 	pubKey string,
 	uniqueId string,
-	getApi entities.NewApiCall,
+	getApi entities.NewAPICall,
 	settings entities.ReportingSettings,
 	optCallback entities.NodeDataReportCallback) (*entities.NodeDataReport, error) {
 
@@ -141,12 +141,12 @@ func (c *NodeData) GetState(
 		return nil, errors.New("invalid pubkey")
 	}
 
-	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueId: uniqueId}, getApi, settings, true, false)
+	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId}, getApi, settings, true, false)
 	if err != nil {
 		return nil, err
 	}
 
-	resp.ChannelReport.PollInterval = entities.MANUAL_REQUEST
+	resp.ChannelReport.PollInterval = entities.ManualRequest
 	if optCallback != nil {
 		optCallback(c.ctx, resp)
 	}
@@ -154,8 +154,8 @@ func (c *NodeData) GetState(
 }
 
 func (c *NodeData) getChannelList(
-	api api.LightingApiCalls,
-	info *api.InfoApi,
+	api api.LightingAPICalls,
+	info *api.InfoAPI,
 	precisionBits int,
 	allowPrivateChans bool) ([]entities.ChannelBalance, SetOfChanIds, error) {
 
@@ -185,7 +185,7 @@ func (c *NodeData) getChannelList(
 		}
 
 		// Save channel ID
-		chanIds[channel.ChanId] = struct{}{}
+		chanIds[channel.ChanID] = struct{}{}
 
 		remoteBalance := channel.RemoteBalance
 		localBalance := channel.LocalBalance
@@ -227,15 +227,15 @@ func (c *NodeData) getChannelList(
 			factor = float64(total) / float64(precision)
 		}
 
-		_, locallyDisabled := c.locallyDisabled[channel.ChanId]
-		_, remotlyDisabled := c.remotlyDisabled[channel.ChanId]
+		_, locallyDisabled := c.locallyDisabled[channel.ChanID]
+		_, remotlyDisabled := c.remotlyDisabled[channel.ChanID]
 
 		resp = append(resp, entities.ChannelBalance{
 			Active:          channel.Active,
 			Private:         channel.Private,
 			LocalPubkey:     info.IdentityPubkey,
 			RemotePubkey:    channel.RemotePubkey,
-			ChanId:          channel.ChanId,
+			ChanID:          channel.ChanID,
 			Capacity:        capacity,
 			RemoteNominator: uint64(math.Round(float64(remoteBalance) / factor)),
 			LocalNominator:  uint64(math.Round(float64(localBalance) / factor)),
@@ -307,7 +307,7 @@ func (c *NodeData) EventLoop() {
 
 func (c *NodeData) fetchGraph(
 	pubKey string,
-	getApi entities.NewApiCall,
+	getApi entities.NewAPICall,
 	settings entities.ReportingSettings,
 ) error {
 
@@ -339,11 +339,11 @@ func (c *NodeData) fetchGraph(
 		}
 
 		if localPolicy != nil && localPolicy.Disabled {
-			locallyDisabled[channel.ChannelId] = struct{}{}
+			locallyDisabled[channel.ChannelID] = struct{}{}
 		}
 
 		if remotePolicy != nil && remotePolicy.Disabled {
-			remotlyDisabled[channel.ChannelId] = struct{}{}
+			remotlyDisabled[channel.ChannelID] = struct{}{}
 		}
 	}
 
@@ -386,7 +386,7 @@ func (c *NodeData) checkAll() bool {
 			ignoreCache := toBeCheckedBy.Year() <= 1
 			resp, err := c.checkOne(s.identifier, s.getApi, s.settings, ignoreCache, reportAnyway)
 			if err != nil {
-				glog.Warningf("Failed to check %v: %v", s.identifier.GetId(), err)
+				glog.Warningf("Failed to check %v: %v", s.identifier.GetID(), err)
 				continue
 			}
 
@@ -404,7 +404,7 @@ func (c *NodeData) checkAll() bool {
 					}
 					defer c.reentrancyBlock.Release(one)
 
-					metricsName := fmt.Sprintf("checkdelivery.%s", s.identifier.GetId())
+					metricsName := fmt.Sprintf("checkdelivery.%s", s.identifier.GetID())
 					timer := c.monitoring.MetricsTimer(metricsName)
 					if s.nodeDataCallback(c.ctx, resp) {
 						c.commitAllChanges(one, time.Now(), s)
@@ -433,13 +433,13 @@ func (c *NodeData) checkAll() bool {
 // checkOne checks one specific node
 func (c *NodeData) checkOne(
 	identifier entities.NodeIdentifier,
-	getApi entities.NewApiCall,
+	getApi entities.NewAPICall,
 	settings entities.ReportingSettings,
 	ignoreCache bool,
 	reportAnyway bool) (*entities.NodeDataReport, error) {
-	s := c.globalSettings.Get(identifier.GetId())
+	s := c.globalSettings.Get(identifier.GetID())
 
-	metricsName := fmt.Sprintf("checkone.%s", identifier.GetId())
+	metricsName := fmt.Sprintf("checkone.%s", identifier.GetID())
 	defer c.monitoring.MetricsTimer(metricsName)()
 
 	if getApi == nil {
@@ -476,17 +476,17 @@ func (c *NodeData) checkOne(
 
 	closedChannels := make([]entities.ClosedChannel, 0)
 
-	if len(c.nodeChanIds[identifier.GetId()]) > 0 {
+	if len(c.nodeChanIds[identifier.GetID()]) > 0 {
 		// We must have some old channel set
 
 		// diff between new -> old
-		closed := utils.SetDiff(set, c.nodeChanIds[identifier.GetId()])
+		closed := utils.SetDiff(set, c.nodeChanIds[identifier.GetID()])
 		for k := range closed {
-			closedChannels = append(closedChannels, entities.ClosedChannel{ChannelId: k})
+			closedChannels = append(closedChannels, entities.ClosedChannel{ChannelID: k})
 		}
 	}
 
-	c.nodeChanIdsNew[identifier.GetId()] = set
+	c.nodeChanIdsNew[identifier.GetID()] = set
 
 	channelList = c.filterList(identifier, channelList, ignoreCache)
 
@@ -495,7 +495,7 @@ func (c *NodeData) checkOne(
 		Chain:             info.Chain,
 		Network:           info.Network,
 		PubKey:            identifier.Identifier,
-		UniqueId:          identifier.UniqueId,
+		UniqueID:          identifier.UniqueID,
 		Timestamp:         common_entities.JsonTime(time.Now()),
 		ChangedChannels:   channelList,
 		ClosedChannels:    closedChannels,
@@ -526,9 +526,9 @@ func (c *NodeData) checkOne(
 
 	if hash != s.hash {
 		nodeReport = &entities.InfoReport{
-			UniqueId:            identifier.UniqueId,
+			UniqueID:            identifier.UniqueID,
 			Timestamp:           common_entities.JsonTime(time.Now()),
-			NodeInfoApiExtended: *nodeInfo,
+			NodeInfoAPIExtended: *nodeInfo,
 		}
 		s.hash = hash
 	} else {
@@ -558,7 +558,7 @@ func (c *NodeData) filterList(
 	for _, one := range list {
 		// We need local pubkey in case same channel is monitored from two sides
 		// which could trigger invalidations all the time
-		id := fmt.Sprintf("%s-%d", identifier.GetId(), one.ChanId)
+		id := fmt.Sprintf("%s-%d", identifier.GetID(), one.ChanID)
 		val, ok := c.channelCache.Get(id)
 		// Note that denominator changes based on channel reserve (might use capacity here)
 

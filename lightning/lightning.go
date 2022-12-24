@@ -1,4 +1,4 @@
-package lightning_api
+package lightningapi
 
 import (
 	"crypto/tls"
@@ -48,35 +48,37 @@ func extractHostname(endpoint string) string {
 	return u.Hostname()
 }
 
+// CertificateVerification enum
 type CertificateVerification int
 
+// Verification types
 const (
-	PUBLIC_CA_OR_CERT CertificateVerification = iota
-	PUBLIC_CA
-	ALLOW_WHEN_PUBKEY_SAME
-	STRICT
-	INSECURE
-	SKIP_HOST_VERIFICATION
+	PublicCAorCert CertificateVerification = iota
+	PublicCA
+	AllowWhenPubKeySame
+	Strict
+	Insecure
+	SkipHostVerification
 )
 
-func getTlsConfig(certBytes []byte, hostname string, verification CertificateVerification) (*tls.Config, error) {
+func getTLSConfig(certBytes []byte, hostname string, verification CertificateVerification) (*tls.Config, error) {
 	minVersion := uint16(tls.VersionTLS11)
 
 	switch verification {
-	case INSECURE:
+	case Insecure:
 		// Do not use this
 		return &tls.Config{InsecureSkipVerify: true, ServerName: "", VerifyConnection: func(cs tls.ConnectionState) error { return nil }}, nil
-	case SKIP_HOST_VERIFICATION:
+	case SkipHostVerification:
 		// Do not use this
 		return &tls.Config{ServerName: "", VerifyConnection: func(cs tls.ConnectionState) error { return nil }, MinVersion: minVersion}, nil
-	case PUBLIC_CA:
+	case PublicCA:
 		// RootCAs could be nil too, but make it more explicit
 		cp, err := x509.SystemCertPool()
 		if err != nil {
 			return nil, err
 		}
 		return &tls.Config{RootCAs: cp, MinVersion: minVersion}, nil
-	case PUBLIC_CA_OR_CERT:
+	case PublicCAorCert:
 		cp, err := x509.SystemCertPool()
 		if err != nil {
 			return nil, err
@@ -87,7 +89,7 @@ func getTlsConfig(certBytes []byte, hostname string, verification CertificateVer
 		}
 
 		return &tls.Config{RootCAs: cp, MinVersion: minVersion}, nil
-	case STRICT:
+	case Strict:
 		// Allow only the specified certificates (certificate-pinning)
 		cp := x509.NewCertPool()
 		if !cp.AppendCertsFromPEM(certBytes) {
@@ -95,7 +97,7 @@ func getTlsConfig(certBytes []byte, hostname string, verification CertificateVer
 		}
 
 		return &tls.Config{RootCAs: cp, MinVersion: minVersion}, nil
-	case ALLOW_WHEN_PUBKEY_SAME:
+	case AllowWhenPubKeySame:
 		// This is the idea that for Let's Encrypt for instance private key
 		// (and thus also public key stays the same) after renewal.
 		// It would be a great alternative to PUBLIC_CA_OR_CERT - allowing you to do
@@ -165,6 +167,7 @@ func getTlsConfig(certBytes []byte, hostname string, verification CertificateVer
 	}
 }
 
+// GetConnection - returns a GRPC client connection
 func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
 	var (
 		creds    credentials.TransportCredentials
@@ -185,12 +188,12 @@ func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
 		return nil, fmt.Errorf("base64 decoding failed %v", err)
 	}
 
-	verification := PUBLIC_CA_OR_CERT
+	verification := PublicCAorCert
 	if data.CertVerificationType != nil {
 		verification = CertificateVerification(*data.CertVerificationType)
 	}
 
-	tls, err := getTlsConfig(certBytes, data.Endpoint, verification)
+	tls, err := getTLSConfig(certBytes, data.Endpoint, verification)
 	if err != nil {
 		return nil, fmt.Errorf("getTlsConfig failed %v", err)
 	}
@@ -232,6 +235,7 @@ func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
 	return conn, nil
 }
 
+// GetClient - get a lightning API client
 func GetClient(getData GetDataCall) (lnrpc.LightningClient, func(), error) {
 	conn, err := GetConnection(getData)
 	if err != nil {
@@ -244,6 +248,7 @@ func GetClient(getData GetDataCall) (lnrpc.LightningClient, func(), error) {
 	return lnrpc.NewLightningClient(conn), cleanUp, nil
 }
 
+// IsMacaroonValid - verify whether macaroon is valid
 func IsMacaroonValid(mac *macaroon.Macaroon) (bool, time.Duration) {
 	minTime := time.Time{}
 

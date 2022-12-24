@@ -43,18 +43,14 @@ GLOBAL OPTIONS:
 
 It tries the best to have sane defaults so you can just start it up on your node without further hassle.
 If you have a strange lnd dir (`/storage` in the example) you might need:
-
 ```
 balance-agent --lnddir /storage/lnd/ --tlscertpath /storage/lnd/data/secrets/lnd.cert
 ```
-
 but that should be it.
 
 Only thing that is mandatory is apikey which can also be provided through `API_KEY` environment variable.
 
-To obtain an API key, you will need a [bolt.observer](https://bolt.observer) account.
-
-By default it will try to communicate with LND using local gRPC connection and `readonly.macaroon`. Once you have an account and have added a node, from the node screen click "OWN THIS NODE? ENROLL IN LIQUIDOPS" -> "ENROLL WITH AGENT" -> "GENERATE API KEY" and then save the API key for use with the agent.
+By default it will try to communicate with LND using local gRPC connection and `readonly.macaroon`.
 
 You can use `--userest` to start using REST API (default is as mentioned gRPC) - in that case `--rpcserver` can be complete URL to the endpoint.
 
@@ -72,13 +68,13 @@ If you need some different architecture that is no problem except that you will 
 
 Installation steps:
 
-- fetch latest revision from https://github.com/bolt-observer/agent/releases
+* fetch latest revision from https://github.com/bolt-observer/agent/releases
 
 ```
 wget https://github.com/bolt-observer/agent/releases/download/v0.0.33/balance-agent-v0.0.33-linux.zip https://github.com/bolt-observer/agent/releases/download/v0.0.33/manifest-v0.0.33.txt.asc https://github.com/bolt-observer/agent/releases/download/v0.0.33/manifest-v0.0.33.txt
 ```
 
-- verify integrity
+* verify integrity
 
 ```
 wget -qO- https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/fiksn.asc | gpg --import
@@ -86,31 +82,30 @@ gpg --verify manifest-v0.0.33.txt.asc manifest-v0.0.33.txt
 ```
 
 and you should see:
-
 ```
 gpg:                using RSA key F4B8B3B59C1E5AA39A1B9636E897355718E1DBF4
 gpg: Good signature from "Gregor Pogacnik <gregor@bolt.observer>" [ultimate]
 ```
 
-- unpack the compressed binary
+* unpack the compressed binary
 
 ```
 unzip balance-agent-v0.0.33-linux.zip
 ```
 
-- copy the binary to a common place
+* copy the binary to a common place
 
 ```
 cp balance-agent-v0.0.33-linux /usr/local/bin/balance-agent
 ```
 
-- start the binary
+* start the binary
 
 ```
 balance-agent -apikey changeme
 ```
 
-- you may want to run the agent as a systemd service (we have a simple systemd template [here](./balance-agent.service))
+* you may want to run the agent as a systemd service (we have a simple systemd template [here](./balance-agent.service))
 
 You need to do that only once:
 
@@ -163,12 +158,11 @@ whatever
 ## Components
 
 Internally we use:
-
-- [channelchecker](./channelchecker): an abstraction for checking all channels
-- [nodeinfo](./nodeinfo): this can basically report `lncli getnodeinfo` for your node - it is used by the agent so we have a full view of node info & channels
-- [filter](./filter): this is used to filter specific channels on the agent side
-- [checkermonitoring](./checkermonitoring): is used for reporting metrics via Graphite (not used directly in balance-agent here)
-- [lightning_api](./lightning_api): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
+* [channelchecker](./channelchecker): an abstraction for checking all channels
+* [nodeinfo](./nodeinfo): this can basically report `lncli getnodeinfo` for your node  - it is used by the agent so we have a full view of node info & channels
+* [filter](./filter): this is used to filter specific channels on the agent side
+* [checkermonitoring](./checkermonitoring): is used for reporting metrics via Graphite (not used directly in balance-agent here)
+* [lightning_api](./lightning_api): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
 
 ## Dependencies
 
@@ -177,17 +171,7 @@ This code depends on some [common code](https://github.com/bolt-observer/go_comm
 ## Troubleshooting
 
 Do:
-
 ```
 go get -v github.com/lightningnetwork/lnd@v0.15.4-beta
 ```
-
 or else you get an ancient version and everything breaks (should be good due to go.mod/sums now).
-
-## Development
-
-We are using [pre-commit](https://pre-commit.com/) hooks to ensure code quality. Before committing code, please run and ensure all checks pass:
-
-```
-pre-commit run --all-files
-```

@@ -1,4 +1,4 @@
-package lightning_api
+package lightningapi
 
 import (
 	"context"
@@ -14,22 +14,22 @@ import (
 const BUFSIZE = 2048
 
 func TestConvertChanId(t *testing.T) {
-	clnId := "761764x816x0"
-	lndId := uint64(837568375674634240)
+	clnID := "761764x816x0"
+	lndID := uint64(837568375674634240)
 
-	id, err := ToLndChanId(clnId)
+	id, err := ToLndChanID(clnID)
 	if err != nil {
 		t.Fatalf("Error %v\n", err)
 	}
-	if id != lndId {
-		t.Fatalf("Conversion failed %v vs. %v\n", id, lndId)
+	if id != lndID {
+		t.Fatalf("Conversion failed %v vs. %v\n", id, lndID)
 	}
 
-	if FromLndChanId(lndId) != clnId {
+	if FromLndChanID(lndID) != clnID {
 		t.Fatal("Conversion failed")
 	}
 
-	_, err = ToLndChanId("foobar")
+	_, err = ToLndChanID("foobar")
 	if err == nil {
 		t.Fatal("Should have failed")
 	}
@@ -103,7 +103,7 @@ func ClnSocketServer(t *testing.T, handler Handler) (string, CloseFunc) {
 }
 
 func clnData(t *testing.T, name string) []byte {
-	f, err := os.OpenFile(fmt.Sprintf("%s/%s.json.template", FIXTURE_DIR, name), os.O_RDONLY, 0644)
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s.json.template", FixtureDir, name), os.O_RDONLY, 0644)
 	if err != nil {
 		t.Fatalf("Could not open file: %v", err)
 	}
@@ -117,15 +117,15 @@ func clnData(t *testing.T, name string) []byte {
 	return contents
 }
 
-func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningApi, LightingApiCalls, CloseFunc) {
+func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningAPI, LightingAPICalls, CloseFunc) {
 	name, closeFunc := ClnSocketServer(t, handler)
 
-	api := NewClnSocketLightningApiRaw("unix", name)
+	api := NewClnSocketLightningAPIRaw("unix", name)
 	if api == nil {
 		t.Fatalf("API should not be nil")
 	}
 
-	d, ok := api.(*ClnSocketLightningApi)
+	d, ok := api.(*ClnSocketLightningAPI)
 	if !ok {
 		t.Fatalf("Should be CLN_SOCKET")
 	}
@@ -133,8 +133,8 @@ func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningApi, LightingA
 	return d, api, closeFunc
 }
 
-type IdExtractor struct {
-	Id int `json:"id"`
+type IDExtractor struct {
+	ID int `json:"id"`
 }
 
 func TestClnGetInfo(t *testing.T) {
@@ -151,14 +151,14 @@ func TestClnGetInfo(t *testing.T) {
 		buf = buf[:n]
 		s := string(buf)
 
-		id := IdExtractor{}
+		id := IDExtractor{}
 		err = json.Unmarshal(buf, &id)
 		if err != nil {
 			t.Fatalf("Unmarshal error: %v", err)
 		}
 
 		if strings.Contains(s, "getinfo") {
-			reply := fmt.Sprintf(string(data), id.Id)
+			reply := fmt.Sprintf(string(data), id.ID)
 			_, err = c.Write(([]byte)(reply))
 
 			if err != nil {
@@ -197,14 +197,14 @@ func TestClnGetChanInfo(t *testing.T) {
 		buf = buf[:n]
 		s := string(buf)
 
-		id := IdExtractor{}
+		id := IDExtractor{}
 		err = json.Unmarshal(buf, &id)
 		if err != nil {
 			t.Fatalf("Unmarshal error: %v", err)
 		}
 
 		if strings.Contains(s, "listchannels") {
-			reply := fmt.Sprintf(string(data), id.Id)
+			reply := fmt.Sprintf(string(data), id.ID)
 			_, err = c.Write(([]byte)(reply))
 
 			if err != nil {
@@ -219,7 +219,7 @@ func TestClnGetChanInfo(t *testing.T) {
 	})
 	defer closer()
 
-	id, err := ToLndChanId("763291x473x0")
+	id, err := ToLndChanID("763291x473x0")
 	if err != nil {
 		t.Fatalf("Could not convert id %d", err)
 	}
@@ -228,7 +228,7 @@ func TestClnGetChanInfo(t *testing.T) {
 		t.Fatalf("GetInfo call failed: %v", err)
 	}
 
-	if resp.ChannelId != 839247329907769344 || resp.Node1Pub != "020f63ca0fd5cbb11012727c035b7c087c2d014a26ed8ed5ed2115c783945a3fc7" || resp.Node2Pub != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" {
+	if resp.ChannelID != 839247329907769344 || resp.Node1Pub != "020f63ca0fd5cbb11012727c035b7c087c2d014a26ed8ed5ed2115c783945a3fc7" || resp.Node2Pub != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" {
 		t.Fatal("Wrong response")
 	}
 }

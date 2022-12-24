@@ -8,19 +8,22 @@ import (
 	"github.com/bolt-observer/agent/filter"
 )
 
-type GlobalSettings struct {
+// PerNodeSettings struct
+type PerNodeSettings struct {
 	mutex sync.RWMutex
 	data  map[string]Settings
 }
 
-func NewGlobalSettings() *GlobalSettings {
-	return &GlobalSettings{
+// NewPerNodeSettings creates PerNodeSettings
+func NewPerNodeSettings() *PerNodeSettings {
+	return &PerNodeSettings{
 		mutex: sync.RWMutex{},
 		data:  make(map[string]Settings),
 	}
 }
 
-func (s *GlobalSettings) GetKeys() []string {
+// GetKeys - get all keys
+func (s *PerNodeSettings) GetKeys() []string {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	keys := make([]string, 0, len(s.data))
@@ -31,31 +34,35 @@ func (s *GlobalSettings) GetKeys() []string {
 	return keys
 }
 
-func (s *GlobalSettings) Get(key string) Settings {
+// Get - get settings for one key
+func (s *PerNodeSettings) Get(key string) Settings {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.data[key]
 }
 
-func (s *GlobalSettings) Set(key string, value Settings) {
+// Set - set settings for one key
+func (s *PerNodeSettings) Set(key string, value Settings) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.data[key] = value
 }
 
-func (s *GlobalSettings) Delete(key string) {
+// Delete - delete settings for one key
+func (s *PerNodeSettings) Delete(key string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	delete(s.data, key)
 }
 
+// Settings struct
 type Settings struct {
 	identifier entities.NodeIdentifier
 	lastCheck  time.Time
 	callback   entities.InfoCallback
 	hash       uint64
-	getApi     entities.NewApiCall
+	getAPI     entities.NewAPICall
 	interval   entities.Interval
 	private    bool
-	filter     filter.FilterInterface
+	filter     filter.FilteringInterface
 }

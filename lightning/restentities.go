@@ -1,18 +1,21 @@
-package lightning_api
+package lightningapi
 
 import "github.com/lightningnetwork/lnd/lnrpc"
 
 // A hack to override uint64 -> string (REST API)
 
+// GetInfoResponseOverride struct
 type GetInfoResponseOverride struct {
 	BestHeaderTimestamp string `json:"best_header_timestamp,omitempty"`
 	lnrpc.GetInfoResponse
 }
 
+// Channels struct
 type Channels struct {
 	Channels []*ChannelOverride `json:"channels"`
 }
 
+// ChannelConstraintsOverride struct
 type ChannelConstraintsOverride struct {
 	ChanReserveSat    string `json:"chan_reserve_sat,omitempty"`
 	DustLimitSat      string `json:"dust_limit_sat,omitempty"`
@@ -22,6 +25,7 @@ type ChannelConstraintsOverride struct {
 	lnrpc.ChannelConstraints
 }
 
+// HtlcOverride struct
 type HtlcOverride struct {
 	Amount              string `json:"amount,omitempty"`
 	HashLock            string `json:"hash_lock,omitempty"`
@@ -31,8 +35,9 @@ type HtlcOverride struct {
 	lnrpc.HTLC
 }
 
+// ChannelOverride struct
 type ChannelOverride struct {
-	ChanId                string `json:"chan_id,omitempty"`
+	ChanID                string `json:"chan_id,omitempty"`
 	Capacity              string `json:"capacity,omitempty"`
 	LocalBalance          string `json:"local_balance,omitempty"`
 	RemoteBalance         string `json:"remote_balance,omitempty"`
@@ -61,6 +66,7 @@ type ChannelOverride struct {
 	lnrpc.Channel
 }
 
+// Graph struct
 type Graph struct {
 	GraphNodeOverride  []*GraphNodeOverride `json:"nodes,omitempty"`
 	GraphEdgesOverride []*GraphEdgeOverride `json:"edges,omitempty"`
@@ -68,6 +74,7 @@ type Graph struct {
 	//lnrpc.ChannelGraph
 }
 
+// RoutingPolicyOverride struct
 type RoutingPolicyOverride struct {
 	MinHtlc          string `json:"min_htlc,omitempty"`
 	FeeBaseMsat      string `json:"fee_base_msat,omitempty"`
@@ -77,10 +84,12 @@ type RoutingPolicyOverride struct {
 	lnrpc.RoutingPolicy
 }
 
+// GraphNodeOverride struct
 type GraphNodeOverride struct {
 	lnrpc.LightningNode
 }
 
+// GetNodeInfoOverride struct
 type GetNodeInfoOverride struct {
 	Node          *GraphNodeOverride   `json:"node,omitempty"`
 	NumChannels   int64                `json:"num_channels,omitempty"`
@@ -90,8 +99,9 @@ type GetNodeInfoOverride struct {
 	lnrpc.NodeInfo
 }
 
+// GraphEdgeOverride struct
 type GraphEdgeOverride struct {
-	ChannelId   string                 `json:"channel_id,omitempty"`
+	ChannelID   string                 `json:"channel_id,omitempty"`
 	Capacity    string                 `json:"capacity,omitempty"`
 	Node1Policy *RoutingPolicyOverride `json:"node1_policy,omitempty"`
 	Node2Policy *RoutingPolicyOverride `json:"node2_policy,omitempty"`

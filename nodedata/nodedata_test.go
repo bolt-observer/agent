@@ -14,7 +14,7 @@ import (
 
 	miniredis "github.com/alicebob/miniredis/v2"
 	agent_entities "github.com/bolt-observer/agent/entities"
-	lightning_api "github.com/bolt-observer/agent/lightning_api"
+	lightning_api "github.com/bolt-observer/agent/lightning"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/mitchellh/hashstructure/v2"
@@ -141,7 +141,7 @@ func getChannelJson(remote uint64, private, active bool) string {
 			  }`, remote, strconv.FormatBool(private), strconv.FormatBool(active))
 }
 
-func initTest(t *testing.T) (string, lightning_api.LightingApiCalls, *lightning_api.LndRestLightningApi) {
+func initTest(t *testing.T) (string, lightning_api.LightingAPICalls, *lightning_api.LndRestLightningAPI) {
 	pubKey := "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256"
 	cert := utils.ObtainCert("bolt.observer:443")
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
@@ -153,7 +153,7 @@ func initTest(t *testing.T) (string, lightning_api.LightingApiCalls, *lightning_
 		Endpoint:          "bolt.observer:443",
 	}
 
-	api := lightning_api.NewApi(lightning_api.LND_REST, func() (*entities.Data, error) {
+	api := lightning_api.NewAPI(lightning_api.LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -162,7 +162,7 @@ func initTest(t *testing.T) (string, lightning_api.LightingApiCalls, *lightning_
 		return "", nil, nil
 	}
 
-	d, ok := api.(*lightning_api.LndRestLightningApi)
+	d, ok := api.(*lightning_api.LndRestLightningAPI)
 	if !ok {
 		t.Fatalf("Should be LND_REST")
 		return "", nil, nil
@@ -182,7 +182,7 @@ func TestRemoveQueryParams(t *testing.T) {
 func TestBasicFlow(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -207,23 +207,23 @@ func TestBasicFlow(t *testing.T) {
 	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
-	was_called := false
+	wasCalled := false
 
 	c.Subscribe(
 		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
-			if len(report.ChannelReport.ChangedChannels) == 2 && report.ChannelReport.UniqueId == "random_id" {
-				was_called = true
+			if len(report.ChannelReport.ChangedChannels) == 2 && report.ChannelReport.UniqueID == "random_id" {
+				wasCalled = true
 			}
 
 			cancel()
 			return true
 		},
-		func() lightning_api.LightingApiCalls { return api },
-		agent_entities.SECOND,
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		"random_id",
@@ -235,7 +235,7 @@ func TestBasicFlow(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Took too long")
 	case <-ctx.Done():
-		if !was_called {
+		if !wasCalled {
 			t.Fatalf("Callback was not correctly invoked")
 		}
 	}
@@ -245,7 +245,7 @@ func TestContextCanBeNil(t *testing.T) {
 	pubKey, api, d := initTest(t)
 	var urlPath string
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		urlPath = req.URL.Path
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
@@ -269,25 +269,25 @@ func TestContextCanBeNil(t *testing.T) {
 	c := NewDefaultNodeData(nil, time.Duration(0), true, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
-	was_called := false
+	wasCalled := false
 
 	c.Subscribe(
 		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 			if strings.Contains(urlPath, "v1/getinfo") || strings.Contains(urlPath, "v1/channels") {
-				if len(report.ChannelReport.ChangedChannels) == 2 && report.ChannelReport.UniqueId == "random_id" {
-					was_called = true
+				if len(report.ChannelReport.ChangedChannels) == 2 && report.ChannelReport.UniqueID == "random_id" {
+					wasCalled = true
 				}
 			} else {
-				was_called = true
+				wasCalled = true
 			}
 			return true
 		},
-		func() lightning_api.LightingApiCalls { return api },
-		agent_entities.SECOND,
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		"random_id",
@@ -297,7 +297,7 @@ func TestContextCanBeNil(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	if !was_called {
+	if !wasCalled {
 		t.Fatalf("Callback was not called")
 		return
 	}
@@ -306,7 +306,7 @@ func TestContextCanBeNil(t *testing.T) {
 func TestGetState(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -333,10 +333,10 @@ func TestGetState(t *testing.T) {
 
 	resp, err := c.GetState(
 		pubKey, "random_id",
-		func() lightning_api.LightingApiCalls { return api },
+		func() lightning_api.LightingAPICalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		nil,
@@ -347,7 +347,7 @@ func TestGetState(t *testing.T) {
 		return
 	}
 
-	if len(resp.ChannelReport.ChangedChannels) != 2 || resp.ChannelReport.UniqueId != "random_id" || resp.NodeReport.Node.Alias != "CrazyConqueror" {
+	if len(resp.ChannelReport.ChangedChannels) != 2 || resp.ChannelReport.UniqueID != "random_id" || resp.NodeReport.Node.Alias != "CrazyConqueror" {
 		t.Fatalf("GetState returned bad data: %+v", resp)
 		return
 	}
@@ -356,7 +356,7 @@ func TestGetState(t *testing.T) {
 func TestGetStateCallback(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -386,10 +386,10 @@ func TestGetStateCallback(t *testing.T) {
 
 	resp, err := c.GetState(
 		pubKey, "random_id",
-		func() lightning_api.LightingApiCalls { return api },
+		func() lightning_api.LightingAPICalls { return api },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
@@ -403,7 +403,7 @@ func TestGetStateCallback(t *testing.T) {
 		return
 	}
 
-	if len(resp.ChannelReport.ChangedChannels) != 2 || resp.ChannelReport.UniqueId != "random_id" {
+	if len(resp.ChannelReport.ChangedChannels) != 2 || resp.ChannelReport.UniqueID != "random_id" {
 		t.Fatalf("GetState returned bad data: %+v", resp)
 		return
 	}
@@ -434,7 +434,7 @@ func TestGetStateCallback(t *testing.T) {
 func TestSubscription(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -460,12 +460,12 @@ func TestSubscription(t *testing.T) {
 
 	err := c.Subscribe(
 		nil,
-		func() lightning_api.LightingApiCalls { return api },
-		agent_entities.SECOND,
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		"random_id",
@@ -478,12 +478,12 @@ func TestSubscription(t *testing.T) {
 	// Second subscribe works without errors
 	err = c.Subscribe(
 		nil,
-		func() lightning_api.LightingApiCalls { return api },
-		agent_entities.SECOND,
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		"random_id",
@@ -514,7 +514,7 @@ func TestSubscription(t *testing.T) {
 func TestPrivateChannelsExcluded(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -537,23 +537,23 @@ func TestPrivateChannelsExcluded(t *testing.T) {
 	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
-	was_called := false
+	wasCalled := false
 
 	c.Subscribe(
 		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 			if len(report.ChannelReport.ChangedChannels) == 1 {
-				was_called = true
+				wasCalled = true
 			}
 
 			cancel()
 			return true
 		},
-		func() lightning_api.LightingApiCalls { return api },
-		agent_entities.SECOND,
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: false,
 		},
 		"random_id",
@@ -565,7 +565,7 @@ func TestPrivateChannelsExcluded(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Took too long")
 	case <-ctx.Done():
-		if !was_called {
+		if !wasCalled {
 			t.Fatalf("Callback was not correctly invoked")
 		}
 	}
@@ -576,7 +576,7 @@ func TestInactiveFlow(t *testing.T) {
 
 	step := 0
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -638,12 +638,12 @@ func TestInactiveFlow(t *testing.T) {
 			return true
 
 		},
-		func() lightning_api.LightingApiCalls { return api },
-		agent_entities.SECOND,
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		"",
@@ -666,7 +666,7 @@ func TestChange(t *testing.T) {
 
 	step := 0
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -728,12 +728,12 @@ func TestChange(t *testing.T) {
 			return true
 
 		},
-		func() lightning_api.LightingApiCalls { return api },
-		agent_entities.SECOND,
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		"",
@@ -754,7 +754,7 @@ func TestChange(t *testing.T) {
 func TestPubkeyWrong(t *testing.T) {
 	pubKey, api, d := initTest(t)
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("wrong")
@@ -774,12 +774,12 @@ func TestPubkeyWrong(t *testing.T) {
 
 	err := c.Subscribe(
 		nil,
-		func() lightning_api.LightingApiCalls { return api },
-		agent_entities.SECOND,
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		"",
@@ -797,7 +797,7 @@ func TestPubkeyWrong(t *testing.T) {
 //	step := 0
 //	success := false
 //
-//	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+//	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 //		var contents string
 //		if strings.Contains(req.URL.Path, "v1/getinfo") {
 //			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -862,12 +862,12 @@ func TestPubkeyWrong(t *testing.T) {
 //			return true
 //
 //		},
-//		func() lightning_api.LightingApiCalls { return api },
-//		agent_entities.SECOND,
+//		func() lightning_api.LightingAPICalls { return api },
+//		agent_entities.Second,
 //		pubKey,
 //		agent_entities.ReportingSettings{
 //			AllowedEntropy:       64,
-//			PollInterval:         agent_entities.SECOND,
+//			PollInterval:         agent_entities.Second,
 //			AllowPrivateChannels: true,
 //			NoopInterval:         2 * time.Second,
 //		},
@@ -894,7 +894,7 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 	step := 0
 	success := true
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -944,12 +944,12 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 			return true
 
 		},
-		func() lightning_api.LightingApiCalls { return api },
-		agent_entities.SECOND,
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		"",
@@ -974,7 +974,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 
 	step := 0
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -1038,12 +1038,12 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 			return true
 
 		},
-		func() lightning_api.LightingApiCalls { return api },
-		agent_entities.SECOND,
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 		},
 		"",
@@ -1068,7 +1068,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 //
 //	success := false
 //
-//	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+//	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 //		var contents string
 //		if strings.Contains(req.URL.Path, "v1/getinfo") {
 //			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -1103,12 +1103,12 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 //		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 //			return true
 //		},
-//		func() lightning_api.LightingApiCalls { return api },
-//		agent_entities.SECOND,
+//		func() lightning_api.LightingAPICalls { return api },
+//		agent_entities.Second,
 //		pubKey,
 //		agent_entities.ReportingSettings{
 //			AllowedEntropy:       64,
-//			PollInterval:         agent_entities.SECOND,
+//			PollInterval:         agent_entities.Second,
 //			AllowPrivateChannels: true,
 //			GraphPollInterval:    1 * time.Second,
 //		},
@@ -1141,7 +1141,7 @@ func TestBasicFlowRedis(t *testing.T) {
 		return
 	}
 
-	d.HttpApi.DoFunc = func(req *http.Request) (*http.Response, error) {
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
@@ -1168,23 +1168,23 @@ func TestBasicFlowRedis(t *testing.T) {
 	c := NewNodeData(ctx, NewRedisChannelCache(), time.Duration(0), true, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
-	was_called := false
+	wasCalled := false
 
 	c.Subscribe(
 		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 			if len(report.ChannelReport.ChangedChannels) == 2 {
-				was_called = true
+				wasCalled = true
 			}
 
 			cancel()
 			return true
 		},
-		func() lightning_api.LightingApiCalls { return api },
-		agent_entities.SECOND,
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
-			PollInterval:         agent_entities.SECOND,
+			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
 			GraphPollInterval:    1 * time.Second,
 		},
@@ -1197,7 +1197,7 @@ func TestBasicFlowRedis(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Took too long")
 	case <-ctx.Done():
-		if !was_called {
+		if !wasCalled {
 			t.Fatalf("Callback was not correctly invoked")
 		}
 	}

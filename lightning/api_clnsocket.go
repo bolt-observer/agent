@@ -1,4 +1,4 @@
-package lightning_api
+package lightningapi
 
 import (
 	"context"
@@ -14,8 +14,9 @@ import (
 )
 
 // Compile time check for the interface
-var _ LightingApiCalls = &ClnSocketLightningApi{}
+var _ LightingAPICalls = &ClnSocketLightningAPI{}
 
+// Method names
 const (
 	LISTCHANNELS = "listchannels"
 	LISTNODES    = "listnodes"
@@ -23,17 +24,18 @@ const (
 	GETINFO      = "getinfo"
 )
 
-// Usage "unix", "/home/ubuntu/.lightning/bitcoin/lightning-rpc"
-func NewClnSocketLightningApiRaw(socketType string, address string) LightingApiCalls {
+// NewClnSocketLightningAPIRaw gets a new API - usage "unix", "/home/ubuntu/.lightning/bitcoin/lightning-rpc"
+func NewClnSocketLightningAPIRaw(socketType string, address string) LightingAPICalls {
 	client, err := rpc.Dial(socketType, address)
 	if err != nil {
 		glog.Warningf("Got error: %v", err)
 		return nil
 	}
-	return &ClnSocketLightningApi{Client: client, Timeout: time.Second * 30}
+	return &ClnSocketLightningAPI{Client: client, Timeout: time.Second * 30}
 }
 
-func NewClnSocketLightningApi(getData GetDataCall) LightingApiCalls {
+// NewClnSocketLightningAPI return a new lightning API
+func NewClnSocketLightningAPI(getData GetDataCall) LightingAPICalls {
 	if getData == nil {
 		return nil
 	}
@@ -42,27 +44,29 @@ func NewClnSocketLightningApi(getData GetDataCall) LightingApiCalls {
 		return nil
 	}
 
-	return NewClnSocketLightningApiRaw("unix", data.Endpoint)
+	return NewClnSocketLightningAPIRaw("unix", data.Endpoint)
 }
 
-func (l *ClnSocketLightningApi) Cleanup() {
+// Cleanup - clean up API
+func (l *ClnSocketLightningAPI) Cleanup() {
 	// do nothing
 }
 
-func (l *ClnSocketLightningApi) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphApi, error) {
+// DescribeGraph - DescribeGraph API call
+func (l *ClnSocketLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
 	var reply ClnListNodeResp
 	err := l.CallWithTimeout(LISTNODES, []interface{}{}, &reply)
 	if err != nil {
 		return nil, err
 	}
 
-	nodes := make([]DescribeGraphNodeApi, 0)
+	nodes := make([]DescribeGraphNodeAPI, 0)
 
 	for _, one := range reply.Nodes {
 		nodes = append(nodes, *ConvertNodeInfo(one))
 	}
 
-	channels := make([]NodeChannelApi, 0)
+	channels := make([]NodeChannelAPI, 0)
 
 	chans, err := l.GetInternalChannelsAll()
 	if err != nil {
@@ -75,7 +79,7 @@ func (l *ClnSocketLightningApi) DescribeGraph(ctx context.Context, unannounced b
 			continue
 		}
 
-		lnd, err := ToLndChanId(k)
+		lnd, err := ToLndChanID(k)
 		if err != nil {
 			glog.Warningf("Could not convert %v", k)
 			continue
@@ -91,19 +95,20 @@ func (l *ClnSocketLightningApi) DescribeGraph(ctx context.Context, unannounced b
 			continue
 		}
 
-		channels = append(channels, ret.NodeChannelApi)
+		channels = append(channels, ret.NodeChannelAPI)
 	}
 
-	return &DescribeGraphApi{
+	return &DescribeGraphAPI{
 		Nodes:    nodes,
 		Channels: channels,
 	}, nil
 }
 
-func ConvertChannelInternal(chans []ClnListChan, id uint64) (*NodeChannelApiExtended, error) {
-	ret := &NodeChannelApiExtended{
-		NodeChannelApi: NodeChannelApi{
-			ChannelId: id,
+// ConvertChannelInternal - convert CLN channel to internal format
+func ConvertChannelInternal(chans []ClnListChan, id uint64) (*NodeChannelAPIExtended, error) {
+	ret := &NodeChannelAPIExtended{
+		NodeChannelAPI: NodeChannelAPI{
+			ChannelID: id,
 			Capacity:  chans[0].Capacity,
 			// TODO: we don't have that
 			ChanPoint: "none",
@@ -126,7 +131,7 @@ func ConvertChannelInternal(chans []ClnListChan, id uint64) (*NodeChannelApiExte
 		}
 
 		if one.Source == ret.Node1Pub {
-			ret.Node1Policy = &RoutingPolicyApi{
+			ret.Node1Policy = &RoutingPolicyAPI{
 				TimeLockDelta: uint32(one.Delay),
 				Disabled:      !one.Active,
 				LastUpdate:    one.LastUpdate,
@@ -136,7 +141,7 @@ func ConvertChannelInternal(chans []ClnListChan, id uint64) (*NodeChannelApiExte
 				MaxHtlc:       ConvertAmount(one.MaxHtlc),
 			}
 		} else if one.Source == ret.Node2Pub {
-			ret.Node2Policy = &RoutingPolicyApi{
+			ret.Node2Policy = &RoutingPolicyAPI{
 				TimeLockDelta: uint32(one.Delay),
 				Disabled:      !one.Active,
 				LastUpdate:    one.LastUpdate,
@@ -155,10 +160,11 @@ func ConvertChannelInternal(chans []ClnListChan, id uint64) (*NodeChannelApiExte
 	return ret, nil
 }
 
-func (l *ClnSocketLightningApi) GetChanInfo(ctx context.Context, chanId uint64) (*NodeChannelApi, error) {
+// GetChanInfo - GetChanInfo API call
+func (l *ClnSocketLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
 
 	var listChanReply ClnListChanResp
-	err := l.CallWithTimeout(LISTCHANNELS, []string{FromLndChanId(chanId)}, &listChanReply)
+	err := l.CallWithTimeout(LISTCHANNELS, []string{FromLndChanID(chanID)}, &listChanReply)
 	if err != nil {
 		return nil, err
 	}
@@ -168,37 +174,38 @@ func (l *ClnSocketLightningApi) GetChanInfo(ctx context.Context, chanId uint64) 
 		return nil, ErrNoChan
 	}
 
-	ret, err := ConvertChannelInternal(listChanReply.Channels, chanId)
+	ret, err := ConvertChannelInternal(listChanReply.Channels, chanID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ret.NodeChannelApi, nil
+	return &ret.NodeChannelAPI, nil
 }
 
-func (l *ClnSocketLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, error) {
+// GetChannels - GetChannels API call
+func (l *ClnSocketLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
 	var fundsReply ClnFundsChanResp
 	err := l.CallWithTimeout(LISTFUNDS, []string{}, &fundsReply)
 	if err != nil {
 		return nil, err
 	}
 
-	channels := make([]ChannelApi, 0)
+	channels := make([]ChannelAPI, 0)
 
 	var listChanReply ClnListChanResp
 
 	for _, one := range fundsReply.Channels {
 
-		err = l.CallWithTimeout(LISTCHANNELS, []string{one.ShortChannelId}, &listChanReply)
+		err = l.CallWithTimeout(LISTCHANNELS, []string{one.ShortChannelID}, &listChanReply)
 		if err != nil {
 			return nil, err
 		}
 		for _, two := range listChanReply.Channels {
-			if two.Destination != one.PeerId {
+			if two.Destination != one.PeerID {
 				continue
 			}
 
-			lndchan, err := ToLndChanId(one.ShortChannelId)
+			lndchan, err := ToLndChanID(one.ShortChannelID)
 			if err != nil {
 				return nil, err
 			}
@@ -209,12 +216,12 @@ func (l *ClnSocketLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, 
 				remoteBalance = two.Capacity - one.OurAmount
 			}
 
-			result := ChannelApi{
+			result := ChannelAPI{
 				Active:        two.Active,
 				Private:       !two.Public,
 				Capacity:      two.Capacity,
-				RemotePubkey:  one.PeerId,
-				ChanId:        lndchan,
+				RemotePubkey:  one.PeerID,
+				ChanID:        lndchan,
 				RemoteBalance: remoteBalance,
 				LocalBalance:  one.OurAmount,
 
@@ -231,17 +238,18 @@ func (l *ClnSocketLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, 
 		}
 	}
 
-	return &ChannelsApi{Channels: channels}, nil
+	return &ChannelsAPI{Channels: channels}, nil
 }
 
-func (l *ClnSocketLightningApi) GetInfo(ctx context.Context) (*InfoApi, error) {
+// GetInfo - GetInfo API call
+func (l *ClnSocketLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	var reply ClnInfo
 	err := l.CallWithTimeout(GETINFO, []string{}, &reply)
 	if err != nil {
 		return nil, err
 	}
 
-	return &InfoApi{
+	return &InfoAPI{
 		IdentityPubkey: reply.PubKey,
 		Alias:          reply.Alias,
 		Network:        reply.Network,
@@ -249,10 +257,11 @@ func (l *ClnSocketLightningApi) GetInfo(ctx context.Context) (*InfoApi, error) {
 	}, nil
 }
 
-func ConvertNodeInfo(node ClnListNode) *DescribeGraphNodeApi {
+// ConvertNodeInfo - convert CLN to internal node representation
+func ConvertNodeInfo(node ClnListNode) *DescribeGraphNodeAPI {
 	if node.LastUpdate == nil {
 		glog.Warningf("Gossip message for node %s was not received yet", node.PubKey)
-		return &DescribeGraphNodeApi{
+		return &DescribeGraphNodeAPI{
 			PubKey: node.PubKey,
 		}
 	}
@@ -261,10 +270,10 @@ func ConvertNodeInfo(node ClnListNode) *DescribeGraphNodeApi {
 
 	features := ConvertFeatures(node.Features)
 	if features == nil {
-		features = make(map[string]NodeFeatureApi)
+		features = make(map[string]NodeFeatureAPI)
 	}
 
-	return &DescribeGraphNodeApi{
+	return &DescribeGraphNodeAPI{
 		PubKey:     node.PubKey,
 		Alias:      node.Alias,
 		Color:      fmt.Sprintf("#%s", node.Color),
@@ -274,22 +283,24 @@ func ConvertNodeInfo(node ClnListNode) *DescribeGraphNodeApi {
 	}
 }
 
-func ConvertAddresses(addr []ClnListNodeAddr) []NodeAddressApi {
-	addresses := make([]NodeAddressApi, 0)
+// ConvertAddresses converts CLN addresses to interanl format
+func ConvertAddresses(addr []ClnListNodeAddr) []NodeAddressAPI {
+	addresses := make([]NodeAddressAPI, 0)
 	for _, one := range addr {
 		if one.Type == "ipv6" {
-			addresses = append(addresses, NodeAddressApi{Network: "tcp", Addr: fmt.Sprintf("[%s]:%d", one.Address, one.Port)})
+			addresses = append(addresses, NodeAddressAPI{Network: "tcp", Addr: fmt.Sprintf("[%s]:%d", one.Address, one.Port)})
 		} else if one.Type == "dns" || one.Type == "websocket" {
 			// Ignore that stuff
 			continue
 		} else {
-			addresses = append(addresses, NodeAddressApi{Network: "tcp", Addr: fmt.Sprintf("%s:%d", one.Address, one.Port)})
+			addresses = append(addresses, NodeAddressAPI{Network: "tcp", Addr: fmt.Sprintf("%s:%d", one.Address, one.Port)})
 		}
 	}
 	return addresses
 }
 
-func (l *ClnSocketLightningApi) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoApi, error) {
+// GetNodeInfo - GetNodeInfo API call
+func (l *ClnSocketLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
 	var reply ClnListNodeResp
 	err := l.CallWithTimeout(LISTNODES, []string{pubKey}, &reply)
 	if err != nil {
@@ -300,9 +311,9 @@ func (l *ClnSocketLightningApi) GetNodeInfo(ctx context.Context, pubKey string, 
 		return nil, ErrNoNode
 	}
 
-	result := &NodeInfoApi{
+	result := &NodeInfoAPI{
 		Node:          *ConvertNodeInfo(reply.Nodes[0]),
-		Channels:      make([]NodeChannelApi, 0),
+		Channels:      make([]NodeChannelAPI, 0),
 		NumChannels:   0,
 		TotalCapacity: 0,
 	}
@@ -322,7 +333,7 @@ func (l *ClnSocketLightningApi) GetNodeInfo(ctx context.Context, pubKey string, 
 			continue
 		}
 
-		lnd, err := ToLndChanId(k)
+		lnd, err := ToLndChanID(k)
 		if err != nil {
 			glog.Warningf("Could not convert %v", k)
 			continue
@@ -334,7 +345,7 @@ func (l *ClnSocketLightningApi) GetNodeInfo(ctx context.Context, pubKey string, 
 			continue
 		}
 
-		result.Channels = append(result.Channels, ret.NodeChannelApi)
+		result.Channels = append(result.Channels, ret.NodeChannelAPI)
 	}
 
 	result.NumChannels = uint32(len(result.Channels))
@@ -344,14 +355,15 @@ func (l *ClnSocketLightningApi) GetNodeInfo(ctx context.Context, pubKey string, 
 
 }
 
-func (l *ClnSocketLightningApi) GetNodeInfoFull(ctx context.Context, channels bool, unannounced bool) (*NodeInfoApiExtended, error) {
+// GetNodeInfoFull - GetNodeInfoFull API call
+func (l *ClnSocketLightningAPI) GetNodeInfoFull(ctx context.Context, channels bool, unannounced bool) (*NodeInfoAPIExtended, error) {
 	var reply ClnInfo
 	err := l.CallWithTimeout(GETINFO, []string{}, &reply)
 	if err != nil {
 		return nil, err
 	}
 
-	node := DescribeGraphNodeApi{
+	node := DescribeGraphNodeAPI{
 		PubKey:    reply.PubKey,
 		Alias:     reply.Alias,
 		Color:     fmt.Sprintf("#%s", reply.Color),
@@ -361,9 +373,9 @@ func (l *ClnSocketLightningApi) GetNodeInfoFull(ctx context.Context, channels bo
 		LastUpdate: entities.JsonTime(time.Now()),
 	}
 
-	result := &NodeInfoApiExtended{}
+	result := &NodeInfoAPIExtended{}
 	result.Node = node
-	result.Channels = make([]NodeChannelApiExtended, 0)
+	result.Channels = make([]NodeChannelAPIExtended, 0)
 	result.NumChannels = 0
 	result.TotalCapacity = 0
 
@@ -382,7 +394,7 @@ func (l *ClnSocketLightningApi) GetNodeInfoFull(ctx context.Context, channels bo
 			continue
 		}
 
-		lnd, err := ToLndChanId(k)
+		lnd, err := ToLndChanID(k)
 		if err != nil {
 			glog.Warningf("Could not convert %v", k)
 			continue
@@ -407,7 +419,8 @@ func (l *ClnSocketLightningApi) GetNodeInfoFull(ctx context.Context, channels bo
 	return result, nil
 }
 
-func (l *ClnSocketLightningApi) GetInternalChannels(pubKey string) (map[string][]ClnListChan, error) {
+// GetInternalChannels - internal method to get channels
+func (l *ClnSocketLightningAPI) GetInternalChannels(pubKey string) (map[string][]ClnListChan, error) {
 	result := make(map[string][]ClnListChan, 0)
 
 	var listChanReply ClnListChanResp
@@ -417,15 +430,15 @@ func (l *ClnSocketLightningApi) GetInternalChannels(pubKey string) (map[string][
 	}
 
 	for _, one := range listChanReply.Channels {
-		if one.ShortChannelId == "" {
+		if one.ShortChannelID == "" {
 			continue
 		}
 
-		if _, ok := result[one.ShortChannelId]; !ok {
-			result[one.ShortChannelId] = make([]ClnListChan, 0)
+		if _, ok := result[one.ShortChannelID]; !ok {
+			result[one.ShortChannelID] = make([]ClnListChan, 0)
 		}
 
-		result[one.ShortChannelId] = append(result[one.ShortChannelId], one)
+		result[one.ShortChannelID] = append(result[one.ShortChannelID], one)
 	}
 
 	err = l.CallWithTimeout(LISTCHANNELS, []interface{}{nil, nil, pubKey}, &listChanReply)
@@ -434,21 +447,22 @@ func (l *ClnSocketLightningApi) GetInternalChannels(pubKey string) (map[string][
 	}
 
 	for _, one := range listChanReply.Channels {
-		if one.ShortChannelId == "" {
+		if one.ShortChannelID == "" {
 			continue
 		}
 
-		if _, ok := result[one.ShortChannelId]; !ok {
-			result[one.ShortChannelId] = make([]ClnListChan, 0)
+		if _, ok := result[one.ShortChannelID]; !ok {
+			result[one.ShortChannelID] = make([]ClnListChan, 0)
 		}
 
-		result[one.ShortChannelId] = append(result[one.ShortChannelId], one)
+		result[one.ShortChannelID] = append(result[one.ShortChannelID], one)
 	}
 
 	return result, nil
 }
 
-func (l *ClnSocketLightningApi) GetInternalChannelsAll() (map[string][]ClnListChan, error) {
+// GetInternalChannelsAll - internal method to get all channels
+func (l *ClnSocketLightningAPI) GetInternalChannelsAll() (map[string][]ClnListChan, error) {
 	result := make(map[string][]ClnListChan, 0)
 
 	var listChanReply ClnListChanResp
@@ -458,21 +472,22 @@ func (l *ClnSocketLightningApi) GetInternalChannelsAll() (map[string][]ClnListCh
 	}
 
 	for _, one := range listChanReply.Channels {
-		if one.ShortChannelId == "" {
+		if one.ShortChannelID == "" {
 			continue
 		}
 
-		if _, ok := result[one.ShortChannelId]; !ok {
-			result[one.ShortChannelId] = make([]ClnListChan, 0)
+		if _, ok := result[one.ShortChannelID]; !ok {
+			result[one.ShortChannelID] = make([]ClnListChan, 0)
 		}
 
-		result[one.ShortChannelId] = append(result[one.ShortChannelId], one)
+		result[one.ShortChannelID] = append(result[one.ShortChannelID], one)
 	}
 
 	return result, nil
 }
 
-func (l *ClnSocketLightningApi) CallWithTimeout(serviceMethod string, args any, reply any) error {
+// CallWithTimeout - helper to call rpc method with a timeout
+func (l *ClnSocketLightningAPI) CallWithTimeout(serviceMethod string, args any, reply any) error {
 	c := make(chan *r.Call, 1)
 	go func() { l.Client.Go(serviceMethod, args, reply, c) }()
 	select {

@@ -1,48 +1,58 @@
 package filter
 
+// AllowAllFilter struct
 type AllowAllFilter struct {
 	Filter
 }
 
-func NewAllowAllFilter() (FilterInterface, error) {
+// NewAllowAllFilter - creates a filter that allow everything
+func NewAllowAllFilter() (FilteringInterface, error) {
 	return &AllowAllFilter{}, nil
 }
 
+// AllowPubKey returns true if pubkey should be allowed
 func (f *AllowAllFilter) AllowPubKey(id string) bool {
 	return true
 }
 
-func (f *AllowAllFilter) AllowChanId(id uint64) bool {
+// AllowChanID returns true if short channel ID should be allowed
+func (f *AllowAllFilter) AllowChanID(id uint64) bool {
 	return true
 }
 
+// AllowSpecial checks against bitmask and can allow all private or public channels
 func (f *AllowAllFilter) AllowSpecial(private bool) bool {
 	return true
 }
 
+// UnitTestFilter struct
 type UnitTestFilter struct {
 	Filter
 }
 
-func NewUnitTestFilter() (FilterInterface, error) {
+// NewUnitTestFilter - creates a filter suitable for unit tests
+func NewUnitTestFilter() (FilteringInterface, error) {
 	f := &UnitTestFilter{
 		Filter: Filter{
-			chanIdWhitelist: make(map[uint64]struct{}),
-			nodeIdWhitelist: make(map[string]struct{}),
+			chanIDWhitelist: make(map[uint64]struct{}),
+			nodeIDWhitelist: make(map[string]struct{}),
 		},
 	}
 
 	return f, nil
 }
 
+// AddAllowPubKey - add pubkey to allow list
 func (u *UnitTestFilter) AddAllowPubKey(id string) {
-	u.nodeIdWhitelist[id] = struct{}{}
+	u.nodeIDWhitelist[id] = struct{}{}
 }
 
-func (u *UnitTestFilter) AddAllowChanId(id uint64) {
-	u.chanIdWhitelist[id] = struct{}{}
+// AddAllowChanID - add channel id to allow list
+func (u *UnitTestFilter) AddAllowChanID(id uint64) {
+	u.chanIDWhitelist[id] = struct{}{}
 }
 
-func (f *UnitTestFilter) ChangeOptions(options Options) {
-	f.Options = options
+// ChangeOptions - change options of the filter
+func (u *UnitTestFilter) ChangeOptions(options Options) {
+	u.Options = options
 }

@@ -1,4 +1,4 @@
-package lightning_api
+package lightningapi
 
 import (
 	"context"
@@ -26,7 +26,7 @@ func TestApiSelection(t *testing.T) {
 	// ApiType in NewApi() is a preference that can be overriden through data
 
 	// Invalid API type
-	api := NewApi(ApiType(500), func() (*entities.Data, error) {
+	api := NewAPI(APIType(500), func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -40,7 +40,7 @@ func TestApiSelection(t *testing.T) {
 
 	temp := data.Endpoint
 	data.Endpoint = name
-	api = NewApi(CLN_SOCKET, func() (*entities.Data, error) {
+	api = NewAPI(ClnSocket, func() (*entities.Data, error) {
 		return &data, nil
 	})
 	data.Endpoint = temp
@@ -49,13 +49,13 @@ func TestApiSelection(t *testing.T) {
 		t.Fatalf("API should not be nil")
 	}
 
-	_, ok := api.(*ClnSocketLightningApi)
+	_, ok := api.(*ClnSocketLightningAPI)
 	if !ok {
 		t.Fatalf("Should be CLN_SOCKET")
 	}
 
 	// Use gRPC
-	api = NewApi(LND_GRPC, func() (*entities.Data, error) {
+	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -63,13 +63,13 @@ func TestApiSelection(t *testing.T) {
 		t.Fatalf("API should not be nil")
 	}
 
-	_, ok = api.(*LndGrpcLightningApi)
+	_, ok = api.(*LndGrpcLightningAPI)
 	if !ok {
 		t.Fatalf("Should be LND_GRPC")
 	}
 
 	// Use REST
-	api = NewApi(LND_REST, func() (*entities.Data, error) {
+	api = NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -77,15 +77,15 @@ func TestApiSelection(t *testing.T) {
 		t.Fatalf("API should not be nil")
 	}
 
-	_, ok = api.(*LndRestLightningApi)
+	_, ok = api.(*LndRestLightningAPI)
 	if !ok {
 		t.Fatalf("Should be LND_REST")
 	}
 
-	v := int(LND_GRPC)
+	v := int(LndGrpc)
 	data.ApiType = &v
 
-	api = NewApi(LND_REST, func() (*entities.Data, error) {
+	api = NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -93,15 +93,15 @@ func TestApiSelection(t *testing.T) {
 		t.Fatalf("API should not be nil")
 	}
 
-	_, ok = api.(*LndGrpcLightningApi)
+	_, ok = api.(*LndGrpcLightningAPI)
 	if !ok {
 		t.Fatalf("Should be LND_GRPC")
 	}
 
-	v = int(LND_REST)
+	v = int(LndRest)
 	data.ApiType = &v
 
-	api = NewApi(LND_GRPC, func() (*entities.Data, error) {
+	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -109,7 +109,7 @@ func TestApiSelection(t *testing.T) {
 		t.Fatalf("API should not be nil")
 	}
 
-	_, ok = api.(*LndRestLightningApi)
+	_, ok = api.(*LndRestLightningAPI)
 	if !ok {
 		t.Fatalf("Should be LND_REST")
 	}
@@ -118,7 +118,7 @@ func TestApiSelection(t *testing.T) {
 	v = 500
 	data.ApiType = &v
 
-	api = NewApi(LND_GRPC, func() (*entities.Data, error) {
+	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -126,7 +126,7 @@ func TestApiSelection(t *testing.T) {
 		t.Fatalf("API should not be nil")
 	}
 
-	_, ok = api.(*LndGrpcLightningApi)
+	_, ok = api.(*LndGrpcLightningAPI)
 	if !ok {
 		t.Fatalf("Should be LND_GRPC")
 	}
@@ -144,7 +144,7 @@ func TestGrpcDoesNotOpenConnection(t *testing.T) {
 		Endpoint:          "bolt.observer:443",
 	}
 
-	api := NewApi(LND_GRPC, func() (*entities.Data, error) {
+	api := NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -153,7 +153,7 @@ func TestGrpcDoesNotOpenConnection(t *testing.T) {
 	}
 
 	data.Endpoint = "burek:444"
-	api = NewApi(LND_GRPC, func() (*entities.Data, error) {
+	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -173,7 +173,7 @@ func TestRestDoesNotOpenConnection(t *testing.T) {
 		Endpoint:          "bolt.observer:443",
 	}
 
-	api := NewApi(LND_REST, func() (*entities.Data, error) {
+	api := NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -182,7 +182,7 @@ func TestRestDoesNotOpenConnection(t *testing.T) {
 	}
 
 	data.Endpoint = "burek:444"
-	api = NewApi(LND_REST, func() (*entities.Data, error) {
+	api = NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -191,48 +191,48 @@ func TestRestDoesNotOpenConnection(t *testing.T) {
 	}
 }
 
-type MockLightningApi struct {
+type MockLightningAPI struct {
 	Trace string
 }
 
-func (m *MockLightningApi) Cleanup() {}
-func (m *MockLightningApi) GetInfo(ctx context.Context) (*InfoApi, error) {
+func (m *MockLightningAPI) Cleanup() {}
+func (m *MockLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	m.Trace += "getinfo"
-	return &InfoApi{IdentityPubkey: "fake"}, nil
+	return &InfoAPI{IdentityPubkey: "fake"}, nil
 }
 
-func (m *MockLightningApi) GetChannels(ctx context.Context) (*ChannelsApi, error) {
+func (m *MockLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
 	m.Trace += "getchannels"
-	return &ChannelsApi{Channels: []ChannelApi{{ChanId: 1, Capacity: 1}, {ChanId: 2, Capacity: 2, Private: true}}}, nil
+	return &ChannelsAPI{Channels: []ChannelAPI{{ChanID: 1, Capacity: 1}, {ChanID: 2, Capacity: 2, Private: true}}}, nil
 }
 
-func (m *MockLightningApi) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphApi, error) {
+func (m *MockLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
 	m.Trace += "describegraph" + strconv.FormatBool(unannounced)
 
-	return &DescribeGraphApi{Nodes: []DescribeGraphNodeApi{{PubKey: "fake"}},
-		Channels: []NodeChannelApi{{ChannelId: 1, Capacity: 1, Node1Pub: "fake"}, {ChannelId: 2, Capacity: 2, Node2Pub: "fake"}}}, nil
+	return &DescribeGraphAPI{Nodes: []DescribeGraphNodeAPI{{PubKey: "fake"}},
+		Channels: []NodeChannelAPI{{ChannelID: 1, Capacity: 1, Node1Pub: "fake"}, {ChannelID: 2, Capacity: 2, Node2Pub: "fake"}}}, nil
 }
-func (m *MockLightningApi) GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoApiExtended, error) {
+func (m *MockLightningAPI) GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoAPIExtended, error) {
 	// Do not use
 	m.Trace += "wrong"
 	return nil, nil
 }
-func (m *MockLightningApi) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoApi, error) {
+func (m *MockLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
 	m.Trace += "getnodeinfo" + pubKey + strconv.FormatBool(channels)
 
-	return &NodeInfoApi{Node: DescribeGraphNodeApi{PubKey: "fake"},
-		Channels:    []NodeChannelApi{{ChannelId: 1, Capacity: 1}, {ChannelId: 2, Capacity: 2}},
+	return &NodeInfoAPI{Node: DescribeGraphNodeAPI{PubKey: "fake"},
+		Channels:    []NodeChannelAPI{{ChannelID: 1, Capacity: 1}, {ChannelID: 2, Capacity: 2}},
 		NumChannels: 2, TotalCapacity: 3}, nil
 }
 
-func (m *MockLightningApi) GetChanInfo(ctx context.Context, chanId uint64) (*NodeChannelApi, error) {
-	m.Trace += fmt.Sprintf("getchaninfo%d", chanId)
-	return &NodeChannelApi{ChannelId: chanId, Capacity: chanId}, nil
+func (m *MockLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
+	m.Trace += fmt.Sprintf("getchaninfo%d", chanID)
+	return &NodeChannelAPI{ChannelID: chanID, Capacity: chanID}, nil
 }
 
 func TestNodeInfoFull(t *testing.T) {
-	mock := &MockLightningApi{}
-	resp, err := getNodeInfoFullTemplate(mock, 100, context.Background(), true, true)
+	mock := &MockLightningAPI{}
+	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 100, true, true)
 	if err != nil {
 		t.Fatalf("Error getting node info: %v", err)
 		return
@@ -259,8 +259,8 @@ func TestNodeInfoFull(t *testing.T) {
 }
 
 func TestNodeInfoFullPublic(t *testing.T) {
-	mock := &MockLightningApi{}
-	resp, err := getNodeInfoFullTemplate(mock, 100, context.Background(), true, false)
+	mock := &MockLightningAPI{}
+	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 100, true, false)
 	if err != nil {
 		t.Fatalf("Error getting node info: %v", err)
 		return
@@ -278,8 +278,8 @@ func TestNodeInfoFullPublic(t *testing.T) {
 }
 
 func TestNodeInfoFullWithDescribeGraph(t *testing.T) {
-	mock := &MockLightningApi{}
-	resp, err := getNodeInfoFullTemplate(mock, 1, context.Background(), true, true)
+	mock := &MockLightningAPI{}
+	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 1, true, true)
 	if err != nil {
 		t.Fatalf("Error getting node info: %v", err)
 		return

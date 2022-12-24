@@ -9,20 +9,24 @@ import (
 	"github.com/golang/glog"
 )
 
+// PREFIX is the prefix for all metrics
 const PREFIX = "bolt.boltobserver"
 
+// CheckerMonitoring struct
 type CheckerMonitoring struct {
 	graphite *graphite.Graphite
 	env      string
 	name     string
 }
 
+// NewNopCheckerMonitoring constructs a new CheckerMonitoring that does nothing
 func NewNopCheckerMonitoring(name string) *CheckerMonitoring {
 	g := graphite.NewGraphiteNop("", 2003)
 	g.DisableLog = true
 	return &CheckerMonitoring{graphite: g, name: name}
 }
 
+// NewCheckerMonitoring constructs a new CheckerMonitoring instance
 func NewCheckerMonitoring(name, env, graphiteHost, graphitePort string) *CheckerMonitoring {
 	port, err := strconv.Atoi(graphitePort)
 	if err != nil {
@@ -52,6 +56,7 @@ func NewCheckerMonitoring(name, env, graphiteHost, graphitePort string) *Checker
 	return &CheckerMonitoring{graphite: g, env: env, name: name}
 }
 
+// MetricsTimer - is used to time function executions
 func (c *CheckerMonitoring) MetricsTimer(name string, tags map[string]string) func() {
 	// A simple way to time function execution ala
 	// defer c.timer("checkall")()
@@ -74,6 +79,7 @@ func (c *CheckerMonitoring) MetricsTimer(name string, tags map[string]string) fu
 	}
 }
 
+// MetricsReport - is used to report a metric
 func (c *CheckerMonitoring) MetricsReport(name, val string, tags map[string]string) {
 	g := c.graphite
 

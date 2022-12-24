@@ -10,48 +10,57 @@ import (
 	entities "github.com/bolt-observer/go_common/entities"
 )
 
+// Interval represents the enum of possible intervals
 type Interval int
 
 const (
-	MANUAL_REQUEST Interval = iota
-	SECOND
-	TEN_SECONDS
-	MINUTE
-	TEN_MINUTE
-	HOUR
+	// ManualRequest means just do it once
+	ManualRequest Interval = iota
+	// Second means once per second (useful just for testing)
+	Second
+	// TenSeconds means once every ten seconds
+	TenSeconds
+	// Minute means once every minute
+	Minute
+	// TenMinutes means once every ten minutes
+	TenMinutes
+	// Hour means once every hour
+	Hour
 )
 
+// Duration converts the interval to a duration
 func (i Interval) Duration() time.Duration {
 	switch i {
-	case SECOND:
+	case Second:
 		return 1 * time.Second
-	case TEN_SECONDS:
+	case TenSeconds:
 		return 10 * time.Second
-	case MINUTE:
+	case Minute:
 		return 1 * time.Minute
-	case TEN_MINUTE:
+	case TenMinutes:
 		return 10 * time.Minute
-	case HOUR:
+	case Hour:
 		return 1 * time.Hour
 	default:
 		return 0 * time.Second
 	}
 }
 
+// MarshalJSON is used for JSON serialiazation of interval
 func (i *Interval) MarshalJSON() ([]byte, error) {
 	str := ""
 	switch *i {
-	case MANUAL_REQUEST:
+	case ManualRequest:
 		str = `"manual"`
-	case SECOND:
+	case Second:
 		str = `"1s"`
-	case TEN_SECONDS:
+	case TenSeconds:
 		str = `"10s"`
-	case TEN_MINUTE:
+	case TenMinutes:
 		str = `"10m"`
-	case MINUTE:
+	case Minute:
 		str = `"1m"`
-	case HOUR:
+	case Hour:
 		str = `"1h"`
 	default:
 		return nil, fmt.Errorf("could not marshal interval: %v", i)
@@ -59,22 +68,23 @@ func (i *Interval) MarshalJSON() ([]byte, error) {
 	return []byte(str), nil
 }
 
+// UnmarshalJSON is used for JSON deserialiazation of interval
 func (i *Interval) UnmarshalJSON(s []byte) (err error) {
 	input := strings.ReplaceAll(strings.ToLower(string(s)), "\"", "")
 
 	switch input {
 	case "manual":
-		*i = MANUAL_REQUEST
+		*i = ManualRequest
 	case "1s":
-		*i = SECOND
+		*i = Second
 	case "10s":
-		*i = TEN_SECONDS
+		*i = TenSeconds
 	case "1m":
-		*i = MINUTE
+		*i = Minute
 	case "10m":
-		*i = TEN_MINUTE
+		*i = TenMinutes
 	case "1h":
-		*i = HOUR
+		*i = Hour
 	default:
 		return fmt.Errorf("could not marshal interval: %v", i)
 	}
@@ -82,58 +92,87 @@ func (i *Interval) UnmarshalJSON(s []byte) (err error) {
 	return nil
 }
 
+// BalanceReportCallback is called with new ChannelBalanceReport
 type BalanceReportCallback func(ctx context.Context, report *ChannelBalanceReport) bool
 
+// ReportingSettings struct
 type ReportingSettings struct {
-	GraphPollInterval    time.Duration          `json:"-"`
-	NoopInterval         time.Duration          `json:"-"` // If that much time has passed send null report
-	Filter               filter.FilterInterface `json:"-"`
-	PollInterval         Interval               `json:"poll_interval"`
-	AllowedEntropy       int                    `json:"allowed_entropy"`        // 64 bits is the default
-	AllowPrivateChannels bool                   `json:"allow_private_channels"` // default is false
+	// GraphPollInterval - intervl for graph polling
+	GraphPollInterval time.Duration `json:"-"`
+	// NoopInterval - send keepalive also when no changes happened
+	NoopInterval time.Duration `json:"-"`
+	// Filter is used to filter specific channels
+	Filter filter.FilteringInterface `json:"-"`
+	// PollInterval - defines how often the polling happens
+	PollInterval Interval `json:"poll_interval"`
+	// AllowedEntropy - is user specified entropy that can be reported
+	AllowedEntropy int `json:"allowed_entropy"` // 64 bits is the default
+	// AllowPrivateChannels - whether private channels were allowed (fitering will set this to true too)
+	AllowPrivateChannels bool `json:"allow_private_channels"` // default is false
 }
 
+// ChannelBalanceReport struct
 type ChannelBalanceReport struct {
 	ReportingSettings
-	Chain           string            `json:"chain"`   // should be bitcoin (bitcoin, litecoin)
-	Network         string            `json:"network"` // should be mainnet (regtest, testnet, mainnet)
-	PubKey          string            `json:"pubkey"`
-	UniqueId        string            `json:"uniqueId,omitempty"` // optional unique identifier
-	Timestamp       entities.JsonTime `json:"timestamp"`
-	ChangedChannels []ChannelBalance  `json:"changed_channels"`
-	ClosedChannels  []ClosedChannel   `json:"closed_channels"`
+	// Chain - should be bitcoin (bitcoin, litecoin)
+	Chain string `json:"chain"`
+	// Network - should be mainnet (regtest, testnet, mainnet)
+	Network string `json:"network"`
+	// Pubkey - node pubkey
+	PubKey string `json:"pubkey"`
+	// UniqueID is the optional unique identifier
+	UniqueID string `json:"uniqueId,omitempty"`
+	// Timestamp - timestamp of report
+	Timestamp entities.JsonTime `json:"timestamp"`
+	// ChangedChannels - contains all channels were balance has changed
+	ChangedChannels []ChannelBalance `json:"changed_channels"`
+	// ClosedChannels - contains all channels that were determined to be closed
+	ClosedChannels []ClosedChannel `json:"closed_channels"`
 }
 
+// ClosedChannel struct
 type ClosedChannel struct {
-	ChannelId uint64 `json:"channel_id"`
+	ChannelID uint64 `json:"channel_id"`
 }
 
+// ChannelBalance struct
 type ChannelBalance struct {
-	Active  bool `json:"active"`
+	// Active - is channel active
+	Active bool `json:"active"`
+	// Private - is channel private
 	Private bool `json:"private"`
-	// Deprecated
+	// Deprecated - ActivePrevious is whether channel was Active in previous run
 	ActivePrevious bool `json:"active_previous"`
 
-	LocalPubkey  string `json:"local_pubkey"`
+	// LocalPubkey is the local node pubkey
+	LocalPubkey string `json:"local_pubkey"`
+	// RemotePubkey is the remote node pubkey
 	RemotePubkey string `json:"remote_pubkey"`
-	ChanId       uint64 `json:"chan_id"`
-	Capacity     uint64 `json:"capacity"`
+	// ChanID - short channel id
+	ChanID uint64 `json:"chan_id"`
+	// Capacity - capacity of channel in satoshis
+	Capacity uint64 `json:"capacity"`
 
+	// RemoteNominator - is the remote side nominator
 	RemoteNominator uint64 `json:"remote_nominator"`
-	LocalNominator  uint64 `json:"local_nominator"`
-	Denominator     uint64 `json:"denominator"`
+	// LocalNominator - is the local side nominator
+	LocalNominator uint64 `json:"local_nominator"`
+	// Denominator - is the denominator (with high entropy allowed this is more or less channnel capacity)
+	Denominator uint64 `json:"denominator"`
 
-	// Deprecated
+	// Deprecated - RemoteNominatorDiff is the difference of RemoteNominator between now and previous run
 	RemoteNominatorDiff int64 `json:"remote_nominator_diff"`
-	// Deprecated
+	// Deprecated - LocalNominatorDiff is the difference of LocalNominator between now and previous run
 	LocalNominatorDiff int64 `json:"local_nominator_diff"`
-	// Deprecated
+	// Deprecated - DenominatorDiff is the difference of Denominator between now and previous run
 	DenominatorDiff int64 `json:"denominator_diff"`
 
+	// ActiveRemote - does other node specify channel as active
 	ActiveRemote bool `json:"active_remote"`
-	// Deprecated
+	// Deprecated - ActiveRemotePrevious - ActiveRemote from previous run
 	ActiveRemotePrevious bool `json:"active_remote_previous"`
-	ActiveLocal          bool `json:"active_local"`
-	// Deprecated
+	// ActiveLocal - does current node specify channel as active
+	ActiveLocal bool `json:"active_local"`
+	// Deprecated - ActiveLocalPrevious - ActiveLocal from previous run
 	ActiveLocalPrevious bool `json:"active_local_previous"`
 }

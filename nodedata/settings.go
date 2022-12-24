@@ -49,11 +49,11 @@ func (s *GlobalSettings) Delete(key string) {
 }
 
 type Settings struct {
-	nodeDataCallback 			entities.NodeDataReportCallback
-	getApi                entities.NewApiCall
-	hash                  uint64
-	identifier            entities.NodeIdentifier
-	lastGraphCheck        time.Time
-	lastReport            time.Time
-	settings              entities.ReportingSettings
+	nodeDataCallback entities.NodeDataReportCallback
+	getApi           entities.NewAPICall
+	hash             uint64
+	identifier       entities.NodeIdentifier
+	lastGraphCheck   time.Time
+	lastReport       time.Time
+	settings         entities.ReportingSettings
 }
