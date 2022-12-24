@@ -20,7 +20,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 )
 
-func getInfoJson(pubkey string) string {
+func getInfoJSON(pubkey string) string {
 	return fmt.Sprintf(`{
 		"identity_pubkey": "%s",
 		"alias": "alias",
@@ -32,7 +32,7 @@ func getBrokenChannels() string {
 	return `channels: [ { "chan_id": {`
 }
 
-func getNodeInfoJson(pubKey string) string {
+func getNodeInfoJSON(pubKey string) string {
 	return fmt.Sprintf(`
 	{"node":{"last_update":1661453114, "pub_key":"%s", "alias":"CrazyConqueror", "addresses":[{"network":"tcp", "addr":"54.147.187.113:9735"}], "color":"#3399ff", "features":{"0":{"name":"data-loss-protect", "is_required":true, "is_known":true}, "5":{"name":"upfront-shutdown-script", "is_required":false, "is_known":true}, "7":{"name":"gossip-queries", "is_required":false, "is_known":true}, "9":{"name":"tlv-onion", "is_required":false, "is_known":true}, "12":{"name":"static-remote-key", "is_required":true, "is_known":true}, "14":{"name":"payment-addr", "is_required":true, "is_known":true}, "17":{"name":"multi-path-payments", "is_required":false, "is_known":true}, "19":{"name":"wumbo-channels", "is_required":false, "is_known":true}, "23":{"name":"anchors-zero-fee-htlc-tx", "is_required":false, "is_known":true}, "31":{"name":"amp", "is_required":false, "is_known":true}, "45":{"name":"explicit-commitment-type", "is_required":false, "is_known":true}, "2023":{"name":"script-enforced-lease", "is_required":false, "is_known":true}}}, "num_channels":3, "total_capacity":"120000", "channels":[{"channel_id":"810130063083110402", "chan_point":"72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2", "last_update":1661455399, "node1_pub":"02004c625d622245606a1ea2c1c69cfb4516b703b47945a3647713c05fe4aaeb1c", "node2_pub":"02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", "capacity":"50000", "node1_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"49500000", "last_update":1661455399}, "node2_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"49500000", "last_update":1661395514}}, {"channel_id":"811207584397066241", "chan_point":"041ba5fed6252813c1913df8a303d59f3d564c53eb3b6f6d218d47fb400f5c31:1", "last_update":1661455399, "node1_pub":"02004c625d622245606a1ea2c1c69cfb4516b703b47945a3647713c05fe4aaeb1c", "node2_pub":"02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", "capacity":"20000", "node1_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"19800000", "last_update":1661455399}, "node2_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"19800000", "last_update":1661395514}}, {"channel_id":"821261518687043586", "chan_point":"806d3e1328ddf56958ae3730978c744cac79cfe928b0af8a5a8b52b9f9f66fef:2", "last_update":1661458021, "node1_pub":"02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", "node2_pub":"03005b000a0ed2b172e7608b062bfe2be18df54769a246941b2cebb5ff2658bb83", "capacity":"50000", "node1_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"49500000", "last_update":1661415314}, "node2_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"49500000", "last_update":1661458021}}]}
 	`, pubKey)
@@ -51,7 +51,7 @@ func getChanInfo(url string) string {
 	`, id, id*10000)
 }
 
-func getChannelJson(remote uint64, private, active bool) string {
+func getChannelJSON(remote uint64, private, active bool) string {
 	return fmt.Sprintf(`{
 				"channels": [
 				  {
@@ -185,13 +185,13 @@ func TestBasicFlow(t *testing.T) {
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
-			contents = getChannelJson(1337, false, true)
+			contents = getChannelJSON(1337, false, true)
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
 			contents = getChanInfo(req.URL.Path)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
@@ -249,13 +249,13 @@ func TestContextCanBeNil(t *testing.T) {
 		var contents string
 		urlPath = req.URL.Path
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
-			contents = getChannelJson(1337, false, true)
+			contents = getChannelJSON(1337, false, true)
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
 			contents = getChanInfo(req.URL.Path)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
@@ -309,13 +309,13 @@ func TestGetState(t *testing.T) {
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
-			contents = getChannelJson(1337, false, true)
+			contents = getChannelJSON(1337, false, true)
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
 			contents = getChanInfo(req.URL.Path)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
@@ -359,13 +359,13 @@ func TestGetStateCallback(t *testing.T) {
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
-			contents = getChannelJson(1337, false, true)
+			contents = getChannelJSON(1337, false, true)
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
 			contents = getChanInfo(req.URL.Path)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
@@ -437,7 +437,7 @@ func TestSubscription(t *testing.T) {
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
@@ -517,11 +517,11 @@ func TestPrivateChannelsExcluded(t *testing.T) {
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
-			contents = getChannelJson(1337, true, true)
+			contents = getChannelJSON(1337, true, true)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
@@ -579,17 +579,17 @@ func TestInactiveFlow(t *testing.T) {
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
 			if step == 0 {
-				contents = getChannelJson(1337, false, true)
+				contents = getChannelJSON(1337, false, true)
 			} else if step == 1 {
-				contents = getChannelJson(1337, false, false)
+				contents = getChannelJSON(1337, false, false)
 			} else if step == 2 {
-				contents = getChannelJson(1337, false, true)
+				contents = getChannelJSON(1337, false, true)
 			}
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
 			contents = getChanInfo(req.URL.Path)
 		}
@@ -613,21 +613,21 @@ func TestInactiveFlow(t *testing.T) {
 			switch step {
 			case 0:
 				if len(report.ChannelReport.ChangedChannels) == 2 {
-					step += 1
+					step++
 				} else {
 					cancel()
 					t.Fatalf("Bad step 0")
 				}
 			case 1:
 				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].Active == false && report.ChannelReport.ChangedChannels[0].ActivePrevious == true {
-					step += 1
+					step++
 				} else {
 					cancel()
 					t.Fatalf("Bad step 1")
 				}
 			case 2:
 				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].Active == true && report.ChannelReport.ChangedChannels[0].ActivePrevious == false {
-					step += 1
+					step++
 					cancel()
 				} else {
 					cancel()
@@ -669,19 +669,19 @@ func TestChange(t *testing.T) {
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
 			if step == 0 {
-				contents = getChannelJson(1337, false, true)
+				contents = getChannelJSON(1337, false, true)
 			} else if step == 1 {
-				contents = getChannelJson(1339, false, true)
+				contents = getChannelJSON(1339, false, true)
 			} else if step == 2 {
-				contents = getChannelJson(1337, false, true)
+				contents = getChannelJSON(1337, false, true)
 			}
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
 			contents = getChanInfo(req.URL.Path)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
@@ -703,21 +703,21 @@ func TestChange(t *testing.T) {
 			switch step {
 			case 0:
 				if len(report.ChannelReport.ChangedChannels) == 2 {
-					step += 1
+					step++
 				} else {
 					cancel()
 					t.Fatalf("Bad step 0")
 				}
 			case 1:
 				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].RemoteNominator == 1339 && report.ChannelReport.ChangedChannels[0].RemoteNominatorDiff == 2 {
-					step += 1
+					step++
 				} else {
 					cancel()
 					t.Fatalf("Bad step 1")
 				}
 			case 2:
 				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].RemoteNominator == 1337 && report.ChannelReport.ChangedChannels[0].RemoteNominatorDiff == -2 {
-					step += 1
+					step++
 					cancel()
 				} else {
 					cancel()
@@ -757,7 +757,7 @@ func TestPubkeyWrong(t *testing.T) {
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("wrong")
+			contents = getInfoJSON("wrong")
 		}
 
 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
@@ -800,19 +800,19 @@ func TestPubkeyWrong(t *testing.T) {
 //	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 //		var contents string
 //		if strings.Contains(req.URL.Path, "v1/getinfo") {
-//			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+//			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 //		} else if strings.Contains(req.URL.Path, "v1/channels") {
 //			if step == 0 {
-//				contents = getChannelJson(1337, false, true)
+//				contents = getChannelJSON(1337, false, true)
 //			} else if step >= 1 {
-//				contents = getChannelJson(1339, false, true)
+//				contents = getChannelJSON(1339, false, true)
 //			}
 //
-//			step += 1
+//			step++
 //		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
 //			contents = getChanInfo(req.URL.Path)
 //		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-//			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+//			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 //		} else {
 //			fmt.Println("Path unhandled")
 //			fmt.Println(req.URL.Path)
@@ -897,19 +897,19 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
 			if step == 0 {
-				contents = getChannelJson(1337, false, true)
+				contents = getChannelJSON(1337, false, true)
 			} else if step >= 1 {
 				contents = getBrokenChannels()
 			}
 
-			step += 1
+			step++
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
 			contents = getChanInfo(req.URL.Path)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
@@ -977,19 +977,19 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
 			if step == 0 {
-				contents = getChannelJson(1337, false, true)
+				contents = getChannelJSON(1337, false, true)
 			} else if step == 1 {
-				contents = getChannelJson(1338, false, true)
+				contents = getChannelJSON(1338, false, true)
 			} else if step == 2 {
-				contents = getChannelJson(1339, false, true)
+				contents = getChannelJSON(1339, false, true)
 			}
 		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
 			contents = getChanInfo(req.URL.Path)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
 		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
@@ -1011,14 +1011,14 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 			switch step {
 			case 0:
 				if len(report.ChannelReport.ChangedChannels) == 2 {
-					step += 1
+					step++
 				} else {
 					cancel()
 					t.Fatalf("Bad step 0")
 				}
 			case 1:
 				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].RemoteNominator == 1338 && report.ChannelReport.ChangedChannels[0].RemoteNominatorDiff == 1 {
-					step += 1
+					step++
 				} else {
 					cancel()
 					t.Fatalf("Bad step 1")
@@ -1027,7 +1027,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 				return false
 			case 2:
 				if len(report.ChannelReport.ChangedChannels) == 1 && report.ChannelReport.ChangedChannels[0].RemoteNominator == 1339 && report.ChannelReport.ChangedChannels[0].RemoteNominatorDiff == 2 {
-					step += 1
+					step++
 					cancel()
 				} else {
 					cancel()
@@ -1071,9 +1071,9 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 //	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 //		var contents string
 //		if strings.Contains(req.URL.Path, "v1/getinfo") {
-//			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+//			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 //		} else if strings.Contains(req.URL.Path, "v1/channels") {
-//			contents = getChannelJson(1337, false, true)
+//			contents = getChannelJSON(1337, false, true)
 //		} else if strings.Contains(req.URL.Path, "v1/graph") {
 //			contents = `
 //			{"nodes":[{"last_update":1659296984,"pub_key":"020003b9499a97c8dfbbab6b196319db37ba9c37bccb60477f3c867175f417988e","alias":"BJCR_BTCPayServer","addresses":[{"network":"tcp","addr":"95.217.192.209:9735"}],"color":"#3399ff","features":{"0":{"name":"data-loss-protect","is_required":true,"is_known":true},"12":{"name":"static-remote-key","is_required":true,"is_known":true},"14":{"name":"payment-addr","is_required":true,"is_known":true},"17":{"name":"multi-path-payments","is_known":true},"2023":{"name":"script-enforced-lease","is_known":true},"23":{"name":"anchors-zero-fee-htlc-tx","is_known":true},"31":{"name":"amp","is_known":true},"45":{"name":"explicit-commitment-type","is_known":true},"5":{"name":"upfront-shutdown-script","is_known":true},"7":{"name":"gossip-queries","is_known":true},"9":{"name":"tlv-onion","is_known":true}}},{"last_update":1657199384,"pub_key":"0200072fd301cb4a680f26d87c28b705ccd6a1d5b00f1b5efd7fe5f998f1bbb1f1","alias":"OutaSpace 🚀","addresses":[{"network":"tcp","addr":"176.28.11.68:9760"},{"network":"tcp","addr":"nzslu33ecbokyn32teza2peiiiuye43ftom7jvnuhsxdbg3vhw7w3aqd.onion:9760"}],"color":"#123456","features":{"1":{"name":"data-loss-protect","is_known":true},"11":{"name":"unknown"},"13":{"name":"static-remote-key","is_known":true},"14":{"name":"payment-addr","is_required":true,"is_known":true},"17":{"name":"multi-path-payments","is_known":true},"27":{"name":"unknown"},"5":{"name":"upfront-shutdown-script","is_known":true},"55":{"name":"unknown"},"7":{"name":"gossip-queries","is_known":true},"8":{"name":"tlv-onion","is_required":true,"is_known":true}}},{"last_update":1618162974,"pub_key":"0200081eaa41b5661d3b512f5aae9d6abfb11ba1497a354e9217d9a18fbaa1e76b","alias":"0200081eaa41b5661d3b","addresses":[{"network":"tcp","addr":"lm63zodngkzqbol6lgadijh5p5xm6ltbekfxlbofvmnbkvi5cnzrzdid.onion:9735"}],"color":"#3399ff","features":{"0":{"name":"data-loss-protect","is_required":true,"is_known":true},"12":{"name":"static-remote-key","is_required":true,"is_known":true},"14":{"name":"payment-addr","is_required":true,"is_known":true},"17":{"name":"multi-path-payments","is_known":true},"5":{"name":"upfront-shutdown-script","is_known":true},"7":{"name":"gossip-queries","is_known":true},"9":{"name":"tlv-onion","is_known":true}}},{"last_update":1660845145,"pub_key":"020016201d389a44840f1f33be29288952f67c8ef6b3f98726fda180b4185ca6e2","alias":"AlasPoorYorick","addresses":[{"network":"tcp","addr":"7vuykfnmgkarlk4xjew4ea6lj7qwbbggbox4b72abupu7sn24geajzyd.onion:9735"}],"color":"#604bee","features":{"0":{"name":"data-loss-protect","is_required":true,"is_known":true},"12":{"name":"static-remote-key","is_required":true,"is_known":true},"14":{"name":"payment-addr","is_required":true,"is_known":true},"17":{"name":"multi-path-payments","is_known":true},"2023":{"name":"script-enforced-lease","is_known":true},"23":{"name":"anchors-zero-fee-htlc-tx","is_known":true},"31":{"name":"amp","is_known":true},"45":{"name":"explicit-commitment-type","is_known":true},"5":{"name":"upfront-shutdown-script","is_known":true},"7":{"name":"gossip-queries","is_known":true},"9":{"name":"tlv-onion","is_known":true}}},{"last_update":1660753871,"pub_key":"02001828ca7eb8e44d4d78b5c1ea609cd3744be823c22cd69d895eff2f9345892d","alias":"nodl-lnd-s010-042","addresses":[{"network":"tcp","addr":"185.150.160.210:4042"}],"color":"#000000","features":{"0":{"name":"data-loss-protect","is_required":true,"is_known":true},"12":{"name":"static-remote-key","is_required":true,"is_known":true},"14":{"name":"payment-addr","is_required":true,"is_known":true},"17":{"name":"multi-path-payments","is_known":true},"2023":{"name":"script-enforced-lease","is_known":true},"23":{"name":"anchors-zero-fee-htlc-tx","is_known":true},"31":{"name":"amp","is_known":true},"45":{"name":"explicit-commitment-type","is_known":true},"5":{"name":"upfront-shutdown-script","is_known":true},"7":{"name":"gossip-queries","is_known":true},"9":{"name":"tlv-onion","is_known":true}}}],"edges":[{"channel_id":"553951550347608065","capacity":"37200","chan_point":"ede04f9cfc1bb5373fd07d8af9c9b8b5a85cfe5e323b7796eb0a4d0dce5d5058:1","node1_pub":"03bd3466efd4a7306b539e2314e69efc6b1eaee29734fcedd78cf81b1dde9fedf8","node2_pub":"03c3d14714b78f03fd6ea4997c2b540a4139258249ea1d625c03b68bb82f85d0ea"},{"channel_id":"554317687705305088","capacity":"1000000","chan_point":"cfd0ae79fc150c2c3c4068ceca74bc26652bb2691624379aba9e28b197a78d6a:0","node1_pub":"02eccebd9ed98f6d267080a58194dbe554a2b33d976eb95bb7c116d00fd64c4a13","node2_pub":"02ee4469f2b686d5d02422917ac199602ce4c366a7bfaac1099e3ade377677064d"},{"channel_id":"554460624201252865","capacity":"1000000","chan_point":"c0a8d3428f562c232d86be399eb4497934e7e0390fa79e6860bcb65e7b0dd4fe:1","node1_pub":"02eccebd9ed98f6d267080a58194dbe554a2b33d976eb95bb7c116d00fd64c4a13","node2_pub":"02ee4469f2b686d5d02422917ac199602ce4c366a7bfaac1099e3ade377677064d"},{"channel_id":"554494709160148993","capacity":"200000","chan_point":"06bbac25ed610feb1d07316d1be8b8ba6850ee1dd96cc1d5439159bfe992be5a:1","node1_pub":"03bd3466efd4a7306b539e2314e69efc6b1eaee29734fcedd78cf81b1dde9fedf8","node2_pub":"03cbf298b068300be33f06c947b9d3f00a0f0e8089da3233f5db37e81d3a596fe1"},{"channel_id":"554495808645955584","capacity":"2000000","chan_point":"2392c45431c064269e4eaeccb0476ac32e56485d84e104064636aea896d1e439:0","node1_pub":"022e74ed3ddd3f590fd6492e60b20dcad7303f17e1ffd882fb33bb3f6c88f64398","node2_pub":"02ee4469f2b686d5d02422917ac199602ce4c366a7bfaac1099e3ade377677064d"}]}
@@ -1144,11 +1144,11 @@ func TestBasicFlowRedis(t *testing.T) {
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
-			contents = getInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
-			contents = getChannelJson(1337, false, true)
+			contents = getChannelJSON(1337, false, true)
 		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-			contents = getNodeInfoJson("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else {
 			fmt.Println("Path unhandled")
 			fmt.Println(req.URL.Path)

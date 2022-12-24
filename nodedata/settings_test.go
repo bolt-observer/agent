@@ -8,15 +8,15 @@ import (
 	"github.com/bolt-observer/go_common/utils"
 )
 
-func getApi() api.LightingAPICalls {
+func getAPI() api.LightingAPICalls {
 	return nil
 }
 
 func TestDeleteInTheMiddle(t *testing.T) {
 
-	settings := NewGlobalSettings()
+	settings := NewPerNodeSettings()
 
-	settings.Set("burek", Settings{identifier: entities.NodeIdentifier{Identifier: "1337", UniqueID: "1337"}, getApi: getApi})
+	settings.Set("burek", Settings{identifier: entities.NodeIdentifier{Identifier: "1337", UniqueID: "1337"}, getAPI: getAPI})
 
 	if !utils.Contains(settings.GetKeys(), "burek") {
 		t.Fatalf("Element not present")
@@ -27,7 +27,7 @@ func TestDeleteInTheMiddle(t *testing.T) {
 		t.Fatalf("Wrong stuff returned")
 	}
 
-	s.getApi()
+	s.getAPI()
 
 	settings.Delete("burek")
 	if s.identifier.UniqueID != "1337" {

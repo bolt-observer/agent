@@ -6,36 +6,52 @@ import (
 	"github.com/golang/glog"
 )
 
+// ChannelCache struct
 type ChannelCache interface {
+	// Lock - acquire lock
 	Lock()
+	// Unlock - release lock
 	Unlock()
+	// Get - get channel cache
 	Get(name string) (string, bool)
+	// Set - set channel cache
 	Set(name string, value string)
+	// DeferredSet - set channel cache but do not commit it yet
 	DeferredSet(name, old, new string)
+	// DeferredCommit - commit channel cache from DeferredSet
 	DeferredCommit() bool
+	// DeferredRevert - revert channel cache from DeferredSet
 	DeferredRevert() bool
 }
 
+// Lock - acquire lock
 func (c *InMemoryChannelCache) Lock() {
 	c.chanMutex.Lock()
 }
+
+// Unlock - release lock
 func (c *InMemoryChannelCache) Unlock() {
 	c.chanMutex.Unlock()
 }
 
+// Get - get channel cache
 func (c *InMemoryChannelCache) Get(name string) (string, bool) {
 	a, b := c.chanCache[name]
 	return a, b
 }
+
+// Set - set channel cache
 func (c *InMemoryChannelCache) Set(name string, value string) {
 	c.chanCache[name] = value
 }
 
+// OldNewVal struct
 type OldNewVal struct {
 	OldValue string
 	NewValue string
 }
 
+// InMemoryChannelCache - ChannelCache implementation that stores data in memory
 type InMemoryChannelCache struct {
 	chanMutex sync.Mutex
 	chanCache map[string]string
@@ -44,6 +60,7 @@ type InMemoryChannelCache struct {
 	deferredCache      map[string]OldNewVal
 }
 
+// NewInMemoryChannelCache - construct new InMemoryChannelCache
 func NewInMemoryChannelCache() *InMemoryChannelCache {
 	resp := &InMemoryChannelCache{
 		chanCache:          make(map[string]string),
@@ -55,6 +72,7 @@ func NewInMemoryChannelCache() *InMemoryChannelCache {
 	return resp
 }
 
+// DeferredSet - set channel cache but do not commit it yet
 func (c *InMemoryChannelCache) DeferredSet(name, old, new string) {
 	c.deferredCacheMutex.Lock()
 	defer c.deferredCacheMutex.Unlock()
@@ -64,6 +82,7 @@ func (c *InMemoryChannelCache) DeferredSet(name, old, new string) {
 	c.deferredCache[name] = OldNewVal{OldValue: old, NewValue: new}
 }
 
+// DeferredCommit - commit channel cache from DeferredSet
 func (c *InMemoryChannelCache) DeferredCommit() bool {
 	c.Lock()
 	c.deferredCacheMutex.Lock()
@@ -87,6 +106,7 @@ func (c *InMemoryChannelCache) DeferredCommit() bool {
 	return true
 }
 
+// DeferredRevert - revert channel cache from DeferredSet
 func (c *InMemoryChannelCache) DeferredRevert() bool {
 	c.Lock()
 	c.deferredCacheMutex.Lock()

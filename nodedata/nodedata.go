@@ -12,38 +12,42 @@ import (
 	"syscall"
 	"time"
 
-	entities "github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/entities"
 	api "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
-	utils "github.com/bolt-observer/go_common/utils"
+	"github.com/bolt-observer/go_common/utils"
 	"github.com/getsentry/sentry-go"
 	"github.com/golang/glog"
 	"github.com/mitchellh/hashstructure/v2"
 )
 
+// SetOfChanIds is a set of channel IDs
 type SetOfChanIds map[uint64]struct{}
 
+// NodeData struct
 type NodeData struct {
 	ctx               context.Context
-	globalSettings    *GlobalSettings
+	perNodeSettings   *PerNodeSettings
 	channelCache      ChannelCache
 	nodeChanIds       map[string]SetOfChanIds
 	nodeChanIdsNew    map[string]SetOfChanIds
 	locallyDisabled   SetOfChanIds
-	remotlyDisabled   SetOfChanIds
+	remotelyDisabled  SetOfChanIds
 	smooth            bool          // Should we smooth out fluctuations due to HTLCs
 	keepAliveInterval time.Duration // Keepalive interval
 	checkGraph        bool          // Should we check gossip
-	monitoring        *NodeDataMonitoring
+	monitoring        *Monitoring
 	eventLoopInterval time.Duration
 	reentrancyBlock   *entities.ReentrancyBlock
 }
 
-func NewDefaultNodeData(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *NodeDataMonitoring) *NodeData {
+// NewDefaultNodeData constructs a new NodeData
+func NewDefaultNodeData(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *Monitoring) *NodeData {
 	return NewNodeData(ctx, NewInMemoryChannelCache(), keepAlive, smooth, checkGraph, monitoring)
 }
 
-func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *NodeDataMonitoring) *NodeData {
+// NewNodeData constructs a new NodeData
+func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *Monitoring) *NodeData {
 	if ctx == nil {
 		ctx = getContext()
 	}
@@ -54,12 +58,12 @@ func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duratio
 
 	return &NodeData{
 		ctx:               ctx,
-		globalSettings:    NewGlobalSettings(),
+		perNodeSettings:   NewPerNodeSettings(),
 		channelCache:      cache,
 		nodeChanIds:       make(map[string]SetOfChanIds),
 		nodeChanIdsNew:    make(map[string]SetOfChanIds),
 		locallyDisabled:   make(SetOfChanIds),
-		remotlyDisabled:   make(SetOfChanIds),
+		remotelyDisabled:  make(SetOfChanIds),
 		smooth:            smooth,
 		checkGraph:        checkGraph,
 		keepAliveInterval: keepAlive,
@@ -69,25 +73,25 @@ func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duratio
 	}
 }
 
-// Check if we are subscribed for a certain public key
-func (c *NodeData) IsSubscribed(pubKey, uniqueId string) bool {
-	return utils.Contains(c.globalSettings.GetKeys(), pubKey+uniqueId)
+// IsSubscribed - check if we are subscribed for a certain public key
+func (c *NodeData) IsSubscribed(pubKey, uniqueID string) bool {
+	return utils.Contains(c.perNodeSettings.GetKeys(), pubKey+uniqueID)
 }
 
-// Subscribe to notifications about channel changes (if already subscribed this will force a callback, use IsSubscribed to check)
+// Subscribe - subscribe to notifications about node changes (if already subscribed this will force a callback, use IsSubscribed to check)
 func (c *NodeData) Subscribe(
 	nodeDataCallback entities.NodeDataReportCallback,
-	getApi entities.NewAPICall,
+	getAPI entities.NewAPICall,
 	PollInterval entities.Interval,
 	pubKey string,
 	settings entities.ReportingSettings,
-	uniqueId string) error {
+	uniqueID string) error {
 
 	if pubKey != "" && !utils.ValidatePubkey(pubKey) {
 		return errors.New("invalid pubkey")
 	}
 
-	api := getApi()
+	api := getAPI()
 	if api == nil {
 		return fmt.Errorf("failed to get client")
 	}
@@ -110,30 +114,30 @@ func (c *NodeData) Subscribe(
 		settings.NoopInterval = c.keepAliveInterval
 	}
 
-	c.globalSettings.Set(info.IdentityPubkey+uniqueId, Settings{
+	c.perNodeSettings.Set(info.IdentityPubkey+uniqueID, Settings{
 		nodeDataCallback: nodeDataCallback,
 		hash:             0,
-		identifier:       entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId},
+		identifier:       entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID},
 		lastGraphCheck:   time.Time{},
 		lastReport:       time.Time{},
 		settings:         settings,
-		getApi:           getApi,
+		getAPI:           getAPI,
 	})
 
 	return nil
 }
 
-// Unsubscribe from a pubkey
-func (c *NodeData) Unsubscribe(pubkey, uniqueId string) error {
-	c.globalSettings.Delete(pubkey + uniqueId)
+// Unsubscribe - unsubscribe from a pubkey
+func (c *NodeData) Unsubscribe(pubkey, uniqueID string) error {
+	c.perNodeSettings.Delete(pubkey + uniqueID)
 	return nil
 }
 
-// Get current state (settings.pollInterval is ignored)
+// GetState - get current state (settings.pollInterval is ignored)
 func (c *NodeData) GetState(
 	pubKey string,
-	uniqueId string,
-	getApi entities.NewAPICall,
+	uniqueID string,
+	getAPI entities.NewAPICall,
 	settings entities.ReportingSettings,
 	optCallback entities.NodeDataReportCallback) (*entities.NodeDataReport, error) {
 
@@ -141,7 +145,7 @@ func (c *NodeData) GetState(
 		return nil, errors.New("invalid pubkey")
 	}
 
-	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueId}, getApi, settings, true, false)
+	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, settings, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +232,7 @@ func (c *NodeData) getChannelList(
 		}
 
 		_, locallyDisabled := c.locallyDisabled[channel.ChanID]
-		_, remotlyDisabled := c.remotlyDisabled[channel.ChanID]
+		_, remotelyDisabled := c.remotelyDisabled[channel.ChanID]
 
 		resp = append(resp, entities.ChannelBalance{
 			Active:          channel.Active,
@@ -241,7 +245,7 @@ func (c *NodeData) getChannelList(
 			LocalNominator:  uint64(math.Round(float64(localBalance) / factor)),
 			Denominator:     uint64(math.Round(float64(total) / factor)),
 
-			ActiveRemote: !remotlyDisabled,
+			ActiveRemote: !remotelyDisabled,
 			ActiveLocal:  !locallyDisabled,
 		})
 	}
@@ -275,11 +279,12 @@ func getContext() context.Context {
 	return ctx
 }
 
-// WARNING: this should not be used except for unit testing
+// OverrideLoopInterval - WARNING: this should not be used except for unit testing
 func (c *NodeData) OverrideLoopInterval(duration time.Duration) {
 	c.eventLoopInterval = duration
 }
 
+// EventLoop - invoke the event loop
 func (c *NodeData) EventLoop() {
 	// nosemgrep
 	ticker := time.NewTicker(c.eventLoopInterval)
@@ -307,11 +312,11 @@ func (c *NodeData) EventLoop() {
 
 func (c *NodeData) fetchGraph(
 	pubKey string,
-	getApi entities.NewAPICall,
+	getAPI entities.NewAPICall,
 	settings entities.ReportingSettings,
 ) error {
 
-	api := getApi()
+	api := getAPI()
 	if api == nil {
 		return fmt.Errorf("failed to get client")
 	}
@@ -348,7 +353,7 @@ func (c *NodeData) fetchGraph(
 	}
 
 	c.locallyDisabled = locallyDisabled
-	c.remotlyDisabled = remotlyDisabled
+	c.remotelyDisabled = remotlyDisabled
 
 	return nil
 }
@@ -356,15 +361,15 @@ func (c *NodeData) fetchGraph(
 func (c *NodeData) checkAll() bool {
 	defer c.monitoring.MetricsTimer("checkall.global")()
 
-	for _, one := range c.globalSettings.GetKeys() {
-		s := c.globalSettings.Get(one)
+	for _, one := range c.perNodeSettings.GetKeys() {
+		s := c.perNodeSettings.Get(one)
 		now := time.Now()
 		if c.checkGraph && s.settings.GraphPollInterval != 0 {
 			graphToBeCheckedBy := s.lastGraphCheck.Add(s.settings.GraphPollInterval)
 
 			if graphToBeCheckedBy.Before(now) && s.identifier.Identifier != "" {
 				// Beware: here the graph is fetched just per node
-				err := c.fetchGraph(s.identifier.Identifier, s.getApi, s.settings)
+				err := c.fetchGraph(s.identifier.Identifier, s.getAPI, s.settings)
 				if err != nil {
 					glog.Warningf("Could not fetch graph from %s: %v", s.identifier.Identifier, err)
 				}
@@ -384,7 +389,7 @@ func (c *NodeData) checkAll() bool {
 
 			// Subscribe will set lastCheck to min value and you expect update in such a case
 			ignoreCache := toBeCheckedBy.Year() <= 1
-			resp, err := c.checkOne(s.identifier, s.getApi, s.settings, ignoreCache, reportAnyway)
+			resp, err := c.checkOne(s.identifier, s.getAPI, s.settings, ignoreCache, reportAnyway)
 			if err != nil {
 				glog.Warningf("Failed to check %v: %v", s.identifier.GetID(), err)
 				continue
@@ -433,24 +438,24 @@ func (c *NodeData) checkAll() bool {
 // checkOne checks one specific node
 func (c *NodeData) checkOne(
 	identifier entities.NodeIdentifier,
-	getApi entities.NewAPICall,
+	getAPI entities.NewAPICall,
 	settings entities.ReportingSettings,
 	ignoreCache bool,
 	reportAnyway bool) (*entities.NodeDataReport, error) {
-	s := c.globalSettings.Get(identifier.GetID())
+	s := c.perNodeSettings.Get(identifier.GetID())
 
 	metricsName := fmt.Sprintf("checkone.%s", identifier.GetID())
 	defer c.monitoring.MetricsTimer(metricsName)()
 
-	if getApi == nil {
+	if getAPI == nil {
 		c.monitoring.MetricsReport(metricsName, "failure")
-		return nil, fmt.Errorf("failed to get client - getApi was nil")
+		return nil, fmt.Errorf("failed to get client - getAPI was nil")
 	}
 
-	api := getApi()
+	api := getAPI()
 	if api == nil {
 		c.monitoring.MetricsReport(metricsName, "failure")
-		return nil, fmt.Errorf("failed to get client - getApi returned nil")
+		return nil, fmt.Errorf("failed to get client - getAPI returned nil")
 	}
 	defer api.Cleanup()
 
@@ -594,18 +599,18 @@ func (c *NodeData) filterList(
 }
 
 func (c *NodeData) commitAllChanges(one string, now time.Time, s Settings) {
-	c.commitChanIdChanges()
+	c.commitChanIDChanges()
 	c.channelCache.DeferredCommit()
 	s.lastReport = now
-	c.globalSettings.Set(one, s)
+	c.perNodeSettings.Set(one, s)
 }
 
 func (c *NodeData) revertAllChanges() {
-	c.revertChanIdChanges()
+	c.revertChanIDChanges()
 	c.channelCache.DeferredRevert()
 }
 
-func (c *NodeData) commitChanIdChanges() {
+func (c *NodeData) commitChanIDChanges() {
 	for k, v := range c.nodeChanIdsNew {
 		c.nodeChanIds[k] = v
 	}
@@ -615,7 +620,7 @@ func (c *NodeData) commitChanIdChanges() {
 	}
 }
 
-func (c *NodeData) revertChanIdChanges() {
+func (c *NodeData) revertChanIDChanges() {
 	for k := range c.nodeChanIdsNew {
 		delete(c.nodeChanIdsNew, k)
 	}

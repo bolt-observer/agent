@@ -26,7 +26,7 @@ import (
 	channelchecker "github.com/bolt-observer/agent/channelchecker"
 	"github.com/bolt-observer/agent/checkermonitoring"
 	"github.com/bolt-observer/agent/filter"
-	api "github.com/bolt-observer/agent/lightning_api"
+	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/agent/nodeinfo"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
@@ -51,8 +51,8 @@ var (
 	apiKey              string
 	url                 string
 	nodeurl             string
-	GitRevision         = "unknownVersion"
-
+	// GitRevision is set with build
+	GitRevision      = "unknownVersion"
 	nodeInfoReported sync.Map
 	private          bool
 	timeout          = 15 * time.Second
@@ -82,22 +82,22 @@ func getData(ctx *cli.Context) (*entities.Data, error) {
 		path := findUnixSocket(filepath.Join(defaultLightningDir, ctx.String("chain"), "lightning-rpc"), resp.Endpoint)
 		if path != "" {
 			resp.Endpoint = path
-			v := int(api.CLN_SOCKET)
+			v := int(api.ClnSocket)
 			resp.ApiType = &v
 		}
 	}
 
 	if resp.ApiType == nil {
 		if ctx.Bool("userest") {
-			v := int(api.LND_REST)
+			v := int(api.LndRest)
 			resp.ApiType = &v
 		} else {
-			v := int(api.LND_GRPC)
+			v := int(api.LndGrpc)
 			resp.ApiType = &v
 		}
 	}
 
-	if resp.ApiType != nil && *resp.ApiType == int(api.CLN_SOCKET) {
+	if resp.ApiType != nil && *resp.ApiType == int(api.ClnSocket) {
 		// CLN socket connections do not need anything else
 		return resp, nil
 	}
@@ -333,7 +333,7 @@ func getInterval(ctx *cli.Context, name string) (agent_entities.Interval, error)
 
 	err := i.UnmarshalJSON([]byte(s))
 	if err != nil {
-		return agent_entities.TEN_SECONDS, fmt.Errorf("unknown interval specified %s", s)
+		return agent_entities.TenSeconds, fmt.Errorf("unknown interval specified %s", s)
 	}
 
 	return i, nil
@@ -362,7 +362,7 @@ func redirectPost(req *http.Request, via []*http.Request) error {
 	return nil
 }
 
-func getHttpClient() *http.Client {
+func getHTTPClient() *http.Client {
 	var zeroDialer net.Dialer
 
 	httpClient := &http.Client{
@@ -399,7 +399,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 		return false
 	}
 
-	n := agent_entities.NodeIdentifier{Identifier: report.Node.PubKey, UniqueId: report.UniqueId}
+	n := agent_entities.NodeIdentifier{Identifier: report.Node.PubKey, UniqueID: report.UniqueID}
 
 	if nodeurl == "" {
 		if glog.V(2) {
@@ -407,7 +407,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 		} else {
 			glog.V(1).Infof("Sent out nodeinfo callback")
 		}
-		nodeInfoReported.Store(n.GetId(), struct{}{})
+		nodeInfoReported.Store(n.GetID(), struct{}{})
 		return true
 	}
 
@@ -420,7 +420,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := getHttpClient()
+	client := getHTTPClient()
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -446,7 +446,7 @@ func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
 		glog.V(1).Infof("Sent out nodeinfo callback")
 	}
 
-	nodeInfoReported.Store(n.GetId(), struct{}{})
+	nodeInfoReported.Store(n.GetID(), struct{}{})
 
 	return true
 }
@@ -455,10 +455,10 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	// When nodeinfo was not reported fake as if balance report could not be delivered (because same data
 	// will be eventually retried)
 
-	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueId: report.UniqueId}
-	_, ok := nodeInfoReported.Load(n.GetId())
+	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueID: report.UniqueID}
+	_, ok := nodeInfoReported.Load(n.GetID())
 	if !ok {
-		glog.V(3).Infof("Node data for %s was not reported yet", n.GetId())
+		glog.V(3).Infof("Node data for %s was not reported yet", n.GetID())
 		return false
 	}
 
@@ -486,7 +486,7 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := getHttpClient()
+	client := getHTTPClient()
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -517,9 +517,9 @@ func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceR
 	return true
 }
 
-func mkGetLndApi(ctx *cli.Context) agent_entities.NewApiCall {
-	return func() api.LightingApiCalls {
-		return api.NewApi(api.LND_GRPC, func() (*entities.Data, error) {
+func mkGetLndAPI(ctx *cli.Context) agent_entities.NewAPICall {
+	return func() api.LightingAPICalls {
+		return api.NewAPI(api.LndGrpc, func() (*entities.Data, error) {
 			return getData(ctx)
 		})
 	}
@@ -536,18 +536,18 @@ func reloadConfig(ctx context.Context, f *filter.FileFilter) {
 	}
 }
 
-func signalHandler(ctx context.Context, f filter.FilterInterface) {
+func signalHandler(ctx context.Context, f filter.FilteringInterface) {
 	ff, ok := f.(*filter.FileFilter)
 
-	signal_chan := make(chan os.Signal, 1)
-	exit_chan := make(chan int)
+	signalChan := make(chan os.Signal, 1)
+	exitChan := make(chan int)
 
-	signal.Notify(signal_chan,
+	signal.Notify(signalChan,
 		syscall.SIGHUP)
 	go func() {
 		for {
 			select {
-			case s := <-signal_chan:
+			case s := <-signalChan:
 				switch s {
 				case syscall.SIGHUP:
 					if ok {
@@ -557,19 +557,19 @@ func signalHandler(ctx context.Context, f filter.FilterInterface) {
 					}
 
 				case syscall.SIGTERM:
-					exit_chan <- 0
+					exitChan <- 0
 				case syscall.SIGQUIT:
-					exit_chan <- 0
+					exitChan <- 0
 				default:
 					fmt.Println("Unknown signal.")
-					exit_chan <- 1
+					exitChan <- 1
 				}
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
-	code := <-exit_chan
+	code := <-exitChan
 	os.Exit(code)
 }
 
@@ -634,30 +634,30 @@ func checker(ctx *cli.Context) error {
 	infochecker := nodeinfo.NewNodeInfo(ct, checkermonitoring.NewNopCheckerMonitoring("nodeinfo"))
 	c := channelchecker.NewDefaultChannelChecker(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), checkermonitoring.NewNopCheckerMonitoring("channelchecker"))
 
-	if interval == agent_entities.SECOND {
+	if interval == agent_entities.Second {
 		// Second is just for testing purposes
-		interval = agent_entities.TEN_SECONDS
+		interval = agent_entities.TenSeconds
 	}
 
-	if nodeinterval == agent_entities.SECOND {
+	if nodeinterval == agent_entities.Second {
 		// Second is just for testing purposes
-		nodeinterval = agent_entities.TEN_SECONDS
+		nodeinterval = agent_entities.TenSeconds
 	}
 
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
-	if settings.PollInterval == agent_entities.MANUAL_REQUEST {
-		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.MANUAL_REQUEST, mkGetLndApi(ctx), infoCallback, f)
+	if settings.PollInterval == agent_entities.ManualRequest {
+		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.ManualRequest, mkGetLndAPI(ctx), infoCallback, f)
 		time.Sleep(1 * time.Second)
-		c.GetState("", ctx.String("uniqueid"), mkGetLndApi(ctx), settings, balanceCallback)
+		c.GetState("", ctx.String("uniqueid"), mkGetLndAPI(ctx), settings, balanceCallback)
 	} else {
-		err := infochecker.Subscribe("", ctx.String("uniqueid"), private, nodeinterval, mkGetLndApi(ctx), infoCallback, f)
+		err := infochecker.Subscribe("", ctx.String("uniqueid"), private, nodeinterval, mkGetLndAPI(ctx), infoCallback, f)
 		if err != nil {
 			return err
 		}
 
 		err = c.Subscribe("", ctx.String("uniqueid"),
-			mkGetLndApi(ctx),
+			mkGetLndAPI(ctx),
 			settings,
 			balanceCallback)
 

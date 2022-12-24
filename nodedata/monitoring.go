@@ -9,21 +9,25 @@ import (
 	"github.com/marpaia/graphite-golang"
 )
 
+// PREFIX is the prefix for all metrics
 const PREFIX = "bolt.boltobserver"
 
-type NodeDataMonitoring struct {
+// Monitoring struct
+type Monitoring struct {
 	graphite *graphite.Graphite
 	env      string
 	name     string
 }
 
-func NewNopNodeDataMonitoring(name string) *NodeDataMonitoring {
+// NewNopNodeDataMonitoring constructs a new Monitoring that does nothing
+func NewNopNodeDataMonitoring(name string) *Monitoring {
 	g := graphite.NewGraphiteNop("", 2003)
 	g.DisableLog = true
-	return &NodeDataMonitoring{graphite: g, name: name}
+	return &Monitoring{graphite: g, name: name}
 }
 
-func NewNodeDataMonitoring(name, env, graphiteHost, graphitePort string) *NodeDataMonitoring {
+// NewNodeDataMonitoring constructs a new Monitoring instance
+func NewNodeDataMonitoring(name, env, graphiteHost, graphitePort string) *Monitoring {
 	port, err := strconv.Atoi(graphitePort)
 	if err != nil {
 		port = 0
@@ -32,7 +36,7 @@ func NewNodeDataMonitoring(name, env, graphiteHost, graphitePort string) *NodeDa
 	if graphiteHost == "" {
 		g := graphite.NewGraphiteNop(graphiteHost, port)
 		g.DisableLog = true
-		return &NodeDataMonitoring{graphite: g}
+		return &Monitoring{graphite: g}
 	}
 
 	g, err := graphite.NewGraphiteUDP(graphiteHost, port)
@@ -49,10 +53,11 @@ func NewNodeDataMonitoring(name, env, graphiteHost, graphitePort string) *NodeDa
 		g.DisableLog = false
 	}
 
-	return &NodeDataMonitoring{graphite: g, env: env, name: name}
+	return &Monitoring{graphite: g, env: env, name: name}
 }
 
-func (c *NodeDataMonitoring) MetricsTimer(name string) func() {
+// MetricsTimer - is used to time function executions
+func (c *Monitoring) MetricsTimer(name string) func() {
 	// A simple way to time function execution ala
 	// defer c.timer("checkall")()
 	start := time.Now()
@@ -67,7 +72,8 @@ func (c *NodeDataMonitoring) MetricsTimer(name string) func() {
 	}
 }
 
-func (c *NodeDataMonitoring) MetricsReport(name, val string) {
+// MetricsReport - is used to report a metric
+func (c *Monitoring) MetricsReport(name, val string) {
 	g := c.graphite
 	g.SendMetrics([]graphite.Metric{
 		graphite.NewMetric(fmt.Sprintf("%s.%s.%s.%s.%s", PREFIX, c.name, c.env, name, val), "1", time.Now().Unix()),
