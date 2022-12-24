@@ -512,6 +512,7 @@ func (c *NodeData) checkOne(
 		fmt.Printf("failed to call GetNodeInfoFull %v", err)
 		nodeReport = nil
 	}
+
 	if len(nodeInfo.Channels) != int(nodeInfo.NumChannels) {
 		fmt.Printf("bad NodeInfo obtained %d channels vs. num_channels %d - %v", len(nodeInfo.Channels), nodeInfo.NumChannels, nodeInfo)
 		nodeReport = nil
