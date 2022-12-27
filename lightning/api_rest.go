@@ -1,4 +1,4 @@
-package lightningapi
+package lightning
 
 import (
 	"context"
@@ -16,7 +16,7 @@ type LndRestLightningAPI struct {
 	Request   *http.Request
 	Transport *http.Transport
 	HTTPAPI   *HTTPAPI
-	LightningAPI
+	API
 }
 
 // Compile time check for the interface
@@ -38,7 +38,7 @@ func NewLndRestLightningAPI(getData GetDataCall) LightingAPICalls {
 		Request:      request,
 		Transport:    transport,
 		HTTPAPI:      api,
-		LightningAPI: LightningAPI{GetNodeInfoFullThreshUseDescribeGraph: 500},
+		API: API{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
 
@@ -262,4 +262,9 @@ func (l *LndRestLightningAPI) GetForwardingHistory(ctx context.Context, paginati
 	}
 
 	return ret, nil
+}
+
+// GetInvoices API
+func (l *LndRestLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
+	panic("not implemented")
 }

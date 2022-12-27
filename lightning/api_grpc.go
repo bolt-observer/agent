@@ -1,4 +1,4 @@
-package lightningapi
+package lightning
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 type LndGrpcLightningAPI struct {
 	Client      lnrpc.LightningClient
 	CleanupFunc func()
-	LightningAPI
+	API
 }
 
 // Compile time check for the interface
@@ -33,7 +33,7 @@ func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
 	return &LndGrpcLightningAPI{
 		Client:       client,
 		CleanupFunc:  cleanup,
-		LightningAPI: LightningAPI{GetNodeInfoFullThreshUseDescribeGraph: 500},
+		API: API{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
 
@@ -255,6 +255,63 @@ func (l *LndGrpcLightningAPI) GetForwardingHistory(ctx context.Context, paginati
 			AmountInMsat:  event.AmtInMsat,
 			AmountOutMsat: event.AmtOutMsat,
 			FeeMsat:       event.FeeMsat,
+		})
+	}
+
+	return ret, nil
+}
+
+// GetInvoices API
+func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
+	req := &lnrpc.ListInvoiceRequest{
+		NumMaxInvoices: pagination.Num,
+		IndexOffset:    pagination.Offset,
+		PendingOnly:    pendingOnly,
+	}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		req.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		req.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+
+	if pagination.Reversed {
+		req.Reversed = true
+	}
+
+	resp, err := l.Client.ListInvoices(ctx, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &InvoicesResponse{
+		LastOffsetIndex:  resp.LastIndexOffset,
+		FirstOffsetIndex: resp.FirstIndexOffset,
+		Invoices:         make([]Invoice, 0, len(resp.Invoices)),
+	}
+
+	for _, invoice := range resp.Invoices {
+		ret.Invoices = append(ret.Invoices, Invoice{
+			Memo: invoice.Memo,
+
+			ValueMsat:       invoice.ValueMsat,
+			PaidMsat:        invoice.AmtPaidMsat,
+			CreationDate:    time.Unix(int64(invoice.CreationDate), 0),
+			SettleDate:      time.Unix(int64(invoice.SettleDate), 0),
+			PaymentRequest:  invoice.PaymentRequest,
+			DescriptionHash: string(invoice.DescriptionHash),
+			Expiry:          invoice.Expiry,
+			FallbackAddr:    invoice.FallbackAddr,
+			CltvExpiry:      invoice.CltvExpiry,
+			Private:         invoice.Private,
+			IsKeySend:       invoice.IsKeysend,
+			IsAmp:           invoice.IsAmp,
+			State:           InvoiceHTLCState(invoice.State.Number()),
 		})
 	}
 

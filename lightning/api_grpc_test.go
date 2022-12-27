@@ -1,4 +1,4 @@
-package lightningapi
+package lightning
 
 import (
 	"context"
@@ -69,6 +69,17 @@ func TestObtainDataGrpc(t *testing.T) {
 	//api.GetNodeInfo(context.Background(), "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", true)
 	//api.GetChanInfo(context.Background(), uint64(810130063083110402))
 	//api.GetForwardingHistory(context.Background(), Pagination{})
+
+	ret, err := api.GetInvoices(context.Background(), false, Pagination{Num: 500})
+	if err != nil {
+		t.Fatalf("Error %v", err)
+	}
+
+	for _, v := range ret.Invoices {
+		fmt.Printf("%v\n", v)
+	}
+
+	t.Fail()
 }
 
 func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte, LightingAPICalls) {

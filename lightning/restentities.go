@@ -1,4 +1,4 @@
-package lightningapi
+package lightning
 
 import "github.com/lightningnetwork/lnd/lnrpc"
 

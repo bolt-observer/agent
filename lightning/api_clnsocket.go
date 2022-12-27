@@ -1,4 +1,4 @@
-package lightningapi
+package lightning
 
 import (
 	"context"
@@ -421,6 +421,11 @@ func (l *ClnSocketLightningAPI) GetNodeInfoFull(ctx context.Context, channels bo
 
 // GetForwardingHistory - GetForwardingHistory API call
 func (l *ClnSocketLightningAPI) GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error) {
+	panic("not implemented")
+}
+
+// GetInvoices - GetInvoices API call
+func (l *ClnSocketLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
 	panic("not implemented")
 }
 

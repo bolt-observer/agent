@@ -1,4 +1,4 @@
-package lightningapi
+package lightning
 
 import (
 	"errors"
@@ -91,7 +91,7 @@ type ClnFundsChanResp struct {
 
 // ClnSocketLightningAPI struct
 type ClnSocketLightningAPI struct {
-	LightningAPI
+	API
 	Client  *rpc.Client
 	Timeout time.Duration
 }

@@ -1,4 +1,4 @@
-package lightningapi
+package lightning
 
 import (
 	"context"
@@ -233,6 +233,11 @@ func (m *MockLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*Nod
 func (m *MockLightningAPI) GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error) {
 	panic("not implemented")
 }
+
+func (m *MockLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
+	panic("not implemented")
+}
+
 func TestNodeInfoFull(t *testing.T) {
 	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 100, true, true)

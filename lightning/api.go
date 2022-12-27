@@ -1,4 +1,4 @@
-package lightningapi
+package lightning
 
 import (
 	"context"
@@ -217,10 +217,45 @@ type ForwardingHistoryResponse struct {
 	LastOffsetIndex  uint64
 }
 
+// InvoicesResponse struct
+type InvoicesResponse struct {
+	Invoices         []Invoice
+	LastOffsetIndex  uint64
+	FirstOffsetIndex uint64
+}
+
+// Invoice struct
+type Invoice struct {
+	Memo            string
+	ValueMsat       int64
+	PaidMsat        int64
+	CreationDate    time.Time
+	SettleDate      time.Time
+	PaymentRequest  string
+	DescriptionHash string
+	Expiry          int64
+	FallbackAddr    string
+	CltvExpiry      uint64
+	Private         bool
+	IsKeySend       bool
+	IsAmp           bool
+	State           InvoiceHTLCState
+}
+
+// InvoiceHTLCState enum
+type InvoiceHTLCState int
+
+// InvoiceHTLCState values
+const (
+	Accepted InvoiceHTLCState = 0
+	Settled
+	Cancelled
+)
+
 ////////////////////////////////////////////////////////////////
 
-// LightningAPI - generic API settings
-type LightningAPI struct {
+// API - generic API settings
+type API struct {
 	GetNodeInfoFullThreshUseDescribeGraph int // If node has more than that number of channels use DescribeGraph else do GetChanInfo for each one
 }
 
@@ -337,6 +372,7 @@ type LightingAPICalls interface {
 	GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error)
 	GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error)
 	GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error)
+	GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error)
 }
 
 // GetDataCall - signature of function for retrieving data
