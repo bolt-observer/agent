@@ -791,102 +791,102 @@ func TestPubkeyWrong(t *testing.T) {
 	}
 }
 
-//func TestKeepAliveIsSent(t *testing.T) {
-//	pubKey, api, d := initTest(t)
-//
-//	step := 0
-//	success := false
-//
-//	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
-//		var contents string
-//		if strings.Contains(req.URL.Path, "v1/getinfo") {
-//			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
-//		} else if strings.Contains(req.URL.Path, "v1/channels") {
-//			if step == 0 {
-//				contents = getChannelJSON(1337, false, true)
-//			} else if step >= 1 {
-//				contents = getChannelJSON(1339, false, true)
-//			}
-//
-//			step++
-//		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
-//			contents = getChanInfo(req.URL.Path)
-//		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
-//			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
-//		} else {
-//			fmt.Println("Path unhandled")
-//			fmt.Println(req.URL.Path)
-//		}
-//
-//		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
-//
-//		return &http.Response{
-//			StatusCode: 200,
-//			Body:       r,
-//		}, nil
-//	}
-//
-//	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
-//
-//	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
-//	// Make everything a bit faster
-//	c.OverrideLoopInterval(1 * time.Second)
-//
-//	c.Subscribe(
-//		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
-//
-//			if step == 1 {
-//				if len(report.ChannelReport.ChangedChannels) != 2 {
-//					t.Error(len(report.ChannelReport.ChangedChannels))
-//					t.Fatalf("Not correct change step %d", step)
-//					cancel()
-//				}
-//			} else if step == 2 {
-//				if len(report.ChannelReport.ChangedChannels) != 1 {
-//					t.Error(len(report.ChannelReport.ChangedChannels))
-//					t.Fatalf("Not correct change step %d", step)
-//					cancel()
-//				}
-//			} else if step > 2 {
-//				if len(report.ChannelReport.ChangedChannels) != 0 {
-//					t.Error(len(report.ChannelReport.ChangedChannels))
-//					t.Fatalf("Not correct change step %d", step)
-//					cancel()
-//				}
-//
-//				success = true
-//
-//				cancel()
-//			}
-//
-//			return true
-//
-//		},
-//		func() lightning_api.LightingAPICalls { return api },
-//		agent_entities.Second,
-//		pubKey,
-//		agent_entities.ReportingSettings{
-//			AllowedEntropy:       64,
-//			PollInterval:         agent_entities.Second,
-//			AllowPrivateChannels: true,
-//			NoopInterval:         2 * time.Second,
-//		},
-//		"",
-//	)
-//
-//	c.EventLoop()
-//
-//	select {
-//	case <-time.After(6 * time.Second):
-//		t.Fatal("Took too long")
-//	case <-ctx.Done():
-//		// nothing
-//	}
-//
-//	if !success {
-//		t.Fatalf("Did not go through all step - keepalive not sent?")
-//	}
-//}
+func TestKeepAliveIsSent(t *testing.T) {
+	pubKey, api, d := initTest(t)
+
+	step := 0
+	success := false
+
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
+		var contents string
+		if strings.Contains(req.URL.Path, "v1/getinfo") {
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else if strings.Contains(req.URL.Path, "v1/channels") {
+			if step < 2 {
+				contents = getChannelJSON(1337, false, true)
+			} else if step >= 2 {
+				contents = getChannelJSON(1339, false, true)
+			}
+
+			step++
+		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
+			contents = getChanInfo(req.URL.Path)
+		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else {
+			fmt.Println("Path unhandled")
+			fmt.Println(req.URL.Path)
+		}
+
+		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	// Make everything a bit faster
+	c.OverrideLoopInterval(1 * time.Second)
+
+	c.Subscribe(
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+
+			if step == 2 {
+				if len(report.ChannelReport.ChangedChannels) != 2 {
+					t.Error(len(report.ChannelReport.ChangedChannels))
+					t.Fatalf("Not correct change step %d", step)
+					cancel()
+				}
+			} else if step == 4 {
+				if len(report.ChannelReport.ChangedChannels) != 1 {
+					t.Error(len(report.ChannelReport.ChangedChannels))
+					t.Fatalf("Not correct change step %d", step)
+					cancel()
+				}
+			} else if step > 4 {
+				if report.ChannelReport != nil {
+					t.Error(len(report.ChannelReport.ChangedChannels))
+					t.Fatalf("Not correct change step %d", step)
+					cancel()
+				}
+
+				success = true
+
+				cancel()
+			}
+
+			return true
+
+		},
+		func() lightning_api.LightingAPICalls { return api },
+		agent_entities.Second,
+		pubKey,
+		agent_entities.ReportingSettings{
+			AllowedEntropy:       64,
+			PollInterval:         agent_entities.Second,
+			AllowPrivateChannels: true,
+			NoopInterval:         2 * time.Second,
+		},
+		"",
+	)
+
+	c.EventLoop()
+
+	select {
+	case <-time.After(6 * time.Second):
+		t.Fatal("Took too long")
+	case <-ctx.Done():
+		// nothing
+	}
+
+	if !success {
+		t.Fatalf("Did not go through all step - keepalive not sent?")
+	}
+}
 
 func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 	pubKey, api, d := initTest(t)
