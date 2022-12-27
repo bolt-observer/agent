@@ -230,6 +230,9 @@ func (m *MockLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*Nod
 	return &NodeChannelAPI{ChannelID: chanID, Capacity: chanID}, nil
 }
 
+func (m *MockLightningAPI) GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error) {
+	panic("not implemented")
+}
 func TestNodeInfoFull(t *testing.T) {
 	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 100, true, true)

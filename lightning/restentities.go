@@ -108,3 +108,33 @@ type GraphEdgeOverride struct {
 
 	lnrpc.ChannelEdge
 }
+
+// ForwardingHistoryRequestOverride struct
+type ForwardingHistoryRequestOverride struct {
+	StartTime string `json:"start_time,omitempty"`
+	EndTime   string `json:"end_time,omitempty"`
+
+	lnrpc.ForwardingHistoryRequest
+}
+
+// ForwardingHistoryResponseOverride struct
+type ForwardingHistoryResponseOverride struct {
+	ForwardingEvents []*ForwardingEventOverride `json:"forwarding_events,omitempty"`
+	lnrpc.ForwardingHistoryResponse
+}
+
+// ForwardingEventOverride struct
+type ForwardingEventOverride struct {
+	Timestamp   string `json:"timestamp,omitempty"`
+	ChanIDIn    string `json:"chan_id_in,omitempty"`
+	ChanIDOut   string `json:"chan_id_out,omitempty"`
+	AmtIn       string `json:"amt_in,omitempty"`
+	AmtOut      string `json:"amt_out,omitempty"`
+	Fee         string `json:"fee,omitempty"`
+	FeeMsat     string `json:"fee_msat,omitempty"`
+	AmtInMsat   string `json:"amt_in_msat,omitempty"`
+	AmtOutMsat  string `json:"amt_out_msat,omitempty"`
+	TimestampNs string `json:"timestamp_ns,omitempty"`
+
+	lnrpc.ForwardingEvent
+}

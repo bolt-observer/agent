@@ -215,3 +215,48 @@ func (l *LndGrpcLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 	ret := l.convertChan(resp)
 	return &ret, nil
 }
+
+// GetForwardingHistory API
+func (l *LndGrpcLightningAPI) GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error) {
+
+	req := &lnrpc.ForwardingHistoryRequest{
+		NumMaxEvents: uint32(pagination.Num),
+		IndexOffset:  uint32(pagination.Offset),
+	}
+
+	if pagination.From != nil {
+		req.StartTime = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		req.EndTime = uint64(pagination.To.Unix())
+	}
+
+	if pagination.Reversed {
+		return nil, fmt.Errorf("reverse pagination not supported")
+	}
+
+	resp, err := l.Client.ForwardingHistory(ctx, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &ForwardingHistoryResponse{
+		LastOffsetIndex:  uint64(resp.LastOffsetIndex),
+		ForwardingEvents: make([]ForwardingEvent, 0, len(resp.ForwardingEvents)),
+	}
+
+	for _, event := range resp.ForwardingEvents {
+		ret.ForwardingEvents = append(ret.ForwardingEvents, ForwardingEvent{
+			Timestamp:     time.Unix(0, int64(event.TimestampNs)),
+			ChanIDIn:      event.ChanIdIn,
+			ChanIDOut:     event.ChanIdOut,
+			AmountInMsat:  event.AmtInMsat,
+			AmountOutMsat: event.AmtOutMsat,
+			FeeMsat:       event.FeeMsat,
+		})
+	}
+
+	return ret, nil
+}

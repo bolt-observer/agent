@@ -419,6 +419,11 @@ func (l *ClnSocketLightningAPI) GetNodeInfoFull(ctx context.Context, channels bo
 	return result, nil
 }
 
+// GetForwardingHistory - GetForwardingHistory API call
+func (l *ClnSocketLightningAPI) GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error) {
+	panic("not implemented")
+}
+
 // GetInternalChannels - internal method to get channels
 func (l *ClnSocketLightningAPI) GetInternalChannels(pubKey string) (map[string][]ClnListChan, error) {
 	result := make(map[string][]ClnListChan, 0)

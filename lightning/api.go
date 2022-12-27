@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
 	"github.com/getsentry/sentry-go"
@@ -143,6 +144,81 @@ type NodeInfoAPIExtended struct {
 	Channels []NodeChannelAPIExtended `json:"channels"`
 }
 
+////////////////////////////////////////////////////////////////
+
+// Pagination struct
+type Pagination struct {
+	Offset   uint64 // Exclusive thus 1 means start from 2 (0 will start from beginning)
+	Num      uint64 // limit is 10k or so
+	Reversed bool
+	From     *time.Time
+	To       *time.Time
+}
+
+// PaymentStatus enum
+type PaymentStatus int
+
+// PaymentStatus values
+const (
+	Unknown PaymentStatus = 0
+	InFlight
+	Succeeded
+	Failed
+)
+
+// PaymentFailureReason enum
+type PaymentFailureReason int
+
+// PaymentFailureReason values
+const (
+	FailureReasonNone PaymentFailureReason = 0
+	FailureReasonTimeout
+	FailureReasonNoRoute
+	FailureReasonError
+	FailureReasonIncorrectPaymentDetails
+	FailureReasonInsufficientBalance
+)
+
+// Payment struct
+type Payment struct {
+	PaymentHash     string
+	ValueMsat       int64
+	FeeMsat         int64
+	PaymentPreimage string
+	PaymentRequest  string
+	PaymentStatus   PaymentStatus
+	CreationTime    time.Time
+	Index           uint64
+	FailureReason   PaymentFailureReason
+	HTLCAttempts    []HTLCAttempt
+}
+
+// HTLCAttempt struct
+type HTLCAttempt struct {
+	ID      uint64
+	Status  string //enum
+	Attempt time.Time
+	Resolve time.Time
+}
+
+// ForwardingEvent struct
+type ForwardingEvent struct {
+	Timestamp     time.Time
+	ChanIDIn      uint64
+	ChanIDOut     uint64
+	AmountInMsat  uint64
+	AmountOutMsat uint64
+	FeeMsat       uint64
+}
+
+// ForwardingHistoryResponse struct
+type ForwardingHistoryResponse struct {
+	ForwardingEvents []ForwardingEvent
+	LastOffsetIndex  uint64
+}
+
+////////////////////////////////////////////////////////////////
+
 // LightningAPI - generic API settings
 type LightningAPI struct {
 	GetNodeInfoFullThreshUseDescribeGraph int // If node has more than that number of channels use DescribeGraph else do GetChanInfo for each one
@@ -260,6 +336,7 @@ type LightingAPICalls interface {
 	GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoAPIExtended, error)
 	GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error)
 	GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error)
+	GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error)
 }
 
 // GetDataCall - signature of function for retrieving data

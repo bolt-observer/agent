@@ -68,6 +68,7 @@ func TestObtainDataGrpc(t *testing.T) {
 	//api.DescribeGraph(context.Background(), false)
 	//api.GetNodeInfo(context.Background(), "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", true)
 	//api.GetChanInfo(context.Background(), uint64(810130063083110402))
+	//api.GetForwardingHistory(context.Background(), Pagination{})
 }
 
 func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte, LightingAPICalls) {
