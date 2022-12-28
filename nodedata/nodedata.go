@@ -223,7 +223,7 @@ func (c *NodeData) getChannelList(
 			}
 		}
 
-		total := uint64(channel.Capacity)
+		total := channel.Capacity
 
 		factor := float64(1)
 		if total > precision {

@@ -51,6 +51,19 @@ func getChanInfo(url string) string {
 	`, id, id*10000)
 }
 
+func getChanInfoWithPolicyChange(url string, policy string) string {
+	s := strings.ReplaceAll(url, "/v1/graph/edge/", "")
+	id, err := strconv.Atoi(s)
+
+	if err != nil {
+		return ""
+	}
+
+	return fmt.Sprintf(`
+		{"channel_id":"%d", "chan_point":"72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2", "last_update":1661455399, "node1_pub":"02004c625d622245606a1ea2c1c69cfb4516b703b47945a3647713c05fe4aaeb1c", "node2_pub":"02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", "capacity":"%d", "node1_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"49500000", "last_update":1661455399}, "node2_policy":{"time_lock_delta":40, "min_htlc":"1000", "fee_base_msat":"1000", "fee_rate_milli_msat":"1", "disabled":false, "max_htlc_msat":"49500000", "last_update":1661395514}}
+	`, id, id*10000)
+}
+
 func getChannelJSON(remote uint64, private, active bool) string {
 	return fmt.Sprintf(`{
 				"channels": [
@@ -246,7 +259,6 @@ func TestContextCanBeNil(t *testing.T) {
 
 	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
 		var contents string
-		urlPath = req.URL.Path
 		if strings.Contains(req.URL.Path, "v1/getinfo") {
 			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		} else if strings.Contains(req.URL.Path, "v1/channels") {
