@@ -238,6 +238,10 @@ func (m *MockLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pa
 	panic("not implemented")
 }
 
+func (m *MockLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
+	panic("not implemented")
+}
+
 func TestNodeInfoFull(t *testing.T) {
 	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 100, true, true)

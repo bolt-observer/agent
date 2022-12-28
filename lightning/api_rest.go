@@ -255,9 +255,10 @@ func (l *LndRestLightningAPI) GetForwardingHistory(ctx context.Context, paginati
 	}
 
 	ret := &ForwardingHistoryResponse{
-		LastOffsetIndex:  uint64(resp.LastOffsetIndex),
 		ForwardingEvents: make([]ForwardingEvent, 0, len(resp.ForwardingEvents)),
 	}
+
+	ret.LastOffsetIndex = uint64(resp.LastOffsetIndex)
 
 	for _, event := range resp.ForwardingEvents {
 		ret.ForwardingEvents = append(ret.ForwardingEvents, ForwardingEvent{
@@ -308,10 +309,11 @@ func (l *LndRestLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 	}
 
 	ret := &InvoicesResponse{
-		LastOffsetIndex:  stringToUint64(resp.LastIndexOffset),
-		FirstOffsetIndex: stringToUint64(resp.FirstIndexOffset),
-		Invoices:         make([]Invoice, 0, len(resp.Invoices)),
+		Invoices: make([]Invoice, 0, len(resp.Invoices)),
 	}
+
+	ret.LastOffsetIndex = stringToUint64(resp.LastIndexOffset)
+	ret.FirstOffsetIndex = stringToUint64(resp.FirstIndexOffset)
 
 	for _, invoice := range resp.Invoices {
 		ret.Invoices = append(ret.Invoices, Invoice{
@@ -332,6 +334,46 @@ func (l *LndRestLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 			AddIndex:        stringToUint64(invoice.AddIndex),
 			SettleIndex:     stringToUint64(invoice.SettleIndex),
 		})
+	}
+
+	return ret, nil
+}
+
+// GetPayments API
+func (l *LndRestLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
+	param := &ListPaymentsRequestOverride{
+		MaxPayments: fmt.Sprintf("%d", pagination.Num),
+		IndexOffset: fmt.Sprintf("%d", pagination.Offset),
+	}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		param.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		param.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+	if pagination.From != nil || pagination.To != nil {
+		return nil, fmt.Errorf("from and to are not yet supported")
+	}
+
+	if pagination.Reversed {
+		param.Reversed = true
+	}
+
+	if includeIncomplete {
+		param.IncludeIncomplete = includeIncomplete
+	}
+
+	resp, err := l.HTTPAPI.HTTPListPayments(ctx, l.Request, l.Transport, param)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &PaymentsResponse{
+		Payments: make([]Payment, 0, len(resp.Payments)),
 	}
 
 	return ret, nil

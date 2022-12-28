@@ -161,11 +161,27 @@ type PaymentStatus int
 
 // PaymentStatus values
 const (
-	Unknown PaymentStatus = 0
-	InFlight
-	Succeeded
-	Failed
+	PaymentUnknown PaymentStatus = 0
+	PaymentInFlight
+	PaymentSucceeded
+	PaymentFailed
 )
+
+// StringToPaymentStatus creates PaymentStatus based on a string
+func StringToPaymentStatus(in string) PaymentStatus {
+	switch strings.ToLower(in) {
+	case "unknown":
+		return PaymentUnknown
+	case "in_flight":
+		return PaymentInFlight
+	case "succeeded":
+		return PaymentSucceeded
+	case "failed":
+		return PaymentFailed
+	}
+
+	return PaymentUnknown
+}
 
 // PaymentFailureReason enum
 type PaymentFailureReason int
@@ -178,6 +194,16 @@ const (
 	FailureReasonError
 	FailureReasonIncorrectPaymentDetails
 	FailureReasonInsufficientBalance
+)
+
+// HTLCStatus enum
+type HTLCStatus int
+
+// HTLCStatus values
+const (
+	HTLCInFlight HTLCStatus = 0
+	HTLCSucceeded
+	HTLCFailed
 )
 
 // Payment struct
@@ -197,9 +223,28 @@ type Payment struct {
 // HTLCAttempt struct
 type HTLCAttempt struct {
 	ID      uint64
-	Status  string //enum
+	Status  HTLCStatus
 	Attempt time.Time
 	Resolve time.Time
+
+	Route Route
+}
+
+// Route struct
+type Route struct {
+	TotalTimeLock uint32
+	TotalFeesMsat int64
+	TotalAmtMsat  int64
+
+	Hops []Hop
+}
+
+// Hop struct
+type Hop struct {
+	ChanID           uint64
+	Expiry           uint32
+	AmtToForwardMsat int64
+	FeeMsat          int64
 }
 
 // ForwardingEvent struct
@@ -212,17 +257,27 @@ type ForwardingEvent struct {
 	FeeMsat       uint64
 }
 
+// ResponseForwardPagination struct
+type ResponseForwardPagination struct {
+	LastOffsetIndex uint64
+}
+
+// ResponsePagination struct
+type ResponsePagination struct {
+	ResponseForwardPagination
+	FirstOffsetIndex uint64
+}
+
 // ForwardingHistoryResponse struct
 type ForwardingHistoryResponse struct {
 	ForwardingEvents []ForwardingEvent
-	LastOffsetIndex  uint64
+	ResponseForwardPagination
 }
 
 // InvoicesResponse struct
 type InvoicesResponse struct {
-	Invoices         []Invoice
-	LastOffsetIndex  uint64
-	FirstOffsetIndex uint64
+	Invoices []Invoice
+	ResponsePagination
 }
 
 // Invoice struct
@@ -251,23 +306,29 @@ type InvoiceHTLCState int
 // StringToInvoiceHTLCState creates InvoiceHTLCState based on a string
 func StringToInvoiceHTLCState(in string) InvoiceHTLCState {
 	switch strings.ToLower(in) {
-	case "acccepted":
-		return Accepted
+	case "accepted":
+		return InvoiceAccepted
 	case "settled":
-		return Settled
+		return InvoiceSettled
 	case "cacelled":
-		return Cancelled
+		return InvoiceCancelled
 	}
 
-	return Cancelled
+	return InvoiceCancelled
 }
 
 // InvoiceHTLCState values
 const (
-	Accepted InvoiceHTLCState = 0
-	Settled
-	Cancelled
+	InvoiceAccepted InvoiceHTLCState = 0
+	InvoiceSettled
+	InvoiceCancelled
 )
+
+// PaymentsResponse struct
+type PaymentsResponse struct {
+	Payments []Payment
+	ResponsePagination
+}
 
 ////////////////////////////////////////////////////////////////
 
@@ -390,6 +451,7 @@ type LightingAPICalls interface {
 	GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error)
 	GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error)
 	GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error)
+	GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error)
 }
 
 // GetDataCall - signature of function for retrieving data

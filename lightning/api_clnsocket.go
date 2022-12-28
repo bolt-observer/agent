@@ -429,6 +429,11 @@ func (l *ClnSocketLightningAPI) GetInvoices(ctx context.Context, pendingOnly boo
 	panic("not implemented")
 }
 
+// GetPayments - GetPayments API call
+func (l *ClnSocketLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
+	panic("not implemented")
+}
+
 // GetInternalChannels - internal method to get channels
 func (l *ClnSocketLightningAPI) GetInternalChannels(pubKey string) (map[string][]ClnListChan, error) {
 	result := make(map[string][]ClnListChan, 0)

@@ -308,6 +308,44 @@ func (h *HTTPAPI) HTTPListInvoices(ctx context.Context, req *http.Request, trans
 	return &data, nil
 }
 
+// HTTPListPayments - invokes ListPayments method
+func (h *HTTPAPI) HTTPListPayments(ctx context.Context, req *http.Request, trans *http.Transport, input *ListPaymentsRequestOverride) (*ListPaymentsResponseOverride, error) {
+	var data ListPaymentsResponseOverride
+
+	req = req.WithContext(ctx)
+
+	req.Method = http.MethodGet
+
+	u, err := url.Parse(fmt.Sprintf("%s/v1/payments?include_incomplete=%v&index_offset=%s&max_payments=%s&reversed=%v", req.URL, input.IncludeIncomplete, input.IndexOffset,
+		input.MaxPayments, input.Reversed))
+	if err != nil {
+		return nil, fmt.Errorf("invalid url %s", err)
+	}
+
+	req.URL = u
+
+	resp, err := h.Do(req)
+
+	if err != nil {
+		return nil, fmt.Errorf("http request failed %s", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http got error %d", resp.StatusCode)
+	}
+
+	defer resp.Body.Close()
+
+	decoder := json.NewDecoder(resp.Body)
+
+	err = decoder.Decode(&data)
+	if err != nil {
+		return nil, fmt.Errorf("got error %v", err)
+	}
+
+	return &data, nil
+}
+
 // GetHTTPRequest - generic method for doing HTTP requests
 func (h *HTTPAPI) GetHTTPRequest(getData GetDataCall) (*http.Request, *http.Transport, error) {
 

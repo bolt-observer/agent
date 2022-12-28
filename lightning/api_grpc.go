@@ -243,9 +243,10 @@ func (l *LndGrpcLightningAPI) GetForwardingHistory(ctx context.Context, paginati
 	}
 
 	ret := &ForwardingHistoryResponse{
-		LastOffsetIndex:  uint64(resp.LastOffsetIndex),
 		ForwardingEvents: make([]ForwardingEvent, 0, len(resp.ForwardingEvents)),
 	}
+
+	ret.LastOffsetIndex = uint64(resp.LastOffsetIndex)
 
 	for _, event := range resp.ForwardingEvents {
 		ret.ForwardingEvents = append(ret.ForwardingEvents, ForwardingEvent{
@@ -293,10 +294,11 @@ func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 	}
 
 	ret := &InvoicesResponse{
-		LastOffsetIndex:  resp.LastIndexOffset,
-		FirstOffsetIndex: resp.FirstIndexOffset,
-		Invoices:         make([]Invoice, 0, len(resp.Invoices)),
+		Invoices: make([]Invoice, 0, len(resp.Invoices)),
 	}
+
+	ret.LastOffsetIndex = resp.LastIndexOffset
+	ret.FirstOffsetIndex = resp.FirstIndexOffset
 
 	for _, invoice := range resp.Invoices {
 		ret.Invoices = append(ret.Invoices, Invoice{
@@ -317,6 +319,79 @@ func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 			AddIndex:        invoice.AddIndex,
 			SettleIndex:     invoice.SettleIndex,
 		})
+	}
+
+	return ret, nil
+}
+
+// GetPayments API
+func (l *LndGrpcLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
+	req := &lnrpc.ListPaymentsRequest{
+		IncludeIncomplete: includeIncomplete,
+		MaxPayments:       pagination.Num,
+		IndexOffset:       pagination.Offset,
+	}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		req.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		req.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+	if pagination.From != nil || pagination.To != nil {
+		return nil, fmt.Errorf("from and to are not yet supported")
+	}
+
+	if pagination.Reversed {
+		req.Reversed = true
+	}
+
+	resp, err := l.Client.ListPayments(ctx, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &PaymentsResponse{
+		Payments: make([]Payment, 0, len(resp.Payments)),
+	}
+
+	ret.LastOffsetIndex = resp.LastIndexOffset
+	ret.FirstOffsetIndex = resp.FirstIndexOffset
+
+	for _, payment := range resp.Payments {
+
+		pay := Payment{
+			PaymentHash:     payment.PaymentHash,
+			ValueMsat:       payment.ValueMsat,
+			FeeMsat:         payment.FeeMsat,
+			PaymentPreimage: payment.PaymentPreimage,
+			PaymentRequest:  payment.PaymentRequest,
+			PaymentStatus:   PaymentStatus(payment.Status.Number()),
+			CreationTime:    time.Unix(0, payment.CreationTimeNs),
+			Index:           payment.PaymentIndex,
+			FailureReason:   PaymentFailureReason(payment.FailureReason.Number()),
+			HTLCAttempts:    make([]HTLCAttempt, 0),
+		}
+
+		for _, htlc := range payment.Htlcs {
+
+			//for _, hops := range htlc.Route.Hops
+
+			attempt := HTLCAttempt{
+				ID:      htlc.AttemptId,
+				Status:  HTLCStatus(htlc.Status.Number()),
+				Attempt: time.Unix(0, htlc.AttemptTimeNs),
+				Resolve: time.Unix(0, htlc.AttemptTimeNs),
+			}
+
+			pay.HTLCAttempts = append(pay.HTLCAttempts, attempt)
+		}
+
+		ret.Payments = append(ret.Payments, pay)
 	}
 
 	return ret, nil
