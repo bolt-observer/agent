@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
@@ -240,10 +241,26 @@ type Invoice struct {
 	IsKeySend       bool
 	IsAmp           bool
 	State           InvoiceHTLCState
+	AddIndex        uint64
+	SettleIndex     uint64
 }
 
 // InvoiceHTLCState enum
 type InvoiceHTLCState int
+
+// StringToInvoiceHTLCState creates InvoiceHTLCState based on a string
+func StringToInvoiceHTLCState(in string) InvoiceHTLCState {
+	switch strings.ToLower(in) {
+	case "acccepted":
+		return Accepted
+	case "settled":
+		return Settled
+	case "cacelled":
+		return Cancelled
+	}
+
+	return Cancelled
+}
 
 // InvoiceHTLCState values
 const (

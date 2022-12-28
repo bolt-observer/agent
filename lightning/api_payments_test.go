@@ -1,6 +1,7 @@
 package lightning
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -86,5 +87,39 @@ func TestGetForwardsRest(t *testing.T) {
 	}
 
 	stop <- true
+	//t.Fail()
+}
+
+func TestGetInvoicesRest(t *testing.T) {
+
+	api := getAPI(t, "fixture.secret", LndRest)
+	if api == nil {
+		return
+	}
+
+	resp, err := api.GetInvoices(context.Background(), false, Pagination{Reversed: true, Num: 10})
+	if err != nil {
+		t.Fatalf("Error received %v\n", err)
+	}
+
+	fmt.Printf("%+v\n", resp)
+
+	//t.Fail()
+}
+
+func TestGetInvoicesGrpc(t *testing.T) {
+
+	api := getAPI(t, "fixture-grpc.secret", LndGrpc)
+	if api == nil {
+		return
+	}
+
+	resp, err := api.GetInvoices(context.Background(), false, Pagination{Reversed: true, Num: 10})
+	if err != nil {
+		t.Fatalf("Error received %v\n", err)
+	}
+
+	fmt.Printf("%+v\n", resp)
+
 	//t.Fail()
 }

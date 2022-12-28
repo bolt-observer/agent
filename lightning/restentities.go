@@ -1,6 +1,10 @@
 package lightning
 
-import "github.com/lightningnetwork/lnd/lnrpc"
+import (
+	"encoding/json"
+
+	"github.com/lightningnetwork/lnd/lnrpc"
+)
 
 // A hack to override uint64 -> string (REST API)
 
@@ -137,4 +141,64 @@ type ForwardingEventOverride struct {
 	TimestampNs string `json:"timestamp_ns,omitempty"`
 
 	lnrpc.ForwardingEvent
+}
+
+// ListInvoiceRequestOverride struct
+type ListInvoiceRequestOverride struct {
+	IndexOffset    string `json:"index_offset,omitempty"`
+	NumMaxInvoices string `json:"num_max_invoices,omitempty"`
+
+	lnrpc.ListInvoiceRequest
+}
+
+// ListInvoiceResponseOverride struct
+type ListInvoiceResponseOverride struct {
+	Invoices         []*InvoiceOverride `json:"invoices,omitempty"`
+	LastIndexOffset  string             `json:"last_index_offset,omitempty"`
+	FirstIndexOffset string             `json:"first_index_offset,omitempty"`
+
+	lnrpc.ListInvoiceResponse
+}
+
+// InvoiceOverride struct
+type InvoiceOverride struct {
+	Value        string `json:"value,omitempty"`
+	ValueMsat    string `json:"value_msat,omitempty"`
+	RPreimage    string `json:"r_preimage,omitempty"`
+	RHash        string `json:"r_hash,omitempty"`
+	CreationDate string `json:"creation_date,omitempty"`
+	SettleDate   string `json:"settle_date,omitempty"`
+	Expiry       string `json:"expiry,omitempty"`
+	CltvExpiry   string `json:"cltv_expiry,omitempty"`
+
+	AddIndex    string `json:"add_index,omitempty"`
+	SettleIndex string `json:"settle_index,omitempty"`
+	AmtPaid     string `json:"amt_paid,omitempty"`
+	AmtPaidSat  string `json:"amt_paid_sat,omitempty"`
+	AmtPaidMsat string `json:"amt_paid_msat,omitempty"`
+
+	DescriptionHash string               `json:"description_hash,omitempty"`
+	RouteHints      []*RouteHintOverride `json:"route_hints,omitempty"`
+	State           string               `json:"state,omitempty"`
+
+	// Ignore this stuff
+	Features        json.RawMessage `json:"features,omitempty"`
+	Htlcs           json.RawMessage `json:"htlcs,omitempty"`
+	AmpInvoiceState json.RawMessage `json:"amp_invoice_state,omitempty"`
+
+	lnrpc.Invoice
+}
+
+// RouteHintOverride struct
+type RouteHintOverride struct {
+	HopHints []*HopHintOverride `json:"hop_hints,omitempty"`
+
+	lnrpc.RouteHint
+}
+
+// HopHintOverride struct
+type HopHintOverride struct {
+	ChanID string `json:"chan_id,omitempty"`
+
+	lnrpc.HopHint
 }

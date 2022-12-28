@@ -270,6 +270,44 @@ func (h *HTTPAPI) HTTPForwardEvents(ctx context.Context, req *http.Request, tran
 	return &data, nil
 }
 
+// HTTPListInvoices - invokes ListInvoices method
+func (h *HTTPAPI) HTTPListInvoices(ctx context.Context, req *http.Request, trans *http.Transport, input *ListInvoiceRequestOverride) (*ListInvoiceResponseOverride, error) {
+	var data ListInvoiceResponseOverride
+
+	req = req.WithContext(ctx)
+
+	req.Method = http.MethodGet
+
+	u, err := url.Parse(fmt.Sprintf("%s/v1/invoices?pending_only=%v&index_offset=%s&num_max_invoices=%s&reversed=%v", req.URL, input.PendingOnly, input.IndexOffset,
+		input.NumMaxInvoices, input.Reversed))
+	if err != nil {
+		return nil, fmt.Errorf("invalid url %s", err)
+	}
+
+	req.URL = u
+
+	resp, err := h.Do(req)
+
+	if err != nil {
+		return nil, fmt.Errorf("http request failed %s", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http got error %d", resp.StatusCode)
+	}
+
+	defer resp.Body.Close()
+
+	decoder := json.NewDecoder(resp.Body)
+
+	err = decoder.Decode(&data)
+	if err != nil {
+		return nil, fmt.Errorf("got error %v", err)
+	}
+
+	return &data, nil
+}
+
 // GetHTTPRequest - generic method for doing HTTP requests
 func (h *HTTPAPI) GetHTTPRequest(getData GetDataCall) (*http.Request, *http.Transport, error) {
 

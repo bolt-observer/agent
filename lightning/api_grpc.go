@@ -31,9 +31,9 @@ func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
 	}
 
 	return &LndGrpcLightningAPI{
-		Client:       client,
-		CleanupFunc:  cleanup,
-		API: API{GetNodeInfoFullThreshUseDescribeGraph: 500},
+		Client:      client,
+		CleanupFunc: cleanup,
+		API:         API{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
 
@@ -278,6 +278,9 @@ func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 		req.CreationDateEnd = uint64(pagination.To.Unix())
 	}
 	*/
+	if pagination.From != nil || pagination.To != nil {
+		return nil, fmt.Errorf("from and to are not yet supported")
+	}
 
 	if pagination.Reversed {
 		req.Reversed = true
@@ -297,8 +300,7 @@ func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 
 	for _, invoice := range resp.Invoices {
 		ret.Invoices = append(ret.Invoices, Invoice{
-			Memo: invoice.Memo,
-
+			Memo:            invoice.Memo,
 			ValueMsat:       invoice.ValueMsat,
 			PaidMsat:        invoice.AmtPaidMsat,
 			CreationDate:    time.Unix(int64(invoice.CreationDate), 0),
@@ -312,6 +314,8 @@ func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 			IsKeySend:       invoice.IsKeysend,
 			IsAmp:           invoice.IsAmp,
 			State:           InvoiceHTLCState(invoice.State.Number()),
+			AddIndex:        invoice.AddIndex,
+			SettleIndex:     invoice.SettleIndex,
 		})
 	}
 

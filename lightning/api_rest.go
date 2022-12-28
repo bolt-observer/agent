@@ -35,10 +35,10 @@ func NewLndRestLightningAPI(getData GetDataCall) LightingAPICalls {
 	api.SetTransport(transport)
 
 	return &LndRestLightningAPI{
-		Request:      request,
-		Transport:    transport,
-		HTTPAPI:      api,
-		API: API{GetNodeInfoFullThreshUseDescribeGraph: 500},
+		Request:   request,
+		Transport: transport,
+		HTTPAPI:   api,
+		API:       API{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
 
@@ -68,6 +68,15 @@ func (l *LndRestLightningAPI) Cleanup() {
 
 func stringToUint64(str string) uint64 {
 	ret, err := strconv.ParseUint(str, 10, 64)
+	if err != nil {
+		return 0
+	}
+
+	return ret
+}
+
+func stringToInt64(str string) int64 {
+	ret, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
 		return 0
 	}
@@ -252,7 +261,7 @@ func (l *LndRestLightningAPI) GetForwardingHistory(ctx context.Context, paginati
 
 	for _, event := range resp.ForwardingEvents {
 		ret.ForwardingEvents = append(ret.ForwardingEvents, ForwardingEvent{
-			Timestamp:     time.Unix(0, int64(stringToUint64(event.TimestampNs))),
+			Timestamp:     time.Unix(0, stringToInt64(event.TimestampNs)),
 			ChanIDIn:      stringToUint64(event.ChanIDIn),
 			ChanIDOut:     stringToUint64(event.ChanIDOut),
 			AmountInMsat:  stringToUint64(event.AmtInMsat),
@@ -266,5 +275,64 @@ func (l *LndRestLightningAPI) GetForwardingHistory(ctx context.Context, paginati
 
 // GetInvoices API
 func (l *LndRestLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
-	panic("not implemented")
+
+	param := &ListInvoiceRequestOverride{
+		NumMaxInvoices: fmt.Sprintf("%d", pagination.Num),
+		IndexOffset:    fmt.Sprintf("%d", pagination.Offset),
+	}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		param.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		param.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+	if pagination.From != nil || pagination.To != nil {
+		return nil, fmt.Errorf("from and to are not yet supported")
+	}
+
+	if pagination.Reversed {
+		param.Reversed = true
+	}
+
+	if pendingOnly {
+		param.PendingOnly = pendingOnly
+	}
+
+	resp, err := l.HTTPAPI.HTTPListInvoices(ctx, l.Request, l.Transport, param)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &InvoicesResponse{
+		LastOffsetIndex:  stringToUint64(resp.LastIndexOffset),
+		FirstOffsetIndex: stringToUint64(resp.FirstIndexOffset),
+		Invoices:         make([]Invoice, 0, len(resp.Invoices)),
+	}
+
+	for _, invoice := range resp.Invoices {
+		ret.Invoices = append(ret.Invoices, Invoice{
+			Memo:            invoice.Memo,
+			ValueMsat:       stringToInt64(invoice.ValueMsat),
+			PaidMsat:        stringToInt64(invoice.AmtPaidMsat),
+			CreationDate:    time.Unix(stringToInt64(invoice.CreationDate), 0),
+			SettleDate:      time.Unix(stringToInt64(invoice.SettleDate), 0),
+			PaymentRequest:  invoice.PaymentRequest,
+			DescriptionHash: string(invoice.DescriptionHash),
+			Expiry:          stringToInt64(invoice.Expiry),
+			FallbackAddr:    invoice.FallbackAddr,
+			CltvExpiry:      stringToUint64(invoice.CltvExpiry),
+			Private:         invoice.Private,
+			IsKeySend:       invoice.IsKeysend,
+			IsAmp:           invoice.IsAmp,
+			State:           StringToInvoiceHTLCState(invoice.State),
+			AddIndex:        stringToUint64(invoice.AddIndex),
+			SettleIndex:     stringToUint64(invoice.SettleIndex),
+		})
+	}
+
+	return ret, nil
 }
