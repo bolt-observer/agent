@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/bolt-observer/graphite-golang"
 	"github.com/golang/glog"
-	"github.com/marpaia/graphite-golang"
 )
 
 // PREFIX is the prefix for all metrics
@@ -57,25 +57,39 @@ func NewNodeDataMonitoring(name, env, graphiteHost, graphitePort string) *Monito
 }
 
 // MetricsTimer - is used to time function executions
-func (c *Monitoring) MetricsTimer(name string) func() {
+func (c *Monitoring) MetricsTimer(name string, tags map[string]string) func() {
 	// A simple way to time function execution ala
 	// defer c.timer("checkall")()
+
+	if tags == nil {
+		tags = make(map[string]string)
+	}
+
+	tags["env"] = c.env
+
 	start := time.Now()
 	return func() {
 		duration := time.Since(start)
 		g := c.graphite
 		glog.V(2).Infof("Method %s took %d milliseconds\n", name, duration.Milliseconds())
 		g.SendMetrics([]graphite.Metric{
-			graphite.NewMetric(fmt.Sprintf("%s.%s.%s.%s.duration", PREFIX, c.name, c.env, name), fmt.Sprintf("%d", duration.Milliseconds()), time.Now().Unix()),
-			graphite.NewMetric(fmt.Sprintf("%s.%s.%s.%s.invocation", PREFIX, c.name, c.env, name), "1", time.Now().Unix()),
+			graphite.NewMetricWithTags(fmt.Sprintf("%s.%s.%s.duration", PREFIX, c.name, name), fmt.Sprintf("%d", duration.Milliseconds()), time.Now().Unix(), tags),
+			graphite.NewMetricWithTags(fmt.Sprintf("%s.%s.%s.invocation", PREFIX, c.name, name), "1", time.Now().Unix(), tags),
 		})
 	}
 }
 
 // MetricsReport - is used to report a metric
-func (c *Monitoring) MetricsReport(name, val string) {
+func (c *Monitoring) MetricsReport(name, val string, tags map[string]string) {
 	g := c.graphite
+
+	if tags == nil {
+		tags = make(map[string]string)
+	}
+
+	tags["env"] = c.env
+
 	g.SendMetrics([]graphite.Metric{
-		graphite.NewMetric(fmt.Sprintf("%s.%s.%s.%s.%s", PREFIX, c.name, c.env, name, val), "1", time.Now().Unix()),
+		graphite.NewMetricWithTags(fmt.Sprintf("%s.%s.%s.%s", PREFIX, c.name, name, val), "1", time.Now().Unix(), tags),
 	})
 }
