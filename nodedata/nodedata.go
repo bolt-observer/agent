@@ -82,7 +82,6 @@ func (c *NodeData) IsSubscribed(pubKey, uniqueID string) bool {
 func (c *NodeData) Subscribe(
 	nodeDataCallback entities.NodeDataReportCallback,
 	getAPI entities.NewAPICall,
-	PollInterval entities.Interval,
 	pubKey string,
 	settings entities.ReportingSettings,
 	uniqueID string) error {
