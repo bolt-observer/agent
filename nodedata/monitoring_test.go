@@ -8,8 +8,8 @@ func TestBasicMonitoring(t *testing.T) {
 
 	c := NewNodeDataMonitoring("a", "b", "127.0.0.1", "9000")
 
-	c.MetricsTimer("a")
-	c.MetricsReport("b", "c")
+	c.MetricsTimer("a", nil)
+	c.MetricsReport("b", "c", nil)
 
 	c = NewNopNodeDataMonitoring("c")
 
@@ -24,6 +24,7 @@ func TestBasicMonitoring(t *testing.T) {
 		return
 	}
 
-	defer c.MetricsTimer("a")()
-	c.MetricsReport("b", "c")
+	defer c.MetricsTimer("a", nil)()
+	c.MetricsReport("b", "c", nil)
+	c.MetricsReport("d", "e", map[string]string{"foo": "bar", "baz": "ok"})
 }

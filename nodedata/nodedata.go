@@ -163,7 +163,7 @@ func (c *NodeData) getChannelList(
 	precisionBits int,
 	allowPrivateChans bool) ([]entities.ChannelBalance, SetOfChanIds, error) {
 
-	defer c.monitoring.MetricsTimer(fmt.Sprintf("channellist.%s", info.IdentityPubkey))()
+	defer c.monitoring.MetricsTimer("channellist", map[string]string{"pubkey": info.IdentityPubkey})()
 
 	resp := make([]entities.ChannelBalance, 0)
 
@@ -359,7 +359,7 @@ func (c *NodeData) fetchGraph(
 }
 
 func (c *NodeData) checkAll() bool {
-	defer c.monitoring.MetricsTimer("checkall.global")()
+	defer c.monitoring.MetricsTimer("checkall.global", nil)()
 
 	for _, one := range c.perNodeSettings.GetKeys() {
 		s := c.perNodeSettings.Get(one)
@@ -409,8 +409,7 @@ func (c *NodeData) checkAll() bool {
 					}
 					defer c.reentrancyBlock.Release(one)
 
-					metricsName := fmt.Sprintf("checkdelivery.%s", s.identifier.GetID())
-					timer := c.monitoring.MetricsTimer(metricsName)
+					timer := c.monitoring.MetricsTimer("checkdelivery", map[string]string{"pubkey": s.identifier.GetID()})
 					if s.nodeDataCallback(c.ctx, resp) {
 						c.commitAllChanges(one, time.Now(), s)
 					} else {
@@ -431,7 +430,7 @@ func (c *NodeData) checkAll() bool {
 		}
 	}
 
-	c.monitoring.MetricsReport("checkall.global", "success")
+	c.monitoring.MetricsReport("checkall.global", "success", nil)
 	return true
 }
 
@@ -444,17 +443,21 @@ func (c *NodeData) checkOne(
 	reportAnyway bool) (*entities.NodeDataReport, error) {
 	s := c.perNodeSettings.Get(identifier.GetID())
 
-	metricsName := fmt.Sprintf("checkone.%s", identifier.GetID())
-	defer c.monitoring.MetricsTimer(metricsName)()
+	pubkey := identifier.GetID()
+	if pubkey == "" {
+		pubkey = "local"
+	}
+
+	defer c.monitoring.MetricsTimer("checkone", map[string]string{"pubkey": pubkey})()
 
 	if getAPI == nil {
-		c.monitoring.MetricsReport(metricsName, "failure")
+		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("failed to get client - getAPI was nil")
 	}
 
 	api := getAPI()
 	if api == nil {
-		c.monitoring.MetricsReport(metricsName, "failure")
+		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("failed to get client - getAPI returned nil")
 	}
 	defer api.Cleanup()
@@ -462,12 +465,12 @@ func (c *NodeData) checkOne(
 	// Get channel info
 	info, err := api.GetInfo(c.ctx)
 	if err != nil {
-		c.monitoring.MetricsReport(metricsName, "failure")
+		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("failed to get info: %v", err)
 	}
 
 	if identifier.Identifier != "" && !strings.EqualFold(info.IdentityPubkey, identifier.Identifier) {
-		c.monitoring.MetricsReport(metricsName, "failure")
+		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, fmt.Errorf("pubkey and reported pubkey are not the same")
 	}
 
@@ -475,7 +478,7 @@ func (c *NodeData) checkOne(
 
 	channelList, set, err := c.getChannelList(api, info, settings.AllowedEntropy, settings.AllowPrivateChannels)
 	if err != nil {
-		c.monitoring.MetricsReport(metricsName, "failure")
+		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, err
 	}
 
@@ -545,7 +548,7 @@ func (c *NodeData) checkOne(
 		ChannelReport: channelBalanceReport,
 	}
 
-	c.monitoring.MetricsReport(metricsName, "success")
+	c.monitoring.MetricsReport("checkone", "success", map[string]string{"pubkey": pubkey})
 	return nodeData, nil
 }
 
