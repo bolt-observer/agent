@@ -3,7 +3,7 @@ FROM golang:1.19 as app-builder
 ARG DESCRIBE=""
 WORKDIR /go/src/app
 COPY . .
-RUN make clean linux && ls -ali ./release/balance-agent*linux*
+RUN make clean linux MULTIARCH=true && ls -ali ./release/balance-agent*linux*
 
 FROM scratch
 
