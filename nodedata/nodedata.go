@@ -149,7 +149,7 @@ func (c *NodeData) GetState(
 		return nil, err
 	}
 
-	resp.ChannelReport.PollInterval = entities.ManualRequest
+	resp.PollInterval = entities.ManualRequest
 	if optCallback != nil {
 		optCallback(c.ctx, resp)
 	}
@@ -394,9 +394,9 @@ func (c *NodeData) checkAll() bool {
 				continue
 			}
 
-			if resp.ChannelReport != nil && s.identifier.Identifier != "" && resp.ChannelReport.PubKey != "" && !strings.EqualFold(resp.ChannelReport.PubKey, s.identifier.Identifier) {
-				sentry.CaptureMessage(fmt.Sprintf("PubKey mismatch %s vs %s", resp.ChannelReport.PubKey, s.identifier.Identifier))
-				glog.Warningf("PubKey mismatch %s vs %s", resp.ChannelReport.PubKey, s.identifier.Identifier)
+			if resp != nil && s.identifier.Identifier != "" && resp.PubKey != "" && !strings.EqualFold(resp.PubKey, s.identifier.Identifier) {
+				sentry.CaptureMessage(fmt.Sprintf("PubKey mismatch %s vs %s", resp.PubKey, s.identifier.Identifier))
+				glog.Warningf("PubKey mismatch %s vs %s", resp.PubKey, s.identifier.Identifier)
 				continue
 			}
 
@@ -497,32 +497,16 @@ func (c *NodeData) checkOne(
 
 	channelList = c.filterList(identifier, channelList, ignoreCache)
 
-	channelBalanceReport := &entities.ChannelBalanceReport{
-		ReportingSettings: settings,
-		Chain:             info.Chain,
-		Network:           info.Network,
-		PubKey:            identifier.Identifier,
-		UniqueID:          identifier.UniqueID,
-		Timestamp:         common_entities.JsonTime(time.Now()),
-		ChangedChannels:   channelList,
-		ClosedChannels:    closedChannels,
-	}
-
-	if len(channelList) <= 0 && len(closedChannels) <= 0 && !reportAnyway {
-		channelBalanceReport = nil
-	}
-
 	// Get node info
 	nodeInfo, err := api.GetNodeInfoFull(c.ctx, true, settings.AllowPrivateChannels)
-	var nodeReport *entities.InfoReport
 	if err != nil {
 		fmt.Printf("failed to call GetNodeInfoFull %v", err)
-		nodeReport = nil
+		nodeInfo = nil
 	}
 
 	if len(nodeInfo.Channels) != int(nodeInfo.NumChannels) {
 		fmt.Printf("bad NodeInfo obtained %d channels vs. num_channels %d - %v", len(nodeInfo.Channels), nodeInfo.NumChannels, nodeInfo)
-		nodeReport = nil
+		nodeInfo = nil
 	}
 
 	hash, err := hashstructure.Hash(nodeInfo, hashstructure.FormatV2, nil)
@@ -532,19 +516,21 @@ func (c *NodeData) checkOne(
 	}
 
 	if hash != s.hash {
-		nodeReport = &entities.InfoReport{
-			UniqueID:            identifier.UniqueID,
-			Timestamp:           common_entities.JsonTime(time.Now()),
-			NodeInfoAPIExtended: *nodeInfo,
-		}
 		s.hash = hash
 	} else {
-		nodeReport = nil
+		nodeInfo = nil
 	}
 
 	nodeData := &entities.NodeDataReport{
-		NodeReport:    nodeReport,
-		ChannelReport: channelBalanceReport,
+		ReportingSettings: settings,
+		Chain:             info.Chain,
+		Network:           info.Network,
+		PubKey:            identifier.Identifier,
+		UniqueID:          identifier.UniqueID,
+		Timestamp:         common_entities.JsonTime(time.Now()),
+		ChangedChannels:   channelList,
+		ClosedChannels:    closedChannels,
+		NodeInfo:          *nodeInfo,
 	}
 
 	c.monitoring.MetricsReport("checkone", "success", map[string]string{"pubkey": pubkey})

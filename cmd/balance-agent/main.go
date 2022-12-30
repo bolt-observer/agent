@@ -391,7 +391,7 @@ func shouldCrash(status int, body string) {
 }
 
 func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport) bool {
-	n := agent_entities.NodeIdentifier{Identifier: report.NodeReport.Node.PubKey, UniqueID: report.NodeReport.UniqueID}
+	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueID: report.UniqueID}
 	_, ok := nodeInfoReported.Load(n.GetID())
 	if !ok {
 		glog.V(3).Infof("Node data for %s was not reported yet", n.GetID())

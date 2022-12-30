@@ -3,6 +3,7 @@ package entities
 import (
 	"context"
 	"fmt"
+	api "github.com/bolt-observer/agent/lightning"
 	"strings"
 	"time"
 
@@ -128,6 +129,7 @@ type ChannelBalanceReport struct {
 	ChangedChannels []ChannelBalance `json:"changed_channels"`
 	// ClosedChannels - contains all channels that were determined to be closed
 	ClosedChannels []ClosedChannel `json:"closed_channels"`
+	api.NodeInfoAPIExtended
 }
 
 // ClosedChannel struct
