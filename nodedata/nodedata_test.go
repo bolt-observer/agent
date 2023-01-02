@@ -357,7 +357,7 @@ func TestGetState(t *testing.T) {
 		return
 	}
 
-	if len(resp.ChangedChannels) != 2 || resp.UniqueID != "random_id" || resp.NodeInfo.Node.Alias != "CrazyConqueror" {
+	if len(resp.ChangedChannels) != 2 || resp.UniqueID != "random_id" || resp.NodeDetails.Node.Alias != "CrazyConqueror" {
 		t.Fatalf("GetState returned bad data: %+v", resp)
 		return
 	}
@@ -1238,7 +1238,7 @@ func TestBaseFeePolicyChange(t *testing.T) {
 					t.Fatalf("Bad step 0")
 				}
 			case 1:
-				if report.NodeInfo.Channels[0].Node1Policy.BaseFee == 1100 {
+				if report.NodeDetails.Channels[0].Node1Policy.BaseFee == 1100 {
 					step++
 				} else {
 					cancel()

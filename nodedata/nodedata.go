@@ -521,6 +521,14 @@ func (c *NodeData) checkOne(
 		nodeInfo = nil
 	}
 
+	nodeInfoFull := entities.NodeDetails{
+		NodeVersion:   "undefined",
+		SyncedToChain: true,
+		SyncedToGraph: true,
+	}
+
+	nodeInfoFull.NodeInfoAPIExtended = *nodeInfo
+
 	nodeData := &entities.NodeDataReport{
 		ReportingSettings: settings,
 		Chain:             info.Chain,
@@ -530,7 +538,7 @@ func (c *NodeData) checkOne(
 		Timestamp:         common_entities.JsonTime(time.Now()),
 		ChangedChannels:   channelList,
 		ClosedChannels:    closedChannels,
-		NodeInfo:          *nodeInfo,
+		NodeDetails:       nodeInfoFull,
 	}
 
 	c.monitoring.MetricsReport("checkone", "success", map[string]string{"pubkey": pubkey})

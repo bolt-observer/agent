@@ -2,7 +2,6 @@ package entities
 
 import (
 	"context"
-	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/go_common/entities"
 )
 
@@ -26,6 +25,6 @@ type NodeDataReport struct {
 	ChangedChannels []ChannelBalance `json:"changed_channels"`
 	// ClosedChannels - contains all channels that were determined to be closed
 	ClosedChannels []ClosedChannel `json:"closed_channels"`
-	// Node Info
-	NodeInfo api.NodeInfoAPIExtended `json:"node_info"`
+	// Node Details
+	NodeDetails NodeDetails `json:"node_details"`
 }
