@@ -522,9 +522,9 @@ func (c *NodeData) checkOne(
 	}
 
 	nodeInfoFull := entities.NodeDetails{
-		NodeVersion:   "undefined",
-		SyncedToChain: true,
-		SyncedToGraph: true,
+		NodeVersion:     info.Version,
+		IsSyncedToChain: info.IsSyncedToChain,
+		IsSyncedToGraph: info.IsSyncedToGraph,
 	}
 
 	nodeInfoFull.NodeInfoAPIExtended = *nodeInfo

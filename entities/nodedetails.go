@@ -7,8 +7,8 @@ import (
 // NodeDetails struct
 type NodeDetails struct {
 	NodeVersion   string `json:"node_version"`
-	SyncedToChain bool   `json:"synced_to_chain"`
-	SyncedToGraph bool   `json:"synced_to_graph"`
+	IsSyncedToChain bool   `json:"is_synced_to_chain"`
+	IsSyncedToGraph bool   `json:"is_synced_to_graph"`
 
 	api.NodeInfoAPIExtended
 }
