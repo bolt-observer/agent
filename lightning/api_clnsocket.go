@@ -258,8 +258,8 @@ func (l *ClnSocketLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 		Network:        reply.Network,
 		Chain:          "mainnet", // assume mainnet
 		Version:        fmt.Sprintf("corelightning-%s", reply.Version),
-		SyncedToGraph:  syncedToGraph,
-		SyncedToChain:  syncedToChain,
+		IsSyncedToGraph:  syncedToGraph,
+		IsSyncedToChain:  syncedToChain,
 	}, nil
 }
 

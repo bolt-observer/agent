@@ -148,7 +148,7 @@ func TestGetInfoGrpc(t *testing.T) {
 		return
 	}
 
-	if !strings.HasPrefix(resp.Version, "lnd-") || !resp.SyncedToChain || !resp.SyncedToGraph {
+	if !strings.HasPrefix(resp.Version, "lnd-") || !resp.IsSyncedToChain || !resp.IsSyncedToGraph {
 		t.Fatalf("GetInfo got wrong response: %v", resp)
 		return
 	}

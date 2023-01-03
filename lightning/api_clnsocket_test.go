@@ -182,7 +182,7 @@ func TestClnGetInfo(t *testing.T) {
 		t.Fatal("Wrong response")
 	}
 
-	if !strings.HasPrefix(resp.Version, "corelightning-") || !resp.SyncedToChain || !resp.SyncedToGraph {
+	if !strings.HasPrefix(resp.Version, "corelightning-") || !resp.IsSyncedToChain || !resp.IsSyncedToGraph {
 		t.Fatalf("GetInfo got wrong response: %v", resp)
 		return
 	}

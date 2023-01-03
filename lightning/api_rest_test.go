@@ -245,7 +245,7 @@ func TestGetInfo(t *testing.T) {
 		return
 	}
 
-	if !strings.HasPrefix(result.Version, "lnd-") || !result.SyncedToChain || !result.SyncedToGraph {
+	if !strings.HasPrefix(result.Version, "lnd-") || !result.IsSyncedToChain || !result.IsSyncedToGraph {
 		t.Fatalf("GetInfo got wrong response: %v", result)
 		return
 	}
