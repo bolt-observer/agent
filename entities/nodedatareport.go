@@ -2,6 +2,7 @@ package entities
 
 import (
 	"context"
+
 	"github.com/bolt-observer/go_common/entities"
 )
 
@@ -26,5 +27,5 @@ type NodeDataReport struct {
 	// ClosedChannels - contains all channels that were determined to be closed
 	ClosedChannels []ClosedChannel `json:"closed_channels"`
 	// Node Details
-	NodeDetails NodeDetails `json:"node_details"`
+	NodeDetails *NodeDetails `json:"node_details,omitempty"`
 }

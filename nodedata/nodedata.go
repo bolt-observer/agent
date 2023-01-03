@@ -144,7 +144,7 @@ func (c *NodeData) GetState(
 		return nil, errors.New("invalid pubkey")
 	}
 
-	resp, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, settings, true, false)
+	resp, _, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, settings, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -388,11 +388,12 @@ func (c *NodeData) checkAll() bool {
 
 			// Subscribe will set lastCheck to min value and you expect update in such a case
 			ignoreCache := toBeCheckedBy.Year() <= 1
-			resp, err := c.checkOne(s.identifier, s.getAPI, s.settings, ignoreCache, reportAnyway)
+			resp, hash, err := c.checkOne(s.identifier, s.getAPI, s.settings, ignoreCache, reportAnyway)
 			if err != nil {
 				glog.Warningf("Failed to check %v: %v", s.identifier.GetID(), err)
 				continue
 			}
+			s.hash = hash
 
 			if resp != nil && s.identifier.Identifier != "" && resp.PubKey != "" && !strings.EqualFold(resp.PubKey, s.identifier.Identifier) {
 				sentry.CaptureMessage(fmt.Sprintf("PubKey mismatch %s vs %s", resp.PubKey, s.identifier.Identifier))
@@ -439,7 +440,7 @@ func (c *NodeData) checkOne(
 	getAPI entities.NewAPICall,
 	settings entities.ReportingSettings,
 	ignoreCache bool,
-	reportAnyway bool) (*entities.NodeDataReport, error) {
+	reportAnyway bool) (*entities.NodeDataReport, uint64, error) {
 	s := c.perNodeSettings.Get(identifier.GetID())
 
 	pubkey := identifier.GetID()
@@ -451,13 +452,13 @@ func (c *NodeData) checkOne(
 
 	if getAPI == nil {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
-		return nil, fmt.Errorf("failed to get client - getAPI was nil")
+		return nil, 0, fmt.Errorf("failed to get client - getAPI was nil")
 	}
 
 	api := getAPI()
 	if api == nil {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
-		return nil, fmt.Errorf("failed to get client - getAPI returned nil")
+		return nil, 0, fmt.Errorf("failed to get client - getAPI returned nil")
 	}
 	defer api.Cleanup()
 
@@ -465,12 +466,12 @@ func (c *NodeData) checkOne(
 	info, err := api.GetInfo(c.ctx)
 	if err != nil {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
-		return nil, fmt.Errorf("failed to get info: %v", err)
+		return nil, 0, fmt.Errorf("failed to get info: %v", err)
 	}
 
 	if identifier.Identifier != "" && !strings.EqualFold(info.IdentityPubkey, identifier.Identifier) {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
-		return nil, fmt.Errorf("pubkey and reported pubkey are not the same")
+		return nil, 0, fmt.Errorf("pubkey and reported pubkey are not the same")
 	}
 
 	identifier.Identifier = info.IdentityPubkey
@@ -478,7 +479,7 @@ func (c *NodeData) checkOne(
 	channelList, set, err := c.getChannelList(api, info, settings.AllowedEntropy, settings.AllowPrivateChannels)
 	if err != nil {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
-		return nil, err
+		return nil, 0, err
 	}
 
 	closedChannels := make([]entities.ClosedChannel, 0)
@@ -500,34 +501,31 @@ func (c *NodeData) checkOne(
 	// Get node info
 	nodeInfo, err := api.GetNodeInfoFull(c.ctx, true, settings.AllowPrivateChannels)
 	if err != nil {
-		fmt.Printf("failed to call GetNodeInfoFull %v", err)
-		nodeInfo = nil
+		return nil, 0, err
 	}
 
 	if len(nodeInfo.Channels) != int(nodeInfo.NumChannels) {
-		fmt.Printf("bad NodeInfo obtained %d channels vs. num_channels %d - %v", len(nodeInfo.Channels), nodeInfo.NumChannels, nodeInfo)
-		nodeInfo = nil
+		glog.Warningf("Bad NodeInfo obtained %d channels vs. num_channels %d - info %+v", len(nodeInfo.Channels), nodeInfo.NumChannels, nodeInfo)
+		nodeInfo.NumChannels = uint32(len(nodeInfo.Channels))
 	}
 
-	hash, err := hashstructure.Hash(nodeInfo, hashstructure.FormatV2, nil)
-	if err != nil {
-		glog.Warning("Hash could not be determined")
-		hash = 1
-	}
-
-	if hash != s.hash {
-		s.hash = hash
-	} else {
-		nodeInfo = nil
-	}
-
-	nodeInfoFull := entities.NodeDetails{
+	nodeInfoFull := &entities.NodeDetails{
 		NodeVersion:     info.Version,
 		IsSyncedToChain: info.IsSyncedToChain,
 		IsSyncedToGraph: info.IsSyncedToGraph,
 	}
 
 	nodeInfoFull.NodeInfoAPIExtended = *nodeInfo
+
+	hash, err := hashstructure.Hash(nodeInfoFull, hashstructure.FormatV2, nil)
+	if err != nil {
+		glog.Warning("Hash could not be determined")
+		hash = 1
+	}
+
+	if hash == s.hash {
+		nodeInfoFull = nil
+	}
 
 	nodeData := &entities.NodeDataReport{
 		ReportingSettings: settings,
@@ -542,7 +540,7 @@ func (c *NodeData) checkOne(
 	}
 
 	c.monitoring.MetricsReport("checkone", "success", map[string]string{"pubkey": pubkey})
-	return nodeData, nil
+	return nodeData, hash, nil
 }
 
 // filterList will return just the changed channels
