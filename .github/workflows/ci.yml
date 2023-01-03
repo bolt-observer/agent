@@ -50,18 +50,22 @@ jobs:
           echo "DESCRIBE=$(git describe)" >> $GITHUB_ENV
           if [ "$GITHUB_REF_TYPE" == "tag" ]; then
             # shellcheck disable=SC2086
-            echo "TAG=$GITHUB_REF_NAME" >> $GITHUB_ENV
+            echo "TAGS=ghcr.io/bolt-observer/agent:$GITHUB_REF_NAME,ghcr.io/bolt-observer/agent:unstable" >> $GITHUB_ENV
+          elif [ "$GITHUB_REF_NAME" == "main" ]; then
+            # shellcheck disable=SC2086
+            echo "TAGS=ghcr.io/bolt-observer/agent:$GITHUB_REF_NAME,ghcr.io/bolt-observer/agent:latest,ghcr.io/bolt-observer/agent:unstable" >> $GITHUB_ENV
           else
             # shellcheck disable=SC2086
-            echo "TAG=latest" >> $GITHUB_ENV
+            echo "TAGS=ghcr.io/bolt-observer/agent:unstable" >> $GITHUB_ENV
           fi
 
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
           push: true
-          tags: ghcr.io/bolt-observer/agent:${{ env.TAG }}
-          cache-from: type=gha,scope=$GITHUB_REF_NAME-agent
-          cache-to: type=gha,mode=max,scope=$GITHUB_REF_NAME-agent
+          tags: ${{ env.TAGS }}
+          cache-from: type=gha,scope=${{ env.GITHUB_REF_NAME }}-agent
+          cache-to: type=gha,mode=max,scope=${{ env.GITHUB_REF_NAME }}-agent
+          platforms: linux/amd64,linux/arm64
           build-args: |
             DESCRIBE=${{ env.DESCRIBE }}

@@ -3,7 +3,7 @@
 # Set outside usually
 API_KEY=${API_KEY:-wrong}
 SERVER=${SERVER:-"bolt.observer"}
-TAG=${TAG:-"latest"}
+TAG=${TAG:-"unstable"}
 
 NAME=${NAME:-polar-n3-alice}
 

@@ -19,12 +19,15 @@ var (
 
 // ClnInfo struct
 type ClnInfo struct {
-	PubKey    string            `json:"id"`
-	Alias     string            `json:"alias"`
-	Color     string            `json:"color"`
-	Network   string            `json:"network"`
-	Addresses []ClnListNodeAddr `json:"address,omitempty"`
-	Features  ClnFeatures       `json:"our_features"`
+	PubKey                string            `json:"id"`
+	Alias                 string            `json:"alias"`
+	Color                 string            `json:"color"`
+	Network               string            `json:"network"`
+	Addresses             []ClnListNodeAddr `json:"address,omitempty"`
+	Features              ClnFeatures       `json:"our_features"`
+	Version               string            `json:"version"`
+	WarningBitcoindSync   string            `json:"warning_bitcoind_sync,omitempty"`
+	WarningLightningdSync string            `json:"warning_lightningd_sync,omitempty"`
 }
 
 // ClnFeatures struct
