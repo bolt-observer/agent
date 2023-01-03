@@ -221,7 +221,7 @@ func (m *MockLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, chann
 	m.Trace += "getnodeinfo" + pubKey + strconv.FormatBool(channels)
 
 	return &NodeInfoAPI{Node: DescribeGraphNodeAPI{PubKey: "fake"},
-		Channels:    []NodeChannelAPI{{ChannelID: 1, Capacity: 1}, {ChannelID: 2, Capacity: 2}},
+		Channels:    []NodeChannelAPI{{ChannelID: 1, Capacity: 1}},
 		NumChannels: 2, TotalCapacity: 3}, nil
 }
 
@@ -256,6 +256,15 @@ func TestNodeInfoFull(t *testing.T) {
 		t.Fatalf("GetChanInfo was not invoked")
 		return
 	}
+
+	clone := &NodeInfoAPIExtended{
+		NodeInfoAPI: resp.NodeInfoAPI,
+		Channels:    make([]NodeChannelAPIExtended, 0),
+	}
+
+	if clone.NumChannels != 2 || clone.TotalCapacity != 3 {
+		t.Fatalf("Wrong data returned from clone")
+	}
 }
 
 func TestNodeInfoFullPublic(t *testing.T) {
@@ -265,7 +274,7 @@ func TestNodeInfoFullPublic(t *testing.T) {
 		t.Fatalf("Error getting node info: %v", err)
 		return
 	}
-	if resp.Node.PubKey != "fake" || resp.NumChannels != 2 || resp.TotalCapacity != 3 {
+	if resp.Node.PubKey != "fake" || resp.NumChannels != 1 || resp.TotalCapacity != 1 {
 		t.Fatalf("Wrong data returned")
 		return
 	}
@@ -312,5 +321,14 @@ func TestNodeInfoFullWithDescribeGraph(t *testing.T) {
 	if resp.Channels[0].Private || !resp.Channels[1].Private {
 		t.Fatalf("Wrong private data returned")
 		return
+	}
+
+	clone := &NodeInfoAPIExtended{
+		NodeInfoAPI: resp.NodeInfoAPI,
+		Channels:    make([]NodeChannelAPIExtended, 0),
+	}
+
+	if clone.NumChannels != 2 || clone.TotalCapacity != 3 {
+		t.Fatalf("Wrong data returned from clone")
 	}
 }

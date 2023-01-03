@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	entities "github.com/bolt-observer/go_common/entities"
@@ -143,6 +144,11 @@ func TestGetInfoGrpc(t *testing.T) {
 		return
 	}
 	if resp.IdentityPubkey != pubKey || resp.Alias != "CrazyConqueror" || resp.Chain != "bitcoin" || resp.Network != "mainnet" {
+		t.Fatalf("GetInfo got wrong response: %v", resp)
+		return
+	}
+
+	if !strings.HasPrefix(resp.Version, "lnd-") || !resp.IsSyncedToChain || !resp.IsSyncedToGraph {
 		t.Fatalf("GetInfo got wrong response: %v", resp)
 		return
 	}

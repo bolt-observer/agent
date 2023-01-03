@@ -25,7 +25,11 @@ linux: ${BINARIES_LINUX}
 .PHONY: ${BINARIES_LINUX}
 ${BINARIES_LINUX}:
 	mkdir -p release
+ifeq ($(MULTIARCH),true)
+	cd cmd/$(@:cmd/%-linux=%) ; CGO_ENABLED=0 go build -ldflags "-X main.GitRevision=$(REVISION) -extldflags '-static'" -tags timetzdata -o ../../release/$(@:cmd/%-linux=%)-$(REVISION)-linux ; cd ../..
+else
 	cd cmd/$(@:cmd/%-linux=%) ; CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-X main.GitRevision=$(REVISION) -extldflags '-static'" -tags timetzdata -o ../../release/$(@:cmd/%-linux=%)-$(REVISION)-linux ; cd ../..
+endif
 
 .PHONY: rasp
 rasp: ${BINARIES_RASP}
