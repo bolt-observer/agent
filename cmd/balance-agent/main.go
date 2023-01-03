@@ -48,7 +48,6 @@ var (
 	defaultRPCHostPort  = "localhost:" + defaultRPCPort
 	apiKey              string
 	url                 string
-	nodeurl             string
 	// GitRevision is set with build
 	GitRevision      = "unknownVersion"
 	nodeInfoReported sync.Map
@@ -281,18 +280,6 @@ func getApp() *cli.App {
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:   "nodeurl",
-			Usage:  "Node report URL",
-			Value:  "https://ingress.bolt.observer/api/private-node/",
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:   "nodeinterval",
-			Usage:  "interval to poll - 10s, 1m, 10m or 1h",
-			Value:  "1m",
-			Hidden: true,
-		},
-		&cli.StringFlag{
 			Name:   "uniqueid",
 			Usage:  "Unique identifier",
 			Value:  "",
@@ -515,7 +502,7 @@ func nodeDataChecker(ctx *cli.Context) error {
 		apiKey = ctx.String("apikey")
 	}
 
-	if apiKey == "" && (ctx.String("url") != "" || ctx.String("nodeurl") != "") {
+	if apiKey == "" && ctx.String("url") != "" {
 		// We don't return error here since we don't want glog to handle it
 		fmt.Fprintf(os.Stderr, "missing API key (use --apikey or set API_KEY environment variable)\n")
 		os.Exit(1)
@@ -552,7 +539,6 @@ func nodeDataChecker(ctx *cli.Context) error {
 	go signalHandler(ct, f)
 
 	url = ctx.String("url")
-	nodeurl = ctx.String("nodeurl")
 	private = ctx.Bool("private") || ctx.String(whitelist) != ""
 
 	interval, err := getInterval(ctx, "interval")
