@@ -244,6 +244,11 @@ func TestGetInfo(t *testing.T) {
 		t.Fatalf("GetInfo got wrong response: %v", result)
 		return
 	}
+
+	if !strings.HasPrefix(result.Version, "lnd-") || !result.SyncedToChain || !result.SyncedToGraph {
+		t.Fatalf("GetInfo got wrong response: %v", result)
+		return
+	}
 }
 
 func TestGetChannels(t *testing.T) {

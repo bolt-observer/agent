@@ -249,11 +249,17 @@ func (l *ClnSocketLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 		return nil, err
 	}
 
+	syncedToGraph := reply.WarningLightningdSync == ""
+	syncedToChain := reply.WarningBitcoindSync == ""
+
 	return &InfoAPI{
 		IdentityPubkey: reply.PubKey,
 		Alias:          reply.Alias,
 		Network:        reply.Network,
 		Chain:          "mainnet", // assume mainnet
+		Version:        fmt.Sprintf("corelightning-%s", reply.Version),
+		SyncedToGraph:  syncedToGraph,
+		SyncedToChain:  syncedToChain,
 	}, nil
 }
 

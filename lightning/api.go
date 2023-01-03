@@ -39,6 +39,9 @@ type InfoAPI struct {
 	Alias          string
 	Chain          string
 	Network        string
+	Version        string
+	SyncedToGraph  bool
+	SyncedToChain  bool
 }
 
 // ChannelsAPI struct

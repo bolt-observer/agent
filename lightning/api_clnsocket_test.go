@@ -181,6 +181,11 @@ func TestClnGetInfo(t *testing.T) {
 	if resp.IdentityPubkey != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" || resp.Alias != "cln1" || resp.Chain != "mainnet" || resp.Network != "bitcoin" {
 		t.Fatal("Wrong response")
 	}
+
+	if !strings.HasPrefix(resp.Version, "corelightning-") || !resp.SyncedToChain || !resp.SyncedToGraph {
+		t.Fatalf("GetInfo got wrong response: %v", resp)
+		return
+	}
 }
 
 func TestClnGetChanInfo(t *testing.T) {

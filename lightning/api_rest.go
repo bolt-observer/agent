@@ -56,6 +56,9 @@ func (l *LndRestLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 		IdentityPubkey: resp.IdentityPubkey,
 		Chain:          resp.Chains[0].Chain,
 		Network:        resp.Chains[0].Network,
+		Version:        fmt.Sprintf("lnd-%s", resp.Version),
+		SyncedToGraph:  resp.SyncedToGraph,
+		SyncedToChain:  resp.SyncedToChain,
 	}
 
 	return ret, err
