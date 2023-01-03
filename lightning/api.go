@@ -35,10 +35,13 @@ func GetAPIType(t *int) (*APIType, error) {
 
 // InfoAPI struct
 type InfoAPI struct {
-	IdentityPubkey string
-	Alias          string
-	Chain          string
-	Network        string
+	IdentityPubkey  string
+	Alias           string
+	Chain           string
+	Network         string
+	Version         string
+	IsSyncedToGraph bool
+	IsSyncedToChain bool
 }
 
 // ChannelsAPI struct
@@ -175,13 +178,16 @@ func getNodeInfoFullTemplate(ctx context.Context, l LightingAPICalls, threshUseD
 	if !unnanounced {
 		// We have full info already (fast bailout)
 
+		capacity := uint64(0)
 		all := make([]NodeChannelAPIExtended, 0)
 		for _, ch := range nodeInfo.Channels {
 			all = append(all, NodeChannelAPIExtended{NodeChannelAPI: ch, Private: false})
+			capacity += ch.Capacity
 		}
 
 		extendedNodeInfo.Channels = all
 		extendedNodeInfo.NumChannels = uint32(len(all))
+		extendedNodeInfo.TotalCapacity = capacity
 
 		return extendedNodeInfo, err
 	}
