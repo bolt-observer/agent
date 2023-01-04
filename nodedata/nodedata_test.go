@@ -14,6 +14,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	agent_entities "github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/filter"
 	lightning_api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/go_common/entities"
 	"github.com/bolt-observer/go_common/utils"
@@ -1271,6 +1272,138 @@ func TestBaseFeePolicyChange(t *testing.T) {
 		t.Fatal("Took too long")
 	case <-ctx.Done():
 		if step < 1 {
+			t.Fatalf("Callback was not correctly invoked")
+		}
+	}
+}
+
+func TestBasicFlowFilterOne(t *testing.T) {
+	pubKey, api, d := initTest(t)
+
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
+		var contents string
+		if strings.Contains(req.URL.Path, "v1/getinfo") {
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else if strings.Contains(req.URL.Path, "v1/channels") {
+			contents = getChannelJSON(1337, false, true)
+		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
+			contents = getChanInfo(req.URL.Path)
+		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		}
+
+		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	// Make everything a bit faster
+	c.OverrideLoopInterval(1 * time.Second)
+	wasCalled := false
+
+	f, _ := filter.NewUnitTestFilter()
+	fd := f.(*filter.UnitTestFilter)
+	fd.AddAllowChanID(1)
+	fd.AddAllowChanID(1337)
+
+	c.Subscribe(
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+			if len(report.ChangedChannels) == 1 && report.UniqueID == "random_id" && report.NodeDetails.NumChannels == 1 && len(report.NodeDetails.Channels) == 1 {
+				wasCalled = true
+			}
+
+			cancel()
+			return true
+		},
+		func() lightning_api.LightingAPICalls { return api },
+		pubKey,
+		agent_entities.ReportingSettings{
+			AllowedEntropy:       64,
+			PollInterval:         agent_entities.Second,
+			AllowPrivateChannels: true,
+			Filter:               f,
+		},
+		"random_id",
+	)
+
+	c.EventLoop()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("Took too long")
+	case <-ctx.Done():
+		if !wasCalled {
+			t.Fatalf("Callback was not correctly invoked")
+		}
+	}
+}
+
+func TestBasicFlowFilterTwo(t *testing.T) {
+	pubKey, api, d := initTest(t)
+
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
+		var contents string
+		if strings.Contains(req.URL.Path, "v1/getinfo") {
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else if strings.Contains(req.URL.Path, "v1/channels") {
+			contents = getChannelJSON(1337, false, true)
+		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
+			contents = getChanInfo(req.URL.Path)
+		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		}
+
+		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	// Make everything a bit faster
+	c.OverrideLoopInterval(1 * time.Second)
+	wasCalled := false
+
+	f, _ := filter.NewUnitTestFilter()
+	fd := f.(*filter.UnitTestFilter)
+	fd.AddAllowPubKey("02004c625d622245606a1ea2c1c69cfb4516b703b47945a3647713c05fe4aaeb1c")
+
+	c.Subscribe(
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+			if len(report.ChangedChannels) == 2 && report.UniqueID == "random_id" {
+				wasCalled = true
+			}
+
+			cancel()
+			return true
+		},
+		func() lightning_api.LightingAPICalls { return api },
+		pubKey,
+		agent_entities.ReportingSettings{
+			AllowedEntropy:       64,
+			PollInterval:         agent_entities.Second,
+			AllowPrivateChannels: true,
+			Filter:               f,
+		},
+		"random_id",
+	)
+
+	c.EventLoop()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("Took too long")
+	case <-ctx.Done():
+		if !wasCalled {
 			t.Fatalf("Callback was not correctly invoked")
 		}
 	}

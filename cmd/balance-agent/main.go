@@ -546,21 +546,11 @@ func nodeDataChecker(ctx *cli.Context) error {
 		return err
 	}
 
-	nodeinterval, err := getInterval(ctx, "nodeinterval")
-	if err != nil {
-		nodeinterval = interval
-	}
-
 	preferipv4 = ctx.Bool("preferipv4")
 
 	if interval == agent_entities.Second {
 		// Second is just for testing purposes
 		interval = agent_entities.TenSeconds
-	}
-
-	if nodeinterval == agent_entities.Second {
-		// Second is just for testing purposes
-		nodeinterval = agent_entities.TenSeconds
 	}
 
 	nodeDataChecker := nodedata.NewDefaultNodeData(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedata checker"))

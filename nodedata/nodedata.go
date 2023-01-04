@@ -13,7 +13,9 @@ import (
 	"time"
 
 	"github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
+	lightningapi "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	"github.com/bolt-observer/go_common/utils"
 	"github.com/getsentry/sentry-go"
@@ -100,6 +102,12 @@ func (c *NodeData) Subscribe(
 		settings.GraphPollInterval = 30 * time.Minute
 	}
 
+	if settings.Filter == nil {
+		glog.V(3).Infof("Filter was nil, allowing everything")
+		f, _ := filter.NewAllowAllFilter()
+		settings.Filter = f
+	}
+
 	info, err := api.GetInfo(c.ctx)
 
 	if err != nil {
@@ -144,6 +152,11 @@ func (c *NodeData) GetState(
 		return nil, errors.New("invalid pubkey")
 	}
 
+	if settings.Filter == nil {
+		f, _ := filter.NewAllowAllFilter()
+		settings.Filter = f
+	}
+
 	resp, _, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, settings, true, false)
 	if err != nil {
 		return nil, err
@@ -160,7 +173,8 @@ func (c *NodeData) getChannelList(
 	api api.LightingAPICalls,
 	info *api.InfoAPI,
 	precisionBits int,
-	allowPrivateChans bool) ([]entities.ChannelBalance, SetOfChanIds, error) {
+	allowPrivateChans bool,
+	filter filter.FilteringInterface) ([]entities.ChannelBalance, SetOfChanIds, error) {
 
 	defer c.monitoring.MetricsTimer("channellist", map[string]string{"pubkey": info.IdentityPubkey})()
 
@@ -184,6 +198,11 @@ func (c *NodeData) getChannelList(
 
 	for _, channel := range channels.Channels {
 		if channel.Private && !allowPrivateChans {
+			continue
+		}
+
+		if !filter.AllowChanID(channel.ChanID) && !filter.AllowPubKey(channel.RemotePubkey) && !filter.AllowSpecial(channel.Private) {
+			glog.V(3).Infof("Filtering channel %v", channel.ChanID)
 			continue
 		}
 
@@ -434,6 +453,31 @@ func (c *NodeData) checkAll() bool {
 	return true
 }
 
+func applyFilter(info *lightningapi.NodeInfoAPIExtended, filter filter.FilteringInterface) *lightningapi.NodeInfoAPIExtended {
+	ret := &lightningapi.NodeInfoAPIExtended{
+		NodeInfoAPI: info.NodeInfoAPI,
+		Channels:    make([]lightningapi.NodeChannelAPIExtended, 0),
+	}
+
+	ret.NumChannels = 0
+	ret.TotalCapacity = 0
+	ret.NodeInfoAPI.NumChannels = 0
+	ret.NodeInfoAPI.TotalCapacity = 0
+
+	for _, c := range info.Channels {
+		nodeAllowed := (filter.AllowPubKey(c.Node1Pub) && info.Node.PubKey != c.Node1Pub) || (filter.AllowPubKey(c.Node2Pub) && info.Node.PubKey != c.Node2Pub)
+		chanAllowed := filter.AllowChanID(c.ChannelID)
+
+		if nodeAllowed || chanAllowed || filter.AllowSpecial(c.Private) {
+			ret.Channels = append(ret.Channels, c)
+			ret.NumChannels++
+			ret.TotalCapacity += c.Capacity
+		}
+	}
+
+	return ret
+}
+
 // checkOne checks one specific node
 func (c *NodeData) checkOne(
 	identifier entities.NodeIdentifier,
@@ -476,7 +520,7 @@ func (c *NodeData) checkOne(
 
 	identifier.Identifier = info.IdentityPubkey
 
-	channelList, set, err := c.getChannelList(api, info, settings.AllowedEntropy, settings.AllowPrivateChannels)
+	channelList, set, err := c.getChannelList(api, info, settings.AllowedEntropy, settings.AllowPrivateChannels, settings.Filter)
 	if err != nil {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, 0, err
@@ -503,6 +547,8 @@ func (c *NodeData) checkOne(
 	if err != nil {
 		return nil, 0, err
 	}
+
+	nodeInfo = applyFilter(nodeInfo, settings.Filter)
 
 	if len(nodeInfo.Channels) != int(nodeInfo.NumChannels) {
 		glog.Warningf("Bad NodeInfo obtained %d channels vs. num_channels %d - info %+v", len(nodeInfo.Channels), nodeInfo.NumChannels, nodeInfo)
