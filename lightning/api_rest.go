@@ -52,13 +52,13 @@ func (l *LndRestLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	}
 
 	ret := &InfoAPI{
-		Alias:          resp.Alias,
-		IdentityPubkey: resp.IdentityPubkey,
-		Chain:          resp.Chains[0].Chain,
-		Network:        resp.Chains[0].Network,
-		Version:        fmt.Sprintf("lnd-%s", resp.Version),
-		IsSyncedToGraph:  resp.SyncedToGraph,
-		IsSyncedToChain:  resp.SyncedToChain,
+		Alias:           resp.Alias,
+		IdentityPubkey:  resp.IdentityPubkey,
+		Chain:           resp.Chains[0].Chain,
+		Network:         resp.Chains[0].Network,
+		Version:         fmt.Sprintf("lnd-%s", resp.Version),
+		IsSyncedToGraph: resp.SyncedToGraph,
+		IsSyncedToChain: resp.SyncedToChain,
 	}
 
 	return ret, err
@@ -232,49 +232,9 @@ func (l *LndRestLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 	return &ret, nil
 }
 
-// GetForwardingHistory API
-func (l *LndRestLightningAPI) GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error) {
-
-	param := &ForwardingHistoryRequestOverride{}
-
-	param.NumMaxEvents = uint32(pagination.Num)
-	param.IndexOffset = uint32(pagination.Offset)
-
-	if pagination.From != nil {
-		param.StartTime = fmt.Sprintf("%d", uint64(pagination.From.Unix()))
-	}
-
-	if pagination.To != nil {
-		param.EndTime = fmt.Sprintf("%d", uint64(pagination.To.Unix()))
-	}
-
-	if pagination.Reversed {
-		return nil, fmt.Errorf("reverse pagination not supported")
-	}
-
-	resp, err := l.HTTPAPI.HTTPForwardEvents(ctx, l.Request, l.Transport, param)
-	if err != nil {
-		return nil, err
-	}
-
-	ret := &ForwardingHistoryResponse{
-		ForwardingEvents: make([]ForwardingEvent, 0, len(resp.ForwardingEvents)),
-	}
-
-	ret.LastOffsetIndex = uint64(resp.LastOffsetIndex)
-
-	for _, event := range resp.ForwardingEvents {
-		ret.ForwardingEvents = append(ret.ForwardingEvents, ForwardingEvent{
-			Timestamp:     time.Unix(0, stringToInt64(event.TimestampNs)),
-			ChanIDIn:      stringToUint64(event.ChanIDIn),
-			ChanIDOut:     stringToUint64(event.ChanIDOut),
-			AmountInMsat:  stringToUint64(event.AmtInMsat),
-			AmountOutMsat: stringToUint64(event.AmtOutMsat),
-			FeeMsat:       stringToUint64(event.FeeMsat),
-		})
-	}
-
-	return ret, nil
+// SubscribeForwards - API call
+func (l *LndRestLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, callback SubscribeForwardsCallback, failedCallback SubscribeFailedCallback) {
+	panic("not implemented")
 }
 
 // GetInvoices API

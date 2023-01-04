@@ -4,18 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
 	"github.com/bolt-observer/go_common/entities"
 	"github.com/golang/glog"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 )
 
 // LndGrpcLightningAPI struct
 type LndGrpcLightningAPI struct {
-	Client      lnrpc.LightningClient
-	CleanupFunc func()
+	Client       lnrpc.LightningClient
+	RouterClient routerrpc.RouterClient
+	CleanupFunc  func()
 	API
 }
 
@@ -24,16 +27,17 @@ var _ LightingAPICalls = &LndGrpcLightningAPI{}
 
 // NewLndGrpcLightningAPI - creates new lightning API
 func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
-	client, cleanup, err := GetClient(getData)
+	client, routerClient, cleanup, err := GetClient(getData)
 	if err != nil {
 		glog.Warningf("Failed to get client: %v", err)
 		return nil
 	}
 
 	return &LndGrpcLightningAPI{
-		Client:      client,
-		CleanupFunc: cleanup,
-		API:         API{GetNodeInfoFullThreshUseDescribeGraph: 500},
+		Client:       client,
+		RouterClient: routerClient,
+		CleanupFunc:  cleanup,
+		API:          API{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
 
@@ -55,13 +59,13 @@ func (l *LndGrpcLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	}
 
 	ret := &InfoAPI{
-		Alias:          resp.Alias,
-		IdentityPubkey: resp.IdentityPubkey,
-		Chain:          resp.Chains[0].Chain,
-		Network:        resp.Chains[0].Network,
-		Version:        fmt.Sprintf("lnd-%s", resp.Version),
-		IsSyncedToGraph:  resp.SyncedToGraph,
-		IsSyncedToChain:  resp.SyncedToChain,
+		Alias:           resp.Alias,
+		IdentityPubkey:  resp.IdentityPubkey,
+		Chain:           resp.Chains[0].Chain,
+		Network:         resp.Chains[0].Network,
+		Version:         fmt.Sprintf("lnd-%s", resp.Version),
+		IsSyncedToGraph: resp.SyncedToGraph,
+		IsSyncedToChain: resp.SyncedToChain,
 	}
 
 	return ret, err
@@ -219,50 +223,163 @@ func (l *LndGrpcLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 	return &ret, nil
 }
 
-// GetForwardingHistory API
-func (l *LndGrpcLightningAPI) GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error) {
+// SubscribeForwards API
+func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, callback SubscribeForwardsCallback, failedCallback SubscribeFailedCallback) {
+	// We will first try obtaining ForwadingHistory and then move to SubscribeHtlc
+	const maxErrors = 5
+	sleepTime := 5 * time.Second
 
+	if batchSize == 0 {
+		batchSize = 50
+	}
+
+	errors := 0
 	req := &lnrpc.ForwardingHistoryRequest{
-		NumMaxEvents: uint32(pagination.Num),
-		IndexOffset:  uint32(pagination.Offset),
+		NumMaxEvents: uint32(batchSize),
+		IndexOffset:  uint32(0),
+		StartTime:    uint64(since.Unix()),
 	}
 
-	if pagination.From != nil {
-		req.StartTime = uint64(pagination.From.Unix())
-	}
+	go func() {
+		var (
+			err             error
+			subscribeClient routerrpc.Router_SubscribeHtlcEventsClient
+		)
 
-	if pagination.To != nil {
-		req.EndTime = uint64(pagination.To.Unix())
-	}
+		for {
+			resp, err := l.Client.ForwardingHistory(ctx, req)
 
-	if pagination.Reversed {
-		return nil, fmt.Errorf("reverse pagination not supported")
-	}
+			if err != nil {
+				glog.Warningf("Error getting ForwadingHistory %v\n", err)
+				time.Sleep(sleepTime)
+				if errors >= maxErrors {
+					if failedCallback != nil {
+						failedCallback(ctx, err)
+					}
+					return
+				}
 
-	resp, err := l.Client.ForwardingHistory(ctx, req)
+				errors++
+				continue
+			}
 
-	if err != nil {
-		return nil, err
-	}
+			if resp.ForwardingEvents == nil || len(resp.ForwardingEvents) == 0 {
+				break
+			}
 
-	ret := &ForwardingHistoryResponse{
-		ForwardingEvents: make([]ForwardingEvent, 0, len(resp.ForwardingEvents)),
-	}
+			batch := make([]ForwardingEvent, 0, batchSize)
 
-	ret.LastOffsetIndex = uint64(resp.LastOffsetIndex)
+			for _, event := range resp.ForwardingEvents {
+				batch = append(batch, ForwardingEvent{
+					Timestamp:     time.Unix(0, int64(event.TimestampNs)),
+					ChanIDIn:      event.ChanIdIn,
+					ChanIDOut:     event.ChanIdOut,
+					AmountInMsat:  event.AmtInMsat,
+					AmountOutMsat: event.AmtOutMsat,
+					FeeMsat:       event.FeeMsat,
+					IsSuccess:     true,
+					FailureString: "",
+				})
+			}
 
-	for _, event := range resp.ForwardingEvents {
-		ret.ForwardingEvents = append(ret.ForwardingEvents, ForwardingEvent{
-			Timestamp:     time.Unix(0, int64(event.TimestampNs)),
-			ChanIDIn:      event.ChanIdIn,
-			ChanIDOut:     event.ChanIdOut,
-			AmountInMsat:  event.AmtInMsat,
-			AmountOutMsat: event.AmtOutMsat,
-			FeeMsat:       event.FeeMsat,
-		})
-	}
+			if callback != nil {
+				if callback(ctx, batch) {
+					req.IndexOffset = resp.LastOffsetIndex
+				}
+			} else {
+				req.IndexOffset = resp.LastOffsetIndex
+			}
+		}
 
-	return ret, nil
+		for {
+			subscribeClient, err = l.RouterClient.SubscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
+			if err != nil {
+				glog.Warningf("Error doing SubscribeHtlcEvents %v\n", err)
+				time.Sleep(sleepTime)
+				if errors >= maxErrors {
+					if failedCallback != nil {
+						failedCallback(ctx, err)
+					}
+					return
+				}
+
+				errors++
+				continue
+			} else {
+				break
+			}
+		}
+
+		for {
+			event, err := subscribeClient.Recv()
+			if err == io.EOF {
+				if failedCallback != nil {
+					failedCallback(ctx, nil)
+				}
+				break
+			}
+
+			if err != nil {
+				glog.Warningf("Error getting HTLC %v\n", err)
+				time.Sleep(sleepTime)
+				if errors >= maxErrors {
+					if failedCallback != nil {
+						failedCallback(ctx, err)
+					}
+					return
+				}
+
+				errors++
+				continue
+			}
+
+			if event.EventType != routerrpc.HtlcEvent_FORWARD {
+				// Ignore non-forward events
+				continue
+			}
+
+			in := uint64(0)
+			out := uint64(0)
+			fee := uint64(0)
+
+			success := true
+			failureString := ""
+
+			if event.GetForwardEvent() != nil {
+				in = event.GetForwardEvent().GetInfo().IncomingAmtMsat
+				out = event.GetForwardEvent().GetInfo().OutgoingAmtMsat
+
+			} else if event.GetLinkFailEvent() != nil {
+				in = event.GetLinkFailEvent().GetInfo().IncomingAmtMsat
+				out = event.GetLinkFailEvent().GetInfo().OutgoingAmtMsat
+				failureString = event.GetLinkFailEvent().FailureString
+				success = false
+			} else if event.GetForwardFailEvent() != nil {
+				success = false
+			}
+
+			if in > out {
+				fee = in - out
+			} else {
+				fee = 0
+			}
+
+			batch := []ForwardingEvent{{
+				Timestamp:     time.Unix(0, int64(event.TimestampNs)),
+				ChanIDIn:      event.IncomingChannelId,
+				ChanIDOut:     event.OutgoingChannelId,
+				AmountInMsat:  in,
+				AmountOutMsat: out,
+				FeeMsat:       fee,
+				IsSuccess:     success,
+				FailureString: failureString,
+			}}
+
+			if callback != nil {
+				callback(ctx, batch)
+			}
+		}
+	}()
 }
 
 // GetInvoices API

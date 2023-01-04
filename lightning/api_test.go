@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
@@ -230,11 +231,11 @@ func (m *MockLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*Nod
 	return &NodeChannelAPI{ChannelID: chanID, Capacity: chanID}, nil
 }
 
-func (m *MockLightningAPI) GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error) {
+func (m *MockLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
 	panic("not implemented")
 }
 
-func (m *MockLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
+func (m *MockLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, callback SubscribeForwardsCallback, failedCallback SubscribeFailedCallback) {
 	panic("not implemented")
 }
 

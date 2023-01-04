@@ -258,6 +258,8 @@ type ForwardingEvent struct {
 	AmountInMsat  uint64
 	AmountOutMsat uint64
 	FeeMsat       uint64
+	IsSuccess     bool
+	FailureString string
 }
 
 // ResponseForwardPagination struct
@@ -269,12 +271,6 @@ type ResponseForwardPagination struct {
 type ResponsePagination struct {
 	ResponseForwardPagination
 	FirstOffsetIndex uint64
-}
-
-// ForwardingHistoryResponse struct
-type ForwardingHistoryResponse struct {
-	ForwardingEvents []ForwardingEvent
-	ResponseForwardPagination
 }
 
 // InvoicesResponse struct
@@ -446,6 +442,12 @@ func getNodeInfoFullTemplate(ctx context.Context, l LightingAPICalls, threshUseD
 	return extendedNodeInfo, nil
 }
 
+// SubscribeForwardsCallback is the callback you receive with a batch of ForwardingEvent
+type SubscribeForwardsCallback func(context.Context, []ForwardingEvent) bool
+
+// SubscribeFailedCallback is the callback you receive when subscription failed due to too many errors
+type SubscribeFailedCallback func(context.Context, error)
+
 // LightingAPICalls is the interface for lightning API
 type LightingAPICalls interface {
 	Cleanup()
@@ -455,9 +457,11 @@ type LightingAPICalls interface {
 	GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoAPIExtended, error)
 	GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error)
 	GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error)
-	GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error)
+
 	GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error)
 	GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error)
+
+	SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, callback SubscribeForwardsCallback, failedCallback SubscribeFailedCallback)
 }
 
 // GetDataCall - signature of function for retrieving data

@@ -253,13 +253,13 @@ func (l *ClnSocketLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	syncedToChain := reply.WarningBitcoindSync == ""
 
 	return &InfoAPI{
-		IdentityPubkey: reply.PubKey,
-		Alias:          reply.Alias,
-		Network:        reply.Network,
-		Chain:          "mainnet", // assume mainnet
-		Version:        fmt.Sprintf("corelightning-%s", reply.Version),
-		IsSyncedToGraph:  syncedToGraph,
-		IsSyncedToChain:  syncedToChain,
+		IdentityPubkey:  reply.PubKey,
+		Alias:           reply.Alias,
+		Network:         reply.Network,
+		Chain:           "mainnet", // assume mainnet
+		Version:         fmt.Sprintf("corelightning-%s", reply.Version),
+		IsSyncedToGraph: syncedToGraph,
+		IsSyncedToChain: syncedToChain,
 	}, nil
 }
 
@@ -305,7 +305,7 @@ func ConvertAddresses(addr []ClnListNodeAddr) []NodeAddressAPI {
 	return addresses
 }
 
-// GetNodeInfo - GetNodeInfo API call
+// GetNodeInfo - API call
 func (l *ClnSocketLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
 	var reply ClnListNodeResp
 	err := l.CallWithTimeout(LISTNODES, []string{pubKey}, &reply)
@@ -361,7 +361,7 @@ func (l *ClnSocketLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, 
 
 }
 
-// GetNodeInfoFull - GetNodeInfoFull API call
+// GetNodeInfoFull - API call
 func (l *ClnSocketLightningAPI) GetNodeInfoFull(ctx context.Context, channels bool, unannounced bool) (*NodeInfoAPIExtended, error) {
 	var reply ClnInfo
 	err := l.CallWithTimeout(GETINFO, []string{}, &reply)
@@ -425,17 +425,17 @@ func (l *ClnSocketLightningAPI) GetNodeInfoFull(ctx context.Context, channels bo
 	return result, nil
 }
 
-// GetForwardingHistory - GetForwardingHistory API call
-func (l *ClnSocketLightningAPI) GetForwardingHistory(ctx context.Context, pagination Pagination) (*ForwardingHistoryResponse, error) {
+// SubscribeForwards - API call
+func (l *ClnSocketLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, callback SubscribeForwardsCallback, failedCallback SubscribeFailedCallback) {
 	panic("not implemented")
 }
 
-// GetInvoices - GetInvoices API call
+// GetInvoices - API call
 func (l *ClnSocketLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
 	panic("not implemented")
 }
 
-// GetPayments - GetPayments API call
+// GetPayments - API call
 func (l *ClnSocketLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
 	panic("not implemented")
 }
