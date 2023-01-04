@@ -15,7 +15,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -49,11 +48,10 @@ var (
 	apiKey              string
 	url                 string
 	// GitRevision is set with build
-	GitRevision      = "unknownVersion"
-	nodeInfoReported sync.Map
-	private          bool
-	timeout          = 15 * time.Second
-	preferipv4       = false
+	GitRevision = "unknownVersion"
+	private     bool
+	timeout     = 15 * time.Second
+	preferipv4  = false
 )
 
 func findUnixSocket(paths ...string) string {
@@ -378,13 +376,6 @@ func shouldCrash(status int, body string) {
 }
 
 func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport) bool {
-	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueID: report.UniqueID}
-	_, ok := nodeInfoReported.Load(n.GetID())
-	if !ok {
-		glog.V(3).Infof("Node data for %s was not reported yet", n.GetID())
-		return false
-	}
-
 	rep, err := json.Marshal(report)
 	if err != nil {
 		glog.Warningf("Error marshalling report: %v", err)

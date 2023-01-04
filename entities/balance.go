@@ -1,14 +1,11 @@
 package entities
 
 import (
-	"context"
 	"fmt"
-	api "github.com/bolt-observer/agent/lightning"
 	"strings"
 	"time"
 
 	"github.com/bolt-observer/agent/filter"
-	entities "github.com/bolt-observer/go_common/entities"
 )
 
 // Interval represents the enum of possible intervals
@@ -93,9 +90,6 @@ func (i *Interval) UnmarshalJSON(s []byte) (err error) {
 	return nil
 }
 
-// BalanceReportCallback is called with new ChannelBalanceReport
-type BalanceReportCallback func(ctx context.Context, report *ChannelBalanceReport) bool
-
 // ReportingSettings struct
 type ReportingSettings struct {
 	// GraphPollInterval - intervl for graph polling
@@ -110,26 +104,6 @@ type ReportingSettings struct {
 	AllowedEntropy int `json:"allowed_entropy"` // 64 bits is the default
 	// AllowPrivateChannels - whether private channels were allowed (fitering will set this to true too)
 	AllowPrivateChannels bool `json:"allow_private_channels"` // default is false
-}
-
-// ChannelBalanceReport struct
-type ChannelBalanceReport struct {
-	ReportingSettings
-	// Chain - should be bitcoin (bitcoin, litecoin)
-	Chain string `json:"chain"`
-	// Network - should be mainnet (regtest, testnet, mainnet)
-	Network string `json:"network"`
-	// Pubkey - node pubkey
-	PubKey string `json:"pubkey"`
-	// UniqueID is the optional unique identifier
-	UniqueID string `json:"uniqueId,omitempty"`
-	// Timestamp - timestamp of report
-	Timestamp entities.JsonTime `json:"timestamp"`
-	// ChangedChannels - contains all channels were balance has changed
-	ChangedChannels []ChannelBalance `json:"changed_channels"`
-	// ClosedChannels - contains all channels that were determined to be closed
-	ClosedChannels []ClosedChannel `json:"closed_channels"`
-	api.NodeInfoAPIExtended
 }
 
 // ClosedChannel struct
