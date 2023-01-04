@@ -22,6 +22,7 @@ const (
 	LISTNODES    = "listnodes"
 	LISTFUNDS    = "listfunds"
 	GETINFO      = "getinfo"
+	LISTFORWARDS = "listforwards"
 )
 
 // NewClnSocketLightningAPIRaw gets a new API - usage "unix", "/home/ubuntu/.lightning/bitcoin/lightning-rpc"
@@ -427,7 +428,75 @@ func (l *ClnSocketLightningAPI) GetNodeInfoFull(ctx context.Context, channels bo
 
 // SubscribeForwards - API call
 func (l *ClnSocketLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, callback SubscribeForwardsCallback, failedCallback SubscribeFailedCallback) {
-	panic("not implemented")
+	var reply ClnForwardEntries
+
+	if batchSize == 0 {
+		batchSize = 50
+	}
+
+	go func() {
+
+		batch := make([]ForwardingEvent, 0, batchSize)
+		minTime := since
+
+		for {
+			err := l.CallWithTimeout(LISTFORWARDS, []interface{}{}, &reply)
+			if err != nil {
+				if failedCallback != nil {
+					failedCallback(ctx, err)
+				}
+				return
+			}
+
+			for _, one := range reply.Entries {
+				if time.Time(one.ReceivedTime).Before(minTime) {
+					continue
+				}
+
+				if one.Status == "settled" {
+					continue
+				}
+
+				success := one.Status != "local_failed" && one.Status != "failed"
+
+				batch = append(batch, ForwardingEvent{
+					Timestamp:     time.Time(one.ReceivedTime),
+					ChanIDIn:      stringToUint64(one.InChannel),
+					ChanIDOut:     stringToUint64(one.OutChannel),
+					AmountInMsat:  ConvertAmount(one.InMsat),
+					AmountOutMsat: ConvertAmount(one.OutMsat),
+					FeeMsat:       ConvertAmount(one.FeeMsat),
+					IsSuccess:     success,
+					FailureString: one.FailReason,
+				})
+
+				if len(batch) >= int(batchSize) {
+					if callback != nil {
+						if callback(ctx, batch) {
+							batch = make([]ForwardingEvent, 0, batchSize)
+						}
+					}
+				}
+
+				if len(batch) > 3*int(batchSize) {
+					if failedCallback != nil {
+						failedCallback(ctx, fmt.Errorf("exceeeded buffer size %d", 3*int(batchSize)))
+					}
+					return
+				}
+			}
+
+			if len(batch) > 0 {
+				if callback != nil {
+					if callback(ctx, batch) {
+						batch = make([]ForwardingEvent, 0, batchSize)
+					}
+				}
+			}
+
+			minTime = time.Time(reply.Entries[len(reply.Entries)-1].ReceivedTime)
+		}
+	}()
 }
 
 // GetInvoices - API call

@@ -120,3 +120,22 @@ type ClnListNode struct {
 type ClnListNodeResp struct {
 	Nodes []ClnListNode `json:"nodes,omitempty"`
 }
+
+// ClnForwardEntry struct
+type ClnForwardEntry struct {
+	InChannel    string            `json:"in_channel"`
+	InMsat       string            `json:"in_msat"`
+	Status       string            `json:"status"` // one of "offered", "settled", "local_failed", "failed"
+	ReceivedTime entities.JsonTime `json:"received_time"`
+
+	OutChannel string `json:"out_channel,omitempty"`
+	OutMsat    string `json:"out_msat,omitempty"`
+	FeeMsat    string `json:"fee_msat,omitempty"`
+	FailCode   uint32 `json:"fail_code,omitempty"`
+	FailReason string `json:"fail_reason,omitempty"`
+}
+
+// ClnForwardEntries struct
+type ClnForwardEntries struct {
+	Entries []ClnForwardEntry
+}

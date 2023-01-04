@@ -70,6 +70,10 @@ func (l *LndRestLightningAPI) Cleanup() {
 }
 
 func stringToUint64(str string) uint64 {
+	if str == "" {
+		return 0
+	}
+
 	ret, err := strconv.ParseUint(str, 10, 64)
 	if err != nil {
 		return 0
@@ -79,6 +83,10 @@ func stringToUint64(str string) uint64 {
 }
 
 func stringToInt64(str string) int64 {
+	if str == "" {
+		return 0
+	}
+
 	ret, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
 		return 0
