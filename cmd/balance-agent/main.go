@@ -562,6 +562,9 @@ func nodeDataChecker(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
+
+		glog.Info("Waiting for events...")
+		utils.WaitAll(nodeDataChecker)
 	}
 
 	return nil
