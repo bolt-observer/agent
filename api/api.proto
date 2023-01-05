@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+service AgentAPI {
+        // Sent when connection is established
+        rpc Init (InitRequest) returns (BoolValue) {};
+
+	rpc Payments(stream DataRequest) returns (stream TimestampResponse) {};
+	rpc Invoices(stream DataRequest) returns (stream TimestampResponse) {};
+	rpc Forwards(stream DataRequest) returns (stream TimestampResponse) {};
+	rpc LiquidityAds(stream DataRequest) returns (stream TimestampResponse) {};
+}
+
+message BoolValue {
+  bool value = 1;
+}
+
+message TimestampResponse {
+  string Timestamp = 1;
+}
+
+message InitRequest {
+  string PubKey = 1;
+}
+
+message DataRequest {
+  string Timestamp = 1;
+  // Raw JSON serialized data (since it can come from various sources)
+  string Data = 2;
+}

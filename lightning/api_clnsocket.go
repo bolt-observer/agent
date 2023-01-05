@@ -427,12 +427,18 @@ func (l *ClnSocketLightningAPI) GetNodeInfoFull(ctx context.Context, channels bo
 }
 
 // SubscribeForwards - API call
-func (l *ClnSocketLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, callback SubscribeForwardsCallback, failedCallback SubscribeFailedCallback) {
+func (l *ClnSocketLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	var reply ClnForwardEntries
 
 	if batchSize == 0 {
 		batchSize = 50
 	}
+
+	const maxErrors = 5
+
+	errors := 0
+	errorChan := make(chan ErrorData, 1)
+	outChan := make(chan []ForwardingEvent)
 
 	go func() {
 
@@ -440,15 +446,31 @@ func (l *ClnSocketLightningAPI) SubscribeForwards(ctx context.Context, since tim
 		minTime := since
 
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// Do nothing
+			}
+
 			err := l.CallWithTimeout(LISTFORWARDS, []interface{}{}, &reply)
 			if err != nil {
-				if failedCallback != nil {
-					failedCallback(ctx, err)
+				glog.Warningf("Error getting forwards %v\n", err)
+				if errors >= maxErrors {
+					errorChan <- ErrorData{Error: err, IsStillRunning: false}
+					return
 				}
-				return
+				errorChan <- ErrorData{Error: err, IsStillRunning: true}
 			}
 
 			for _, one := range reply.Entries {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					// Do nothing
+				}
+
 				if time.Time(one.ReceivedTime).Before(minTime) {
 					continue
 				}
@@ -471,32 +493,21 @@ func (l *ClnSocketLightningAPI) SubscribeForwards(ctx context.Context, since tim
 				})
 
 				if len(batch) >= int(batchSize) {
-					if callback != nil {
-						if callback(ctx, batch) {
-							batch = make([]ForwardingEvent, 0, batchSize)
-						}
-					}
-				}
-
-				if len(batch) > 3*int(batchSize) {
-					if failedCallback != nil {
-						failedCallback(ctx, fmt.Errorf("exceeeded buffer size %d", 3*int(batchSize)))
-					}
-					return
+					outChan <- batch
+					batch = make([]ForwardingEvent, 0, batchSize)
 				}
 			}
 
 			if len(batch) > 0 {
-				if callback != nil {
-					if callback(ctx, batch) {
-						batch = make([]ForwardingEvent, 0, batchSize)
-					}
-				}
+				outChan <- batch
+				batch = make([]ForwardingEvent, 0, batchSize)
 			}
 
-			minTime = time.Time(reply.Entries[len(reply.Entries)-1].ReceivedTime)
+			minTime = time.Time(reply.Entries[len(reply.Entries)-1].ReceivedTime).Add(-1 * time.Second)
 		}
 	}()
+
+	return outChan, errorChan
 }
 
 // GetInvoices - API call

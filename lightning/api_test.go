@@ -2,7 +2,11 @@ package lightning
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -10,6 +14,7 @@ import (
 
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
+	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 func TestApiSelection(t *testing.T) {
@@ -235,7 +240,7 @@ func (m *MockLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pa
 	panic("not implemented")
 }
 
-func (m *MockLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, callback SubscribeForwardsCallback, failedCallback SubscribeFailedCallback) {
+func (m *MockLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	panic("not implemented")
 }
 
@@ -344,4 +349,65 @@ func TestNodeInfoFullWithDescribeGraph(t *testing.T) {
 	if clone.NumChannels != 2 || clone.TotalCapacity != 3 {
 		t.Fatalf("Wrong data returned from clone")
 	}
+}
+
+func TestRawMessageSerialization(t *testing.T) {
+	var (
+		err  error
+		data entities.Data
+	)
+	const FixtureSecret = "fixture-grpc.secret"
+
+	if _, err := os.Stat(FixtureSecret); errors.Is(err, os.ErrNotExist) {
+		// If file with credentials does not exist succeed
+		return
+	}
+
+	content, err := ioutil.ReadFile(FixtureSecret)
+	if err != nil {
+		t.Fatalf("Error when opening file: %v", err)
+		return
+	}
+
+	err = json.Unmarshal(content, &data)
+	if err != nil {
+		t.Fatalf("Error during Unmarshal(): %v", err)
+		return
+	}
+
+	client, _, cleanup, err := GetClient(func() (*entities.Data, error) {
+		return &data, nil
+	})
+	if err != nil {
+		t.Fatalf("GetClient failed: %v\n", err)
+	}
+
+	defer cleanup()
+
+	resp, err := client.ListPayments(context.Background(), &lnrpc.ListPaymentsRequest{MaxPayments: 10, IncludeIncomplete: true})
+	if err != nil {
+		t.Fatalf("ListPayments failed: %v\n", err)
+	}
+
+	for _, one := range resp.Payments {
+		raw := RawMessage{}
+
+		raw.Timestamp = entities.JsonTime(time.Now())
+		raw.Implementation = "lnd"
+		raw.Index = fmt.Sprintf("%d-%d", one.CreationTimeNs, one.PaymentIndex)
+		raw.Message, err = json.Marshal(one)
+		if err != nil {
+			t.Fatalf("Message marshal error: %v\n", err)
+		}
+
+		msg, err := json.Marshal(raw)
+		if err != nil {
+			t.Fatalf("Wrapped message marshal error: %v\n", err)
+		}
+
+		fmt.Printf("JSON |%s|\n", msg)
+	}
+
+	t.Fail()
+
 }

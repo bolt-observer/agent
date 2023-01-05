@@ -241,7 +241,7 @@ func (l *LndRestLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 }
 
 // SubscribeForwards - API call
-func (l *LndRestLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, callback SubscribeForwardsCallback, failedCallback SubscribeFailedCallback) {
+func (l *LndRestLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	panic("not implemented")
 }
 

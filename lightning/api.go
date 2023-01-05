@@ -2,6 +2,7 @@ package lightning
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -329,6 +330,15 @@ type PaymentsResponse struct {
 	ResponsePagination
 }
 
+// RawMessage struct
+type RawMessage struct {
+	Timestamp      entities.JsonTime `json:"timestamp"`
+	Index          string            `json:"index"`
+	Implementation string            `json:"implementation,omitempty"`
+
+	Message json.RawMessage `json:"message,omitempty"`
+}
+
 ////////////////////////////////////////////////////////////////
 
 // API - generic API settings
@@ -442,11 +452,11 @@ func getNodeInfoFullTemplate(ctx context.Context, l LightingAPICalls, threshUseD
 	return extendedNodeInfo, nil
 }
 
-// SubscribeForwardsCallback is the callback you receive with a batch of ForwardingEvent
-type SubscribeForwardsCallback func(context.Context, []ForwardingEvent) bool
-
-// SubscribeFailedCallback is the callback you receive when subscription failed due to too many errors
-type SubscribeFailedCallback func(context.Context, error)
+// ErrorData struct
+type ErrorData struct {
+	Error          error
+	IsStillRunning bool
+}
 
 // LightingAPICalls is the interface for lightning API
 type LightingAPICalls interface {
@@ -461,7 +471,7 @@ type LightingAPICalls interface {
 	GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error)
 	GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error)
 
-	SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, callback SubscribeForwardsCallback, failedCallback SubscribeFailedCallback)
+	SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData)
 }
 
 // GetDataCall - signature of function for retrieving data

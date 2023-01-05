@@ -224,10 +224,13 @@ func (l *LndGrpcLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 }
 
 // SubscribeForwards API
-func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, callback SubscribeForwardsCallback, failedCallback SubscribeFailedCallback) {
+func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	// We will first try obtaining ForwadingHistory and then move to SubscribeHtlc
 	const maxErrors = 5
 	sleepTime := 5 * time.Second
+
+	errorChan := make(chan ErrorData, 1)
+	outChan := make(chan []ForwardingEvent)
 
 	if batchSize == 0 {
 		batchSize = 50
@@ -242,23 +245,27 @@ func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.
 
 	go func() {
 		var (
-			err             error
 			subscribeClient routerrpc.Router_SubscribeHtlcEventsClient
 		)
 
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// Do nothing
+			}
 			resp, err := l.Client.ForwardingHistory(ctx, req)
 
 			if err != nil {
 				glog.Warningf("Error getting ForwadingHistory %v\n", err)
-				time.Sleep(sleepTime)
 				if errors >= maxErrors {
-					if failedCallback != nil {
-						failedCallback(ctx, err)
-					}
+					errorChan <- ErrorData{Error: err, IsStillRunning: false}
 					return
 				}
+				errorChan <- ErrorData{Error: err, IsStillRunning: true}
 
+				time.Sleep(sleepTime)
 				errors++
 				continue
 			}
@@ -282,104 +289,110 @@ func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.
 				})
 			}
 
-			if callback != nil {
-				if callback(ctx, batch) {
-					req.IndexOffset = resp.LastOffsetIndex
-				}
-			} else {
-				req.IndexOffset = resp.LastOffsetIndex
-			}
-		}
+			outChan <- batch
+			req.IndexOffset = resp.LastOffsetIndex
 
-		for {
-			subscribeClient, err = l.RouterClient.SubscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
-			if err != nil {
-				glog.Warningf("Error doing SubscribeHtlcEvents %v\n", err)
-				time.Sleep(sleepTime)
-				if errors >= maxErrors {
-					if failedCallback != nil {
-						failedCallback(ctx, err)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					// Do nothing
+				}
+
+				subscribeClient, err = l.RouterClient.SubscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
+
+				if err != nil {
+					glog.Warningf("Error calling SubscribeHtlcEvents %v\n", err)
+					if errors >= maxErrors {
+						errorChan <- ErrorData{Error: err, IsStillRunning: false}
+						return
 					}
+					errorChan <- ErrorData{Error: err, IsStillRunning: true}
+
+					time.Sleep(sleepTime)
+					errors++
+					continue
+				} else {
+					break
+				}
+			}
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					// Do nothing
+				}
+
+				event, err := subscribeClient.Recv()
+				if err == io.EOF {
+					errorChan <- ErrorData{Error: err, IsStillRunning: false}
 					return
 				}
 
-				errors++
-				continue
-			} else {
-				break
-			}
-		}
-
-		for {
-			event, err := subscribeClient.Recv()
-			if err == io.EOF {
-				if failedCallback != nil {
-					failedCallback(ctx, nil)
-				}
-				break
-			}
-
-			if err != nil {
-				glog.Warningf("Error getting HTLC %v\n", err)
-				time.Sleep(sleepTime)
-				if errors >= maxErrors {
-					if failedCallback != nil {
-						failedCallback(ctx, err)
+				if err != nil {
+					glog.Warningf("Error getting HTLC data %v\n", err)
+					if errors >= maxErrors {
+						errorChan <- ErrorData{Error: err, IsStillRunning: false}
+						return
 					}
-					return
+					errorChan <- ErrorData{Error: err, IsStillRunning: true}
+
+					time.Sleep(sleepTime)
+					errors++
+					continue
 				}
 
-				errors++
-				continue
-			}
+				if event.EventType != routerrpc.HtlcEvent_FORWARD {
+					// Ignore non-forward events
+					continue
+				}
 
-			if event.EventType != routerrpc.HtlcEvent_FORWARD {
-				// Ignore non-forward events
-				continue
-			}
+				in := uint64(0)
+				out := uint64(0)
+				fee := uint64(0)
 
-			in := uint64(0)
-			out := uint64(0)
-			fee := uint64(0)
+				success := true
+				failureString := ""
 
-			success := true
-			failureString := ""
+				if event.GetForwardEvent() != nil {
+					in = event.GetForwardEvent().GetInfo().IncomingAmtMsat
+					out = event.GetForwardEvent().GetInfo().OutgoingAmtMsat
 
-			if event.GetForwardEvent() != nil {
-				in = event.GetForwardEvent().GetInfo().IncomingAmtMsat
-				out = event.GetForwardEvent().GetInfo().OutgoingAmtMsat
+				} else if event.GetLinkFailEvent() != nil {
+					in = event.GetLinkFailEvent().GetInfo().IncomingAmtMsat
+					out = event.GetLinkFailEvent().GetInfo().OutgoingAmtMsat
+					failureString = event.GetLinkFailEvent().FailureString
+					success = false
+				} else if event.GetForwardFailEvent() != nil {
+					success = false
+				}
 
-			} else if event.GetLinkFailEvent() != nil {
-				in = event.GetLinkFailEvent().GetInfo().IncomingAmtMsat
-				out = event.GetLinkFailEvent().GetInfo().OutgoingAmtMsat
-				failureString = event.GetLinkFailEvent().FailureString
-				success = false
-			} else if event.GetForwardFailEvent() != nil {
-				success = false
-			}
+				if in > out {
+					fee = in - out
+				} else {
+					fee = 0
+				}
 
-			if in > out {
-				fee = in - out
-			} else {
-				fee = 0
-			}
+				batch := []ForwardingEvent{{
+					Timestamp:     time.Unix(0, int64(event.TimestampNs)),
+					ChanIDIn:      event.IncomingChannelId,
+					ChanIDOut:     event.OutgoingChannelId,
+					AmountInMsat:  in,
+					AmountOutMsat: out,
+					FeeMsat:       fee,
+					IsSuccess:     success,
+					FailureString: failureString,
+				}}
 
-			batch := []ForwardingEvent{{
-				Timestamp:     time.Unix(0, int64(event.TimestampNs)),
-				ChanIDIn:      event.IncomingChannelId,
-				ChanIDOut:     event.OutgoingChannelId,
-				AmountInMsat:  in,
-				AmountOutMsat: out,
-				FeeMsat:       fee,
-				IsSuccess:     success,
-				FailureString: failureString,
-			}}
-
-			if callback != nil {
-				callback(ctx, batch)
+				outChan <- batch
 			}
 		}
 	}()
+
+	return outChan, errorChan
 }
 
 // GetInvoices API
