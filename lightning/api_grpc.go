@@ -19,6 +19,8 @@ type LndGrpcLightningAPI struct {
 	Client       lnrpc.LightningClient
 	RouterClient routerrpc.RouterClient
 	CleanupFunc  func()
+	Name         string
+
 	API
 }
 
@@ -38,6 +40,7 @@ func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
 		RouterClient: routerClient,
 		CleanupFunc:  cleanup,
 		API:          API{GetNodeInfoFullThreshUseDescribeGraph: 500},
+		Name:         "lndgrpc",
 	}
 }
 
@@ -395,6 +398,42 @@ func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.
 	return outChan, errorChan
 }
 
+// GetForwardsRaw API
+func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	req := &lnrpc.ForwardingHistoryRequest{
+		NumMaxEvents: uint32(pagination.Num),
+		IndexOffset:  uint32(pagination.Offset),
+		StartTime:    uint64(pagination.From.Unix()),
+	}
+	respPagination := &ResponsePagination{}
+
+	resp, err := l.Client.ForwardingHistory(ctx, req)
+
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = uint64(resp.LastOffsetIndex)
+	respPagination.FirstOffsetIndex = 0
+
+	ret := make([]RawMessage, 0, len(resp.ForwardingEvents))
+
+	for _, forwarding := range resp.ForwardingEvents {
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      uint64(forwarding.TimestampNs),
+		}
+		m.Message, err = json.Marshal(forwarding)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	return ret, respPagination, nil
+}
+
 // GetInvoices API
 func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
 	req := &lnrpc.ListInvoiceRequest{
@@ -455,6 +494,59 @@ func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 	}
 
 	return ret, nil
+}
+
+// GetInvoicesRaw API
+func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	req := &lnrpc.ListInvoiceRequest{
+		NumMaxInvoices: pagination.Num,
+		IndexOffset:    pagination.Offset,
+		PendingOnly:    pendingOnly,
+	}
+	respPagination := &ResponsePagination{}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		req.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		req.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+	if pagination.From != nil || pagination.To != nil {
+		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
+	}
+
+	if pagination.Reversed {
+		req.Reversed = true
+	}
+
+	resp, err := l.Client.ListInvoices(ctx, req)
+
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = resp.LastIndexOffset
+	respPagination.FirstOffsetIndex = resp.FirstIndexOffset
+
+	ret := make([]RawMessage, 0, len(resp.Invoices))
+
+	for _, invoice := range resp.Invoices {
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      uint64(invoice.CreationDate),
+		}
+		m.Message, err = json.Marshal(invoice)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	return ret, respPagination, nil
 }
 
 // GetPayments API
@@ -528,4 +620,57 @@ func (l *LndGrpcLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 	}
 
 	return ret, nil
+}
+
+// GetPaymentsRaw API
+func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	req := &lnrpc.ListPaymentsRequest{
+		IncludeIncomplete: includeIncomplete,
+		MaxPayments:       pagination.Num,
+		IndexOffset:       pagination.Offset,
+	}
+	respPagination := &ResponsePagination{}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		req.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		req.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+	if pagination.From != nil || pagination.To != nil {
+		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
+	}
+
+	if pagination.Reversed {
+		req.Reversed = true
+	}
+
+	resp, err := l.Client.ListPayments(ctx, req)
+
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = resp.LastIndexOffset
+	respPagination.FirstOffsetIndex = resp.FirstIndexOffset
+
+	ret := make([]RawMessage, 0, len(resp.Payments))
+
+	for _, payment := range resp.Payments {
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      uint64(payment.CreationTimeNs),
+		}
+		m.Message, err = json.Marshal(payment)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	return ret, respPagination, nil
 }

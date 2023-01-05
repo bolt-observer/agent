@@ -248,6 +248,18 @@ func (m *MockLightningAPI) GetPayments(ctx context.Context, includeIncomplete bo
 	panic("not implemented")
 }
 
+func (m *MockLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	panic("not implemented")
+}
+
 func TestNodeInfoFull(t *testing.T) {
 	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 100, true, true)
@@ -392,9 +404,8 @@ func TestRawMessageSerialization(t *testing.T) {
 	for _, one := range resp.Payments {
 		raw := RawMessage{}
 
-		raw.Timestamp = entities.JsonTime(time.Now())
+		raw.Timestamp = uint64(one.CreationTimeNs)
 		raw.Implementation = "lnd"
-		raw.Index = fmt.Sprintf("%d-%d", one.CreationTimeNs, one.PaymentIndex)
 		raw.Message, err = json.Marshal(one)
 		if err != nil {
 			t.Fatalf("Message marshal error: %v\n", err)

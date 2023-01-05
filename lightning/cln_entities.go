@@ -1,6 +1,7 @@
 package lightning
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -97,6 +98,7 @@ type ClnSocketLightningAPI struct {
 	API
 	Client  *rpc.Client
 	Timeout time.Duration
+	Name    string
 }
 
 // ClnListNodeAddr struct
@@ -137,5 +139,35 @@ type ClnForwardEntry struct {
 
 // ClnForwardEntries struct
 type ClnForwardEntries struct {
-	Entries []ClnForwardEntry
+	Entries []ClnForwardEntry `json:"forwards,omitempty"`
+}
+
+// ClnRawForwardEntries struct
+type ClnRawForwardEntries struct {
+	Entries []json.RawMessage `json:"forwards,omitempty"`
+}
+
+// ClnRawInvoices struct
+type ClnRawInvoices struct {
+	Entries []json.RawMessage `json:"invoices,omitempty"`
+}
+
+// ClnRawPayments struct
+type ClnRawPayments struct {
+	Entries []json.RawMessage `json:"payments,omitempty"`
+}
+
+// ClnRawPayTime struct
+type ClnRawPayTime struct {
+	Time uint64 `json:"created_at,omitempty"`
+}
+
+// ClnRawInvoiceTime struct
+type ClnRawInvoiceTime struct {
+	Time uint64 `json:"expires_at,omitempty"`
+}
+
+// ClnRawForwardsTime struct
+type ClnRawForwardsTime struct {
+	Time uint64 `json:"received_time,omitempty"`
 }

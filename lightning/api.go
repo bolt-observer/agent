@@ -332,9 +332,8 @@ type PaymentsResponse struct {
 
 // RawMessage struct
 type RawMessage struct {
-	Timestamp      entities.JsonTime `json:"timestamp"`
-	Index          string            `json:"index"`
-	Implementation string            `json:"implementation,omitempty"`
+	Timestamp      uint64 `json:"timestamp"`
+	Implementation string `json:"implementation,omitempty"`
 
 	Message json.RawMessage `json:"message,omitempty"`
 }
@@ -472,6 +471,10 @@ type LightingAPICalls interface {
 	GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error)
 
 	SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData)
+
+	GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error)
+	GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error)
+	GetForwardsRaw(ctx context.Context, pagination Pagination) ([]RawMessage, *ResponsePagination, error)
 }
 
 // GetDataCall - signature of function for retrieving data

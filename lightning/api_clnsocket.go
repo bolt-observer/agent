@@ -2,6 +2,7 @@ package lightning
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -23,6 +24,8 @@ const (
 	LISTFUNDS    = "listfunds"
 	GETINFO      = "getinfo"
 	LISTFORWARDS = "listforwards"
+	LISTINVOICES = "listinvoices"
+	LISTPAYMENTS = "listsendpays"
 )
 
 // NewClnSocketLightningAPIRaw gets a new API - usage "unix", "/home/ubuntu/.lightning/bitcoin/lightning-rpc"
@@ -32,7 +35,7 @@ func NewClnSocketLightningAPIRaw(socketType string, address string) LightingAPIC
 		glog.Warningf("Got error: %v", err)
 		return nil
 	}
-	return &ClnSocketLightningAPI{Client: client, Timeout: time.Second * 30}
+	return &ClnSocketLightningAPI{Client: client, Timeout: time.Second * 30, Name: "clnsocket"}
 }
 
 // NewClnSocketLightningAPI return a new lightning API
@@ -508,6 +511,120 @@ func (l *ClnSocketLightningAPI) SubscribeForwards(ctx context.Context, since tim
 	}()
 
 	return outChan, errorChan
+}
+
+// GetInvoicesRaw - API call
+func (l *ClnSocketLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	var (
+		reply ClnRawInvoices
+		time  ClnRawInvoiceTime
+	)
+
+	respPagination := &ResponsePagination{}
+
+	err := l.CallWithTimeout(LISTINVOICES, []interface{}{}, &reply)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	ret := make([]RawMessage, 0, len(reply.Entries))
+
+	for _, one := range reply.Entries {
+		err = json.Unmarshal(one, &time)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      time.Time,
+			Message:        one,
+		}
+
+		ret = append(ret, m)
+	}
+
+	return ret, respPagination, nil
+}
+
+// GetPaymentsRaw - API call
+func (l *ClnSocketLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	var (
+		reply ClnRawPayments
+		time  ClnRawPayTime
+	)
+
+	respPagination := &ResponsePagination{}
+
+	err := l.CallWithTimeout(LISTPAYMENTS, []interface{}{}, &reply)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	ret := make([]RawMessage, 0, len(reply.Entries))
+
+	for _, one := range reply.Entries {
+		err = json.Unmarshal(one, &time)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      time.Time,
+			Message:        one,
+		}
+
+		ret = append(ret, m)
+	}
+
+	return ret, respPagination, nil
+}
+
+// GetForwardsRaw - API call
+func (l *ClnSocketLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	var (
+		reply ClnRawForwardEntries
+		time  ClnRawForwardsTime
+	)
+
+	respPagination := &ResponsePagination{}
+
+	err := l.CallWithTimeout(LISTFORWARDS, []interface{}{}, &reply)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	ret := make([]RawMessage, 0, len(reply.Entries))
+
+	for _, one := range reply.Entries {
+		err = json.Unmarshal(one, &time)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      time.Time,
+			Message:        one,
+		}
+
+		ret = append(ret, m)
+	}
+
+	return ret, respPagination, nil
 }
 
 // GetInvoices - API call

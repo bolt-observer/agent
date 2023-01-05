@@ -2,6 +2,7 @@ package lightning
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -16,6 +17,7 @@ type LndRestLightningAPI struct {
 	Request   *http.Request
 	Transport *http.Transport
 	HTTPAPI   *HTTPAPI
+	Name      string
 	API
 }
 
@@ -38,6 +40,7 @@ func NewLndRestLightningAPI(getData GetDataCall) LightingAPICalls {
 		Request:   request,
 		Transport: transport,
 		HTTPAPI:   api,
+		Name:      "lndrest",
 		API:       API{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
@@ -243,6 +246,159 @@ func (l *LndRestLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 // SubscribeForwards - API call
 func (l *LndRestLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	panic("not implemented")
+}
+
+// GetInvoicesRaw - API call
+func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	param := &ListInvoiceRequestOverride{
+		NumMaxInvoices: fmt.Sprintf("%d", pagination.Num),
+		IndexOffset:    fmt.Sprintf("%d", pagination.Offset),
+	}
+	respPagination := &ResponsePagination{}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		param.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		param.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+	if pagination.From != nil || pagination.To != nil {
+		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
+	}
+
+	if pagination.Reversed {
+		param.Reversed = true
+	}
+
+	if pendingOnly {
+		param.PendingOnly = pendingOnly
+	}
+
+	resp, err := l.HTTPAPI.HTTPListInvoices(ctx, l.Request, l.Transport, param)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = stringToUint64(resp.LastIndexOffset)
+	respPagination.FirstOffsetIndex = stringToUint64(resp.FirstIndexOffset)
+
+	ret := make([]RawMessage, 0, len(resp.Invoices))
+
+	for _, invoice := range resp.Invoices {
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      stringToUint64(invoice.CreationDate),
+		}
+		m.Message, err = json.Marshal(invoice)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	return ret, respPagination, nil
+}
+
+// GetPaymentsRaw - API call
+func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	param := &ListPaymentsRequestOverride{
+		MaxPayments: fmt.Sprintf("%d", pagination.Num),
+		IndexOffset: fmt.Sprintf("%d", pagination.Offset),
+	}
+	respPagination := &ResponsePagination{}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		param.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		param.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+	if pagination.From != nil || pagination.To != nil {
+		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
+	}
+
+	if pagination.Reversed {
+		param.Reversed = true
+	}
+
+	if includeIncomplete {
+		param.IncludeIncomplete = includeIncomplete
+	}
+
+	resp, err := l.HTTPAPI.HTTPListPayments(ctx, l.Request, l.Transport, param)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = stringToUint64(resp.LastIndexOffset)
+	respPagination.FirstOffsetIndex = stringToUint64(resp.FirstIndexOffset)
+
+	ret := make([]RawMessage, 0, len(resp.Payments))
+
+	for _, payment := range resp.Payments {
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      stringToUint64(payment.CreationDate),
+		}
+		m.Message, err = json.Marshal(payment)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	return ret, respPagination, nil
+}
+
+// GetForwardsRaw - API call
+func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+	param := &ForwardingHistoryRequestOverride{}
+
+	param.NumMaxEvents = uint32(pagination.Num)
+	param.IndexOffset = uint32(pagination.Offset)
+
+	if pagination.From != nil {
+		param.StartTime = fmt.Sprintf("%d", pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		param.EndTime = fmt.Sprintf("%d", pagination.To.Unix())
+	}
+
+	respPagination := &ResponsePagination{}
+
+	resp, err := l.HTTPAPI.HTTPForwardEvents(ctx, l.Request, l.Transport, param)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = uint64(resp.LastOffsetIndex)
+	respPagination.FirstOffsetIndex = 0
+
+	ret := make([]RawMessage, 0, len(resp.ForwardingEvents))
+
+	for _, forward := range resp.ForwardingEvents {
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      stringToUint64(forward.TimestampNs),
+		}
+		m.Message, err = json.Marshal(forward)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	return ret, respPagination, nil
 }
 
 // GetInvoices API
