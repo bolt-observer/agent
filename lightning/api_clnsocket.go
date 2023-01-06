@@ -514,13 +514,13 @@ func (l *ClnSocketLightningAPI) SubscribeForwards(ctx context.Context, since tim
 }
 
 // GetInvoicesRaw - API call
-func (l *ClnSocketLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (l *ClnSocketLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	var (
-		reply ClnRawInvoices
-		time  ClnRawInvoiceTime
+		reply   ClnRawInvoices
+		gettime ClnRawInvoiceTime
 	)
 
-	respPagination := &ResponsePagination{}
+	respPagination := &ResponseRawPagination{UseTimestamp: true}
 
 	err := l.CallWithTimeout(LISTINVOICES, []interface{}{}, &reply)
 	if err != nil {
@@ -533,32 +533,47 @@ func (l *ClnSocketLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly 
 
 	ret := make([]RawMessage, 0, len(reply.Entries))
 
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
 	for _, one := range reply.Entries {
-		err = json.Unmarshal(one, &time)
+		err = json.Unmarshal(one, &gettime)
 		if err != nil {
 			return nil, respPagination, err
 		}
 
+		t := time.Unix(int64(gettime.Time), 0)
+
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      time.Time,
+			Timestamp:      gettime.Time,
 			Message:        one,
 		}
 
 		ret = append(ret, m)
 	}
 
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
 	return ret, respPagination, nil
 }
 
 // GetPaymentsRaw - API call
-func (l *ClnSocketLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (l *ClnSocketLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	var (
-		reply ClnRawPayments
-		time  ClnRawPayTime
+		reply   ClnRawPayments
+		gettime ClnRawPayTime
 	)
 
-	respPagination := &ResponsePagination{}
+	respPagination := &ResponseRawPagination{UseTimestamp: true}
 
 	err := l.CallWithTimeout(LISTPAYMENTS, []interface{}{}, &reply)
 	if err != nil {
@@ -571,58 +586,83 @@ func (l *ClnSocketLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncom
 
 	ret := make([]RawMessage, 0, len(reply.Entries))
 
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
 	for _, one := range reply.Entries {
-		err = json.Unmarshal(one, &time)
+		err = json.Unmarshal(one, &gettime)
 		if err != nil {
 			return nil, respPagination, err
 		}
 
+		t := time.Unix(int64(gettime.Time), 0)
+
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      time.Time,
+			Timestamp:      gettime.Time,
 			Message:        one,
 		}
 
 		ret = append(ret, m)
 	}
 
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
 	return ret, respPagination, nil
 }
 
 // GetForwardsRaw - API call
-func (l *ClnSocketLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (l *ClnSocketLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	var (
-		reply ClnRawForwardEntries
-		time  ClnRawForwardsTime
+		reply   ClnRawForwardEntries
+		gettime ClnRawForwardsTime
 	)
 
-	respPagination := &ResponsePagination{}
+	respPagination := &ResponseRawPagination{UseTimestamp: true}
 
 	err := l.CallWithTimeout(LISTFORWARDS, []interface{}{}, &reply)
 	if err != nil {
 		return nil, respPagination, err
 	}
 
-	if err != nil {
-		return nil, respPagination, err
-	}
-
 	ret := make([]RawMessage, 0, len(reply.Entries))
 
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
 	for _, one := range reply.Entries {
-		err = json.Unmarshal(one, &time)
+		err = json.Unmarshal(one, &gettime)
 		if err != nil {
 			return nil, respPagination, err
+		}
+		t := time.Unix(int64(gettime.Time), 0)
+
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
 		}
 
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      time.Time,
+			Timestamp:      gettime.Time,
 			Message:        one,
 		}
 
 		ret = append(ret, m)
 	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
 
 	return ret, respPagination, nil
 }

@@ -399,13 +399,13 @@ func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.
 }
 
 // GetForwardsRaw API
-func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	req := &lnrpc.ForwardingHistoryRequest{
 		NumMaxEvents: uint32(pagination.Num),
 		IndexOffset:  uint32(pagination.Offset),
 		StartTime:    uint64(pagination.From.Unix()),
 	}
-	respPagination := &ResponsePagination{}
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
 
 	resp, err := l.Client.ForwardingHistory(ctx, req)
 
@@ -418,7 +418,19 @@ func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pag
 
 	ret := make([]RawMessage, 0, len(resp.ForwardingEvents))
 
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
 	for _, forwarding := range resp.ForwardingEvents {
+		t := time.Unix(0, int64(forwarding.TimestampNs))
+
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
 		m := RawMessage{
 			Implementation: l.Name,
 			Timestamp:      uint64(forwarding.TimestampNs),
@@ -430,6 +442,9 @@ func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pag
 
 		ret = append(ret, m)
 	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
 
 	return ret, respPagination, nil
 }
@@ -497,13 +512,13 @@ func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 }
 
 // GetInvoicesRaw API
-func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	req := &lnrpc.ListInvoiceRequest{
 		NumMaxInvoices: pagination.Num,
 		IndexOffset:    pagination.Offset,
 		PendingOnly:    pendingOnly,
 	}
-	respPagination := &ResponsePagination{}
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
 
 	/* TODO: Need to upgrade to 0.15.5!
 	if pagination.From != nil {
@@ -533,7 +548,18 @@ func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 
 	ret := make([]RawMessage, 0, len(resp.Invoices))
 
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
 	for _, invoice := range resp.Invoices {
+		t := time.Unix(invoice.CreationDate, 0)
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
 		m := RawMessage{
 			Implementation: l.Name,
 			Timestamp:      uint64(invoice.CreationDate),
@@ -545,6 +571,9 @@ func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 
 		ret = append(ret, m)
 	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
 
 	return ret, respPagination, nil
 }
@@ -623,13 +652,13 @@ func (l *LndGrpcLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 }
 
 // GetPaymentsRaw API
-func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	req := &lnrpc.ListPaymentsRequest{
 		IncludeIncomplete: includeIncomplete,
 		MaxPayments:       pagination.Num,
 		IndexOffset:       pagination.Offset,
 	}
-	respPagination := &ResponsePagination{}
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
 
 	/* TODO: Need to upgrade to 0.15.5!
 	if pagination.From != nil {
@@ -659,7 +688,18 @@ func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 
 	ret := make([]RawMessage, 0, len(resp.Payments))
 
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
 	for _, payment := range resp.Payments {
+		t := time.Unix(0, payment.CreationTimeNs)
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
 		m := RawMessage{
 			Implementation: l.Name,
 			Timestamp:      uint64(payment.CreationTimeNs),
@@ -671,6 +711,9 @@ func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 
 		ret = append(ret, m)
 	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
 
 	return ret, respPagination, nil
 }

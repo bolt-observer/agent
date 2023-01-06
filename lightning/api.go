@@ -338,6 +338,22 @@ type RawMessage struct {
 	Message json.RawMessage `json:"message,omitempty"`
 }
 
+// ResponseRawPagination struct
+type ResponseRawPagination struct {
+	UseTimestamp bool
+	FirstTime    time.Time
+	LastTime     time.Time
+	ResponsePagination
+}
+
+// RawPagination struct
+type RawPagination struct {
+	UseTimestamp bool
+	FirstTime    time.Time
+	LastTime     time.Time
+	Pagination
+}
+
 ////////////////////////////////////////////////////////////////
 
 // API - generic API settings
@@ -472,9 +488,9 @@ type LightingAPICalls interface {
 
 	SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData)
 
-	GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error)
-	GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error)
-	GetForwardsRaw(ctx context.Context, pagination Pagination) ([]RawMessage, *ResponsePagination, error)
+	GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error)
+	GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error)
+	GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error)
 }
 
 // GetDataCall - signature of function for retrieving data

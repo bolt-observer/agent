@@ -249,12 +249,12 @@ func (l *LndRestLightningAPI) SubscribeForwards(ctx context.Context, since time.
 }
 
 // GetInvoicesRaw - API call
-func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	param := &ListInvoiceRequestOverride{
 		NumMaxInvoices: fmt.Sprintf("%d", pagination.Num),
 		IndexOffset:    fmt.Sprintf("%d", pagination.Offset),
 	}
-	respPagination := &ResponsePagination{}
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
 
 	/* TODO: Need to upgrade to 0.15.5!
 	if pagination.From != nil {
@@ -287,7 +287,18 @@ func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 
 	ret := make([]RawMessage, 0, len(resp.Invoices))
 
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
 	for _, invoice := range resp.Invoices {
+		t := time.Unix(stringToInt64(invoice.CreationDate), 0)
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
 		m := RawMessage{
 			Implementation: l.Name,
 			Timestamp:      stringToUint64(invoice.CreationDate),
@@ -300,16 +311,19 @@ func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 		ret = append(ret, m)
 	}
 
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
 	return ret, respPagination, nil
 }
 
 // GetPaymentsRaw - API call
-func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	param := &ListPaymentsRequestOverride{
 		MaxPayments: fmt.Sprintf("%d", pagination.Num),
 		IndexOffset: fmt.Sprintf("%d", pagination.Offset),
 	}
-	respPagination := &ResponsePagination{}
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
 
 	/* TODO: Need to upgrade to 0.15.5!
 	if pagination.From != nil {
@@ -342,7 +356,18 @@ func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 
 	ret := make([]RawMessage, 0, len(resp.Payments))
 
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
 	for _, payment := range resp.Payments {
+		t := time.Unix(stringToInt64(payment.CreationDate), 0)
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
 		m := RawMessage{
 			Implementation: l.Name,
 			Timestamp:      stringToUint64(payment.CreationDate),
@@ -355,11 +380,14 @@ func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 		ret = append(ret, m)
 	}
 
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
 	return ret, respPagination, nil
 }
 
 // GetForwardsRaw - API call
-func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	param := &ForwardingHistoryRequestOverride{}
 
 	param.NumMaxEvents = uint32(pagination.Num)
@@ -373,7 +401,7 @@ func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pag
 		param.EndTime = fmt.Sprintf("%d", pagination.To.Unix())
 	}
 
-	respPagination := &ResponsePagination{}
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
 
 	resp, err := l.HTTPAPI.HTTPForwardEvents(ctx, l.Request, l.Transport, param)
 	if err != nil {
@@ -385,7 +413,18 @@ func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pag
 
 	ret := make([]RawMessage, 0, len(resp.ForwardingEvents))
 
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
 	for _, forward := range resp.ForwardingEvents {
+		t := time.Unix(0, stringToInt64(forward.TimestampNs))
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
 		m := RawMessage{
 			Implementation: l.Name,
 			Timestamp:      stringToUint64(forward.TimestampNs),
@@ -397,6 +436,9 @@ func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pag
 
 		ret = append(ret, m)
 	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
 
 	return ret, respPagination, nil
 }

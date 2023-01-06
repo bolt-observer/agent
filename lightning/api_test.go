@@ -248,15 +248,15 @@ func (m *MockLightningAPI) GetPayments(ctx context.Context, includeIncomplete bo
 	panic("not implemented")
 }
 
-func (m *MockLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (m *MockLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	panic("not implemented")
 }
 
-func (m *MockLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (m *MockLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	panic("not implemented")
 }
 
-func (m *MockLightningAPI) GetForwardsRaw(ctx context.Context, pagination Pagination) ([]RawMessage, *ResponsePagination, error) {
+func (m *MockLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	panic("not implemented")
 }
 
