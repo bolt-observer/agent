@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
 )
@@ -79,4 +80,39 @@ func TestGetInvoicesGrpc(t *testing.T) {
 	fmt.Printf("%+v\n", resp)
 
 	//t.Fail()
+}
+
+func TestSubscribeHtlcEvents(t *testing.T) {
+
+	api := getAPI(t, "fixture.secret", LndRest)
+	if api == nil {
+		return
+	}
+
+	a := api.(*LndRestLightningAPI)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+
+	outchan, err := a.SubscribeHtlcEvents(ctx)
+	if err != nil {
+		cancel()
+		t.Fatalf("SubscribeHtlcEvents error %v\n", err)
+		return
+	}
+
+outer:
+	for {
+		select {
+		case event := <-outchan:
+			fmt.Printf("Received event: %v\n", event)
+		case <-ctx.Done():
+			break outer
+		default:
+			// Do nothing
+		}
+	}
+
+	cancel()
+	//t.Fail()
+
 }

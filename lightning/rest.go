@@ -270,6 +270,57 @@ func (h *HTTPAPI) HTTPForwardEvents(ctx context.Context, req *http.Request, tran
 	return &data, nil
 }
 
+// HTTPSubscribeHtlcEvents - invokes SubscribeHtlcEvents method
+func (h *HTTPAPI) HTTPSubscribeHtlcEvents(ctx context.Context, req *http.Request, trans *http.Transport) (<-chan *HtlcEventOverride, error) {
+
+	req = req.WithContext(ctx)
+
+	req.Method = http.MethodGet
+
+	u, err := url.Parse(fmt.Sprintf("%s/v2/router/htlcevents", req.URL))
+	if err != nil {
+		return nil, fmt.Errorf("invalid url %s", err)
+	}
+
+	req.URL = u
+
+	resp, err := h.Do(req)
+
+	if err != nil {
+		return nil, fmt.Errorf("http request failed %s", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http got error %d", resp.StatusCode)
+	}
+
+	outchan := make(chan *HtlcEventOverride)
+
+	go func() {
+		var data HtlcEventOverride
+		defer resp.Body.Close()
+		decoder := json.NewDecoder(resp.Body)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// Do nothing
+			}
+
+			err := decoder.Decode(&data)
+
+			if err != nil {
+				return
+			}
+
+			outchan <- &data
+		}
+	}()
+
+	return outchan, nil
+}
+
 // HTTPListInvoices - invokes ListInvoices method
 func (h *HTTPAPI) HTTPListInvoices(ctx context.Context, req *http.Request, trans *http.Transport, input *ListInvoiceRequestOverride) (*ListInvoiceResponseOverride, error) {
 	var data ListInvoiceResponseOverride

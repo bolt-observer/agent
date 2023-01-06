@@ -505,3 +505,14 @@ func (l *LndRestLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 
 	return ret, nil
 }
+
+// SubscribeHtlcEvents API
+func (l *LndRestLightningAPI) SubscribeHtlcEvents(ctx context.Context) (<-chan *HtlcEventOverride, error) {
+	// Very thin wrapper
+	resp, err := l.HTTPAPI.HTTPSubscribeHtlcEvents(ctx, l.Request, l.Transport)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, err
+}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 )
 
 // A hack to override uint64 -> string (REST API)
@@ -141,6 +142,34 @@ type ForwardingEventOverride struct {
 	TimestampNs string `json:"timestamp_ns,omitempty"`
 
 	lnrpc.ForwardingEvent
+}
+
+// HtlcEventOverride struct
+type HtlcEventOverride struct {
+	IncomingChannelID string             `json:"incoming_channel_id,omitempty"`
+	OutgoingChannelID string             `json:"outgoing_channel_id,omitempty"`
+	IncomingHtlcID    string             `json:"incoming_htlc_id,omitempty"`
+	OutgoingHtlcID    string             `json:"outgoing_htlc_id,omitempty"`
+	TimestampNs       string             `json:"timestamp_ns,omitempty"`
+	EventType         string             `json:"event_type,omitempty"`
+	Event             HtlcEventComposite `json:"event,omitempty"`
+
+	routerrpc.HtlcEvent
+}
+
+// HtlcInfoOverride struct
+type HtlcInfoOverride struct {
+	IncomingAmtMsat string `json:"incoming_amt_msat,omitempty"`
+	OutgoingAmtMsat string `json:"outgoing_amt_msat,omitempty"`
+}
+
+// HtlcEventComposite struct (our abstraction over that mess with inheritance)
+type HtlcEventComposite struct {
+	Info          *HtlcInfoOverride `json:"info,omitempty"`
+	Preimage      string            `json:"preimage,omitempty"`
+	WireFailure   string            `json:"wire_failure,omitempty"`
+	FailureDetail string            `json:"failure_detail,omitempty"`
+	FailureString string            `json:"failure_string,omitempty"`
 }
 
 // ListInvoiceRequestOverride struct
