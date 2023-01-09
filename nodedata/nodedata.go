@@ -157,7 +157,7 @@ func (c *NodeData) GetState(
 		settings.Filter = f
 	}
 
-	resp, _, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, settings, true, false)
+	resp, _, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, settings, 0, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -407,11 +407,12 @@ func (c *NodeData) checkAll() bool {
 
 			// Subscribe will set lastCheck to min value and you expect update in such a case
 			ignoreCache := toBeCheckedBy.Year() <= 1
-			resp, hash, err := c.checkOne(s.identifier, s.getAPI, s.settings, ignoreCache, reportAnyway)
+			resp, hash, err := c.checkOne(s.identifier, s.getAPI, s.settings, s.hash, ignoreCache, reportAnyway)
 			if err != nil {
 				glog.Warningf("Failed to check %v: %v", s.identifier.GetID(), err)
 				continue
 			}
+
 			s.hash = hash
 
 			if resp != nil && s.identifier.Identifier != "" && resp.PubKey != "" && !strings.EqualFold(resp.PubKey, s.identifier.Identifier) {
@@ -483,9 +484,9 @@ func (c *NodeData) checkOne(
 	identifier entities.NodeIdentifier,
 	getAPI entities.NewAPICall,
 	settings entities.ReportingSettings,
+	oldHash uint64,
 	ignoreCache bool,
 	reportAnyway bool) (*entities.NodeDataReport, uint64, error) {
-	s := c.perNodeSettings.Get(identifier.GetID())
 
 	pubkey := identifier.GetID()
 	if pubkey == "" {
@@ -569,7 +570,7 @@ func (c *NodeData) checkOne(
 		hash = 1
 	}
 
-	if hash == s.hash {
+	if hash == oldHash {
 		nodeInfoFull = nil
 	}
 
