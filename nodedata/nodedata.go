@@ -127,6 +127,8 @@ func (c *NodeData) Subscribe(
 		identifier:       entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID},
 		lastGraphCheck:   time.Time{},
 		lastReport:       time.Time{},
+		lastCheck:        time.Time{},
+		lastNodeReport:   time.Time{},
 		settings:         settings,
 		getAPI:           getAPI,
 	})
@@ -157,15 +159,18 @@ func (c *NodeData) GetState(
 		settings.Filter = f
 	}
 
-	resp, _, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, settings, 0, true, false)
+	resp, _, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, settings, 0, true, true, true)
 	if err != nil {
 		return nil, err
 	}
 
-	resp.PollInterval = entities.ManualRequest
-	if optCallback != nil {
-		optCallback(c.ctx, resp)
+	if resp != nil {
+		resp.PollInterval = entities.ManualRequest
+		if optCallback != nil {
+			optCallback(c.ctx, resp)
+		}
 	}
+
 	return resp, err
 }
 
@@ -396,18 +401,20 @@ func (c *NodeData) checkAll() bool {
 			}
 		}
 
-		toBeCheckedBy := s.lastReport.Add(s.settings.PollInterval.Duration())
+		toBeCheckedBy := s.lastCheck.Add(s.settings.PollInterval.Duration())
 		reportAnyway := false
+		reportNodeAnyway := false
 
 		if s.settings.NoopInterval != 0 {
 			reportAnyway = s.lastReport.Add(s.settings.NoopInterval).Before(now)
+			reportNodeAnyway = s.lastNodeReport.Add(6 * s.settings.NoopInterval).Before(now)
 		}
 
 		if toBeCheckedBy.Before(now) {
 
 			// Subscribe will set lastCheck to min value and you expect update in such a case
 			ignoreCache := toBeCheckedBy.Year() <= 1
-			resp, hash, err := c.checkOne(s.identifier, s.getAPI, s.settings, s.hash, ignoreCache, reportAnyway)
+			resp, hash, err := c.checkOne(s.identifier, s.getAPI, s.settings, s.hash, ignoreCache, reportAnyway, reportNodeAnyway)
 			if err != nil {
 				glog.Warningf("Failed to check %v: %v", s.identifier.GetID(), err)
 				continue
@@ -431,6 +438,10 @@ func (c *NodeData) checkAll() bool {
 
 					timer := c.monitoring.MetricsTimer("checkdelivery", map[string]string{"pubkey": s.identifier.GetID()})
 					if s.nodeDataCallback(c.ctx, resp) {
+						s.lastReport = time.Now()
+						if resp.NodeDetails != nil {
+							s.lastNodeReport = time.Now()
+						}
 						c.commitAllChanges(one, time.Now(), s)
 					} else {
 						c.revertAllChanges()
@@ -486,7 +497,8 @@ func (c *NodeData) checkOne(
 	settings entities.ReportingSettings,
 	oldHash uint64,
 	ignoreCache bool,
-	reportAnyway bool) (*entities.NodeDataReport, uint64, error) {
+	reportAnyway bool,
+	reportNodeAnyway bool) (*entities.NodeDataReport, uint64, error) {
 
 	pubkey := identifier.GetID()
 	if pubkey == "" {
@@ -570,7 +582,7 @@ func (c *NodeData) checkOne(
 		hash = 1
 	}
 
-	if hash == oldHash {
+	if hash == oldHash && !reportNodeAnyway {
 		nodeInfoFull = nil
 	}
 
@@ -584,6 +596,10 @@ func (c *NodeData) checkOne(
 		ChangedChannels:   channelList,
 		ClosedChannels:    closedChannels,
 		NodeDetails:       nodeInfoFull,
+	}
+
+	if len(channelList) <= 0 && len(closedChannels) <= 0 && nodeInfoFull == nil && !reportAnyway {
+		nodeData = nil
 	}
 
 	c.monitoring.MetricsReport("checkone", "success", map[string]string{"pubkey": pubkey})
@@ -642,7 +658,7 @@ func (c *NodeData) filterList(
 func (c *NodeData) commitAllChanges(one string, now time.Time, s Settings) {
 	c.commitChanIDChanges()
 	c.channelCache.DeferredCommit()
-	s.lastReport = now
+	s.lastCheck = now
 	c.perNodeSettings.Set(one, s)
 }
 

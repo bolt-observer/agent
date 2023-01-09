@@ -62,5 +62,7 @@ type Settings struct {
 	identifier       entities.NodeIdentifier
 	lastGraphCheck   time.Time
 	lastReport       time.Time
+	lastNodeReport   time.Time
+	lastCheck        time.Time
 	settings         entities.ReportingSettings
 }
