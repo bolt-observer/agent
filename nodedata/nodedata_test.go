@@ -831,7 +831,7 @@ func TestKeepAliveIsSent(t *testing.T) {
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, 2*time.Second, true, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 
@@ -867,7 +867,6 @@ func TestKeepAliveIsSent(t *testing.T) {
 			AllowedEntropy:       64,
 			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
-			NoopInterval:         2 * time.Second,
 		},
 		"",
 	)
@@ -916,7 +915,7 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 		}, nil
 	}
 
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(6*time.Second))
 
 	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
 	// Make everything a bit faster
@@ -925,13 +924,13 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 	c.Subscribe(
 		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 
-			if step == 1 {
+			if step == 0 {
 				if len(report.ChangedChannels) != 2 {
 					t.Fatalf("Not correct change step %d", step)
 					cancel()
 				}
 				step++
-			} else if step > 2 {
+			} else if step > 1 {
 				success = false
 				step++
 				cancel()
@@ -946,6 +945,7 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 			AllowedEntropy:       64,
 			PollInterval:         agent_entities.Second,
 			AllowPrivateChannels: true,
+			NoopInterval:         2 * time.Second,
 		},
 		"",
 	)
