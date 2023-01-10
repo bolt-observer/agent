@@ -52,7 +52,7 @@ fi
 chmod 666 $DIR/*
 
 echo "----"
-docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/agent-report" --nodeurl "https://$SERVER/api/private-node" --verbosity 3
+docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/node-data-report/" --verbosity 3
 echo "----"
 
 # Normal run

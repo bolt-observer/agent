@@ -15,7 +15,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -23,11 +22,9 @@ import (
 	"github.com/golang/glog"
 	cli "github.com/urfave/cli"
 
-	channelchecker "github.com/bolt-observer/agent/channelchecker"
-	"github.com/bolt-observer/agent/checkermonitoring"
 	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
-	"github.com/bolt-observer/agent/nodeinfo"
+	"github.com/bolt-observer/agent/nodedata"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 
@@ -50,14 +47,11 @@ var (
 	defaultRPCHostPort  = "localhost:" + defaultRPCPort
 	apiKey              string
 	url                 string
-	nodeurl             string
 	// GitRevision is set with build
 	GitRevision = "unknownVersion"
-
-	nodeInfoReported sync.Map
-	private          bool
-	timeout          = 15 * time.Second
-	preferipv4       = false
+	private     bool
+	timeout     = 15 * time.Second
+	preferipv4  = false
 )
 
 func findUnixSocket(paths ...string) string {
@@ -220,6 +214,11 @@ func getApp() *cli.App {
 			Usage: "api key",
 		},
 		&cli.StringFlag{
+			Name:   whitelist,
+			Usage:  "Path to file containing a whitelist of channels",
+			Hidden: false,
+		},
+		&cli.StringFlag{
 			Name:  "interval",
 			Usage: "interval to poll - 10s, 1m, 10m or 1h",
 			Value: "10s",
@@ -256,11 +255,6 @@ func getApp() *cli.App {
 			Value: defaultTLSCertPath,
 			Usage: "path to TLS certificate",
 		},
-		&cli.StringFlag{
-			Name:   whitelist,
-			Usage:  "Path to file containing a whitelist of channels",
-			Hidden: true,
-		},
 		&cli.BoolFlag{
 			Name:   "userest",
 			Usage:  "Use REST API when true instead of gRPC",
@@ -280,19 +274,7 @@ func getApp() *cli.App {
 		&cli.StringFlag{
 			Name:   "url",
 			Usage:  "Report URL",
-			Value:  "https://ingress.bolt.observer/api/agent-report/",
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:   "nodeurl",
-			Usage:  "Node report URL",
-			Value:  "https://ingress.bolt.observer/api/private-node/",
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:   "nodeinterval",
-			Usage:  "interval to poll - 10s, 1m, 10m or 1h",
-			Value:  "1m",
+			Value:  "https://ingress.bolt.observer/api/node-data-report/",
 			Hidden: true,
 		},
 		&cli.StringFlag{
@@ -393,76 +375,7 @@ func shouldCrash(status int, body string) {
 	}
 }
 
-func infoCallback(ctx context.Context, report *agent_entities.InfoReport) bool {
-	rep, err := json.Marshal(report)
-	if err != nil {
-		glog.Warningf("Error marshalling report: %v", err)
-		return false
-	}
-
-	n := agent_entities.NodeIdentifier{Identifier: report.Node.PubKey, UniqueID: report.UniqueID}
-
-	if nodeurl == "" {
-		if glog.V(2) {
-			glog.V(2).Infof("Sent out nodeinfo callback %s", string(rep))
-		} else {
-			glog.V(1).Infof("Sent out nodeinfo callback")
-		}
-		nodeInfoReported.Store(n.GetID(), struct{}{})
-		return true
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, nodeurl, strings.NewReader(string(rep)))
-	if err != nil {
-		return false
-	}
-
-	req.Header.Set("User-Agent", fmt.Sprintf("boltobserver-agent/%s", GitRevision))
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
-	req.Header.Set("Content-Type", "application/json")
-
-	client := getHTTPClient()
-
-	resp, err := client.Do(req)
-	if err != nil {
-		glog.Warningf("Error when doing request, %v", err)
-		glog.V(2).Infof("Failed to send out callback %s", string(rep))
-		return false
-	}
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		glog.Warningf("Status was not OK but, %d", resp.StatusCode)
-		defer resp.Body.Close()
-		bodyData, _ := ioutil.ReadAll(resp.Body)
-
-		glog.V(2).Infof("Failed to send out callback %s, server said %s", string(rep), string(bodyData))
-		shouldCrash(resp.StatusCode, string(bodyData))
-
-		return false
-	}
-
-	if glog.V(2) {
-		glog.V(2).Infof("Sent out nodeinfo callback %s", string(rep))
-	} else {
-		glog.V(1).Infof("Sent out nodeinfo callback")
-	}
-
-	nodeInfoReported.Store(n.GetID(), struct{}{})
-
-	return true
-}
-
-func balanceCallback(ctx context.Context, report *agent_entities.ChannelBalanceReport) bool {
-	// When nodeinfo was not reported fake as if balance report could not be delivered (because same data
-	// will be eventually retried)
-
-	n := agent_entities.NodeIdentifier{Identifier: report.PubKey, UniqueID: report.UniqueID}
-	_, ok := nodeInfoReported.Load(n.GetID())
-	if !ok {
-		glog.V(3).Infof("Node data for %s was not reported yet", n.GetID())
-		return false
-	}
-
+func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 	rep, err := json.Marshal(report)
 	if err != nil {
 		glog.Warningf("Error marshalling report: %v", err)
@@ -574,13 +487,13 @@ func signalHandler(ctx context.Context, f filter.FilteringInterface) {
 	os.Exit(code)
 }
 
-func checker(ctx *cli.Context) error {
+func nodeDataChecker(ctx *cli.Context) error {
 	apiKey = utils.GetEnvWithDefault("API_KEY", "")
 	if apiKey == "" {
 		apiKey = ctx.String("apikey")
 	}
 
-	if apiKey == "" && (ctx.String("url") != "" || ctx.String("nodeurl") != "") {
+	if apiKey == "" && ctx.String("url") != "" {
 		// We don't return error here since we don't want glog to handle it
 		fmt.Fprintf(os.Stderr, "missing API key (use --apikey or set API_KEY environment variable)\n")
 		os.Exit(1)
@@ -617,7 +530,6 @@ func checker(ctx *cli.Context) error {
 	go signalHandler(ct, f)
 
 	url = ctx.String("url")
-	nodeurl = ctx.String("nodeurl")
 	private = ctx.Bool("private") || ctx.String(whitelist) != ""
 
 	interval, err := getInterval(ctx, "interval")
@@ -625,49 +537,34 @@ func checker(ctx *cli.Context) error {
 		return err
 	}
 
-	nodeinterval, err := getInterval(ctx, "nodeinterval")
-	if err != nil {
-		nodeinterval = interval
-	}
-
 	preferipv4 = ctx.Bool("preferipv4")
-
-	infochecker := nodeinfo.NewNodeInfo(ct, checkermonitoring.NewNopCheckerMonitoring("nodeinfo"))
-	c := channelchecker.NewDefaultChannelChecker(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), checkermonitoring.NewNopCheckerMonitoring("channelchecker"))
 
 	if interval == agent_entities.Second {
 		// Second is just for testing purposes
 		interval = agent_entities.TenSeconds
 	}
 
-	if nodeinterval == agent_entities.Second {
-		// Second is just for testing purposes
-		nodeinterval = agent_entities.TenSeconds
-	}
+	nodeDataChecker := nodedata.NewDefaultNodeData(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedata checker"))
 
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
 	if settings.PollInterval == agent_entities.ManualRequest {
-		infochecker.GetState("", ctx.String("uniqueid"), private, agent_entities.ManualRequest, mkGetLndAPI(ctx), infoCallback, f)
-		time.Sleep(1 * time.Second)
-		c.GetState("", ctx.String("uniqueid"), mkGetLndAPI(ctx), settings, balanceCallback)
+		nodeDataChecker.GetState("", ctx.String("uniqueid"), mkGetLndAPI(ctx), settings, nodeDataCallback)
 	} else {
-		err := infochecker.Subscribe("", ctx.String("uniqueid"), private, nodeinterval, mkGetLndAPI(ctx), infoCallback, f)
-		if err != nil {
-			return err
-		}
-
-		err = c.Subscribe("", ctx.String("uniqueid"),
+		err = nodeDataChecker.Subscribe(
+			nodeDataCallback,
 			mkGetLndAPI(ctx),
+			"",
 			settings,
-			balanceCallback)
+			ctx.String("uniqueid"),
+		)
 
 		if err != nil {
 			return err
 		}
 
 		glog.Info("Waiting for events...")
-		utils.WaitAll(infochecker, c)
+		utils.WaitAll(nodeDataChecker)
 	}
 
 	return nil
@@ -679,7 +576,7 @@ func main() {
 	app.Usage = "Utility to monitor channel balances"
 	app.Action = func(c *cli.Context) error {
 		glogShim(c)
-		if err := checker(c); err != nil {
+		if err := nodeDataChecker(c); err != nil {
 			return err
 		}
 

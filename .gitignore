@@ -3,3 +3,5 @@ release/*
 result
 *-agent
 .vscode
+.idea
+.DS_Store

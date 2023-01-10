@@ -1,11 +1,10 @@
-package nodeinfo
+package nodedata
 
 import (
 	"sync"
 	"time"
 
 	entities "github.com/bolt-observer/agent/entities"
-	"github.com/bolt-observer/agent/filter"
 )
 
 // PerNodeSettings struct
@@ -57,12 +56,13 @@ func (s *PerNodeSettings) Delete(key string) {
 
 // Settings struct
 type Settings struct {
-	identifier entities.NodeIdentifier
-	lastCheck  time.Time
-	callback   entities.InfoCallback
-	hash       uint64
-	getAPI     entities.NewAPICall
-	interval   entities.Interval
-	private    bool
-	filter     filter.FilteringInterface
+	nodeDataCallback entities.NodeDataReportCallback
+	getAPI           entities.NewAPICall
+	hash             uint64
+	identifier       entities.NodeIdentifier
+	lastGraphCheck   time.Time
+	lastReport       time.Time
+	lastNodeReport   time.Time
+	lastCheck        time.Time
+	settings         entities.ReportingSettings
 }

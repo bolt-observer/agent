@@ -20,7 +20,7 @@ USAGE:
    balance-agent [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.0.38
+   v0.0.41
 
 COMMANDS:
    help, h  Shows a list of commands or help for one command
@@ -28,6 +28,7 @@ COMMANDS:
 GLOBAL OPTIONS:
    --allowedentropy value      allowed entropy in bits for channel balances (default: 64)
    --apikey value              api key
+   --channel-whitelist value   Path to file containing a whitelist of channels
    --interval value            interval to poll - 10s, 1m, 10m or 1h (default: "10s")
    --lnddir value              path to lnd's base directory (default: "/home/user/.lnd")
    --macaroonpath value        path to macaroon file
@@ -162,7 +163,7 @@ Internally we use:
 * [nodeinfo](./nodeinfo): this can basically report `lncli getnodeinfo` for your node  - it is used by the agent so we have a full view of node info & channels
 * [filter](./filter): this is used to filter specific channels on the agent side
 * [checkermonitoring](./checkermonitoring): is used for reporting metrics via Graphite (not used directly in balance-agent here)
-* [lightning](./lightning): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
+* [lightning_api](./lightning_api): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
 
 ## Dependencies
 
