@@ -20,7 +20,7 @@ USAGE:
    balance-agent [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.0.38
+   v0.0.41
 
 COMMANDS:
    help, h  Shows a list of commands or help for one command
@@ -28,6 +28,7 @@ COMMANDS:
 GLOBAL OPTIONS:
    --allowedentropy value      allowed entropy in bits for channel balances (default: 64)
    --apikey value              api key
+   --channel-whitelist value   Path to file containing a whitelist of channels
    --interval value            interval to poll - 10s, 1m, 10m or 1h (default: "10s")
    --lnddir value              path to lnd's base directory (default: "/home/user/.lnd")
    --macaroonpath value        path to macaroon file
