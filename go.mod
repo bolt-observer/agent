@@ -15,6 +15,7 @@ require (
 	github.com/lightningnetwork/lnd v0.15.4-beta
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/powerman/rpc-codec v1.2.2
+	github.com/stretchr/testify v1.7.1
 	github.com/urfave/cli v1.22.9
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/grpc v1.38.0
@@ -118,7 +119,6 @@ require (
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20201229170055-e5319fda7802 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect

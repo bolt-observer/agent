@@ -3,10 +3,10 @@
 You can always check by running it with following flags, which forces a dry-run (without sending anything to the server)
 
 ```
---url "" -nodeurl "" --verbosity 2
+--url "" --verbosity 2
 ```
 
-basically it will report a JSON similar to https://api.lightning.community/#getnodeinfo every 10 minutes except that if you allow private data to be reported (`-private`) also unnanounced channels are included. The only additional
+basically it will report a JSON similar to https://api.lightning.community/#getnodeinfo every 10 minutes except that if you allow private data to be reported (`--private`) also unnanounced channels are included. The only additional
 field is `timestamp` in UNIX time. We use that data so the information about a node is available (in case gossip data has not arrived yet or won't arrive when node is private).
 
 ```
@@ -93,7 +93,7 @@ and then upon every change (configurable poll interval) it will report something
   }
 ```
 
-`poll_interval` is the setting how often to poll for changes and `allowed_entropy` is the entropy in bits that you can also specify via `-allowedentropy` flag.
+`poll_interval` is the setting how often to poll for changes and `allowed_entropy` is the entropy in bits that you can also specify via `--allowedentropy` flag.
 `local_nominator / denominator` is the fraction of how much balance is on your side and `remote_nominator / denominator` is on the other side of the channel.
 If you use a high enough entropy `denominator` is same as `capacity` in satoshis and thus the `nominator` values can then be interpreted as satoshis.
 note that `local + remote balance` is not necessary equal to `capacity` due to channel reserve and other factors.

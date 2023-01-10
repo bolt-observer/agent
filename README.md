@@ -20,7 +20,7 @@ USAGE:
    balance-agent [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.0.38
+   v0.0.41
 
 COMMANDS:
    help, h  Shows a list of commands or help for one command
@@ -28,6 +28,7 @@ COMMANDS:
 GLOBAL OPTIONS:
    --allowedentropy value      allowed entropy in bits for channel balances (default: 64)
    --apikey value              api key
+   --channel-whitelist value   Path to file containing a whitelist of channels
    --interval value            interval to poll - 10s, 1m, 10m or 1h (default: "10s")
    --lnddir value              path to lnd's base directory (default: "/home/user/.lnd")
    --macaroonpath value        path to macaroon file
@@ -71,14 +72,14 @@ Installation steps:
 * fetch latest revision from https://github.com/bolt-observer/agent/releases
 
 ```
-wget https://github.com/bolt-observer/agent/releases/download/v0.0.33/balance-agent-v0.0.33-linux.zip https://github.com/bolt-observer/agent/releases/download/v0.0.33/manifest-v0.0.33.txt.asc https://github.com/bolt-observer/agent/releases/download/v0.0.33/manifest-v0.0.33.txt
+wget https://github.com/bolt-observer/agent/releases/download/v0.0.41/balance-agent-v0.0.41-linux.zip https://github.com/bolt-observer/agent/releases/download/v0.0.41/manifest-v0.0.41.txt.asc https://github.com/bolt-observer/agent/releases/download/v0.0.41/manifest-v0.0.41.txt
 ```
 
 * verify integrity
 
 ```
 wget -qO- https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/fiksn.asc | gpg --import
-gpg --verify manifest-v0.0.33.txt.asc manifest-v0.0.33.txt
+gpg --verify manifest-v0.0.41.txt.asc manifest-v0.0.41.txt
 ```
 
 and you should see:
@@ -90,13 +91,13 @@ gpg: Good signature from "Gregor Pogacnik <gregor@bolt.observer>" [ultimate]
 * unpack the compressed binary
 
 ```
-unzip balance-agent-v0.0.33-linux.zip
+unzip balance-agent-v0.0.41-linux.zip
 ```
 
 * copy the binary to a common place
 
 ```
-cp balance-agent-v0.0.33-linux /usr/local/bin/balance-agent
+cp balance-agent-v0.0.41-linux /usr/local/bin/balance-agent
 ```
 
 * start the binary
@@ -125,7 +126,7 @@ You can use the docker image from GitHub:
 Usage:
 
 ```
-docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.0.35
+docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.0.41
 ```
 
 ## Filtering on agent side
@@ -158,11 +159,10 @@ whatever
 ## Components
 
 Internally we use:
-* [channelchecker](./channelchecker): an abstraction for checking all channels
-* [nodeinfo](./nodeinfo): this can basically report `lncli getnodeinfo` for your node  - it is used by the agent so we have a full view of node info & channels
+* [nodedata](./nodedata): an abstraction for running the periodic checks and reporting balance related changes
 * [filter](./filter): this is used to filter specific channels on the agent side
 * [checkermonitoring](./checkermonitoring): is used for reporting metrics via Graphite (not used directly in balance-agent here)
-* [lightning](./lightning): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
+* [lightning_api](./lightning_api): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
 
 ## Dependencies
 

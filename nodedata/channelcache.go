@@ -1,4 +1,4 @@
-package channelchecker
+package nodedata
 
 import (
 	"sync"
