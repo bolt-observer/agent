@@ -72,14 +72,14 @@ Installation steps:
 * fetch latest revision from https://github.com/bolt-observer/agent/releases
 
 ```
-wget https://github.com/bolt-observer/agent/releases/download/v0.0.33/balance-agent-v0.0.33-linux.zip https://github.com/bolt-observer/agent/releases/download/v0.0.33/manifest-v0.0.33.txt.asc https://github.com/bolt-observer/agent/releases/download/v0.0.33/manifest-v0.0.33.txt
+wget https://github.com/bolt-observer/agent/releases/download/v0.0.41/balance-agent-v0.0.41-linux.zip https://github.com/bolt-observer/agent/releases/download/v0.0.41/manifest-v0.0.41.txt.asc https://github.com/bolt-observer/agent/releases/download/v0.0.41/manifest-v0.0.41.txt
 ```
 
 * verify integrity
 
 ```
 wget -qO- https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/fiksn.asc | gpg --import
-gpg --verify manifest-v0.0.33.txt.asc manifest-v0.0.33.txt
+gpg --verify manifest-v0.0.41.txt.asc manifest-v0.0.41.txt
 ```
 
 and you should see:
@@ -91,13 +91,13 @@ gpg: Good signature from "Gregor Pogacnik <gregor@bolt.observer>" [ultimate]
 * unpack the compressed binary
 
 ```
-unzip balance-agent-v0.0.33-linux.zip
+unzip balance-agent-v0.0.41-linux.zip
 ```
 
 * copy the binary to a common place
 
 ```
-cp balance-agent-v0.0.33-linux /usr/local/bin/balance-agent
+cp balance-agent-v0.0.41-linux /usr/local/bin/balance-agent
 ```
 
 * start the binary
@@ -126,7 +126,7 @@ You can use the docker image from GitHub:
 Usage:
 
 ```
-docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.0.35
+docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.0.41
 ```
 
 ## Filtering on agent side
@@ -159,8 +159,7 @@ whatever
 ## Components
 
 Internally we use:
-* [channelchecker](./channelchecker): an abstraction for checking all channels
-* [nodeinfo](./nodeinfo): this can basically report `lncli getnodeinfo` for your node  - it is used by the agent so we have a full view of node info & channels
+* [nodedata](./nodedata): an abstraction for running the periodic checks and reporting balance related changes
 * [filter](./filter): this is used to filter specific channels on the agent side
 * [checkermonitoring](./checkermonitoring): is used for reporting metrics via Graphite (not used directly in balance-agent here)
 * [lightning_api](./lightning_api): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
