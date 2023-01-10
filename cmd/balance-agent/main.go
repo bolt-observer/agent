@@ -214,6 +214,11 @@ func getApp() *cli.App {
 			Usage: "api key",
 		},
 		&cli.StringFlag{
+			Name:   whitelist,
+			Usage:  "Path to file containing a whitelist of channels",
+			Hidden: false,
+		},
+		&cli.StringFlag{
 			Name:  "interval",
 			Usage: "interval to poll - 10s, 1m, 10m or 1h",
 			Value: "10s",
@@ -249,11 +254,6 @@ func getApp() *cli.App {
 			Name:  "tlscertpath",
 			Value: defaultTLSCertPath,
 			Usage: "path to TLS certificate",
-		},
-		&cli.StringFlag{
-			Name:   whitelist,
-			Usage:  "Path to file containing a whitelist of channels",
-			Hidden: true,
 		},
 		&cli.BoolFlag{
 			Name:   "userest",
