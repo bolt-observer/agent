@@ -1,7 +1,8 @@
-package lightningapi
+package lightning
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -22,6 +23,9 @@ const (
 	LISTNODES    = "listnodes"
 	LISTFUNDS    = "listfunds"
 	GETINFO      = "getinfo"
+	LISTFORWARDS = "listforwards"
+	LISTINVOICES = "listinvoices"
+	LISTPAYMENTS = "listsendpays"
 )
 
 // NewClnSocketLightningAPIRaw gets a new API - usage "unix", "/home/ubuntu/.lightning/bitcoin/lightning-rpc"
@@ -31,7 +35,7 @@ func NewClnSocketLightningAPIRaw(socketType string, address string) LightingAPIC
 		glog.Warningf("Got error: %v", err)
 		return nil
 	}
-	return &ClnSocketLightningAPI{Client: client, Timeout: time.Second * 30}
+	return &ClnSocketLightningAPI{Client: client, Timeout: time.Second * 30, Name: "clnsocket"}
 }
 
 // NewClnSocketLightningAPI return a new lightning API
@@ -253,13 +257,13 @@ func (l *ClnSocketLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	syncedToChain := reply.WarningBitcoindSync == ""
 
 	return &InfoAPI{
-		IdentityPubkey: reply.PubKey,
-		Alias:          reply.Alias,
-		Network:        reply.Network,
-		Chain:          "mainnet", // assume mainnet
-		Version:        fmt.Sprintf("corelightning-%s", reply.Version),
-		IsSyncedToGraph:  syncedToGraph,
-		IsSyncedToChain:  syncedToChain,
+		IdentityPubkey:  reply.PubKey,
+		Alias:           reply.Alias,
+		Network:         reply.Network,
+		Chain:           "mainnet", // assume mainnet
+		Version:         fmt.Sprintf("corelightning-%s", reply.Version),
+		IsSyncedToGraph: syncedToGraph,
+		IsSyncedToChain: syncedToChain,
 	}, nil
 }
 
@@ -305,7 +309,7 @@ func ConvertAddresses(addr []ClnListNodeAddr) []NodeAddressAPI {
 	return addresses
 }
 
-// GetNodeInfo - GetNodeInfo API call
+// GetNodeInfo - API call
 func (l *ClnSocketLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
 	var reply ClnListNodeResp
 	err := l.CallWithTimeout(LISTNODES, []string{pubKey}, &reply)
@@ -361,7 +365,7 @@ func (l *ClnSocketLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, 
 
 }
 
-// GetNodeInfoFull - GetNodeInfoFull API call
+// GetNodeInfoFull - API call
 func (l *ClnSocketLightningAPI) GetNodeInfoFull(ctx context.Context, channels bool, unannounced bool) (*NodeInfoAPIExtended, error) {
 	var reply ClnInfo
 	err := l.CallWithTimeout(GETINFO, []string{}, &reply)
@@ -423,6 +427,254 @@ func (l *ClnSocketLightningAPI) GetNodeInfoFull(ctx context.Context, channels bo
 	result.TotalCapacity = SumCapacityExtended(result.Channels)
 
 	return result, nil
+}
+
+// SubscribeForwards - API call
+func (l *ClnSocketLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
+	var reply ClnForwardEntries
+
+	if batchSize == 0 {
+		batchSize = 50
+	}
+
+	const maxErrors = 5
+
+	errors := 0
+	errorChan := make(chan ErrorData, 1)
+	outChan := make(chan []ForwardingEvent)
+
+	go func() {
+
+		batch := make([]ForwardingEvent, 0, batchSize)
+		minTime := since
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// Do nothing
+			}
+
+			err := l.CallWithTimeout(LISTFORWARDS, []interface{}{}, &reply)
+			if err != nil {
+				glog.Warningf("Error getting forwards %v\n", err)
+				if errors >= maxErrors {
+					errorChan <- ErrorData{Error: err, IsStillRunning: false}
+					return
+				}
+				errorChan <- ErrorData{Error: err, IsStillRunning: true}
+			}
+
+			for _, one := range reply.Entries {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					// Do nothing
+				}
+
+				if time.Time(one.ReceivedTime).Before(minTime) {
+					continue
+				}
+
+				if one.Status == "settled" {
+					continue
+				}
+
+				success := one.Status != "local_failed" && one.Status != "failed"
+
+				batch = append(batch, ForwardingEvent{
+					Timestamp:     time.Time(one.ReceivedTime),
+					ChanIDIn:      stringToUint64(one.InChannel),
+					ChanIDOut:     stringToUint64(one.OutChannel),
+					AmountInMsat:  ConvertAmount(one.InMsat),
+					AmountOutMsat: ConvertAmount(one.OutMsat),
+					FeeMsat:       ConvertAmount(one.FeeMsat),
+					IsSuccess:     success,
+					FailureString: one.FailReason,
+				})
+
+				if len(batch) >= int(batchSize) {
+					outChan <- batch
+					batch = make([]ForwardingEvent, 0, batchSize)
+				}
+			}
+
+			if len(batch) > 0 {
+				outChan <- batch
+				batch = make([]ForwardingEvent, 0, batchSize)
+			}
+
+			minTime = time.Time(reply.Entries[len(reply.Entries)-1].ReceivedTime).Add(-1 * time.Second)
+		}
+	}()
+
+	return outChan, errorChan
+}
+
+// GetInvoicesRaw - API call
+func (l *ClnSocketLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	var (
+		reply   ClnRawInvoices
+		gettime ClnRawInvoiceTime
+	)
+
+	respPagination := &ResponseRawPagination{UseTimestamp: true}
+
+	err := l.CallWithTimeout(LISTINVOICES, []interface{}{}, &reply)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	ret := make([]RawMessage, 0, len(reply.Entries))
+
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
+	for _, one := range reply.Entries {
+		err = json.Unmarshal(one, &gettime)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		t := time.Unix(int64(gettime.Time), 0)
+
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      t,
+			Message:        one,
+		}
+
+		ret = append(ret, m)
+	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
+	return ret, respPagination, nil
+}
+
+// GetPaymentsRaw - API call
+func (l *ClnSocketLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	var (
+		reply   ClnRawPayments
+		gettime ClnRawPayTime
+	)
+
+	respPagination := &ResponseRawPagination{UseTimestamp: true}
+
+	err := l.CallWithTimeout(LISTPAYMENTS, []interface{}{}, &reply)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	ret := make([]RawMessage, 0, len(reply.Entries))
+
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
+	for _, one := range reply.Entries {
+		err = json.Unmarshal(one, &gettime)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		t := time.Unix(int64(gettime.Time), 0)
+
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      t,
+			Message:        one,
+		}
+
+		ret = append(ret, m)
+	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
+	return ret, respPagination, nil
+}
+
+// GetForwardsRaw - API call
+func (l *ClnSocketLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	var (
+		reply   ClnRawForwardEntries
+		gettime ClnRawForwardsTime
+	)
+
+	respPagination := &ResponseRawPagination{UseTimestamp: true}
+
+	err := l.CallWithTimeout(LISTFORWARDS, []interface{}{}, &reply)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	ret := make([]RawMessage, 0, len(reply.Entries))
+
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
+	for _, one := range reply.Entries {
+		err = json.Unmarshal(one, &gettime)
+		if err != nil {
+			return nil, respPagination, err
+		}
+		t := time.Unix(int64(gettime.Time), 0)
+
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      t,
+			Message:        one,
+		}
+
+		ret = append(ret, m)
+	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
+	return ret, respPagination, nil
+}
+
+// GetInvoices - API call
+func (l *ClnSocketLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
+	panic("not implemented")
+}
+
+// GetPayments - API call
+func (l *ClnSocketLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
+	panic("not implemented")
 }
 
 // GetInternalChannels - internal method to get channels

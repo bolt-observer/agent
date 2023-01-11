@@ -1,4 +1,4 @@
-package lightningapi
+package lightning
 
 import (
 	"encoding/hex"

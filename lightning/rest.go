@@ -1,9 +1,11 @@
-package lightningapi
+package lightning
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -225,6 +227,174 @@ func (h *HTTPAPI) HTTPGetChanInfo(ctx context.Context, req *http.Request, trans 
 	}
 
 	return &graph, nil
+}
+
+// HTTPForwardEvents - invokes ForwardEvents method
+func (h *HTTPAPI) HTTPForwardEvents(ctx context.Context, req *http.Request, trans *http.Transport, input *ForwardingHistoryRequestOverride) (*ForwardingHistoryResponseOverride, error) {
+	var data ForwardingHistoryResponseOverride
+
+	req = req.WithContext(ctx)
+
+	req.Method = http.MethodPost
+
+	u, err := url.Parse(fmt.Sprintf("%s/v1/switch", req.URL))
+	if err != nil {
+		return nil, fmt.Errorf("invalid url %s", err)
+	}
+
+	s, _ := json.Marshal(input)
+	b := bytes.NewBuffer(s)
+
+	req.URL = u
+	req.Body = io.NopCloser(b)
+
+	resp, err := h.Do(req)
+
+	if err != nil {
+		return nil, fmt.Errorf("http request failed %s", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http got error %d", resp.StatusCode)
+	}
+
+	defer resp.Body.Close()
+
+	decoder := json.NewDecoder(resp.Body)
+
+	err = decoder.Decode(&data)
+	if err != nil {
+		return nil, fmt.Errorf("got error %v", err)
+	}
+
+	return &data, nil
+}
+
+// HTTPSubscribeHtlcEvents - invokes SubscribeHtlcEvents method
+func (h *HTTPAPI) HTTPSubscribeHtlcEvents(ctx context.Context, req *http.Request, trans *http.Transport) (<-chan *HtlcEventOverride, error) {
+
+	req = req.WithContext(ctx)
+
+	req.Method = http.MethodGet
+
+	u, err := url.Parse(fmt.Sprintf("%s/v2/router/htlcevents", req.URL))
+	if err != nil {
+		return nil, fmt.Errorf("invalid url %s", err)
+	}
+
+	req.URL = u
+
+	resp, err := h.Do(req)
+
+	if err != nil {
+		return nil, fmt.Errorf("http request failed %s", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http got error %d", resp.StatusCode)
+	}
+
+	outchan := make(chan *HtlcEventOverride)
+
+	go func() {
+		var data HtlcEventOverride
+		defer resp.Body.Close()
+		decoder := json.NewDecoder(resp.Body)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// Do nothing
+			}
+
+			err := decoder.Decode(&data)
+
+			if err != nil {
+				return
+			}
+
+			outchan <- &data
+		}
+	}()
+
+	return outchan, nil
+}
+
+// HTTPListInvoices - invokes ListInvoices method
+func (h *HTTPAPI) HTTPListInvoices(ctx context.Context, req *http.Request, trans *http.Transport, input *ListInvoiceRequestOverride) (*ListInvoiceResponseOverride, error) {
+	var data ListInvoiceResponseOverride
+
+	req = req.WithContext(ctx)
+
+	req.Method = http.MethodGet
+
+	u, err := url.Parse(fmt.Sprintf("%s/v1/invoices?pending_only=%v&index_offset=%s&num_max_invoices=%s&reversed=%v", req.URL, input.PendingOnly, input.IndexOffset,
+		input.NumMaxInvoices, input.Reversed))
+	if err != nil {
+		return nil, fmt.Errorf("invalid url %s", err)
+	}
+
+	req.URL = u
+
+	resp, err := h.Do(req)
+
+	if err != nil {
+		return nil, fmt.Errorf("http request failed %s", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http got error %d", resp.StatusCode)
+	}
+
+	defer resp.Body.Close()
+
+	decoder := json.NewDecoder(resp.Body)
+
+	err = decoder.Decode(&data)
+	if err != nil {
+		return nil, fmt.Errorf("got error %v", err)
+	}
+
+	return &data, nil
+}
+
+// HTTPListPayments - invokes ListPayments method
+func (h *HTTPAPI) HTTPListPayments(ctx context.Context, req *http.Request, trans *http.Transport, input *ListPaymentsRequestOverride) (*ListPaymentsResponseOverride, error) {
+	var data ListPaymentsResponseOverride
+
+	req = req.WithContext(ctx)
+
+	req.Method = http.MethodGet
+
+	u, err := url.Parse(fmt.Sprintf("%s/v1/payments?include_incomplete=%v&index_offset=%s&max_payments=%s&reversed=%v", req.URL, input.IncludeIncomplete, input.IndexOffset,
+		input.MaxPayments, input.Reversed))
+	if err != nil {
+		return nil, fmt.Errorf("invalid url %s", err)
+	}
+
+	req.URL = u
+
+	resp, err := h.Do(req)
+
+	if err != nil {
+		return nil, fmt.Errorf("http request failed %s", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http got error %d", resp.StatusCode)
+	}
+
+	defer resp.Body.Close()
+
+	decoder := json.NewDecoder(resp.Body)
+
+	err = decoder.Decode(&data)
+	if err != nil {
+		return nil, fmt.Errorf("got error %v", err)
+	}
+
+	return &data, nil
 }
 
 // GetHTTPRequest - generic method for doing HTTP requests

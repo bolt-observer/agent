@@ -15,7 +15,6 @@ import (
 	"github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
-	lightningapi "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	"github.com/bolt-observer/go_common/utils"
 	"github.com/getsentry/sentry-go"
@@ -465,10 +464,10 @@ func (c *NodeData) checkAll() bool {
 	return true
 }
 
-func applyFilter(info *lightningapi.NodeInfoAPIExtended, filter filter.FilteringInterface) *lightningapi.NodeInfoAPIExtended {
-	ret := &lightningapi.NodeInfoAPIExtended{
+func applyFilter(info *api.NodeInfoAPIExtended, filter filter.FilteringInterface) *api.NodeInfoAPIExtended {
+	ret := &api.NodeInfoAPIExtended{
 		NodeInfoAPI: info.NodeInfoAPI,
-		Channels:    make([]lightningapi.NodeChannelAPIExtended, 0),
+		Channels:    make([]api.NodeChannelAPIExtended, 0),
 	}
 
 	ret.NumChannels = 0
