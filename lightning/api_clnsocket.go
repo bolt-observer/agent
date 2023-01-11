@@ -553,7 +553,7 @@ func (l *ClnSocketLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly 
 
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      gettime.Time,
+			Timestamp:      t,
 			Message:        one,
 		}
 
@@ -606,7 +606,7 @@ func (l *ClnSocketLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncom
 
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      gettime.Time,
+			Timestamp:      t,
 			Message:        one,
 		}
 
@@ -654,7 +654,7 @@ func (l *ClnSocketLightningAPI) GetForwardsRaw(ctx context.Context, pagination R
 
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      gettime.Time,
+			Timestamp:      t,
 			Message:        one,
 		}
 

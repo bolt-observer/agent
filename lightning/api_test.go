@@ -404,7 +404,7 @@ func TestRawMessageSerialization(t *testing.T) {
 	for _, one := range resp.Payments {
 		raw := RawMessage{}
 
-		raw.Timestamp = uint64(one.CreationTimeNs)
+		raw.Timestamp = time.Unix(0, one.CreationTimeNs)
 		raw.Implementation = "lnd"
 		raw.Message, err = json.Marshal(one)
 		if err != nil {

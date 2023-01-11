@@ -264,10 +264,10 @@ func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 	if pagination.To != nil {
 		param.CreationDateEnd = uint64(pagination.To.Unix())
 	}
-	*/
 	if pagination.From != nil || pagination.To != nil {
 		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
 	}
+	*/
 
 	if pagination.Reversed {
 		param.Reversed = true
@@ -301,7 +301,7 @@ func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      stringToUint64(invoice.CreationDate),
+			Timestamp:      t,
 		}
 		m.Message, err = json.Marshal(invoice)
 		if err != nil {
@@ -333,10 +333,10 @@ func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 	if pagination.To != nil {
 		param.CreationDateEnd = uint64(pagination.To.Unix())
 	}
-	*/
 	if pagination.From != nil || pagination.To != nil {
 		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
 	}
+	*/
 
 	if pagination.Reversed {
 		param.Reversed = true
@@ -370,7 +370,7 @@ func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      stringToUint64(payment.CreationDate),
+			Timestamp:      t,
 		}
 		m.Message, err = json.Marshal(payment)
 		if err != nil {
@@ -427,7 +427,7 @@ func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination Raw
 
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      stringToUint64(forward.TimestampNs),
+			Timestamp:      t,
 		}
 		m.Message, err = json.Marshal(forward)
 		if err != nil {

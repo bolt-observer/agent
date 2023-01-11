@@ -1,29 +1,42 @@
 syntax = "proto3";
 
+option go_package = "github.com/bolt-observer/api/agent";
+
+package agent;
+
 service AgentAPI {
-        // Sent when connection is established
-        rpc Init (InitRequest) returns (BoolValue) {};
+  rpc Payments(DataRequest) returns (Empty) {};
+  rpc LatestPayment(Empty) returns (TimestampResponse) {};
 
-	rpc Payments(stream DataRequest) returns (stream TimestampResponse) {};
-	rpc Invoices(stream DataRequest) returns (stream TimestampResponse) {};
-	rpc Forwards(stream DataRequest) returns (stream TimestampResponse) {};
-	rpc LiquidityAds(stream DataRequest) returns (stream TimestampResponse) {};
+  rpc Invoices(DataRequest) returns (Empty) {};
+  rpc LatestInvoice(Empty) returns (TimestampResponse) {};
+
+  rpc Forwards(DataRequest) returns (Empty) {};
+  rpc LatestForward(Empty) returns (TimestampResponse) {};
+
+  rpc LiquidityAds(DataRequest) returns (Empty) {};
+  rpc LatestLiquidityAd(Empty) returns (TimestampResponse) {};
 }
 
-message BoolValue {
-  bool value = 1;
-}
+message Empty {}
 
 message TimestampResponse {
-  string Timestamp = 1;
+  int64 timestamp = 1;
 }
 
-message InitRequest {
-  string PubKey = 1;
+message CredentialsRequest {
+  string pub_key = 1;
+	ClientType client_type = 2;
 }
 
 message DataRequest {
-  string Timestamp = 1;
-  // Raw JSON serialized data (since it can come from various sources)
-  string Data = 2;
+  int64 timestamp = 1; // timestamp in nanoseconds
+  string data = 2; // Raw JSON serialized data (since it can come from various sources)
+}
+
+enum ClientType {
+  LND_GRPC = 0;
+  LND_REST = 1;
+  C_LIGHTNING = 2;
+  ECLAIR = 3;
 }

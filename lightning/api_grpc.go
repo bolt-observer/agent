@@ -403,12 +403,21 @@ func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination Raw
 	req := &lnrpc.ForwardingHistoryRequest{
 		NumMaxEvents: uint32(pagination.Num),
 		IndexOffset:  uint32(pagination.Offset),
-		StartTime:    uint64(pagination.From.Unix()),
 	}
+
+	if pagination.From != nil {
+		req.StartTime = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		req.EndTime = uint64(pagination.To.Unix())
+	}
+
 	respPagination := &ResponseRawPagination{UseTimestamp: false}
 
 	resp, err := l.Client.ForwardingHistory(ctx, req)
 
+	fmt.Printf("ForwardsRaw FOO %+v\n", resp)
 	if err != nil {
 		return nil, respPagination, err
 	}
@@ -433,7 +442,7 @@ func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination Raw
 
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      uint64(forwarding.TimestampNs),
+			Timestamp:      t,
 		}
 		m.Message, err = json.Marshal(forwarding)
 		if err != nil {
@@ -466,6 +475,7 @@ func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 		req.CreationDateEnd = uint64(pagination.To.Unix())
 	}
 	*/
+
 	if pagination.From != nil || pagination.To != nil {
 		return nil, fmt.Errorf("from and to are not yet supported")
 	}
@@ -528,10 +538,10 @@ func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 	if pagination.To != nil {
 		req.CreationDateEnd = uint64(pagination.To.Unix())
 	}
-	*/
 	if pagination.From != nil || pagination.To != nil {
 		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
 	}
+	*/
 
 	if pagination.Reversed {
 		req.Reversed = true
@@ -562,7 +572,7 @@ func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      uint64(invoice.CreationDate),
+			Timestamp:      t,
 		}
 		m.Message, err = json.Marshal(invoice)
 		if err != nil {
@@ -668,20 +678,24 @@ func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 	if pagination.To != nil {
 		req.CreationDateEnd = uint64(pagination.To.Unix())
 	}
-	*/
 	if pagination.From != nil || pagination.To != nil {
 		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
 	}
+	*/
 
 	if pagination.Reversed {
 		req.Reversed = true
 	}
+	fmt.Printf("GetPaymentsRaw %+v\n", pagination)
 
 	resp, err := l.Client.ListPayments(ctx, req)
 
 	if err != nil {
+		fmt.Printf("GetPaymentsRaw failed %v\n", err)
 		return nil, respPagination, err
 	}
+
+	fmt.Printf("GetPaymentsRaw done\n")
 
 	respPagination.LastOffsetIndex = resp.LastIndexOffset
 	respPagination.FirstOffsetIndex = resp.FirstIndexOffset
@@ -702,7 +716,7 @@ func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 
 		m := RawMessage{
 			Implementation: l.Name,
-			Timestamp:      uint64(payment.CreationTimeNs),
+			Timestamp:      t,
 		}
 		m.Message, err = json.Marshal(payment)
 		if err != nil {

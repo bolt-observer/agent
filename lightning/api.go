@@ -332,8 +332,8 @@ type PaymentsResponse struct {
 
 // RawMessage struct
 type RawMessage struct {
-	Timestamp      uint64 `json:"timestamp"`
-	Implementation string `json:"implementation,omitempty"`
+	Timestamp      time.Time `json:"timestamp"`
+	Implementation string    `json:"implementation,omitempty"`
 
 	Message json.RawMessage `json:"message,omitempty"`
 }
