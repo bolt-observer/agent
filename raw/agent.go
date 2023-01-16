@@ -53,11 +53,11 @@ func getConnection(endpoint, pubkey, authToken string) (*grpc.ClientConn, error)
 	} else {
 		cp, _ := x509.SystemCertPool()
 		minVersion := uint16(tls.VersionTLS11)
-		conf = &tls.Config{RootCAs: cp, MinVersion: minVersion, InsecureSkipVerify: true}
+		conf = &tls.Config{RootCAs: cp, MinVersion: minVersion}
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(conf)))
 	}
 
-	//opts = append(opts, grpc.WithPerRPCCredentials(MakeCredentials(pubkey, authToken)))
+	opts = append(opts, grpc.WithPerRPCCredentials(MakeCredentials(pubkey, authToken)))
 
 	genericDialer := func(ctx context.Context,
 		endpoint string) (net.Conn, error) {

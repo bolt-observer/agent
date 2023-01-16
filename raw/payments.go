@@ -20,6 +20,7 @@ func GetPayments(ctx context.Context, itf api.LightingAPICalls, from time.Time) 
 			return itf.GetPaymentsRaw(ctx, false, pagination)
 		},
 		from,
+		3,
 		outchan)
 
 	return outchan
@@ -34,6 +35,7 @@ func GetInvoices(ctx context.Context, itf api.LightingAPICalls, from time.Time) 
 			return itf.GetInvoicesRaw(ctx, false, pagination)
 		},
 		from,
+		50,
 		outchan)
 
 	return outchan
@@ -48,6 +50,7 @@ func GetForwards(ctx context.Context, itf api.LightingAPICalls, from time.Time) 
 			return itf.GetForwardsRaw(ctx, pagination)
 		},
 		from,
+		50,
 		outchan)
 
 	return outchan
@@ -64,10 +67,10 @@ func GetFirstDay(monthsAgo int) time.Time {
 	return x.AddDate(0, -1*monthsAgo, 0)
 }
 
-func paginator(ctx context.Context, itf api.LightingAPICalls, getData GetRawData, from time.Time, outchan chan api.RawMessage) error {
+func paginator(ctx context.Context, itf api.LightingAPICalls, getData GetRawData, from time.Time, pageSize int, outchan chan api.RawMessage) error {
 	req := api.RawPagination{}
-	req.Num = 50
-	req.Pagination.Num = 50
+	req.Num = uint64(pageSize)
+	req.Pagination.Num = uint64(pageSize)
 	isLast := false
 
 	// Try our luck - Raw function should not complain

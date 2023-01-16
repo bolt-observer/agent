@@ -423,6 +423,6 @@ func TestRawMessageSerialization(t *testing.T) {
 		fmt.Printf("JSON |%s|\n", msg)
 	}
 
-	t.Fail()
+	//t.Fail()
 
 }

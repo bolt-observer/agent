@@ -71,8 +71,6 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, from time.Time) {
 		}
 	}
 
-	fmt.Printf("After %v\n", from)
-
 	outchan := GetInvoices(ctx, f.LightningAPI, from)
 
 	for {
@@ -85,13 +83,13 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, from time.Time) {
 				Data:      string(invoice.Message),
 			})
 			if err != nil {
-				glog.Warningf("Could not send data to agent: %v", err)
+				glog.Warningf("Could not send data to GRPC endpoint: %v", err)
 			}
 		}
 	}
 }
 
-// FetchForwards will fetch and report invoices
+// FetchForwards will fetch and report forwards
 func (f *Fetcher) FetchForwards(ctx context.Context, from time.Time) {
 
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
@@ -121,7 +119,44 @@ func (f *Fetcher) FetchForwards(ctx context.Context, from time.Time) {
 				Data:      string(forward.Message),
 			})
 			if err != nil {
-				glog.Warningf("Could not send data to agent: %v", err)
+				glog.Warningf("Could not send data to GRPC endpoint: %v", err)
+			}
+			return
+		}
+	}
+}
+
+// FetchPayments will fetch and report payments
+func (f *Fetcher) FetchPayments(ctx context.Context, from time.Time) {
+
+	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
+
+	ts, err := f.AgentAPI.LatestPaymentTimestamp(ctx, &agent.Empty{})
+
+	if err != nil {
+		glog.Warningf("Coud not get latest forward timestamps: %v", err)
+	}
+
+	if ts != nil {
+		t := time.Unix(0, ts.Timestamp)
+		if t.After(from) {
+			from = t
+		}
+	}
+
+	outchan := GetPayments(ctx, f.LightningAPI, from)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case payment := <-outchan:
+			_, err := f.AgentAPI.Payments(ctx, &agent.DataRequest{
+				Timestamp: payment.Timestamp.UnixNano(),
+				Data:      string(payment.Message),
+			})
+			if err != nil {
+				glog.Warningf("Could not send data to GRPC endpoint: %v", err)
 			}
 			return
 		}

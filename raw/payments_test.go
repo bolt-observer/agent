@@ -159,7 +159,6 @@ func TestGetPayments(t *testing.T) {
 		num := 0
 		for i := 0; i < Limit; i++ {
 			data := <-channel
-			//fmt.Printf("Received %v %s\n", data.Timestamp, string(data.Message))
 			if data.Timestamp.Before(from) {
 				t.Fatalf("Data has too old timestamp %v", data.Timestamp)
 			}

@@ -417,7 +417,6 @@ func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination Raw
 
 	resp, err := l.Client.ForwardingHistory(ctx, req)
 
-	fmt.Printf("ForwardsRaw FOO %+v\n", resp)
 	if err != nil {
 		return nil, respPagination, err
 	}
@@ -686,16 +685,12 @@ func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 	if pagination.Reversed {
 		req.Reversed = true
 	}
-	fmt.Printf("GetPaymentsRaw %+v\n", pagination)
 
 	resp, err := l.Client.ListPayments(ctx, req)
 
 	if err != nil {
-		fmt.Printf("GetPaymentsRaw failed %v\n", err)
 		return nil, respPagination, err
 	}
-
-	fmt.Printf("GetPaymentsRaw done\n")
 
 	respPagination.LastOffsetIndex = resp.LastIndexOffset
 	respPagination.FirstOffsetIndex = resp.FirstIndexOffset
