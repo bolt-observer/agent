@@ -10,6 +10,7 @@ import (
 	api "github.com/bolt-observer/agent/agent"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Credentials implements PerRPCCredentials
@@ -42,24 +43,21 @@ func MakeCredentials(pubkey, authToken string) *Credentials {
 
 func getConnection(endpoint, pubkey, authToken string) (*grpc.ClientConn, error) {
 
-	const Insecure = true
+	const Insecure = false
 	var conf *tls.Config
 
+	opts := []grpc.DialOption{}
+
 	if Insecure {
-		conf = &tls.Config{InsecureSkipVerify: true, ServerName: "",
-			VerifyConnection: func(cs tls.ConnectionState) error { return nil }}
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
 		cp, _ := x509.SystemCertPool()
 		minVersion := uint16(tls.VersionTLS11)
-		conf = &tls.Config{RootCAs: cp, MinVersion: minVersion}
+		conf = &tls.Config{RootCAs: cp, MinVersion: minVersion, InsecureSkipVerify: true}
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(conf)))
 	}
 
-	creds := credentials.NewTLS(conf)
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
-	}
-
-	opts = append(opts, grpc.WithPerRPCCredentials(MakeCredentials(pubkey, authToken)))
+	//opts = append(opts, grpc.WithPerRPCCredentials(MakeCredentials(pubkey, authToken)))
 
 	genericDialer := func(ctx context.Context,
 		endpoint string) (net.Conn, error) {
@@ -84,6 +82,7 @@ func getConnection(endpoint, pubkey, authToken string) (*grpc.ClientConn, error)
 func GetAgentAPI(endpoint, pubKey, authToken string) api.AgentAPIClient {
 	itf, err := getConnection(endpoint, pubKey, authToken)
 	if err != nil {
+		fmt.Printf("Error %+v\n", err)
 		return nil
 	}
 

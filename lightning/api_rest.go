@@ -558,3 +558,8 @@ func (l *LndRestLightningAPI) SubscribeHtlcEvents(ctx context.Context) (<-chan *
 
 	return resp, err
 }
+
+// GetAPIType API
+func (l *LndRestLightningAPI) GetAPIType() APIType {
+	return LndRest
+}

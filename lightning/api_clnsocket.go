@@ -677,6 +677,11 @@ func (l *ClnSocketLightningAPI) GetPayments(ctx context.Context, includeIncomple
 	panic("not implemented")
 }
 
+// GetAPIType - API call
+func (l *ClnSocketLightningAPI) GetAPIType() APIType {
+	return ClnSocket
+}
+
 // GetInternalChannels - internal method to get channels
 func (l *ClnSocketLightningAPI) GetInternalChannels(pubKey string) (map[string][]ClnListChan, error) {
 	result := make(map[string][]ClnListChan, 0)

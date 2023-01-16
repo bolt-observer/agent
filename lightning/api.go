@@ -476,6 +476,7 @@ type ErrorData struct {
 // LightingAPICalls is the interface for lightning API
 type LightingAPICalls interface {
 	Cleanup()
+	GetAPIType() APIType
 	GetInfo(ctx context.Context) (*InfoAPI, error)
 	GetChannels(ctx context.Context) (*ChannelsAPI, error)
 	DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error)

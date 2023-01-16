@@ -23,7 +23,9 @@ func getAPI(t *testing.T, name string, typ api.APIType) api.LightingAPICalls {
 	var data entities.Data
 
 	if _, err := os.Stat(name); errors.Is(err, os.ErrNotExist) {
-		// If file with credentials does not exist succeed
+		if FailNoCreds {
+			t.Fatalf("No credentials")
+		}
 		return nil
 	}
 
@@ -83,10 +85,8 @@ func TestGetInvoices(t *testing.T) {
 	from := time.Date(2021, 01, 01, 0, 0, 0, 0, time.UTC)
 
 	for _, lightningImpl := range []api.APIType{api.LndGrpc, api.LndRest} {
-		fmt.Printf("IMPL %v\n", lightningImpl)
 		itf := getAPI(t, "fixture.secret", lightningImpl)
 		if itf == nil {
-			//t.Fatal("No credentials")
 			return
 		}
 
@@ -107,7 +107,7 @@ func TestGetInvoices(t *testing.T) {
 		assert.Equal(t, Limit, num)
 	}
 
-	//t.Fatalf("fail")
+	t.Fatalf("fail")
 }
 
 func TestGetForwards(t *testing.T) {
@@ -117,9 +117,7 @@ func TestGetForwards(t *testing.T) {
 
 	for _, lightningImpl := range []api.APIType{api.LndGrpc, api.LndRest} {
 		itf := getAPI(t, "fixture.secret", lightningImpl)
-		fmt.Printf("%v\n", lightningImpl)
 		if itf == nil {
-			//t.Fatal("No credentials")
 			return
 		}
 
@@ -150,13 +148,11 @@ func TestGetPayments(t *testing.T) {
 
 	for _, lightningImpl := range []api.APIType{api.LndGrpc, api.LndRest} {
 		itf := getAPI(t, "fixture.secret", lightningImpl)
-		fmt.Printf("%v\n", lightningImpl)
 		if itf == nil {
-			//t.Fatal("No credentials")
 			return
 		}
 
-		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(30*time.Minute))
 		defer cancel()
 
 		channel := GetPayments(ctx, itf, from)

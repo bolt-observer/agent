@@ -25,6 +25,7 @@ import (
 	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/agent/nodedata"
+	"github.com/bolt-observer/agent/raw"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 
@@ -303,6 +304,22 @@ func getApp() *cli.App {
 			Value:  "mainnet",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:   "grpc-url",
+			Usage:  "GRPC URL",
+			Value:  "",
+			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:   "fetch-invoices",
+			Usage:  "Fetch invoices",
+			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:   "fetch-forwards",
+			Usage:  "Fetch forwards",
+			Hidden: true,
+		},
 	}
 
 	app.Flags = append(app.Flags, glogFlags...)
@@ -548,6 +565,8 @@ func nodeDataChecker(ctx *cli.Context) error {
 
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
+	fetcher(ctx, apiKey)
+
 	if settings.PollInterval == agent_entities.ManualRequest {
 		nodeDataChecker.GetState("", ctx.String("uniqueid"), mkGetLndAPI(ctx), settings, nodeDataCallback)
 	} else {
@@ -568,6 +587,30 @@ func nodeDataChecker(ctx *cli.Context) error {
 	}
 
 	return nil
+}
+
+func fetcher(ctx *cli.Context, apiKey string) {
+	if ctx.String("grpc-url") != "" && apiKey != "" {
+		glog.Info("GRPC server URL: %v", ctx.String("grpc-url"))
+
+		itf := mkGetLndAPI(ctx)()
+		if itf == nil {
+			glog.Warningf("GRPC get ligtning failure\n")
+			return
+		}
+		f, err := raw.MakeFetcher(apiKey, ctx.String("grpc-url"), itf)
+		if err != nil {
+			glog.Warningf("GRPC get fetcher failure %v\n", err)
+			return
+		}
+
+		if ctx.Bool("fetch-invoices") {
+			go f.FetchInvoices(context.Background(), time.Time{})
+		}
+		if ctx.Bool("fetch-forwards") {
+			go f.FetchForwards(context.Background(), time.Time{})
+		}
+	}
 }
 
 func main() {

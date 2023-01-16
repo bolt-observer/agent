@@ -23,13 +23,13 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AgentAPIClient interface {
 	Payments(ctx context.Context, in *DataRequest, opts ...grpc.CallOption) (*Empty, error)
-	LatestPayment(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error)
+	LatestPaymentTimestamp(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error)
 	Invoices(ctx context.Context, in *DataRequest, opts ...grpc.CallOption) (*Empty, error)
-	LatestInvoice(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error)
+	LatestInvoiceTimestamp(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error)
 	Forwards(ctx context.Context, in *DataRequest, opts ...grpc.CallOption) (*Empty, error)
-	LatestForward(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error)
+	LatestForwardTimestamp(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error)
 	LiquidityAds(ctx context.Context, in *DataRequest, opts ...grpc.CallOption) (*Empty, error)
-	LatestLiquidityAd(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error)
+	LatestLiquidityAdTimestamp(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error)
 }
 
 type agentAPIClient struct {
@@ -49,9 +49,9 @@ func (c *agentAPIClient) Payments(ctx context.Context, in *DataRequest, opts ...
 	return out, nil
 }
 
-func (c *agentAPIClient) LatestPayment(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error) {
+func (c *agentAPIClient) LatestPaymentTimestamp(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error) {
 	out := new(TimestampResponse)
-	err := c.cc.Invoke(ctx, "/agent.AgentAPI/LatestPayment", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/agent.AgentAPI/LatestPaymentTimestamp", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -67,9 +67,9 @@ func (c *agentAPIClient) Invoices(ctx context.Context, in *DataRequest, opts ...
 	return out, nil
 }
 
-func (c *agentAPIClient) LatestInvoice(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error) {
+func (c *agentAPIClient) LatestInvoiceTimestamp(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error) {
 	out := new(TimestampResponse)
-	err := c.cc.Invoke(ctx, "/agent.AgentAPI/LatestInvoice", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/agent.AgentAPI/LatestInvoiceTimestamp", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -85,9 +85,9 @@ func (c *agentAPIClient) Forwards(ctx context.Context, in *DataRequest, opts ...
 	return out, nil
 }
 
-func (c *agentAPIClient) LatestForward(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error) {
+func (c *agentAPIClient) LatestForwardTimestamp(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error) {
 	out := new(TimestampResponse)
-	err := c.cc.Invoke(ctx, "/agent.AgentAPI/LatestForward", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/agent.AgentAPI/LatestForwardTimestamp", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -103,9 +103,9 @@ func (c *agentAPIClient) LiquidityAds(ctx context.Context, in *DataRequest, opts
 	return out, nil
 }
 
-func (c *agentAPIClient) LatestLiquidityAd(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error) {
+func (c *agentAPIClient) LatestLiquidityAdTimestamp(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TimestampResponse, error) {
 	out := new(TimestampResponse)
-	err := c.cc.Invoke(ctx, "/agent.AgentAPI/LatestLiquidityAd", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/agent.AgentAPI/LatestLiquidityAdTimestamp", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -117,13 +117,13 @@ func (c *agentAPIClient) LatestLiquidityAd(ctx context.Context, in *Empty, opts 
 // for forward compatibility
 type AgentAPIServer interface {
 	Payments(context.Context, *DataRequest) (*Empty, error)
-	LatestPayment(context.Context, *Empty) (*TimestampResponse, error)
+	LatestPaymentTimestamp(context.Context, *Empty) (*TimestampResponse, error)
 	Invoices(context.Context, *DataRequest) (*Empty, error)
-	LatestInvoice(context.Context, *Empty) (*TimestampResponse, error)
+	LatestInvoiceTimestamp(context.Context, *Empty) (*TimestampResponse, error)
 	Forwards(context.Context, *DataRequest) (*Empty, error)
-	LatestForward(context.Context, *Empty) (*TimestampResponse, error)
+	LatestForwardTimestamp(context.Context, *Empty) (*TimestampResponse, error)
 	LiquidityAds(context.Context, *DataRequest) (*Empty, error)
-	LatestLiquidityAd(context.Context, *Empty) (*TimestampResponse, error)
+	LatestLiquidityAdTimestamp(context.Context, *Empty) (*TimestampResponse, error)
 	mustEmbedUnimplementedAgentAPIServer()
 }
 
@@ -134,26 +134,26 @@ type UnimplementedAgentAPIServer struct {
 func (UnimplementedAgentAPIServer) Payments(context.Context, *DataRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Payments not implemented")
 }
-func (UnimplementedAgentAPIServer) LatestPayment(context.Context, *Empty) (*TimestampResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LatestPayment not implemented")
+func (UnimplementedAgentAPIServer) LatestPaymentTimestamp(context.Context, *Empty) (*TimestampResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LatestPaymentTimestamp not implemented")
 }
 func (UnimplementedAgentAPIServer) Invoices(context.Context, *DataRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Invoices not implemented")
 }
-func (UnimplementedAgentAPIServer) LatestInvoice(context.Context, *Empty) (*TimestampResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LatestInvoice not implemented")
+func (UnimplementedAgentAPIServer) LatestInvoiceTimestamp(context.Context, *Empty) (*TimestampResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LatestInvoiceTimestamp not implemented")
 }
 func (UnimplementedAgentAPIServer) Forwards(context.Context, *DataRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Forwards not implemented")
 }
-func (UnimplementedAgentAPIServer) LatestForward(context.Context, *Empty) (*TimestampResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LatestForward not implemented")
+func (UnimplementedAgentAPIServer) LatestForwardTimestamp(context.Context, *Empty) (*TimestampResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LatestForwardTimestamp not implemented")
 }
 func (UnimplementedAgentAPIServer) LiquidityAds(context.Context, *DataRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LiquidityAds not implemented")
 }
-func (UnimplementedAgentAPIServer) LatestLiquidityAd(context.Context, *Empty) (*TimestampResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LatestLiquidityAd not implemented")
+func (UnimplementedAgentAPIServer) LatestLiquidityAdTimestamp(context.Context, *Empty) (*TimestampResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LatestLiquidityAdTimestamp not implemented")
 }
 func (UnimplementedAgentAPIServer) mustEmbedUnimplementedAgentAPIServer() {}
 
@@ -186,20 +186,20 @@ func _AgentAPI_Payments_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AgentAPI_LatestPayment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _AgentAPI_LatestPaymentTimestamp_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AgentAPIServer).LatestPayment(ctx, in)
+		return srv.(AgentAPIServer).LatestPaymentTimestamp(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/agent.AgentAPI/LatestPayment",
+		FullMethod: "/agent.AgentAPI/LatestPaymentTimestamp",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AgentAPIServer).LatestPayment(ctx, req.(*Empty))
+		return srv.(AgentAPIServer).LatestPaymentTimestamp(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -222,20 +222,20 @@ func _AgentAPI_Invoices_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AgentAPI_LatestInvoice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _AgentAPI_LatestInvoiceTimestamp_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AgentAPIServer).LatestInvoice(ctx, in)
+		return srv.(AgentAPIServer).LatestInvoiceTimestamp(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/agent.AgentAPI/LatestInvoice",
+		FullMethod: "/agent.AgentAPI/LatestInvoiceTimestamp",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AgentAPIServer).LatestInvoice(ctx, req.(*Empty))
+		return srv.(AgentAPIServer).LatestInvoiceTimestamp(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -258,20 +258,20 @@ func _AgentAPI_Forwards_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AgentAPI_LatestForward_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _AgentAPI_LatestForwardTimestamp_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AgentAPIServer).LatestForward(ctx, in)
+		return srv.(AgentAPIServer).LatestForwardTimestamp(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/agent.AgentAPI/LatestForward",
+		FullMethod: "/agent.AgentAPI/LatestForwardTimestamp",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AgentAPIServer).LatestForward(ctx, req.(*Empty))
+		return srv.(AgentAPIServer).LatestForwardTimestamp(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -294,20 +294,20 @@ func _AgentAPI_LiquidityAds_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AgentAPI_LatestLiquidityAd_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _AgentAPI_LatestLiquidityAdTimestamp_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AgentAPIServer).LatestLiquidityAd(ctx, in)
+		return srv.(AgentAPIServer).LatestLiquidityAdTimestamp(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/agent.AgentAPI/LatestLiquidityAd",
+		FullMethod: "/agent.AgentAPI/LatestLiquidityAdTimestamp",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AgentAPIServer).LatestLiquidityAd(ctx, req.(*Empty))
+		return srv.(AgentAPIServer).LatestLiquidityAdTimestamp(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -324,32 +324,32 @@ var AgentAPI_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AgentAPI_Payments_Handler,
 		},
 		{
-			MethodName: "LatestPayment",
-			Handler:    _AgentAPI_LatestPayment_Handler,
+			MethodName: "LatestPaymentTimestamp",
+			Handler:    _AgentAPI_LatestPaymentTimestamp_Handler,
 		},
 		{
 			MethodName: "Invoices",
 			Handler:    _AgentAPI_Invoices_Handler,
 		},
 		{
-			MethodName: "LatestInvoice",
-			Handler:    _AgentAPI_LatestInvoice_Handler,
+			MethodName: "LatestInvoiceTimestamp",
+			Handler:    _AgentAPI_LatestInvoiceTimestamp_Handler,
 		},
 		{
 			MethodName: "Forwards",
 			Handler:    _AgentAPI_Forwards_Handler,
 		},
 		{
-			MethodName: "LatestForward",
-			Handler:    _AgentAPI_LatestForward_Handler,
+			MethodName: "LatestForwardTimestamp",
+			Handler:    _AgentAPI_LatestForwardTimestamp_Handler,
 		},
 		{
 			MethodName: "LiquidityAds",
 			Handler:    _AgentAPI_LiquidityAds_Handler,
 		},
 		{
-			MethodName: "LatestLiquidityAd",
-			Handler:    _AgentAPI_LatestLiquidityAd_Handler,
+			MethodName: "LatestLiquidityAdTimestamp",
+			Handler:    _AgentAPI_LatestLiquidityAdTimestamp_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -260,6 +260,10 @@ func (m *MockLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPag
 	panic("not implemented")
 }
 
+func (m *MockLightningAPI) GetAPIType() APIType {
+	panic("not implemented")
+}
+
 func TestNodeInfoFull(t *testing.T) {
 	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 100, true, true)

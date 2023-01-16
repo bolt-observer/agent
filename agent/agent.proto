@@ -1,21 +1,22 @@
+
 syntax = "proto3";
 
-option go_package = "github.com/bolt-observer/api/agent";
+option go_package = "github.com/bolt-observer/bolt-observer/api/agent";
 
 package agent;
 
 service AgentAPI {
   rpc Payments(DataRequest) returns (Empty) {};
-  rpc LatestPayment(Empty) returns (TimestampResponse) {};
+  rpc LatestPaymentTimestamp(Empty) returns (TimestampResponse) {};
 
   rpc Invoices(DataRequest) returns (Empty) {};
-  rpc LatestInvoice(Empty) returns (TimestampResponse) {};
+  rpc LatestInvoiceTimestamp(Empty) returns (TimestampResponse) {};
 
   rpc Forwards(DataRequest) returns (Empty) {};
-  rpc LatestForward(Empty) returns (TimestampResponse) {};
+  rpc LatestForwardTimestamp(Empty) returns (TimestampResponse) {};
 
   rpc LiquidityAds(DataRequest) returns (Empty) {};
-  rpc LatestLiquidityAd(Empty) returns (TimestampResponse) {};
+  rpc LatestLiquidityAdTimestamp(Empty) returns (TimestampResponse) {};
 }
 
 message Empty {}

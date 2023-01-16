@@ -731,3 +731,8 @@ func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 
 	return ret, respPagination, nil
 }
+
+// GetAPIType API
+func (l *LndGrpcLightningAPI) GetAPIType() APIType {
+	return LndGrpc
+}
