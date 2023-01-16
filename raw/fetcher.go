@@ -65,11 +65,13 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, from time.Time) {
 	}
 
 	if ts != nil {
-		t := time.Unix(ts.Timestamp, 0)
+		t := time.Unix(0, ts.Timestamp)
 		if t.After(from) {
 			from = t
 		}
 	}
+
+	fmt.Printf("After %v\n", from)
 
 	outchan := GetInvoices(ctx, f.LightningAPI, from)
 
@@ -85,7 +87,6 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, from time.Time) {
 			if err != nil {
 				glog.Warningf("Could not send data to agent: %v", err)
 			}
-			return
 		}
 	}
 }
@@ -102,7 +103,7 @@ func (f *Fetcher) FetchForwards(ctx context.Context, from time.Time) {
 	}
 
 	if ts != nil {
-		t := time.Unix(ts.Timestamp, 0)
+		t := time.Unix(0, ts.Timestamp)
 		if t.After(from) {
 			from = t
 		}
