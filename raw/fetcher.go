@@ -3,12 +3,16 @@ package raw
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	agent "github.com/bolt-observer/agent/agent"
 	api "github.com/bolt-observer/agent/lightning"
+	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/golang/glog"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 // Fetcher struct
@@ -53,6 +57,21 @@ func MakeFetcher(authToken string, endpoint string, l api.LightingAPICalls) (*Fe
 	return f, nil
 }
 
+func makePermanent(err error) error {
+	st := status.Convert(err)
+	if st.Code() == codes.Unknown && len(st.Details()) > 0 {
+		for _, one := range st.Details() {
+			if s, ok := one.(string); ok {
+				if strings.Contains(s, "ConditionalCheckFailedException") {
+					return backoff.Permanent(err)
+				}
+			}
+		}
+	}
+
+	return err
+}
+
 // FetchInvoices will fetch and report invoices
 func (f *Fetcher) FetchInvoices(ctx context.Context, updateTimeWithLast bool, from time.Time) {
 
@@ -78,6 +97,9 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, updateTimeWithLast bool, fr
 
 	num := 0
 
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 0
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -88,11 +110,13 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, updateTimeWithLast bool, fr
 				Data:      string(invoice.Message),
 			}
 
-			_, err := f.AgentAPI.Invoices(ctx, data)
-			if err != nil {
-				glog.Warningf("Could not send data to GRPC endpoint: %v %+v", err, data)
-				continue
-			}
+			backoff.RetryNotify(func() error {
+				_, err := f.AgentAPI.Invoices(ctx, data)
+				return makePermanent(err)
+			}, b, func(error, time.Duration) {
+				glog.Warningf("Could not send data to GRPC endpoint: %v", data)
+			})
+
 			num++
 			if num%10 == 0 {
 				glog.V(2).Infof("Reported %d invoices (last timestamp %v)", num, invoice.Timestamp)
@@ -126,6 +150,9 @@ func (f *Fetcher) FetchForwards(ctx context.Context, updateTimeWithLast bool, fr
 
 	num := 0
 
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 0
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -135,11 +162,14 @@ func (f *Fetcher) FetchForwards(ctx context.Context, updateTimeWithLast bool, fr
 				Timestamp: forward.Timestamp.UnixNano(),
 				Data:      string(forward.Message),
 			}
-			_, err := f.AgentAPI.Forwards(ctx, data)
-			if err != nil {
-				glog.Warningf("Could not send data to GRPC endpoint: %v %+v", err, data)
-				continue
-			}
+
+			backoff.RetryNotify(func() error {
+				_, err := f.AgentAPI.Forwards(ctx, data)
+				return makePermanent(err)
+			}, b, func(error, time.Duration) {
+				glog.Warningf("Could not send data to GRPC endpoint: %v", data)
+			})
+
 			num++
 			if num%10 == 0 {
 				glog.V(2).Infof("Reported %d forwards (last timestamp %v)", num, forward.Timestamp)
@@ -173,6 +203,9 @@ func (f *Fetcher) FetchPayments(ctx context.Context, updateTimeWithLast bool, fr
 
 	num := 0
 
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 0
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -182,11 +215,13 @@ func (f *Fetcher) FetchPayments(ctx context.Context, updateTimeWithLast bool, fr
 				Timestamp: payment.Timestamp.UnixNano(),
 				Data:      string(payment.Message),
 			}
-			_, err := f.AgentAPI.Payments(ctx, data)
-			if err != nil {
-				glog.Warningf("Could not send data to GRPC endpoint: %v %+v", err, data)
-				continue
-			}
+			backoff.RetryNotify(func() error {
+				_, err := f.AgentAPI.Payments(ctx, data)
+				return makePermanent(err)
+			}, b, func(error, time.Duration) {
+				glog.Warningf("Could not send data to GRPC endpoint: %v", data)
+			})
+
 			num++
 			if num%10 == 0 {
 				glog.V(2).Infof("Reported %d payments (last timestamp %v)", num, payment.Timestamp)
