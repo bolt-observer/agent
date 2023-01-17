@@ -19,11 +19,13 @@ import (
 	api "github.com/bolt-observer/agent/lightning"
 )
 
+const FailNoCredsPayments = false
+
 func getAPI(t *testing.T, name string, typ api.APIType) api.LightingAPICalls {
 	var data entities.Data
 
 	if _, err := os.Stat(name); errors.Is(err, os.ErrNotExist) {
-		if FailNoCreds {
+		if FailNoCredsPayments {
 			t.Fatalf("No credentials")
 		}
 		return nil

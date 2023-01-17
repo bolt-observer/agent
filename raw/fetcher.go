@@ -83,12 +83,14 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, updateTimeWithLast bool, fr
 		case <-ctx.Done():
 			return
 		case invoice := <-outchan:
-			_, err := f.AgentAPI.Invoices(ctx, &agent.DataRequest{
+			data := &agent.DataRequest{
 				Timestamp: invoice.Timestamp.UnixNano(),
 				Data:      string(invoice.Message),
-			})
+			}
+
+			_, err := f.AgentAPI.Invoices(ctx, data)
 			if err != nil {
-				glog.Warningf("Could not send data to GRPC endpoint: %v", err)
+				glog.Warningf("Could not send data to GRPC endpoint: %v %+v", err, data)
 				continue
 			}
 			num++
@@ -129,12 +131,13 @@ func (f *Fetcher) FetchForwards(ctx context.Context, updateTimeWithLast bool, fr
 		case <-ctx.Done():
 			return
 		case forward := <-outchan:
-			_, err := f.AgentAPI.Forwards(ctx, &agent.DataRequest{
+			data := &agent.DataRequest{
 				Timestamp: forward.Timestamp.UnixNano(),
 				Data:      string(forward.Message),
-			})
+			}
+			_, err := f.AgentAPI.Forwards(ctx, data)
 			if err != nil {
-				glog.Warningf("Could not send data to GRPC endpoint: %v", err)
+				glog.Warningf("Could not send data to GRPC endpoint: %v %+v", err, data)
 				continue
 			}
 			num++
@@ -175,12 +178,13 @@ func (f *Fetcher) FetchPayments(ctx context.Context, updateTimeWithLast bool, fr
 		case <-ctx.Done():
 			return
 		case payment := <-outchan:
-			_, err := f.AgentAPI.Payments(ctx, &agent.DataRequest{
+			data := &agent.DataRequest{
 				Timestamp: payment.Timestamp.UnixNano(),
 				Data:      string(payment.Message),
-			})
+			}
+			_, err := f.AgentAPI.Payments(ctx, data)
 			if err != nil {
-				glog.Warningf("Could not send data to GRPC endpoint: %v", err)
+				glog.Warningf("Could not send data to GRPC endpoint: %v %+v", err, data)
 				continue
 			}
 			num++
