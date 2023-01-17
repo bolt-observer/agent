@@ -67,6 +67,7 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, updateTimeWithLast bool, fr
 
 		if ts != nil {
 			t := time.Unix(0, ts.Timestamp)
+			glog.V(2).Infof("Latest invoice timestamp: %v", t)
 			if t.After(from) {
 				from = t
 			}
@@ -112,6 +113,7 @@ func (f *Fetcher) FetchForwards(ctx context.Context, updateTimeWithLast bool, fr
 
 		if ts != nil {
 			t := time.Unix(0, ts.Timestamp)
+			glog.V(2).Infof("Latest forwards timestamp: %v", t)
 			if t.After(from) {
 				from = t
 			}
@@ -157,6 +159,7 @@ func (f *Fetcher) FetchPayments(ctx context.Context, updateTimeWithLast bool, fr
 
 		if ts != nil {
 			t := time.Unix(0, ts.Timestamp)
+			glog.V(2).Infof("Latest payments timestamp: %v", t)
 			if t.After(from) {
 				from = t
 			}

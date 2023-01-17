@@ -313,19 +313,19 @@ func getApp() *cli.App {
 		&cli.Int64Flag{
 			Name:   "fetch-invoices",
 			Usage:  "Fetch invoices",
-			Value:  -1,
+			Value:  0,
 			Hidden: true,
 		},
 		&cli.Int64Flag{
 			Name:   "fetch-forwards",
 			Usage:  "Fetch forwards",
-			Value:  -1,
+			Value:  0,
 			Hidden: true,
 		},
 		&cli.Int64Flag{
 			Name:   "fetch-payments",
 			Usage:  "Fetch payments",
-			Value:  -1,
+			Value:  0,
 			Hidden: true,
 		},
 	}
@@ -600,7 +600,7 @@ func nodeDataChecker(ctx *cli.Context) error {
 func fetcher(ctx *cli.Context, apiKey string) {
 	// run with --grpc-url agent-api-staging-new.bolt.observer:443 --fetch-invoices 1 --fetch-forwards 1 --fetch-payments 1
 	if ctx.String("grpc-url") != "" && apiKey != "" {
-		glog.Info("GRPC server URL: %v", ctx.String("grpc-url"))
+		glog.Infof("GRPC server URL: %s", ctx.String("grpc-url"))
 
 		itf := mkGetLndAPI(ctx)()
 		if itf == nil {
@@ -628,19 +628,19 @@ func fetcher(ctx *cli.Context, apiKey string) {
 
 		if val != 0 {
 			t = time.Unix(absVal, 0)
-			glog.Info("Fetching invoices after %v\n", t)
+			glog.Infof("Fetching invoices after %v\n", t)
 			go f.FetchInvoices(context.Background(), val > 0, t)
 		}
 		val = ctx.Int64("fetch-forwards")
 		if val != 0 {
 			t = time.Unix(absVal, 0)
-			glog.Info("Fetching forwards after %v\n", t)
+			glog.Infof("Fetching forwards after %v\n", t)
 			go f.FetchForwards(context.Background(), val > 0, t)
 		}
 		val = ctx.Int64("fetch-payments")
 		if val != 0 {
 			t = time.Unix(absVal, 0)
-			glog.Info("Fetching payments after %v\n", t)
+			glog.Infof("Fetching payments after %v\n", t)
 			go f.FetchPayments(context.Background(), val > 0, t)
 		}
 	}
