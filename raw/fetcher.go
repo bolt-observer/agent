@@ -59,13 +59,9 @@ func MakeFetcher(authToken string, endpoint string, l api.LightingAPICalls) (*Fe
 
 func makePermanent(err error) error {
 	st := status.Convert(err)
-	if st.Code() == codes.Unknown && len(st.Details()) > 0 {
-		for _, one := range st.Details() {
-			if s, ok := one.(string); ok {
-				if strings.Contains(s, "ConditionalCheckFailedException") {
-					return backoff.Permanent(err)
-				}
-			}
+	if st.Code() == codes.Unknown {
+		if strings.Contains(st.Message(), "ConditionalCheckFailedException") {
+			return backoff.Permanent(err)
 		}
 	}
 
@@ -113,8 +109,8 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, updateTimeWithLast bool, fr
 			backoff.RetryNotify(func() error {
 				_, err := f.AgentAPI.Invoices(ctx, data)
 				return makePermanent(err)
-			}, b, func(error, time.Duration) {
-				glog.Warningf("Could not send data to GRPC endpoint: %v", data)
+			}, b, func(e error, d time.Duration) {
+				glog.Warningf("Could not send data to GRPC endpoint: %v %v", data, e)
 			})
 
 			num++
@@ -166,8 +162,8 @@ func (f *Fetcher) FetchForwards(ctx context.Context, updateTimeWithLast bool, fr
 			backoff.RetryNotify(func() error {
 				_, err := f.AgentAPI.Forwards(ctx, data)
 				return makePermanent(err)
-			}, b, func(error, time.Duration) {
-				glog.Warningf("Could not send data to GRPC endpoint: %v", data)
+			}, b, func(e error, d time.Duration) {
+				glog.Warningf("Could not send data to GRPC endpoint: %v %v", data, e)
 			})
 
 			num++
@@ -218,8 +214,8 @@ func (f *Fetcher) FetchPayments(ctx context.Context, updateTimeWithLast bool, fr
 			backoff.RetryNotify(func() error {
 				_, err := f.AgentAPI.Payments(ctx, data)
 				return makePermanent(err)
-			}, b, func(error, time.Duration) {
-				glog.Warningf("Could not send data to GRPC endpoint: %v", data)
+			}, b, func(e error, d time.Duration) {
+				glog.Warningf("Could not send data to GRPC endpoint: %v %v", data, e)
 			})
 
 			num++
