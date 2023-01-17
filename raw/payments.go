@@ -11,8 +11,8 @@ import (
 // GetRawData - signature for the function to get raw data
 type GetRawData func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error)
 
-// GetPayments returns payments
-func GetPayments(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
+// GetPaymentsChannel returns payments
+func GetPaymentsChannel(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
 	go paginator(ctx, itf,
@@ -26,8 +26,8 @@ func GetPayments(ctx context.Context, itf api.LightingAPICalls, from time.Time) 
 	return outchan
 }
 
-// GetInvoices returns invoices
-func GetInvoices(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
+// GetInvoicesChannel returns invoices
+func GetInvoicesChannel(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
 	go paginator(ctx, itf,
@@ -41,8 +41,8 @@ func GetInvoices(ctx context.Context, itf api.LightingAPICalls, from time.Time) 
 	return outchan
 }
 
-// GetForwards returns forwards
-func GetForwards(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
+// GetForwardsChannel returns forwards
+func GetForwardsChannel(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
 	go paginator(ctx, itf,

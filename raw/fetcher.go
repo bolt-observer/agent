@@ -54,24 +54,28 @@ func MakeFetcher(authToken string, endpoint string, l api.LightingAPICalls) (*Fe
 }
 
 // FetchInvoices will fetch and report invoices
-func (f *Fetcher) FetchInvoices(ctx context.Context, from time.Time) {
+func (f *Fetcher) FetchInvoices(ctx context.Context, updateTimeWithLast bool, from time.Time) {
 
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
 
-	ts, err := f.AgentAPI.LatestInvoiceTimestamp(ctx, &agent.Empty{})
+	if updateTimeWithLast {
+		ts, err := f.AgentAPI.LatestInvoiceTimestamp(ctx, &agent.Empty{})
 
-	if err != nil {
-		glog.Warningf("Coud not get latest invoice timestamps: %v", err)
-	}
+		if err != nil {
+			glog.Warningf("Coud not get latest invoice timestamps: %v", err)
+		}
 
-	if ts != nil {
-		t := time.Unix(0, ts.Timestamp)
-		if t.After(from) {
-			from = t
+		if ts != nil {
+			t := time.Unix(0, ts.Timestamp)
+			if t.After(from) {
+				from = t
+			}
 		}
 	}
 
-	outchan := GetInvoices(ctx, f.LightningAPI, from)
+	outchan := GetInvoicesChannel(ctx, f.LightningAPI, from)
+
+	num := 0
 
 	for {
 		select {
@@ -84,30 +88,39 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, from time.Time) {
 			})
 			if err != nil {
 				glog.Warningf("Could not send data to GRPC endpoint: %v", err)
+				continue
+			}
+			num++
+			if num%10 == 0 {
+				glog.V(2).Infof("Reported %d invoices (last timestamp %v)", num, invoice.Timestamp)
 			}
 		}
 	}
 }
 
 // FetchForwards will fetch and report forwards
-func (f *Fetcher) FetchForwards(ctx context.Context, from time.Time) {
+func (f *Fetcher) FetchForwards(ctx context.Context, updateTimeWithLast bool, from time.Time) {
 
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
 
-	ts, err := f.AgentAPI.LatestForwardTimestamp(ctx, &agent.Empty{})
+	if updateTimeWithLast {
+		ts, err := f.AgentAPI.LatestForwardTimestamp(ctx, &agent.Empty{})
 
-	if err != nil {
-		glog.Warningf("Coud not get latest forward timestamps: %v", err)
-	}
+		if err != nil {
+			glog.Warningf("Coud not get latest forward timestamps: %v", err)
+		}
 
-	if ts != nil {
-		t := time.Unix(0, ts.Timestamp)
-		if t.After(from) {
-			from = t
+		if ts != nil {
+			t := time.Unix(0, ts.Timestamp)
+			if t.After(from) {
+				from = t
+			}
 		}
 	}
 
-	outchan := GetForwards(ctx, f.LightningAPI, from)
+	outchan := GetForwardsChannel(ctx, f.LightningAPI, from)
+
+	num := 0
 
 	for {
 		select {
@@ -120,31 +133,39 @@ func (f *Fetcher) FetchForwards(ctx context.Context, from time.Time) {
 			})
 			if err != nil {
 				glog.Warningf("Could not send data to GRPC endpoint: %v", err)
+				continue
 			}
-			return
+			num++
+			if num%10 == 0 {
+				glog.V(2).Infof("Reported %d forwards (last timestamp %v)", num, forward.Timestamp)
+			}
 		}
 	}
 }
 
 // FetchPayments will fetch and report payments
-func (f *Fetcher) FetchPayments(ctx context.Context, from time.Time) {
+func (f *Fetcher) FetchPayments(ctx context.Context, updateTimeWithLast bool, from time.Time) {
 
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
 
-	ts, err := f.AgentAPI.LatestPaymentTimestamp(ctx, &agent.Empty{})
+	if updateTimeWithLast {
+		ts, err := f.AgentAPI.LatestPaymentTimestamp(ctx, &agent.Empty{})
 
-	if err != nil {
-		glog.Warningf("Coud not get latest forward timestamps: %v", err)
-	}
+		if err != nil {
+			glog.Warningf("Coud not get latest forward timestamps: %v", err)
+		}
 
-	if ts != nil {
-		t := time.Unix(0, ts.Timestamp)
-		if t.After(from) {
-			from = t
+		if ts != nil {
+			t := time.Unix(0, ts.Timestamp)
+			if t.After(from) {
+				from = t
+			}
 		}
 	}
 
-	outchan := GetPayments(ctx, f.LightningAPI, from)
+	outchan := GetPaymentsChannel(ctx, f.LightningAPI, from)
+
+	num := 0
 
 	for {
 		select {
@@ -157,8 +178,12 @@ func (f *Fetcher) FetchPayments(ctx context.Context, from time.Time) {
 			})
 			if err != nil {
 				glog.Warningf("Could not send data to GRPC endpoint: %v", err)
+				continue
 			}
-			return
+			num++
+			if num%10 == 0 {
+				glog.V(2).Infof("Reported %d payments (last timestamp %v)", num, payment.Timestamp)
+			}
 		}
 	}
 }

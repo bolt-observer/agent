@@ -616,23 +616,32 @@ func fetcher(ctx *cli.Context, apiKey string) {
 		val := int64(0)
 		var t time.Time
 
+		// 0 means turn off the fetcher, negative values means report from that exact absolute unix time (i.e., -1 means report from unix time 1), positive value
+		// try to report from that unix time (but if server says you already got something update timestamp)
 		val = ctx.Int64("fetch-invoices")
-		if val > 0 {
-			t = time.Unix(val, 0)
+		absVal := int64(0)
+		if val < 0 {
+			absVal = -val
+		} else {
+			absVal = val
+		}
+
+		if val != 0 {
+			t = time.Unix(absVal, 0)
 			glog.Info("Fetching invoices after %v\n", t)
-			go f.FetchInvoices(context.Background(), t)
+			go f.FetchInvoices(context.Background(), val > 0, t)
 		}
 		val = ctx.Int64("fetch-forwards")
-		if val > 0 {
-			t = time.Unix(val, 0)
+		if val != 0 {
+			t = time.Unix(absVal, 0)
 			glog.Info("Fetching forwards after %v\n", t)
-			go f.FetchForwards(context.Background(), t)
+			go f.FetchForwards(context.Background(), val > 0, t)
 		}
 		val = ctx.Int64("fetch-payments")
-		if val > 0 {
-			t = time.Unix(val, 0)
+		if val != 0 {
+			t = time.Unix(absVal, 0)
 			glog.Info("Fetching payments after %v\n", t)
-			go f.FetchPayments(context.Background(), t)
+			go f.FetchPayments(context.Background(), val > 0, t)
 		}
 	}
 }

@@ -93,7 +93,7 @@ func TestGetInvoices(t *testing.T) {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
 		defer cancel()
 
-		channel := GetInvoices(ctx, itf, from)
+		channel := GetInvoicesChannel(ctx, itf, from)
 		num := 0
 		for i := 0; i < Limit; i++ {
 			data := <-channel
@@ -124,7 +124,7 @@ func TestGetForwards(t *testing.T) {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
 		defer cancel()
 
-		channel := GetForwards(ctx, itf, from)
+		channel := GetForwardsChannel(ctx, itf, from)
 		num := 0
 		for i := 0; i < Limit; i++ {
 			data := <-channel
@@ -155,7 +155,7 @@ func TestGetPayments(t *testing.T) {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(30*time.Minute))
 		defer cancel()
 
-		channel := GetPayments(ctx, itf, from)
+		channel := GetPaymentsChannel(ctx, itf, from)
 		num := 0
 		for i := 0; i < Limit; i++ {
 			data := <-channel
