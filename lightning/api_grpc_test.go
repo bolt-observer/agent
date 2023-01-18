@@ -71,7 +71,7 @@ func TestObtainDataGrpc(t *testing.T) {
 	//api.GetChanInfo(context.Background(), uint64(810130063083110402))
 	//api.GetForwardingHistory(context.Background(), Pagination{})
 
-	ret, err := api.GetInvoices(context.Background(), false, Pagination{Num: 500})
+	ret, err := api.GetInvoices(context.Background(), false, Pagination{BatchSize: 500})
 	if err != nil {
 		t.Fatalf("Error %v", err)
 	}

@@ -69,8 +69,8 @@ func GetFirstDay(monthsAgo int) time.Time {
 
 func paginator(ctx context.Context, itf api.LightingAPICalls, getData GetRawData, from time.Time, pageSize int, outchan chan api.RawMessage) error {
 	req := api.RawPagination{}
-	req.Num = uint64(pageSize)
-	req.Pagination.Num = uint64(pageSize)
+	req.BatchSize = uint64(pageSize)
+	req.Pagination.BatchSize = uint64(pageSize)
 	isLast := false
 
 	// Try our luck - Raw function should not complain

@@ -142,9 +142,24 @@ type ClnForwardEntries struct {
 	Entries []ClnForwardEntry `json:"forwards,omitempty"`
 }
 
+// ClnRawMessageItf interface
+type ClnRawMessageItf interface {
+	GetEntries() []json.RawMessage
+}
+
+// ClnRawTimeItf interface
+type ClnRawTimeItf interface {
+	GetTime() uint64
+}
+
 // ClnRawForwardEntries struct
 type ClnRawForwardEntries struct {
 	Entries []json.RawMessage `json:"forwards,omitempty"`
+}
+
+// GetEntries to comply with ClnRawMessageItf
+func (r ClnRawForwardEntries) GetEntries() []json.RawMessage {
+	return r.Entries
 }
 
 // ClnRawInvoices struct
@@ -152,9 +167,19 @@ type ClnRawInvoices struct {
 	Entries []json.RawMessage `json:"invoices,omitempty"`
 }
 
+// GetEntries to comply with ClnRawMessageItf
+func (r ClnRawInvoices) GetEntries() []json.RawMessage {
+	return r.Entries
+}
+
 // ClnRawPayments struct
 type ClnRawPayments struct {
 	Entries []json.RawMessage `json:"payments,omitempty"`
+}
+
+// GetEntries to comply with ClnRawMessageItf
+func (r ClnRawPayments) GetEntries() []json.RawMessage {
+	return r.Entries
 }
 
 // ClnRawPayTime struct
@@ -162,12 +187,27 @@ type ClnRawPayTime struct {
 	Time uint64 `json:"created_at,omitempty"`
 }
 
+// GetTime to comply with ClnRawTimeItf
+func (r ClnRawPayTime) GetTime() uint64 {
+	return r.Time
+}
+
 // ClnRawInvoiceTime struct
 type ClnRawInvoiceTime struct {
 	Time uint64 `json:"expires_at,omitempty"`
 }
 
+// GetTime to comply with ClnRawTimeItf
+func (r ClnRawInvoiceTime) GetTime() uint64 {
+	return r.Time
+}
+
 // ClnRawForwardsTime struct
 type ClnRawForwardsTime struct {
 	Time uint64 `json:"received_time,omitempty"`
+}
+
+// GetTime to comply with ClnRawTimeItf
+func (r ClnRawForwardsTime) GetTime() uint64 {
+	return r.Time
 }

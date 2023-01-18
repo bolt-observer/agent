@@ -244,14 +244,14 @@ func (l *LndRestLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 }
 
 // SubscribeForwards - API call
-func (l *LndRestLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
+func (l *LndRestLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	panic("not implemented")
 }
 
 // GetInvoicesRaw - API call
 func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	param := &ListInvoiceRequestOverride{
-		NumMaxInvoices: fmt.Sprintf("%d", pagination.Num),
+		NumMaxInvoices: fmt.Sprintf("%d", pagination.BatchSize),
 		IndexOffset:    fmt.Sprintf("%d", pagination.Offset),
 	}
 	respPagination := &ResponseRawPagination{UseTimestamp: false}
@@ -320,7 +320,7 @@ func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 // GetPaymentsRaw - API call
 func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	param := &ListPaymentsRequestOverride{
-		MaxPayments: fmt.Sprintf("%d", pagination.Num),
+		MaxPayments: fmt.Sprintf("%d", pagination.BatchSize),
 		IndexOffset: fmt.Sprintf("%d", pagination.Offset),
 	}
 	respPagination := &ResponseRawPagination{UseTimestamp: false}
@@ -390,7 +390,7 @@ func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	param := &ForwardingHistoryRequestOverride{}
 
-	param.NumMaxEvents = uint32(pagination.Num)
+	param.NumMaxEvents = uint32(pagination.BatchSize)
 	param.IndexOffset = uint32(pagination.Offset)
 
 	if pagination.From != nil {
@@ -447,7 +447,7 @@ func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination Raw
 func (l *LndRestLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
 
 	param := &ListInvoiceRequestOverride{
-		NumMaxInvoices: fmt.Sprintf("%d", pagination.Num),
+		NumMaxInvoices: fmt.Sprintf("%d", pagination.BatchSize),
 		IndexOffset:    fmt.Sprintf("%d", pagination.Offset),
 	}
 
@@ -511,7 +511,7 @@ func (l *LndRestLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 // GetPayments API
 func (l *LndRestLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
 	param := &ListPaymentsRequestOverride{
-		MaxPayments: fmt.Sprintf("%d", pagination.Num),
+		MaxPayments: fmt.Sprintf("%d", pagination.BatchSize),
 		IndexOffset: fmt.Sprintf("%d", pagination.Offset),
 	}
 

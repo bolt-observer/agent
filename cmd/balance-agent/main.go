@@ -305,8 +305,8 @@ func getApp() *cli.App {
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:   "grpc-url",
-			Usage:  "GRPC URL",
+			Name:   "datastore-url",
+			Usage:  "Datastore URL",
 			Value:  "",
 			Hidden: true,
 		},
@@ -573,7 +573,7 @@ func nodeDataChecker(ctx *cli.Context) error {
 
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
-	fetcher(ctx, apiKey)
+	fetcher(ct, ctx, apiKey)
 
 	if settings.PollInterval == agent_entities.ManualRequest {
 		nodeDataChecker.GetState("", ctx.String("uniqueid"), mkGetLndAPI(ctx), settings, nodeDataCallback)
@@ -597,51 +597,60 @@ func nodeDataChecker(ctx *cli.Context) error {
 	return nil
 }
 
-func fetcher(ctx *cli.Context, apiKey string) {
-	// run with --grpc-url agent-api-staging-new.bolt.observer:443 --fetch-invoices 1 --fetch-forwards 1 --fetch-payments 1
-	if ctx.String("grpc-url") != "" && apiKey != "" {
-		glog.Infof("GRPC server URL: %s", ctx.String("grpc-url"))
+type fetchSettings struct {
+	enabled                 bool
+	time                    time.Time
+	useLatestTimeFromServer bool
+}
 
-		itf := mkGetLndAPI(ctx)()
-		if itf == nil {
+func convertTimeSetting(ctx *cli.Context, name string) fetchSettings {
+	fetchSettingsValue := ctx.Int64(name)
+
+	fetchSettingsAbsValue := int64(0)
+	if fetchSettingsValue < 0 {
+		fetchSettingsAbsValue = -fetchSettingsValue
+	} else {
+		fetchSettingsAbsValue = fetchSettingsValue
+	}
+
+	return fetchSettings{
+		enabled:                 fetchSettingsValue != 0,
+		time:                    time.Unix(fetchSettingsAbsValue, 0),
+		useLatestTimeFromServer: fetchSettingsValue > 0,
+	}
+}
+
+func fetcher(ct context.Context, ctx *cli.Context, apiKey string) {
+	if ctx.String("datastore-url") != "" && apiKey != "" {
+		glog.Infof("Datastore server URL: %s", ctx.String("datastore-url"))
+
+		lightningAPI := mkGetLndAPI(ctx)()
+		if lightningAPI == nil {
 			glog.Warningf("GRPC get ligtning failure\n")
 			return
 		}
-		f, err := raw.MakeFetcher(apiKey, ctx.String("grpc-url"), itf)
+		f, err := raw.MakeFetcher(ct, apiKey, ctx.String("datastore-url"), lightningAPI)
 		if err != nil {
 			glog.Warningf("GRPC get fetcher failure %v\n", err)
 			return
 		}
 
-		val := int64(0)
-		var t time.Time
-
-		// 0 means turn off the fetcher, negative values means report from that exact absolute unix time (i.e., -1 means report from unix time 1), positive value
-		// try to report from that unix time (but if server says you already got something update timestamp)
-		val = ctx.Int64("fetch-invoices")
-		absVal := int64(0)
-		if val < 0 {
-			absVal = -val
-		} else {
-			absVal = val
+		s := convertTimeSetting(ctx, "fetch-invoices")
+		if s.enabled {
+			glog.Infof("Fetching invoices after %v\n", s.time)
+			go f.FetchInvoices(context.Background(), s.useLatestTimeFromServer, s.time)
 		}
 
-		if val != 0 {
-			t = time.Unix(absVal, 0)
-			glog.Infof("Fetching invoices after %v\n", t)
-			go f.FetchInvoices(context.Background(), val > 0, t)
+		s = convertTimeSetting(ctx, "fetch-forwards")
+		if s.enabled {
+			glog.Infof("Fetching forwards after %v\n", s.time)
+			go f.FetchForwards(context.Background(), s.useLatestTimeFromServer, s.time)
 		}
-		val = ctx.Int64("fetch-forwards")
-		if val != 0 {
-			t = time.Unix(absVal, 0)
-			glog.Infof("Fetching forwards after %v\n", t)
-			go f.FetchForwards(context.Background(), val > 0, t)
-		}
-		val = ctx.Int64("fetch-payments")
-		if val != 0 {
-			t = time.Unix(absVal, 0)
-			glog.Infof("Fetching payments after %v\n", t)
-			go f.FetchPayments(context.Background(), val > 0, t)
+
+		s = convertTimeSetting(ctx, "fetch-payments")
+		if s.enabled {
+			glog.Infof("Fetching payments after %v\n", s.time)
+			go f.FetchPayments(context.Background(), s.useLatestTimeFromServer, s.time)
 		}
 	}
 }

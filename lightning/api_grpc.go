@@ -227,16 +227,15 @@ func (l *LndGrpcLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 }
 
 // SubscribeForwards API
-func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
+func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	// We will first try obtaining ForwadingHistory and then move to SubscribeHtlc
-	const maxErrors = 5
 	sleepTime := 5 * time.Second
 
 	errorChan := make(chan ErrorData, 1)
 	outChan := make(chan []ForwardingEvent)
 
 	if batchSize == 0 {
-		batchSize = 50
+		batchSize = l.API.GetDefaultBatchSize()
 	}
 
 	errors := 0
@@ -261,8 +260,7 @@ func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.
 			resp, err := l.Client.ForwardingHistory(ctx, req)
 
 			if err != nil {
-				glog.Warningf("Error getting ForwadingHistory %v\n", err)
-				if errors >= maxErrors {
+				if errors >= int(maxErrors) {
 					errorChan <- ErrorData{Error: err, IsStillRunning: false}
 					return
 				}
@@ -307,7 +305,7 @@ func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.
 
 				if err != nil {
 					glog.Warningf("Error calling SubscribeHtlcEvents %v\n", err)
-					if errors >= maxErrors {
+					if errors >= int(maxErrors) {
 						errorChan <- ErrorData{Error: err, IsStillRunning: false}
 						return
 					}
@@ -337,7 +335,7 @@ func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.
 
 				if err != nil {
 					glog.Warningf("Error getting HTLC data %v\n", err)
-					if errors >= maxErrors {
+					if errors >= int(maxErrors) {
 						errorChan <- ErrorData{Error: err, IsStillRunning: false}
 						return
 					}
@@ -401,7 +399,7 @@ func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.
 // GetForwardsRaw API
 func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	req := &lnrpc.ForwardingHistoryRequest{
-		NumMaxEvents: uint32(pagination.Num),
+		NumMaxEvents: uint32(pagination.BatchSize),
 		IndexOffset:  uint32(pagination.Offset),
 	}
 
@@ -460,7 +458,7 @@ func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination Raw
 // GetInvoices API
 func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
 	req := &lnrpc.ListInvoiceRequest{
-		NumMaxInvoices: pagination.Num,
+		NumMaxInvoices: pagination.BatchSize,
 		IndexOffset:    pagination.Offset,
 		PendingOnly:    pendingOnly,
 	}
@@ -523,7 +521,7 @@ func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 // GetInvoicesRaw API
 func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	req := &lnrpc.ListInvoiceRequest{
-		NumMaxInvoices: pagination.Num,
+		NumMaxInvoices: pagination.BatchSize,
 		IndexOffset:    pagination.Offset,
 		PendingOnly:    pendingOnly,
 	}
@@ -591,7 +589,7 @@ func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 func (l *LndGrpcLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
 	req := &lnrpc.ListPaymentsRequest{
 		IncludeIncomplete: includeIncomplete,
-		MaxPayments:       pagination.Num,
+		MaxPayments:       pagination.BatchSize,
 		IndexOffset:       pagination.Offset,
 	}
 
@@ -641,9 +639,6 @@ func (l *LndGrpcLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 		}
 
 		for _, htlc := range payment.Htlcs {
-
-			//for _, hops := range htlc.Route.Hops
-
 			attempt := HTLCAttempt{
 				ID:      htlc.AttemptId,
 				Status:  HTLCStatus(htlc.Status.Number()),
@@ -664,7 +659,7 @@ func (l *LndGrpcLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	req := &lnrpc.ListPaymentsRequest{
 		IncludeIncomplete: includeIncomplete,
-		MaxPayments:       pagination.Num,
+		MaxPayments:       pagination.BatchSize,
 		IndexOffset:       pagination.Offset,
 	}
 	respPagination := &ResponseRawPagination{UseTimestamp: false}

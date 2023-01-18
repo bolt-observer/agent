@@ -172,3 +172,100 @@ func TestGetPayments(t *testing.T) {
 
 	//t.Fatalf("fail")
 }
+
+func TestPaginatorSimple(t *testing.T) {
+
+	min := int64(1674047551)
+	outchan := make(chan api.RawMessage)
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
+	defer cancel()
+
+	f := func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+		return []api.RawMessage{
+				{Timestamp: time.Unix(min-1, 0), Implementation: "A"},
+				{Timestamp: time.Unix(min-1, 0), Implementation: "B"},
+				{Timestamp: time.Unix(min, 0), Implementation: "C"},
+				{Timestamp: time.Unix(min, 0), Implementation: "D"},
+				{Timestamp: time.Unix(min+1, 0), Implementation: "E"},
+				{Timestamp: time.Unix(min+1, 0), Implementation: "F"},
+			},
+			&api.ResponseRawPagination{FirstTime: time.Unix(min-1, 0), LastTime: time.Unix(min+1, 0)}, nil
+	}
+
+	go paginator(ctx, nil, f, time.Unix(min, 0), -1, outchan)
+
+	data := <-outchan
+	assert.Equal(t, data.Implementation, "C")
+	data = <-outchan
+	assert.Equal(t, data.Implementation, "D")
+	data = <-outchan
+	assert.Equal(t, data.Implementation, "E")
+	data = <-outchan
+	assert.Equal(t, data.Implementation, "F")
+
+	cancel()
+}
+
+func TestPaginatorSplit(t *testing.T) {
+
+	min := int64(1674047551)
+	outchan := make(chan api.RawMessage)
+
+	step := 0
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
+	defer cancel()
+
+	type ctxKey struct{}
+
+	ctx = context.WithValue(ctx, ctxKey{}, &step)
+
+	f := func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+
+		ptr, ok := ctx.Value(ctxKey{}).(*int)
+		if !ok {
+			return nil, nil, fmt.Errorf("error in step")
+		}
+
+		val := *ptr
+		*ptr = val + 1
+
+		switch val {
+		case 0:
+			return []api.RawMessage{
+					{Timestamp: time.Unix(min-1, 0), Implementation: "A"},
+					{Timestamp: time.Unix(min-1, 0), Implementation: "B"},
+				},
+				&api.ResponseRawPagination{FirstTime: time.Unix(min-1, 0), LastTime: time.Unix(min-1, 0)}, nil
+		case 1:
+			return []api.RawMessage{
+					{Timestamp: time.Unix(min, 0), Implementation: "C"},
+					{Timestamp: time.Unix(min, 0), Implementation: "D"},
+				},
+				&api.ResponseRawPagination{FirstTime: time.Unix(min, 0), LastTime: time.Unix(min, 0)}, nil
+		case 2:
+			return []api.RawMessage{
+					{Timestamp: time.Unix(min+1, 0), Implementation: "E"},
+					{Timestamp: time.Unix(min+1, 0), Implementation: "F"},
+				},
+				&api.ResponseRawPagination{FirstTime: time.Unix(min+1, 0), LastTime: time.Unix(min+1, 0)}, nil
+		}
+
+		return nil, nil, fmt.Errorf("unreached")
+	}
+
+	go paginator(ctx, nil, f, time.Unix(min, 0), -1, outchan)
+
+	data := <-outchan
+	assert.Equal(t, data.Implementation, "C")
+	data = <-outchan
+	assert.Equal(t, data.Implementation, "D")
+	data = <-outchan
+	assert.Equal(t, data.Implementation, "E")
+	data = <-outchan
+	assert.Equal(t, data.Implementation, "F")
+
+	cancel()
+	t.Fail()
+}

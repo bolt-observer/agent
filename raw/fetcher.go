@@ -24,34 +24,34 @@ type Fetcher struct {
 	ClientType   int
 }
 
+func toClientType(t api.APIType) int {
+	// So far this mapping is 1:1 to the API
+	return int(t)
+}
+
 // MakeFetcher creates a new fetcher
-func MakeFetcher(authToken string, endpoint string, l api.LightingAPICalls) (*Fetcher, error) {
+func MakeFetcher(ctx context.Context, authToken string, endpoint string, l api.LightingAPICalls) (*Fetcher, error) {
 	f := &Fetcher{
 		AuthToken:    authToken,
 		LightningAPI: l,
 	}
 
-	info, err := l.GetInfo(context.Background())
+	info, err := l.GetInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	typ := 0
-	switch l.GetAPIType() {
-	case api.LndGrpc:
-		typ = 0
-	case api.LndRest:
-		typ = 1
-	case api.ClnSocket:
-		typ = 2
-	}
-	f.ClientType = typ
+	f.ClientType = toClientType(l.GetAPIType())
 
 	f.PubKey = info.IdentityPubkey
-	agent := GetAgentAPI(endpoint, f.PubKey, f.AuthToken)
-	if agent == nil {
+	agent, err := getAgentAPI(endpoint, f.PubKey, f.AuthToken)
+	if err != nil {
 		return nil, err
 	}
+	if agent == nil {
+		return nil, fmt.Errorf("could not obtain agent")
+	}
+
 	f.AgentAPI = agent
 
 	return f, nil
@@ -69,11 +69,11 @@ func makePermanent(err error) error {
 }
 
 // FetchInvoices will fetch and report invoices
-func (f *Fetcher) FetchInvoices(ctx context.Context, updateTimeWithLast bool, from time.Time) {
+func (f *Fetcher) FetchInvoices(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
 
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
 
-	if updateTimeWithLast {
+	if shouldUpdateTimeToLatest {
 		ts, err := f.AgentAPI.LatestInvoiceTimestamp(ctx, &agent.Empty{})
 
 		if err != nil {
@@ -91,7 +91,7 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, updateTimeWithLast bool, fr
 
 	outchan := GetInvoicesChannel(ctx, f.LightningAPI, from)
 
-	num := 0
+	cnt := 0
 
 	b := backoff.NewExponentialBackOff()
 	b.MaxElapsedTime = 0
@@ -106,27 +106,32 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, updateTimeWithLast bool, fr
 				Data:      string(invoice.Message),
 			}
 
-			backoff.RetryNotify(func() error {
+			err := backoff.RetryNotify(func() error {
 				_, err := f.AgentAPI.Invoices(ctx, data)
 				return makePermanent(err)
 			}, b, func(e error, d time.Duration) {
 				glog.Warningf("Could not send data to GRPC endpoint: %v %v", data, e)
 			})
 
-			num++
-			if num%10 == 0 {
-				glog.V(2).Infof("Reported %d invoices (last timestamp %v)", num, invoice.Timestamp)
+			if err != nil {
+				glog.Warningf("Fatal error in FetchInvoices: %v", err)
+				return
+			}
+
+			cnt++
+			if cnt%10 == 0 {
+				glog.V(2).Infof("Reported %d invoices (last timestamp %v)", cnt, invoice.Timestamp)
 			}
 		}
 	}
 }
 
 // FetchForwards will fetch and report forwards
-func (f *Fetcher) FetchForwards(ctx context.Context, updateTimeWithLast bool, from time.Time) {
+func (f *Fetcher) FetchForwards(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
 
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
 
-	if updateTimeWithLast {
+	if shouldUpdateTimeToLatest {
 		ts, err := f.AgentAPI.LatestForwardTimestamp(ctx, &agent.Empty{})
 
 		if err != nil {
@@ -144,7 +149,7 @@ func (f *Fetcher) FetchForwards(ctx context.Context, updateTimeWithLast bool, fr
 
 	outchan := GetForwardsChannel(ctx, f.LightningAPI, from)
 
-	num := 0
+	cnt := 0
 
 	b := backoff.NewExponentialBackOff()
 	b.MaxElapsedTime = 0
@@ -159,27 +164,32 @@ func (f *Fetcher) FetchForwards(ctx context.Context, updateTimeWithLast bool, fr
 				Data:      string(forward.Message),
 			}
 
-			backoff.RetryNotify(func() error {
+			err := backoff.RetryNotify(func() error {
 				_, err := f.AgentAPI.Forwards(ctx, data)
 				return makePermanent(err)
 			}, b, func(e error, d time.Duration) {
 				glog.Warningf("Could not send data to GRPC endpoint: %v %v", data, e)
 			})
 
-			num++
-			if num%10 == 0 {
-				glog.V(2).Infof("Reported %d forwards (last timestamp %v)", num, forward.Timestamp)
+			if err != nil {
+				glog.Warningf("Fatal error in FetchForwards: %v", err)
+				return
+			}
+
+			cnt++
+			if cnt%10 == 0 {
+				glog.V(2).Infof("Reported %d forwards (last timestamp %v)", cnt, forward.Timestamp)
 			}
 		}
 	}
 }
 
 // FetchPayments will fetch and report payments
-func (f *Fetcher) FetchPayments(ctx context.Context, updateTimeWithLast bool, from time.Time) {
+func (f *Fetcher) FetchPayments(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
 
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
 
-	if updateTimeWithLast {
+	if shouldUpdateTimeToLatest {
 		ts, err := f.AgentAPI.LatestPaymentTimestamp(ctx, &agent.Empty{})
 
 		if err != nil {
@@ -197,7 +207,7 @@ func (f *Fetcher) FetchPayments(ctx context.Context, updateTimeWithLast bool, fr
 
 	outchan := GetPaymentsChannel(ctx, f.LightningAPI, from)
 
-	num := 0
+	cnt := 0
 
 	b := backoff.NewExponentialBackOff()
 	b.MaxElapsedTime = 0
@@ -211,16 +221,22 @@ func (f *Fetcher) FetchPayments(ctx context.Context, updateTimeWithLast bool, fr
 				Timestamp: payment.Timestamp.UnixNano(),
 				Data:      string(payment.Message),
 			}
-			backoff.RetryNotify(func() error {
+
+			err := backoff.RetryNotify(func() error {
 				_, err := f.AgentAPI.Payments(ctx, data)
 				return makePermanent(err)
 			}, b, func(e error, d time.Duration) {
 				glog.Warningf("Could not send data to GRPC endpoint: %v %v", data, e)
 			})
 
-			num++
-			if num%10 == 0 {
-				glog.V(2).Infof("Reported %d payments (last timestamp %v)", num, payment.Timestamp)
+			if err != nil {
+				glog.Warningf("Fatal error in FetchPayments: %v", err)
+				return
+			}
+
+			cnt++
+			if cnt%10 == 0 {
+				glog.V(2).Infof("Reported %d payments (last timestamp %v)", cnt, payment.Timestamp)
 			}
 		}
 	}

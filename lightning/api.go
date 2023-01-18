@@ -153,11 +153,11 @@ type NodeInfoAPIExtended struct {
 
 // Pagination struct
 type Pagination struct {
-	Offset   uint64 // Exclusive thus 1 means start from 2 (0 will start from beginning)
-	Num      uint64 // limit is 10k or so
-	Reversed bool
-	From     *time.Time
-	To       *time.Time
+	Offset    uint64 // Exclusive thus 1 means start from 2 (0 will start from beginning)
+	BatchSize uint64 // limit is 10k or so
+	Reversed  bool
+	From      *time.Time
+	To        *time.Time
 }
 
 // PaymentStatus enum
@@ -165,7 +165,7 @@ type PaymentStatus int
 
 // PaymentStatus values
 const (
-	PaymentUnknown PaymentStatus = 0
+	PaymentUnknown PaymentStatus = iota
 	PaymentInFlight
 	PaymentSucceeded
 	PaymentFailed
@@ -332,10 +332,9 @@ type PaymentsResponse struct {
 
 // RawMessage struct
 type RawMessage struct {
-	Timestamp      time.Time `json:"timestamp"`
-	Implementation string    `json:"implementation,omitempty"`
-
-	Message json.RawMessage `json:"message,omitempty"`
+	Timestamp      time.Time       `json:"timestamp"`
+	Implementation string          `json:"implementation,omitempty"`
+	Message        json.RawMessage `json:"message,omitempty"`
 }
 
 // ResponseRawPagination struct
@@ -359,6 +358,11 @@ type RawPagination struct {
 // API - generic API settings
 type API struct {
 	GetNodeInfoFullThreshUseDescribeGraph int // If node has more than that number of channels use DescribeGraph else do GetChanInfo for each one
+}
+
+// GetDefaultBatchSize returns the default batch size
+func (a *API) GetDefaultBatchSize() uint16 {
+	return 50
 }
 
 // GetNodeInfoFull - GetNodeInfoFull API (GRPC interface)
@@ -487,7 +491,7 @@ type LightingAPICalls interface {
 	GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error)
 	GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error)
 
-	SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData)
+	SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData)
 
 	GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error)
 	GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error)

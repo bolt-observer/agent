@@ -240,7 +240,7 @@ func (m *MockLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pa
 	panic("not implemented")
 }
 
-func (m *MockLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
+func (m *MockLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	panic("not implemented")
 }
 

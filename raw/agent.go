@@ -78,13 +78,11 @@ func getConnection(endpoint, pubkey, authToken string) (*grpc.ClientConn, error)
 
 }
 
-// GetAgentAPI retrieves the go API
-func GetAgentAPI(endpoint, pubKey, authToken string) api.AgentAPIClient {
+func getAgentAPI(endpoint, pubKey, authToken string) (api.AgentAPIClient, error) {
 	itf, err := getConnection(endpoint, pubKey, authToken)
 	if err != nil {
-		fmt.Printf("Error %+v\n", err)
-		return nil
+		return nil, err
 	}
 
-	return api.NewAgentAPIClient(itf)
+	return api.NewAgentAPIClient(itf), err
 }

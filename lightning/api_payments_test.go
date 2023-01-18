@@ -55,7 +55,7 @@ func TestGetInvoicesRest(t *testing.T) {
 		return
 	}
 
-	resp, err := api.GetInvoices(context.Background(), false, Pagination{Reversed: true, Num: 10})
+	resp, err := api.GetInvoices(context.Background(), false, Pagination{Reversed: true, BatchSize: 10})
 	if err != nil {
 		t.Fatalf("Error received %v\n", err)
 	}
@@ -72,7 +72,7 @@ func TestGetInvoicesGrpc(t *testing.T) {
 		return
 	}
 
-	resp, err := api.GetInvoices(context.Background(), false, Pagination{Reversed: true, Num: 10})
+	resp, err := api.GetInvoices(context.Background(), false, Pagination{Reversed: true, BatchSize: 10})
 	if err != nil {
 		t.Fatalf("Error received %v\n", err)
 	}
