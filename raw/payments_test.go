@@ -267,5 +267,4 @@ func TestPaginatorSplit(t *testing.T) {
 	assert.Equal(t, data.Implementation, "F")
 
 	cancel()
-	t.Fail()
 }

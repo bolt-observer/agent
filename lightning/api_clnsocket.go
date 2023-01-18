@@ -505,7 +505,7 @@ func (l *ClnSocketLightningAPI) SubscribeForwards(ctx context.Context, since tim
 				batch = make([]ForwardingEvent, 0, batchSize)
 			}
 
-			minTime = time.Time(reply.Entries[len(reply.Entries)-1].ReceivedTime).Add(-1 * time.Second)
+			minTime = time.Time(reply.Entries[len(reply.Entries)-1].ReceivedTime)
 		}
 	}()
 

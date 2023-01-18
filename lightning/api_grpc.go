@@ -226,6 +226,166 @@ func (l *LndGrpcLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 	return &ret, nil
 }
 
+func (l *LndGrpcLightningAPI) forwarding(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16, sleepTime time.Duration,
+	errorChan chan ErrorData, outChan chan []ForwardingEvent, errors *int) {
+	req := &lnrpc.ForwardingHistoryRequest{
+		NumMaxEvents: uint32(batchSize),
+		IndexOffset:  uint32(0),
+		StartTime:    uint64(since.Unix()),
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			// Do nothing
+		}
+
+		resp, err := l.Client.ForwardingHistory(ctx, req)
+
+		if err != nil {
+			if *errors >= int(maxErrors) {
+				errorChan <- ErrorData{Error: err, IsStillRunning: false}
+				return
+			}
+			errorChan <- ErrorData{Error: err, IsStillRunning: true}
+
+			time.Sleep(sleepTime)
+			*errors++
+			continue
+		}
+
+		if resp.ForwardingEvents == nil || len(resp.ForwardingEvents) == 0 {
+			return
+		}
+
+		batch := make([]ForwardingEvent, 0, batchSize)
+
+		for _, event := range resp.ForwardingEvents {
+			batch = append(batch, ForwardingEvent{
+				Timestamp:     time.Unix(0, int64(event.TimestampNs)),
+				ChanIDIn:      event.ChanIdIn,
+				ChanIDOut:     event.ChanIdOut,
+				AmountInMsat:  event.AmtInMsat,
+				AmountOutMsat: event.AmtOutMsat,
+				FeeMsat:       event.FeeMsat,
+				IsSuccess:     true,
+				FailureString: "",
+			})
+		}
+
+		outChan <- batch
+		req.IndexOffset = resp.LastOffsetIndex
+	}
+}
+
+func (l *LndGrpcLightningAPI) handleHTLC(ctx context.Context, maxErrors uint16, sleepTime time.Duration,
+	subscribeClient routerrpc.Router_SubscribeHtlcEventsClient, errorChan chan ErrorData, outChan chan []ForwardingEvent, errors *int) {
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			// Do nothing
+		}
+
+		event, err := subscribeClient.Recv()
+		if err == io.EOF {
+			errorChan <- ErrorData{Error: err, IsStillRunning: false}
+			return
+		}
+
+		if err != nil {
+			glog.Warningf("Error getting HTLC data %v\n", err)
+			if *errors >= int(maxErrors) {
+				errorChan <- ErrorData{Error: err, IsStillRunning: false}
+				return
+			}
+			errorChan <- ErrorData{Error: err, IsStillRunning: true}
+
+			time.Sleep(sleepTime)
+			*errors++
+			continue
+		}
+
+		if event.EventType != routerrpc.HtlcEvent_FORWARD {
+			// Ignore non-forward events
+			continue
+		}
+
+		in := uint64(0)
+		out := uint64(0)
+		fee := uint64(0)
+
+		success := true
+		failureString := ""
+
+		if event.GetForwardEvent() != nil {
+			in = event.GetForwardEvent().GetInfo().IncomingAmtMsat
+			out = event.GetForwardEvent().GetInfo().OutgoingAmtMsat
+
+		} else if event.GetLinkFailEvent() != nil {
+			in = event.GetLinkFailEvent().GetInfo().IncomingAmtMsat
+			out = event.GetLinkFailEvent().GetInfo().OutgoingAmtMsat
+			failureString = event.GetLinkFailEvent().FailureString
+			success = false
+		} else if event.GetForwardFailEvent() != nil {
+			success = false
+		}
+
+		if in > out {
+			fee = in - out
+		} else {
+			fee = 0
+		}
+
+		batch := []ForwardingEvent{{
+			Timestamp:     time.Unix(0, int64(event.TimestampNs)),
+			ChanIDIn:      event.IncomingChannelId,
+			ChanIDOut:     event.OutgoingChannelId,
+			AmountInMsat:  in,
+			AmountOutMsat: out,
+			FeeMsat:       fee,
+			IsSuccess:     success,
+			FailureString: failureString,
+		}}
+
+		outChan <- batch
+	}
+}
+
+func (l *LndGrpcLightningAPI) getSubscribeClient(ctx context.Context, maxErrors uint16, sleepTime time.Duration, errorChan chan ErrorData, errors *int) (*routerrpc.Router_SubscribeHtlcEventsClient, error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("abort")
+		default:
+			// Do nothing
+		}
+
+		subscribeClient, err := l.RouterClient.SubscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
+
+		if err != nil {
+			glog.Warningf("Error calling SubscribeHtlcEvents %v\n", err)
+			if *errors >= int(maxErrors) {
+				errorChan <- ErrorData{Error: err, IsStillRunning: false}
+				return nil, fmt.Errorf("timeout")
+			}
+			errorChan <- ErrorData{Error: err, IsStillRunning: true}
+
+			time.Sleep(sleepTime)
+			*errors++
+			continue
+		} else {
+			return &subscribeClient, nil
+		}
+	}
+
+	return nil, fmt.Errorf("timeout")
+}
+
 // SubscribeForwards API
 func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	// We will first try obtaining ForwadingHistory and then move to SubscribeHtlc
@@ -239,158 +399,15 @@ func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.
 	}
 
 	errors := 0
-	req := &lnrpc.ForwardingHistoryRequest{
-		NumMaxEvents: uint32(batchSize),
-		IndexOffset:  uint32(0),
-		StartTime:    uint64(since.Unix()),
-	}
 
 	go func() {
-		var (
-			subscribeClient routerrpc.Router_SubscribeHtlcEventsClient
-		)
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				// Do nothing
-			}
-			resp, err := l.Client.ForwardingHistory(ctx, req)
-
-			if err != nil {
-				if errors >= int(maxErrors) {
-					errorChan <- ErrorData{Error: err, IsStillRunning: false}
-					return
-				}
-				errorChan <- ErrorData{Error: err, IsStillRunning: true}
-
-				time.Sleep(sleepTime)
-				errors++
-				continue
-			}
-
-			if resp.ForwardingEvents == nil || len(resp.ForwardingEvents) == 0 {
-				break
-			}
-
-			batch := make([]ForwardingEvent, 0, batchSize)
-
-			for _, event := range resp.ForwardingEvents {
-				batch = append(batch, ForwardingEvent{
-					Timestamp:     time.Unix(0, int64(event.TimestampNs)),
-					ChanIDIn:      event.ChanIdIn,
-					ChanIDOut:     event.ChanIdOut,
-					AmountInMsat:  event.AmtInMsat,
-					AmountOutMsat: event.AmtOutMsat,
-					FeeMsat:       event.FeeMsat,
-					IsSuccess:     true,
-					FailureString: "",
-				})
-			}
-
-			outChan <- batch
-			req.IndexOffset = resp.LastOffsetIndex
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					// Do nothing
-				}
-
-				subscribeClient, err = l.RouterClient.SubscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
-
-				if err != nil {
-					glog.Warningf("Error calling SubscribeHtlcEvents %v\n", err)
-					if errors >= int(maxErrors) {
-						errorChan <- ErrorData{Error: err, IsStillRunning: false}
-						return
-					}
-					errorChan <- ErrorData{Error: err, IsStillRunning: true}
-
-					time.Sleep(sleepTime)
-					errors++
-					continue
-				} else {
-					break
-				}
-			}
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					// Do nothing
-				}
-
-				event, err := subscribeClient.Recv()
-				if err == io.EOF {
-					errorChan <- ErrorData{Error: err, IsStillRunning: false}
-					return
-				}
-
-				if err != nil {
-					glog.Warningf("Error getting HTLC data %v\n", err)
-					if errors >= int(maxErrors) {
-						errorChan <- ErrorData{Error: err, IsStillRunning: false}
-						return
-					}
-					errorChan <- ErrorData{Error: err, IsStillRunning: true}
-
-					time.Sleep(sleepTime)
-					errors++
-					continue
-				}
-
-				if event.EventType != routerrpc.HtlcEvent_FORWARD {
-					// Ignore non-forward events
-					continue
-				}
-
-				in := uint64(0)
-				out := uint64(0)
-				fee := uint64(0)
-
-				success := true
-				failureString := ""
-
-				if event.GetForwardEvent() != nil {
-					in = event.GetForwardEvent().GetInfo().IncomingAmtMsat
-					out = event.GetForwardEvent().GetInfo().OutgoingAmtMsat
-
-				} else if event.GetLinkFailEvent() != nil {
-					in = event.GetLinkFailEvent().GetInfo().IncomingAmtMsat
-					out = event.GetLinkFailEvent().GetInfo().OutgoingAmtMsat
-					failureString = event.GetLinkFailEvent().FailureString
-					success = false
-				} else if event.GetForwardFailEvent() != nil {
-					success = false
-				}
-
-				if in > out {
-					fee = in - out
-				} else {
-					fee = 0
-				}
-
-				batch := []ForwardingEvent{{
-					Timestamp:     time.Unix(0, int64(event.TimestampNs)),
-					ChanIDIn:      event.IncomingChannelId,
-					ChanIDOut:     event.OutgoingChannelId,
-					AmountInMsat:  in,
-					AmountOutMsat: out,
-					FeeMsat:       fee,
-					IsSuccess:     success,
-					FailureString: failureString,
-				}}
-
-				outChan <- batch
-			}
+		l.forwarding(ctx, since, batchSize, maxErrors, sleepTime, errorChan, outChan, &errors)
+		subscribeClient, err := l.getSubscribeClient(ctx, maxErrors, sleepTime, errorChan, &errors)
+		if err == nil {
+			l.handleHTLC(ctx, maxErrors, sleepTime, *subscribeClient, errorChan, outChan, &errors)
 		}
+
+		errorChan <- ErrorData{Error: nil, IsStillRunning: false}
 	}()
 
 	return outChan, errorChan

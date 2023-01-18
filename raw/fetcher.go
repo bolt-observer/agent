@@ -58,6 +58,9 @@ func MakeFetcher(ctx context.Context, authToken string, endpoint string, l api.L
 }
 
 func makePermanent(err error) error {
+	// TODO: remove
+	fmt.Printf("%+v %s\n", err, err.Error())
+
 	st := status.Convert(err)
 	if st.Code() == codes.Unknown {
 		if strings.Contains(st.Message(), "ConditionalCheckFailedException") {
@@ -72,6 +75,8 @@ func makePermanent(err error) error {
 func (f *Fetcher) FetchInvoices(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
 
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
+
+	defer glog.Warningf("FetchInvoices stopped running")
 
 	if shouldUpdateTimeToLatest {
 		ts, err := f.AgentAPI.LatestInvoiceTimestamp(ctx, &agent.Empty{})
@@ -131,6 +136,8 @@ func (f *Fetcher) FetchForwards(ctx context.Context, shouldUpdateTimeToLatest bo
 
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
 
+	defer glog.Warningf("FetchForwards stopped running")
+
 	if shouldUpdateTimeToLatest {
 		ts, err := f.AgentAPI.LatestForwardTimestamp(ctx, &agent.Empty{})
 
@@ -188,6 +195,8 @@ func (f *Fetcher) FetchForwards(ctx context.Context, shouldUpdateTimeToLatest bo
 func (f *Fetcher) FetchPayments(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
 
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
+
+	defer glog.Warningf("FetchPayments stopped running")
 
 	if shouldUpdateTimeToLatest {
 		ts, err := f.AgentAPI.LatestPaymentTimestamp(ctx, &agent.Empty{})

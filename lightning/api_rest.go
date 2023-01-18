@@ -48,7 +48,7 @@ func NewLndRestLightningAPI(getData GetDataCall) LightingAPICalls {
 // GetInfo - GetInfo API
 func (l *LndRestLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 
-	resp, err := l.HTTPAPI.HTTPGetInfo(ctx, l.Request, l.Transport)
+	resp, err := l.HTTPAPI.HTTPGetInfo(ctx, l.Request)
 
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func stringToInt64(str string) int64 {
 
 // GetChannels - GetChannels API
 func (l *LndRestLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
-	resp, err := l.HTTPAPI.HTTPGetChannels(ctx, l.Request, l.Transport)
+	resp, err := l.HTTPAPI.HTTPGetChannels(ctx, l.Request)
 
 	if err != nil {
 		return nil, err
@@ -162,7 +162,7 @@ func toPolicyWeb(policy *RoutingPolicyOverride) *RoutingPolicyAPI {
 // DescribeGraph - DescribeGraph API
 func (l *LndRestLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
 
-	resp, err := l.HTTPAPI.HTTPGetGraph(ctx, l.Request, l.Transport, unannounced)
+	resp, err := l.HTTPAPI.HTTPGetGraph(ctx, l.Request, unannounced)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func (l *LndRestLightningAPI) convertChan(edge *GraphEdgeOverride) NodeChannelAP
 
 // GetNodeInfo - GetNodeInfo API
 func (l *LndRestLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
-	resp, err := l.HTTPAPI.HTTPGetNodeInfo(ctx, l.Request, l.Transport, pubKey, channels)
+	resp, err := l.HTTPAPI.HTTPGetNodeInfo(ctx, l.Request, pubKey, channels)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +235,7 @@ func (l *LndRestLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, ch
 
 // GetChanInfo - GetChanInfo API
 func (l *LndRestLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
-	resp, err := l.HTTPAPI.HTTPGetChanInfo(ctx, l.Request, l.Transport, chanID)
+	resp, err := l.HTTPAPI.HTTPGetChanInfo(ctx, l.Request, chanID)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +277,7 @@ func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 		param.PendingOnly = pendingOnly
 	}
 
-	resp, err := l.HTTPAPI.HTTPListInvoices(ctx, l.Request, l.Transport, param)
+	resp, err := l.HTTPAPI.HTTPListInvoices(ctx, l.Request, param)
 	if err != nil {
 		return nil, respPagination, err
 	}
@@ -346,7 +346,7 @@ func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 		param.IncludeIncomplete = includeIncomplete
 	}
 
-	resp, err := l.HTTPAPI.HTTPListPayments(ctx, l.Request, l.Transport, param)
+	resp, err := l.HTTPAPI.HTTPListPayments(ctx, l.Request, param)
 	if err != nil {
 		return nil, respPagination, err
 	}
@@ -403,7 +403,7 @@ func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination Raw
 
 	respPagination := &ResponseRawPagination{UseTimestamp: false}
 
-	resp, err := l.HTTPAPI.HTTPForwardEvents(ctx, l.Request, l.Transport, param)
+	resp, err := l.HTTPAPI.HTTPForwardEvents(ctx, l.Request, param)
 	if err != nil {
 		return nil, respPagination, err
 	}
@@ -472,7 +472,7 @@ func (l *LndRestLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 		param.PendingOnly = pendingOnly
 	}
 
-	resp, err := l.HTTPAPI.HTTPListInvoices(ctx, l.Request, l.Transport, param)
+	resp, err := l.HTTPAPI.HTTPListInvoices(ctx, l.Request, param)
 	if err != nil {
 		return nil, err
 	}
@@ -536,7 +536,7 @@ func (l *LndRestLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 		param.IncludeIncomplete = includeIncomplete
 	}
 
-	resp, err := l.HTTPAPI.HTTPListPayments(ctx, l.Request, l.Transport, param)
+	resp, err := l.HTTPAPI.HTTPListPayments(ctx, l.Request, param)
 	if err != nil {
 		return nil, err
 	}
@@ -551,7 +551,7 @@ func (l *LndRestLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 // SubscribeHtlcEvents API
 func (l *LndRestLightningAPI) SubscribeHtlcEvents(ctx context.Context) (<-chan *HtlcEventOverride, error) {
 	// Very thin wrapper
-	resp, err := l.HTTPAPI.HTTPSubscribeHtlcEvents(ctx, l.Request, l.Transport)
+	resp, err := l.HTTPAPI.HTTPSubscribeHtlcEvents(ctx, l.Request)
 	if err != nil {
 		return nil, err
 	}
