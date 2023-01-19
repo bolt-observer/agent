@@ -573,7 +573,7 @@ func nodeDataChecker(cmdCtx *cli.Context) error {
 
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
-	fetcher(ct, cmdCtx, apiKey)
+	sender(ct, cmdCtx, apiKey)
 
 	if settings.PollInterval == agent_entities.ManualRequest {
 		nodeDataChecker.GetState("", cmdCtx.String("uniqueid"), mkGetLndAPI(cmdCtx), settings, nodeDataCallback)
@@ -618,7 +618,7 @@ func convertTimeSetting(fetchSettingsValue int64) fetchSettings {
 	}
 }
 
-func fetcher(ctx context.Context, cmdCtx *cli.Context, apiKey string) {
+func sender(ctx context.Context, cmdCtx *cli.Context, apiKey string) {
 	if cmdCtx.String("datastore-url") != "" && apiKey != "" {
 		glog.Infof("Datastore server URL: %s", cmdCtx.String("datastore-url"))
 
@@ -627,7 +627,7 @@ func fetcher(ctx context.Context, cmdCtx *cli.Context, apiKey string) {
 			glog.Warningf("GRPC get ligtning failure\n")
 			return
 		}
-		f, err := raw.MakeFetcher(ctx, apiKey, cmdCtx.String("datastore-url"), lightningAPI)
+		sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), lightningAPI)
 		if err != nil {
 			glog.Warningf("GRPC get fetcher failure %v\n", err)
 			return
@@ -636,19 +636,19 @@ func fetcher(ctx context.Context, cmdCtx *cli.Context, apiKey string) {
 		s := convertTimeSetting(cmdCtx.Int64("fetch-invoices"))
 		if s.enabled {
 			glog.Infof("Fetching invoices after %v\n", s.time)
-			go f.FetchInvoices(context.Background(), s.useLatestTimeFromServer, s.time)
+			go sender.SendInvoices(context.Background(), s.useLatestTimeFromServer, s.time)
 		}
 
 		s = convertTimeSetting(cmdCtx.Int64("fetch-forwards"))
 		if s.enabled {
 			glog.Infof("Fetching forwards after %v\n", s.time)
-			go f.FetchForwards(context.Background(), s.useLatestTimeFromServer, s.time)
+			go sender.SendForwards(context.Background(), s.useLatestTimeFromServer, s.time)
 		}
 
 		s = convertTimeSetting(cmdCtx.Int64("fetch-payments"))
 		if s.enabled {
 			glog.Infof("Fetching payments after %v\n", s.time)
-			go f.FetchPayments(context.Background(), s.useLatestTimeFromServer, s.time)
+			go sender.SendPayments(context.Background(), s.useLatestTimeFromServer, s.time)
 		}
 	}
 }

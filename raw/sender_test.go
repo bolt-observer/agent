@@ -12,9 +12,9 @@ import (
 	"github.com/bolt-observer/agent/lightning"
 )
 
-const FailNoCredsFetcher = false
+const FailNoCredsSender = false
 
-func TestFetcher(t *testing.T) {
+func TestSender(t *testing.T) {
 	const (
 		TokenFile = "token.secret"
 	)
@@ -24,7 +24,7 @@ func TestFetcher(t *testing.T) {
 	}
 
 	if _, err := os.Stat(TokenFile); errors.Is(err, os.ErrNotExist) {
-		if FailNoCredsFetcher {
+		if FailNoCredsSender {
 			t.Fatal("No credentials")
 		}
 		return
@@ -38,16 +38,16 @@ func TestFetcher(t *testing.T) {
 
 	token := strings.Trim(string(tokenData), "\t\r\n ")
 
-	f, err := MakeFetcher(context.Background(), token, "agent-api-staging-new.bolt.observer:443", itf)
+	f, err := MakeSender(context.Background(), token, "agent-api-staging-new.bolt.observer:443", itf)
 
 	if err != nil {
-		t.Fatalf("failed to make fetcher: %v", err)
+		t.Fatalf("failed to make Sender: %v", err)
 	}
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
 	defer cancel()
 
-	f.FetchInvoices(ctx, true, time.Time{})
+	f.SendInvoices(ctx, true, time.Time{})
 
 	//t.Fatal("fail")
 }

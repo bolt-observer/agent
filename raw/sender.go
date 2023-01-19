@@ -10,6 +10,7 @@ import (
 	api "github.com/bolt-observer/agent/lightning"
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/golang/glog"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -18,8 +19,8 @@ import (
 // ReportBatch is how often a log is printed to show progress
 const ReportBatch = 10
 
-// Fetcher struct
-type Fetcher struct {
+// Sender struct
+type Sender struct {
 	AuthToken    string
 	LightningAPI api.LightingAPICalls
 	AgentAPI     agent.AgentAPIClient
@@ -32,9 +33,9 @@ func toClientType(t api.APIType) int {
 	return int(t)
 }
 
-// MakeFetcher creates a new fetcher
-func MakeFetcher(ctx context.Context, authToken string, endpoint string, l api.LightingAPICalls) (*Fetcher, error) {
-	f := &Fetcher{
+// MakeSender creates a new Sender
+func MakeSender(ctx context.Context, authToken string, endpoint string, l api.LightingAPICalls) (*Sender, error) {
+	f := &Sender{
 		AuthToken:    authToken,
 		LightningAPI: l,
 	}
@@ -82,21 +83,21 @@ func makePermanent(err error) error {
 	return err
 }
 
-type fetcherGetTime func(ctx context.Context) (*agent.TimestampResponse, error)
-type fetcherGetChan func(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage
-type fetcherPushData func(ctx context.Context, data *agent.DataRequest) error
+type senderGetTime func(ctx context.Context, empty *agent.Empty, opts ...grpc.CallOption) (*agent.TimestampResponse, error)
+type senderGetChan func(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage
+type senderPushData func(ctx context.Context, data *agent.DataRequest, opts ...grpc.CallOption) (*agent.Empty, error)
 
-type fetcherMethod struct {
+type senderMethod struct {
 	methodName string
 	entityName string
-	getTime    fetcherGetTime
-	getChan    fetcherGetChan
-	pushData   fetcherPushData
+	getTime    senderGetTime
+	getChan    senderGetChan
+	pushData   senderPushData
 }
 
-func (f *Fetcher) fetch(
+func (f *Sender) send(
 	ctx context.Context,
-	method fetcherMethod,
+	method senderMethod,
 	shouldUpdateTimeToLatest bool,
 	from time.Time) {
 
@@ -106,7 +107,7 @@ func (f *Fetcher) fetch(
 	defer glog.Warningf("%s stopped running", method.methodName)
 
 	if shouldUpdateTimeToLatest {
-		ts, err := method.getTime(ctx)
+		ts, err := method.getTime(ctx, &agent.Empty{})
 
 		if err != nil {
 			glog.Warningf("Coud not get latest %s timestamps: %v", method.entityName, err)
@@ -139,7 +140,7 @@ func (f *Fetcher) fetch(
 			}
 
 			err := backoff.RetryNotify(func() error {
-				err := method.pushData(ctx, data)
+				_, err := method.pushData(ctx, data)
 				return makePermanent(err)
 			}, b, func(e error, d time.Duration) {
 				glog.Warningf("Could not send data to GRPC endpoint: %v %v", data, e)
@@ -158,56 +159,41 @@ func (f *Fetcher) fetch(
 	}
 }
 
-// FetchInvoices will fetch and report invoices
-func (f *Fetcher) FetchInvoices(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
-	method := fetcherMethod{
-		methodName: "FetchInvoices",
+// SendInvoices will send invoices
+func (f *Sender) SendInvoices(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
+	method := senderMethod{
+		methodName: "SendInvoices",
 		entityName: "invoices",
-		getTime: fetcherGetTime(func(ctx context.Context) (*agent.TimestampResponse, error) {
-			return f.AgentAPI.LatestInvoiceTimestamp(ctx, &agent.Empty{})
-		}),
-		getChan: fetcherGetChan(GetInvoicesChannel),
-		pushData: fetcherPushData(func(ctx context.Context, data *agent.DataRequest) error {
-			_, err := f.AgentAPI.Invoices(ctx, data)
-			return err
-		}),
+		getTime:    senderGetTime(f.AgentAPI.LatestInvoiceTimestamp),
+		getChan:    senderGetChan(GetInvoicesChannel),
+		pushData:   senderPushData(f.AgentAPI.Invoices),
 	}
 
-	f.fetch(ctx, method, shouldUpdateTimeToLatest, from)
+	f.send(ctx, method, shouldUpdateTimeToLatest, from)
 }
 
-// FetchForwards will fetch and report forwards
-func (f *Fetcher) FetchForwards(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
-	method := fetcherMethod{
-		methodName: "FetchForwards",
+// SendForwards will send forwards
+func (f *Sender) SendForwards(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
+	method := senderMethod{
+		methodName: "SendForwards",
 		entityName: "forwards",
-		getTime: fetcherGetTime(func(ctx context.Context) (*agent.TimestampResponse, error) {
-			return f.AgentAPI.LatestForwardTimestamp(ctx, &agent.Empty{})
-		}),
-		getChan: fetcherGetChan(GetForwardsChannel),
-		pushData: fetcherPushData(func(ctx context.Context, data *agent.DataRequest) error {
-			_, err := f.AgentAPI.Forwards(ctx, data)
-			return err
-		}),
+		getTime:    senderGetTime(f.AgentAPI.LatestForwardTimestamp),
+		getChan:    senderGetChan(GetForwardsChannel),
+		pushData:   senderPushData(f.AgentAPI.Forwards),
 	}
 
-	f.fetch(ctx, method, shouldUpdateTimeToLatest, from)
+	f.send(ctx, method, shouldUpdateTimeToLatest, from)
 }
 
-// FetchPayments will fetch and report payments
-func (f *Fetcher) FetchPayments(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
-	method := fetcherMethod{
-		methodName: "FetchPayments",
+// SendPayments will send payments
+func (f *Sender) SendPayments(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
+	method := senderMethod{
+		methodName: "SendPayments",
 		entityName: "payments",
-		getTime: fetcherGetTime(func(ctx context.Context) (*agent.TimestampResponse, error) {
-			return f.AgentAPI.LatestPaymentTimestamp(ctx, &agent.Empty{})
-		}),
-		getChan: fetcherGetChan(GetPaymentsChannel),
-		pushData: fetcherPushData(func(ctx context.Context, data *agent.DataRequest) error {
-			_, err := f.AgentAPI.Payments(ctx, data)
-			return err
-		}),
+		getTime:    senderGetTime(f.AgentAPI.LatestPaymentTimestamp),
+		getChan:    senderGetChan(GetPaymentsChannel),
+		pushData:   senderPushData(f.AgentAPI.Payments),
 	}
 
-	f.fetch(ctx, method, shouldUpdateTimeToLatest, from)
+	f.send(ctx, method, shouldUpdateTimeToLatest, from)
 }
