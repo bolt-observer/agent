@@ -1,9 +1,12 @@
-package lightningapi
+package lightning
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
+	"strings"
+	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
 	"github.com/getsentry/sentry-go"
@@ -146,9 +149,220 @@ type NodeInfoAPIExtended struct {
 	Channels []NodeChannelAPIExtended `json:"channels"`
 }
 
-// LightningAPI - generic API settings
-type LightningAPI struct {
+////////////////////////////////////////////////////////////////
+
+// Pagination struct
+type Pagination struct {
+	Offset    uint64 // Exclusive thus 1 means start from 2 (0 will start from beginning)
+	BatchSize uint64 // limit is 10k or so
+	Reversed  bool
+	From      *time.Time
+	To        *time.Time
+}
+
+// PaymentStatus enum
+type PaymentStatus int
+
+// PaymentStatus values
+const (
+	PaymentUnknown PaymentStatus = iota
+	PaymentInFlight
+	PaymentSucceeded
+	PaymentFailed
+)
+
+// StringToPaymentStatus creates PaymentStatus based on a string
+func StringToPaymentStatus(in string) PaymentStatus {
+	switch strings.ToLower(in) {
+	case "unknown":
+		return PaymentUnknown
+	case "in_flight":
+		return PaymentInFlight
+	case "succeeded":
+		return PaymentSucceeded
+	case "failed":
+		return PaymentFailed
+	}
+
+	return PaymentUnknown
+}
+
+// PaymentFailureReason enum
+type PaymentFailureReason int
+
+// PaymentFailureReason values
+const (
+	FailureReasonNone PaymentFailureReason = 0
+	FailureReasonTimeout
+	FailureReasonNoRoute
+	FailureReasonError
+	FailureReasonIncorrectPaymentDetails
+	FailureReasonInsufficientBalance
+)
+
+// HTLCStatus enum
+type HTLCStatus int
+
+// HTLCStatus values
+const (
+	HTLCInFlight HTLCStatus = 0
+	HTLCSucceeded
+	HTLCFailed
+)
+
+// Payment struct
+type Payment struct {
+	PaymentHash     string
+	ValueMsat       int64
+	FeeMsat         int64
+	PaymentPreimage string
+	PaymentRequest  string
+	PaymentStatus   PaymentStatus
+	CreationTime    time.Time
+	Index           uint64
+	FailureReason   PaymentFailureReason
+	HTLCAttempts    []HTLCAttempt
+}
+
+// HTLCAttempt struct
+type HTLCAttempt struct {
+	ID      uint64
+	Status  HTLCStatus
+	Attempt time.Time
+	Resolve time.Time
+
+	Route Route
+}
+
+// Route struct
+type Route struct {
+	TotalTimeLock uint32
+	TotalFeesMsat int64
+	TotalAmtMsat  int64
+
+	Hops []Hop
+}
+
+// Hop struct
+type Hop struct {
+	ChanID           uint64
+	Expiry           uint32
+	AmtToForwardMsat int64
+	FeeMsat          int64
+}
+
+// ForwardingEvent struct
+type ForwardingEvent struct {
+	Timestamp     time.Time
+	ChanIDIn      uint64
+	ChanIDOut     uint64
+	AmountInMsat  uint64
+	AmountOutMsat uint64
+	FeeMsat       uint64
+	IsSuccess     bool
+	FailureString string
+}
+
+// ResponseForwardPagination struct
+type ResponseForwardPagination struct {
+	LastOffsetIndex uint64
+}
+
+// ResponsePagination struct
+type ResponsePagination struct {
+	ResponseForwardPagination
+	FirstOffsetIndex uint64
+}
+
+// InvoicesResponse struct
+type InvoicesResponse struct {
+	Invoices []Invoice
+	ResponsePagination
+}
+
+// Invoice struct
+type Invoice struct {
+	Memo            string
+	ValueMsat       int64
+	PaidMsat        int64
+	CreationDate    time.Time
+	SettleDate      time.Time
+	PaymentRequest  string
+	DescriptionHash string
+	Expiry          int64
+	FallbackAddr    string
+	CltvExpiry      uint64
+	Private         bool
+	IsKeySend       bool
+	IsAmp           bool
+	State           InvoiceHTLCState
+	AddIndex        uint64
+	SettleIndex     uint64
+}
+
+// InvoiceHTLCState enum
+type InvoiceHTLCState int
+
+// StringToInvoiceHTLCState creates InvoiceHTLCState based on a string
+func StringToInvoiceHTLCState(in string) InvoiceHTLCState {
+	switch strings.ToLower(in) {
+	case "accepted":
+		return InvoiceAccepted
+	case "settled":
+		return InvoiceSettled
+	case "cacelled":
+		return InvoiceCancelled
+	}
+
+	return InvoiceCancelled
+}
+
+// InvoiceHTLCState values
+const (
+	InvoiceAccepted InvoiceHTLCState = 0
+	InvoiceSettled
+	InvoiceCancelled
+)
+
+// PaymentsResponse struct
+type PaymentsResponse struct {
+	Payments []Payment
+	ResponsePagination
+}
+
+// RawMessage struct
+type RawMessage struct {
+	Timestamp      time.Time       `json:"timestamp"`
+	Implementation string          `json:"implementation,omitempty"`
+	Message        json.RawMessage `json:"message,omitempty"`
+}
+
+// ResponseRawPagination struct
+type ResponseRawPagination struct {
+	UseTimestamp bool
+	FirstTime    time.Time
+	LastTime     time.Time
+	ResponsePagination
+}
+
+// RawPagination struct
+type RawPagination struct {
+	UseTimestamp bool
+	FirstTime    time.Time
+	LastTime     time.Time
+	Pagination
+}
+
+////////////////////////////////////////////////////////////////
+
+// API - generic API settings
+type API struct {
 	GetNodeInfoFullThreshUseDescribeGraph int // If node has more than that number of channels use DescribeGraph else do GetChanInfo for each one
+}
+
+// GetDefaultBatchSize returns the default batch size
+func (a *API) GetDefaultBatchSize() uint16 {
+	return 50
 }
 
 // GetNodeInfoFull - GetNodeInfoFull API (GRPC interface)
@@ -257,15 +471,31 @@ func getNodeInfoFullTemplate(ctx context.Context, l LightingAPICalls, threshUseD
 	return extendedNodeInfo, nil
 }
 
+// ErrorData struct
+type ErrorData struct {
+	Error          error
+	IsStillRunning bool
+}
+
 // LightingAPICalls is the interface for lightning API
 type LightingAPICalls interface {
 	Cleanup()
+	GetAPIType() APIType
 	GetInfo(ctx context.Context) (*InfoAPI, error)
 	GetChannels(ctx context.Context) (*ChannelsAPI, error)
 	DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error)
 	GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoAPIExtended, error)
 	GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error)
 	GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error)
+
+	GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error)
+	GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error)
+
+	SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData)
+
+	GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error)
+	GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error)
+	GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error)
 }
 
 // GetDataCall - signature of function for retrieving data

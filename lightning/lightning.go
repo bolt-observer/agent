@@ -1,4 +1,4 @@
-package lightningapi
+package lightning
 
 import (
 	"crypto/tls"
@@ -16,6 +16,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -236,16 +237,16 @@ func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
 }
 
 // GetClient - get a lightning API client
-func GetClient(getData GetDataCall) (lnrpc.LightningClient, func(), error) {
+func GetClient(getData GetDataCall) (lnrpc.LightningClient, routerrpc.RouterClient, func(), error) {
 	conn, err := GetConnection(getData)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	cleanUp := func() {
 		conn.Close()
 	}
 
-	return lnrpc.NewLightningClient(conn), cleanUp, nil
+	return lnrpc.NewLightningClient(conn), routerrpc.NewRouterClient(conn), cleanUp, nil
 }
 
 // IsMacaroonValid - verify whether macaroon is valid

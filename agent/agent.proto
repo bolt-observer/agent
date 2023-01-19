@@ -1,0 +1,43 @@
+
+syntax = "proto3";
+
+option go_package = "github.com/bolt-observer/bolt-observer/api/agent";
+
+package agent;
+
+service AgentAPI {
+  rpc Payments(DataRequest) returns (Empty) {};
+  rpc LatestPaymentTimestamp(Empty) returns (TimestampResponse) {};
+
+  rpc Invoices(DataRequest) returns (Empty) {};
+  rpc LatestInvoiceTimestamp(Empty) returns (TimestampResponse) {};
+
+  rpc Forwards(DataRequest) returns (Empty) {};
+  rpc LatestForwardTimestamp(Empty) returns (TimestampResponse) {};
+
+  rpc LiquidityAds(DataRequest) returns (Empty) {};
+  rpc LatestLiquidityAdTimestamp(Empty) returns (TimestampResponse) {};
+}
+
+message Empty {}
+
+message TimestampResponse {
+  int64 timestamp = 1;
+}
+
+message CredentialsRequest {
+  string pub_key = 1;
+	ClientType client_type = 2;
+}
+
+message DataRequest {
+  int64 timestamp = 1; // timestamp in nanoseconds
+  string data = 2; // Raw JSON serialized data (since it can come from various sources)
+}
+
+enum ClientType {
+  LND_GRPC = 0;
+  LND_REST = 1;
+  C_LIGHTNING = 2;
+  ECLAIR = 3;
+}

@@ -162,7 +162,9 @@ Internally we use:
 * [nodedata](./nodedata): an abstraction for running the periodic checks and reporting balance related changes
 * [filter](./filter): this is used to filter specific channels on the agent side
 * [checkermonitoring](./checkermonitoring): is used for reporting metrics via Graphite (not used directly in balance-agent here)
-* [lightning_api](./lightning_api): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
+* [lightning](./lightning): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
+* [agent](./agent): is the GRPC client for new funcionality
+* [raw](./raw): is the connection between [agent](./agent) API and [lightning](./lightning) API
 
 ## Dependencies
 

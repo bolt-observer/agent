@@ -1,14 +1,20 @@
-package lightningapi
+package lightning
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
+	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 func TestApiSelection(t *testing.T) {
@@ -230,6 +236,34 @@ func (m *MockLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*Nod
 	return &NodeChannelAPI{ChannelID: chanID, Capacity: chanID}, nil
 }
 
+func (m *MockLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetAPIType() APIType {
+	panic("not implemented")
+}
+
 func TestNodeInfoFull(t *testing.T) {
 	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 100, true, true)
@@ -331,4 +365,64 @@ func TestNodeInfoFullWithDescribeGraph(t *testing.T) {
 	if clone.NumChannels != 2 || clone.TotalCapacity != 3 {
 		t.Fatalf("Wrong data returned from clone")
 	}
+}
+
+func TestRawMessageSerialization(t *testing.T) {
+	var (
+		err  error
+		data entities.Data
+	)
+	const FixtureSecret = "fixture-grpc.secret"
+
+	if _, err := os.Stat(FixtureSecret); errors.Is(err, os.ErrNotExist) {
+		// If file with credentials does not exist succeed
+		return
+	}
+
+	content, err := ioutil.ReadFile(FixtureSecret)
+	if err != nil {
+		t.Fatalf("Error when opening file: %v", err)
+		return
+	}
+
+	err = json.Unmarshal(content, &data)
+	if err != nil {
+		t.Fatalf("Error during Unmarshal(): %v", err)
+		return
+	}
+
+	client, _, cleanup, err := GetClient(func() (*entities.Data, error) {
+		return &data, nil
+	})
+	if err != nil {
+		t.Fatalf("GetClient failed: %v\n", err)
+	}
+
+	defer cleanup()
+
+	resp, err := client.ListPayments(context.Background(), &lnrpc.ListPaymentsRequest{MaxPayments: 10, IncludeIncomplete: true})
+	if err != nil {
+		t.Fatalf("ListPayments failed: %v\n", err)
+	}
+
+	for _, one := range resp.Payments {
+		raw := RawMessage{}
+
+		raw.Timestamp = time.Unix(0, one.CreationTimeNs)
+		raw.Implementation = "lnd"
+		raw.Message, err = json.Marshal(one)
+		if err != nil {
+			t.Fatalf("Message marshal error: %v\n", err)
+		}
+
+		msg, err := json.Marshal(raw)
+		if err != nil {
+			t.Fatalf("Wrapped message marshal error: %v\n", err)
+		}
+
+		fmt.Printf("JSON |%s|\n", msg)
+	}
+
+	//t.Fail()
+
 }

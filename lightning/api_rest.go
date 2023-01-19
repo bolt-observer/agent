@@ -1,7 +1,8 @@
-package lightningapi
+package lightning
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -16,7 +17,8 @@ type LndRestLightningAPI struct {
 	Request   *http.Request
 	Transport *http.Transport
 	HTTPAPI   *HTTPAPI
-	LightningAPI
+	Name      string
+	API
 }
 
 // Compile time check for the interface
@@ -35,30 +37,31 @@ func NewLndRestLightningAPI(getData GetDataCall) LightingAPICalls {
 	api.SetTransport(transport)
 
 	return &LndRestLightningAPI{
-		Request:      request,
-		Transport:    transport,
-		HTTPAPI:      api,
-		LightningAPI: LightningAPI{GetNodeInfoFullThreshUseDescribeGraph: 500},
+		Request:   request,
+		Transport: transport,
+		HTTPAPI:   api,
+		Name:      "lndrest",
+		API:       API{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
 }
 
 // GetInfo - GetInfo API
 func (l *LndRestLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 
-	resp, err := l.HTTPAPI.HTTPGetInfo(ctx, l.Request, l.Transport)
+	resp, err := l.HTTPAPI.HTTPGetInfo(ctx, l.Request)
 
 	if err != nil {
 		return nil, err
 	}
 
 	ret := &InfoAPI{
-		Alias:          resp.Alias,
-		IdentityPubkey: resp.IdentityPubkey,
-		Chain:          resp.Chains[0].Chain,
-		Network:        resp.Chains[0].Network,
-		Version:        fmt.Sprintf("lnd-%s", resp.Version),
-		IsSyncedToGraph:  resp.SyncedToGraph,
-		IsSyncedToChain:  resp.SyncedToChain,
+		Alias:           resp.Alias,
+		IdentityPubkey:  resp.IdentityPubkey,
+		Chain:           resp.Chains[0].Chain,
+		Network:         resp.Chains[0].Network,
+		Version:         fmt.Sprintf("lnd-%s", resp.Version),
+		IsSyncedToGraph: resp.SyncedToGraph,
+		IsSyncedToChain: resp.SyncedToChain,
 	}
 
 	return ret, err
@@ -70,7 +73,24 @@ func (l *LndRestLightningAPI) Cleanup() {
 }
 
 func stringToUint64(str string) uint64 {
+	if str == "" {
+		return 0
+	}
+
 	ret, err := strconv.ParseUint(str, 10, 64)
+	if err != nil {
+		return 0
+	}
+
+	return ret
+}
+
+func stringToInt64(str string) int64 {
+	if str == "" {
+		return 0
+	}
+
+	ret, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
 		return 0
 	}
@@ -80,7 +100,7 @@ func stringToUint64(str string) uint64 {
 
 // GetChannels - GetChannels API
 func (l *LndRestLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
-	resp, err := l.HTTPAPI.HTTPGetChannels(ctx, l.Request, l.Transport)
+	resp, err := l.HTTPAPI.HTTPGetChannels(ctx, l.Request)
 
 	if err != nil {
 		return nil, err
@@ -142,7 +162,7 @@ func toPolicyWeb(policy *RoutingPolicyOverride) *RoutingPolicyAPI {
 // DescribeGraph - DescribeGraph API
 func (l *LndRestLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
 
-	resp, err := l.HTTPAPI.HTTPGetGraph(ctx, l.Request, l.Transport, unannounced)
+	resp, err := l.HTTPAPI.HTTPGetGraph(ctx, l.Request, unannounced)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +217,7 @@ func (l *LndRestLightningAPI) convertChan(edge *GraphEdgeOverride) NodeChannelAP
 
 // GetNodeInfo - GetNodeInfo API
 func (l *LndRestLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
-	resp, err := l.HTTPAPI.HTTPGetNodeInfo(ctx, l.Request, l.Transport, pubKey, channels)
+	resp, err := l.HTTPAPI.HTTPGetNodeInfo(ctx, l.Request, pubKey, channels)
 	if err != nil {
 		return nil, err
 	}
@@ -215,10 +235,331 @@ func (l *LndRestLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, ch
 
 // GetChanInfo - GetChanInfo API
 func (l *LndRestLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
-	resp, err := l.HTTPAPI.HTTPGetChanInfo(ctx, l.Request, l.Transport, chanID)
+	resp, err := l.HTTPAPI.HTTPGetChanInfo(ctx, l.Request, chanID)
 	if err != nil {
 		return nil, err
 	}
 	ret := l.convertChan(resp)
 	return &ret, nil
+}
+
+// SubscribeForwards - API call
+func (l *LndRestLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
+	panic("not implemented")
+}
+
+// GetInvoicesRaw - API call
+func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	param := &ListInvoiceRequestOverride{
+		NumMaxInvoices: fmt.Sprintf("%d", pagination.BatchSize),
+		IndexOffset:    fmt.Sprintf("%d", pagination.Offset),
+	}
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		param.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		param.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	if pagination.From != nil || pagination.To != nil {
+		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
+	}
+	*/
+
+	if pagination.Reversed {
+		param.Reversed = true
+	}
+
+	if pendingOnly {
+		param.PendingOnly = pendingOnly
+	}
+
+	resp, err := l.HTTPAPI.HTTPListInvoices(ctx, l.Request, param)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = stringToUint64(resp.LastIndexOffset)
+	respPagination.FirstOffsetIndex = stringToUint64(resp.FirstIndexOffset)
+
+	ret := make([]RawMessage, 0, len(resp.Invoices))
+
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
+	for _, invoice := range resp.Invoices {
+		t := time.Unix(stringToInt64(invoice.CreationDate), 0)
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      t,
+		}
+		m.Message, err = json.Marshal(invoice)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
+	return ret, respPagination, nil
+}
+
+// GetPaymentsRaw - API call
+func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	param := &ListPaymentsRequestOverride{
+		MaxPayments: fmt.Sprintf("%d", pagination.BatchSize),
+		IndexOffset: fmt.Sprintf("%d", pagination.Offset),
+	}
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		param.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		param.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	if pagination.From != nil || pagination.To != nil {
+		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
+	}
+	*/
+
+	if pagination.Reversed {
+		param.Reversed = true
+	}
+
+	if includeIncomplete {
+		param.IncludeIncomplete = includeIncomplete
+	}
+
+	resp, err := l.HTTPAPI.HTTPListPayments(ctx, l.Request, param)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = stringToUint64(resp.LastIndexOffset)
+	respPagination.FirstOffsetIndex = stringToUint64(resp.FirstIndexOffset)
+
+	ret := make([]RawMessage, 0, len(resp.Payments))
+
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
+	for _, payment := range resp.Payments {
+		t := time.Unix(stringToInt64(payment.CreationDate), 0)
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      t,
+		}
+		m.Message, err = json.Marshal(payment)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
+	return ret, respPagination, nil
+}
+
+// GetForwardsRaw - API call
+func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	param := &ForwardingHistoryRequestOverride{}
+
+	param.NumMaxEvents = uint32(pagination.BatchSize)
+	param.IndexOffset = uint32(pagination.Offset)
+
+	if pagination.From != nil {
+		param.StartTime = fmt.Sprintf("%d", pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		param.EndTime = fmt.Sprintf("%d", pagination.To.Unix())
+	}
+
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
+
+	resp, err := l.HTTPAPI.HTTPForwardEvents(ctx, l.Request, param)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = uint64(resp.LastOffsetIndex)
+	respPagination.FirstOffsetIndex = 0
+
+	ret := make([]RawMessage, 0, len(resp.ForwardingEvents))
+
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
+	for _, forward := range resp.ForwardingEvents {
+		t := time.Unix(0, stringToInt64(forward.TimestampNs))
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      t,
+		}
+		m.Message, err = json.Marshal(forward)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
+	return ret, respPagination, nil
+}
+
+// GetInvoices API
+func (l *LndRestLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
+
+	param := &ListInvoiceRequestOverride{
+		NumMaxInvoices: fmt.Sprintf("%d", pagination.BatchSize),
+		IndexOffset:    fmt.Sprintf("%d", pagination.Offset),
+	}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		param.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		param.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+	if pagination.From != nil || pagination.To != nil {
+		return nil, fmt.Errorf("from and to are not yet supported")
+	}
+
+	if pagination.Reversed {
+		param.Reversed = true
+	}
+
+	if pendingOnly {
+		param.PendingOnly = pendingOnly
+	}
+
+	resp, err := l.HTTPAPI.HTTPListInvoices(ctx, l.Request, param)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &InvoicesResponse{
+		Invoices: make([]Invoice, 0, len(resp.Invoices)),
+	}
+
+	ret.LastOffsetIndex = stringToUint64(resp.LastIndexOffset)
+	ret.FirstOffsetIndex = stringToUint64(resp.FirstIndexOffset)
+
+	for _, invoice := range resp.Invoices {
+		ret.Invoices = append(ret.Invoices, Invoice{
+			Memo:            invoice.Memo,
+			ValueMsat:       stringToInt64(invoice.ValueMsat),
+			PaidMsat:        stringToInt64(invoice.AmtPaidMsat),
+			CreationDate:    time.Unix(stringToInt64(invoice.CreationDate), 0),
+			SettleDate:      time.Unix(stringToInt64(invoice.SettleDate), 0),
+			PaymentRequest:  invoice.PaymentRequest,
+			DescriptionHash: string(invoice.DescriptionHash),
+			Expiry:          stringToInt64(invoice.Expiry),
+			FallbackAddr:    invoice.FallbackAddr,
+			CltvExpiry:      stringToUint64(invoice.CltvExpiry),
+			Private:         invoice.Private,
+			IsKeySend:       invoice.IsKeysend,
+			IsAmp:           invoice.IsAmp,
+			State:           StringToInvoiceHTLCState(invoice.State),
+			AddIndex:        stringToUint64(invoice.AddIndex),
+			SettleIndex:     stringToUint64(invoice.SettleIndex),
+		})
+	}
+
+	return ret, nil
+}
+
+// GetPayments API
+func (l *LndRestLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
+	param := &ListPaymentsRequestOverride{
+		MaxPayments: fmt.Sprintf("%d", pagination.BatchSize),
+		IndexOffset: fmt.Sprintf("%d", pagination.Offset),
+	}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		param.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		param.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+	if pagination.From != nil || pagination.To != nil {
+		return nil, fmt.Errorf("from and to are not yet supported")
+	}
+
+	if pagination.Reversed {
+		param.Reversed = true
+	}
+
+	if includeIncomplete {
+		param.IncludeIncomplete = includeIncomplete
+	}
+
+	resp, err := l.HTTPAPI.HTTPListPayments(ctx, l.Request, param)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &PaymentsResponse{
+		Payments: make([]Payment, 0, len(resp.Payments)),
+	}
+
+	return ret, nil
+}
+
+// SubscribeHtlcEvents API
+func (l *LndRestLightningAPI) SubscribeHtlcEvents(ctx context.Context) (<-chan *HtlcEventOverride, error) {
+	// Very thin wrapper
+	resp, err := l.HTTPAPI.HTTPSubscribeHtlcEvents(ctx, l.Request)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, err
+}
+
+// GetAPIType API
+func (l *LndRestLightningAPI) GetAPIType() APIType {
+	return LndRest
 }

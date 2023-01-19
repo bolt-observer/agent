@@ -1,4 +1,4 @@
-package lightningapi
+package lightning
 
 import (
 	"fmt"
@@ -48,6 +48,9 @@ func FromLndChanID(chanID uint64) string {
 // ConvertAmount - converts string amount to satoshis
 func ConvertAmount(s string) uint64 {
 	x := strings.ReplaceAll(s, "msat", "")
+	if x == "" {
+		return 0
+	}
 	ret, err := strconv.ParseUint(x, 10, 64)
 	if err != nil {
 		glog.Warningf("Could not convert: %v %v", s, err)

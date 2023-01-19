@@ -1,6 +1,7 @@
-package lightningapi
+package lightning
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -94,9 +95,10 @@ type ClnFundsChanResp struct {
 
 // ClnSocketLightningAPI struct
 type ClnSocketLightningAPI struct {
-	LightningAPI
+	API
 	Client  *rpc.Client
 	Timeout time.Duration
+	Name    string
 }
 
 // ClnListNodeAddr struct
@@ -119,4 +121,93 @@ type ClnListNode struct {
 // ClnListNodeResp struct
 type ClnListNodeResp struct {
 	Nodes []ClnListNode `json:"nodes,omitempty"`
+}
+
+// ClnForwardEntry struct
+type ClnForwardEntry struct {
+	InChannel    string            `json:"in_channel"`
+	InMsat       string            `json:"in_msat"`
+	Status       string            `json:"status"` // one of "offered", "settled", "local_failed", "failed"
+	ReceivedTime entities.JsonTime `json:"received_time"`
+
+	OutChannel string `json:"out_channel,omitempty"`
+	OutMsat    string `json:"out_msat,omitempty"`
+	FeeMsat    string `json:"fee_msat,omitempty"`
+	FailCode   uint32 `json:"fail_code,omitempty"`
+	FailReason string `json:"fail_reason,omitempty"`
+}
+
+// ClnForwardEntries struct
+type ClnForwardEntries struct {
+	Entries []ClnForwardEntry `json:"forwards,omitempty"`
+}
+
+// ClnRawMessageItf interface
+type ClnRawMessageItf interface {
+	GetEntries() []json.RawMessage
+}
+
+// ClnRawTimeItf interface
+type ClnRawTimeItf interface {
+	GetTime() uint64
+}
+
+// ClnRawForwardEntries struct
+type ClnRawForwardEntries struct {
+	Entries []json.RawMessage `json:"forwards,omitempty"`
+}
+
+// GetEntries to comply with ClnRawMessageItf
+func (r ClnRawForwardEntries) GetEntries() []json.RawMessage {
+	return r.Entries
+}
+
+// ClnRawInvoices struct
+type ClnRawInvoices struct {
+	Entries []json.RawMessage `json:"invoices,omitempty"`
+}
+
+// GetEntries to comply with ClnRawMessageItf
+func (r ClnRawInvoices) GetEntries() []json.RawMessage {
+	return r.Entries
+}
+
+// ClnRawPayments struct
+type ClnRawPayments struct {
+	Entries []json.RawMessage `json:"payments,omitempty"`
+}
+
+// GetEntries to comply with ClnRawMessageItf
+func (r ClnRawPayments) GetEntries() []json.RawMessage {
+	return r.Entries
+}
+
+// ClnRawPayTime struct
+type ClnRawPayTime struct {
+	Time uint64 `json:"created_at,omitempty"`
+}
+
+// GetTime to comply with ClnRawTimeItf
+func (r ClnRawPayTime) GetTime() uint64 {
+	return r.Time
+}
+
+// ClnRawInvoiceTime struct
+type ClnRawInvoiceTime struct {
+	Time uint64 `json:"expires_at,omitempty"`
+}
+
+// GetTime to comply with ClnRawTimeItf
+func (r ClnRawInvoiceTime) GetTime() uint64 {
+	return r.Time
+}
+
+// ClnRawForwardsTime struct
+type ClnRawForwardsTime struct {
+	Time uint64 `json:"received_time,omitempty"`
+}
+
+// GetTime to comply with ClnRawTimeItf
+func (r ClnRawForwardsTime) GetTime() uint64 {
+	return r.Time
 }

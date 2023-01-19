@@ -1,22 +1,27 @@
-package lightningapi
+package lightning
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
 	"github.com/bolt-observer/go_common/entities"
 	"github.com/golang/glog"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 )
 
 // LndGrpcLightningAPI struct
 type LndGrpcLightningAPI struct {
-	Client      lnrpc.LightningClient
-	CleanupFunc func()
-	LightningAPI
+	Client       lnrpc.LightningClient
+	RouterClient routerrpc.RouterClient
+	CleanupFunc  func()
+	Name         string
+
+	API
 }
 
 // Compile time check for the interface
@@ -24,7 +29,7 @@ var _ LightingAPICalls = &LndGrpcLightningAPI{}
 
 // NewLndGrpcLightningAPI - creates new lightning API
 func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
-	client, cleanup, err := GetClient(getData)
+	client, routerClient, cleanup, err := GetClient(getData)
 	if err != nil {
 		glog.Warningf("Failed to get client: %v", err)
 		return nil
@@ -32,8 +37,10 @@ func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
 
 	return &LndGrpcLightningAPI{
 		Client:       client,
+		RouterClient: routerClient,
 		CleanupFunc:  cleanup,
-		LightningAPI: LightningAPI{GetNodeInfoFullThreshUseDescribeGraph: 500},
+		API:          API{GetNodeInfoFullThreshUseDescribeGraph: 500},
+		Name:         "lndgrpc",
 	}
 }
 
@@ -55,13 +62,13 @@ func (l *LndGrpcLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	}
 
 	ret := &InfoAPI{
-		Alias:          resp.Alias,
-		IdentityPubkey: resp.IdentityPubkey,
-		Chain:          resp.Chains[0].Chain,
-		Network:        resp.Chains[0].Network,
-		Version:        fmt.Sprintf("lnd-%s", resp.Version),
-		IsSyncedToGraph:  resp.SyncedToGraph,
-		IsSyncedToChain:  resp.SyncedToChain,
+		Alias:           resp.Alias,
+		IdentityPubkey:  resp.IdentityPubkey,
+		Chain:           resp.Chains[0].Chain,
+		Network:         resp.Chains[0].Network,
+		Version:         fmt.Sprintf("lnd-%s", resp.Version),
+		IsSyncedToGraph: resp.SyncedToGraph,
+		IsSyncedToChain: resp.SyncedToChain,
 	}
 
 	return ret, err
@@ -217,4 +224,522 @@ func (l *LndGrpcLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 
 	ret := l.convertChan(resp)
 	return &ret, nil
+}
+
+func (l *LndGrpcLightningAPI) forwarding(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16, sleepTime time.Duration,
+	errorChan chan ErrorData, outChan chan []ForwardingEvent, errors *int) {
+	req := &lnrpc.ForwardingHistoryRequest{
+		NumMaxEvents: uint32(batchSize),
+		IndexOffset:  uint32(0),
+		StartTime:    uint64(since.Unix()),
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			// Do nothing
+		}
+
+		resp, err := l.Client.ForwardingHistory(ctx, req)
+
+		if err != nil {
+			if *errors >= int(maxErrors) {
+				errorChan <- ErrorData{Error: err, IsStillRunning: false}
+				return
+			}
+			errorChan <- ErrorData{Error: err, IsStillRunning: true}
+
+			time.Sleep(sleepTime)
+			*errors++
+			continue
+		}
+
+		if resp.ForwardingEvents == nil || len(resp.ForwardingEvents) == 0 {
+			return
+		}
+
+		batch := make([]ForwardingEvent, 0, batchSize)
+
+		for _, event := range resp.ForwardingEvents {
+			batch = append(batch, ForwardingEvent{
+				Timestamp:     time.Unix(0, int64(event.TimestampNs)),
+				ChanIDIn:      event.ChanIdIn,
+				ChanIDOut:     event.ChanIdOut,
+				AmountInMsat:  event.AmtInMsat,
+				AmountOutMsat: event.AmtOutMsat,
+				FeeMsat:       event.FeeMsat,
+				IsSuccess:     true,
+				FailureString: "",
+			})
+		}
+
+		outChan <- batch
+		req.IndexOffset = resp.LastOffsetIndex
+	}
+}
+
+func (l *LndGrpcLightningAPI) handleHTLC(ctx context.Context, maxErrors uint16, sleepTime time.Duration,
+	subscribeClient routerrpc.Router_SubscribeHtlcEventsClient, errorChan chan ErrorData, outChan chan []ForwardingEvent, errors *int) {
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			// Do nothing
+		}
+
+		event, err := subscribeClient.Recv()
+		if err == io.EOF {
+			errorChan <- ErrorData{Error: err, IsStillRunning: false}
+			return
+		}
+
+		if err != nil {
+			glog.Warningf("Error getting HTLC data %v\n", err)
+			if *errors >= int(maxErrors) {
+				errorChan <- ErrorData{Error: err, IsStillRunning: false}
+				return
+			}
+			errorChan <- ErrorData{Error: err, IsStillRunning: true}
+
+			time.Sleep(sleepTime)
+			*errors++
+			continue
+		}
+
+		if event.EventType != routerrpc.HtlcEvent_FORWARD {
+			// Ignore non-forward events
+			continue
+		}
+
+		in := uint64(0)
+		out := uint64(0)
+		fee := uint64(0)
+
+		success := true
+		failureString := ""
+
+		if event.GetForwardEvent() != nil {
+			in = event.GetForwardEvent().GetInfo().IncomingAmtMsat
+			out = event.GetForwardEvent().GetInfo().OutgoingAmtMsat
+
+		} else if event.GetLinkFailEvent() != nil {
+			in = event.GetLinkFailEvent().GetInfo().IncomingAmtMsat
+			out = event.GetLinkFailEvent().GetInfo().OutgoingAmtMsat
+			failureString = event.GetLinkFailEvent().FailureString
+			success = false
+		} else if event.GetForwardFailEvent() != nil {
+			success = false
+		}
+
+		if in > out {
+			fee = in - out
+		} else {
+			fee = 0
+		}
+
+		batch := []ForwardingEvent{{
+			Timestamp:     time.Unix(0, int64(event.TimestampNs)),
+			ChanIDIn:      event.IncomingChannelId,
+			ChanIDOut:     event.OutgoingChannelId,
+			AmountInMsat:  in,
+			AmountOutMsat: out,
+			FeeMsat:       fee,
+			IsSuccess:     success,
+			FailureString: failureString,
+		}}
+
+		outChan <- batch
+	}
+}
+
+func (l *LndGrpcLightningAPI) getSubscribeClient(ctx context.Context, maxErrors uint16, sleepTime time.Duration, errorChan chan ErrorData, errors *int) (*routerrpc.Router_SubscribeHtlcEventsClient, error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("abort")
+		default:
+			// Do nothing
+		}
+
+		subscribeClient, err := l.RouterClient.SubscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
+
+		if err != nil {
+			glog.Warningf("Error calling SubscribeHtlcEvents %v\n", err)
+			if *errors >= int(maxErrors) {
+				errorChan <- ErrorData{Error: err, IsStillRunning: false}
+				return nil, fmt.Errorf("timeout")
+			}
+			errorChan <- ErrorData{Error: err, IsStillRunning: true}
+
+			time.Sleep(sleepTime)
+			*errors++
+			continue
+		} else {
+			return &subscribeClient, nil
+		}
+	}
+
+	return nil, fmt.Errorf("timeout")
+}
+
+// SubscribeForwards API
+func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
+	// We will first try obtaining ForwadingHistory and then move to SubscribeHtlc
+	sleepTime := 5 * time.Second
+
+	errorChan := make(chan ErrorData, 1)
+	outChan := make(chan []ForwardingEvent)
+
+	if batchSize == 0 {
+		batchSize = l.API.GetDefaultBatchSize()
+	}
+
+	errors := 0
+
+	go func() {
+		l.forwarding(ctx, since, batchSize, maxErrors, sleepTime, errorChan, outChan, &errors)
+		subscribeClient, err := l.getSubscribeClient(ctx, maxErrors, sleepTime, errorChan, &errors)
+		if err == nil {
+			l.handleHTLC(ctx, maxErrors, sleepTime, *subscribeClient, errorChan, outChan, &errors)
+		}
+
+		errorChan <- ErrorData{Error: nil, IsStillRunning: false}
+	}()
+
+	return outChan, errorChan
+}
+
+// GetForwardsRaw API
+func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	req := &lnrpc.ForwardingHistoryRequest{
+		NumMaxEvents: uint32(pagination.BatchSize),
+		IndexOffset:  uint32(pagination.Offset),
+	}
+
+	if pagination.From != nil {
+		req.StartTime = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		req.EndTime = uint64(pagination.To.Unix())
+	}
+
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
+
+	resp, err := l.Client.ForwardingHistory(ctx, req)
+
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = uint64(resp.LastOffsetIndex)
+	respPagination.FirstOffsetIndex = 0
+
+	ret := make([]RawMessage, 0, len(resp.ForwardingEvents))
+
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
+	for _, forwarding := range resp.ForwardingEvents {
+		t := time.Unix(0, int64(forwarding.TimestampNs))
+
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      t,
+		}
+		m.Message, err = json.Marshal(forwarding)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
+	return ret, respPagination, nil
+}
+
+// GetInvoices API
+func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
+	req := &lnrpc.ListInvoiceRequest{
+		NumMaxInvoices: pagination.BatchSize,
+		IndexOffset:    pagination.Offset,
+		PendingOnly:    pendingOnly,
+	}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		req.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		req.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+
+	if pagination.From != nil || pagination.To != nil {
+		return nil, fmt.Errorf("from and to are not yet supported")
+	}
+
+	if pagination.Reversed {
+		req.Reversed = true
+	}
+
+	resp, err := l.Client.ListInvoices(ctx, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &InvoicesResponse{
+		Invoices: make([]Invoice, 0, len(resp.Invoices)),
+	}
+
+	ret.LastOffsetIndex = resp.LastIndexOffset
+	ret.FirstOffsetIndex = resp.FirstIndexOffset
+
+	for _, invoice := range resp.Invoices {
+		ret.Invoices = append(ret.Invoices, Invoice{
+			Memo:            invoice.Memo,
+			ValueMsat:       invoice.ValueMsat,
+			PaidMsat:        invoice.AmtPaidMsat,
+			CreationDate:    time.Unix(int64(invoice.CreationDate), 0),
+			SettleDate:      time.Unix(int64(invoice.SettleDate), 0),
+			PaymentRequest:  invoice.PaymentRequest,
+			DescriptionHash: string(invoice.DescriptionHash),
+			Expiry:          invoice.Expiry,
+			FallbackAddr:    invoice.FallbackAddr,
+			CltvExpiry:      invoice.CltvExpiry,
+			Private:         invoice.Private,
+			IsKeySend:       invoice.IsKeysend,
+			IsAmp:           invoice.IsAmp,
+			State:           InvoiceHTLCState(invoice.State.Number()),
+			AddIndex:        invoice.AddIndex,
+			SettleIndex:     invoice.SettleIndex,
+		})
+	}
+
+	return ret, nil
+}
+
+// GetInvoicesRaw API
+func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	req := &lnrpc.ListInvoiceRequest{
+		NumMaxInvoices: pagination.BatchSize,
+		IndexOffset:    pagination.Offset,
+		PendingOnly:    pendingOnly,
+	}
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		req.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		req.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	if pagination.From != nil || pagination.To != nil {
+		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
+	}
+	*/
+
+	if pagination.Reversed {
+		req.Reversed = true
+	}
+
+	resp, err := l.Client.ListInvoices(ctx, req)
+
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = resp.LastIndexOffset
+	respPagination.FirstOffsetIndex = resp.FirstIndexOffset
+
+	ret := make([]RawMessage, 0, len(resp.Invoices))
+
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
+	for _, invoice := range resp.Invoices {
+		t := time.Unix(invoice.CreationDate, 0)
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      t,
+		}
+		m.Message, err = json.Marshal(invoice)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
+	return ret, respPagination, nil
+}
+
+// GetPayments API
+func (l *LndGrpcLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
+	req := &lnrpc.ListPaymentsRequest{
+		IncludeIncomplete: includeIncomplete,
+		MaxPayments:       pagination.BatchSize,
+		IndexOffset:       pagination.Offset,
+	}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		req.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		req.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	*/
+	if pagination.From != nil || pagination.To != nil {
+		return nil, fmt.Errorf("from and to are not yet supported")
+	}
+
+	if pagination.Reversed {
+		req.Reversed = true
+	}
+
+	resp, err := l.Client.ListPayments(ctx, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &PaymentsResponse{
+		Payments: make([]Payment, 0, len(resp.Payments)),
+	}
+
+	ret.LastOffsetIndex = resp.LastIndexOffset
+	ret.FirstOffsetIndex = resp.FirstIndexOffset
+
+	for _, payment := range resp.Payments {
+
+		pay := Payment{
+			PaymentHash:     payment.PaymentHash,
+			ValueMsat:       payment.ValueMsat,
+			FeeMsat:         payment.FeeMsat,
+			PaymentPreimage: payment.PaymentPreimage,
+			PaymentRequest:  payment.PaymentRequest,
+			PaymentStatus:   PaymentStatus(payment.Status.Number()),
+			CreationTime:    time.Unix(0, payment.CreationTimeNs),
+			Index:           payment.PaymentIndex,
+			FailureReason:   PaymentFailureReason(payment.FailureReason.Number()),
+			HTLCAttempts:    make([]HTLCAttempt, 0),
+		}
+
+		for _, htlc := range payment.Htlcs {
+			attempt := HTLCAttempt{
+				ID:      htlc.AttemptId,
+				Status:  HTLCStatus(htlc.Status.Number()),
+				Attempt: time.Unix(0, htlc.AttemptTimeNs),
+				Resolve: time.Unix(0, htlc.AttemptTimeNs),
+			}
+
+			pay.HTLCAttempts = append(pay.HTLCAttempts, attempt)
+		}
+
+		ret.Payments = append(ret.Payments, pay)
+	}
+
+	return ret, nil
+}
+
+// GetPaymentsRaw API
+func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+	req := &lnrpc.ListPaymentsRequest{
+		IncludeIncomplete: includeIncomplete,
+		MaxPayments:       pagination.BatchSize,
+		IndexOffset:       pagination.Offset,
+	}
+	respPagination := &ResponseRawPagination{UseTimestamp: false}
+
+	/* TODO: Need to upgrade to 0.15.5!
+	if pagination.From != nil {
+		req.CreationDateStart = uint64(pagination.From.Unix())
+	}
+
+	if pagination.To != nil {
+		req.CreationDateEnd = uint64(pagination.To.Unix())
+	}
+	if pagination.From != nil || pagination.To != nil {
+		return nil, respPagination, fmt.Errorf("from and to are not yet supported")
+	}
+	*/
+
+	if pagination.Reversed {
+		req.Reversed = true
+	}
+
+	resp, err := l.Client.ListPayments(ctx, req)
+
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	respPagination.LastOffsetIndex = resp.LastIndexOffset
+	respPagination.FirstOffsetIndex = resp.FirstIndexOffset
+
+	ret := make([]RawMessage, 0, len(resp.Payments))
+
+	minTime := time.Unix(1<<63-1, 0)
+	maxTime := time.Unix(0, 0)
+
+	for _, payment := range resp.Payments {
+		t := time.Unix(0, payment.CreationTimeNs)
+		if t.Before(minTime) {
+			minTime = t
+		}
+		if t.After(maxTime) {
+			maxTime = t
+		}
+
+		m := RawMessage{
+			Implementation: l.Name,
+			Timestamp:      t,
+		}
+		m.Message, err = json.Marshal(payment)
+		if err != nil {
+			return nil, respPagination, err
+		}
+
+		ret = append(ret, m)
+	}
+
+	respPagination.FirstTime = minTime
+	respPagination.LastTime = maxTime
+
+	return ret, respPagination, nil
+}
+
+// GetAPIType API
+func (l *LndGrpcLightningAPI) GetAPIType() APIType {
+	return LndGrpc
 }

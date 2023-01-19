@@ -1,6 +1,11 @@
-package lightningapi
+package lightning
 
-import "github.com/lightningnetwork/lnd/lnrpc"
+import (
+	"encoding/json"
+
+	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
+)
 
 // A hack to override uint64 -> string (REST API)
 
@@ -107,4 +112,198 @@ type GraphEdgeOverride struct {
 	Node2Policy *RoutingPolicyOverride `json:"node2_policy,omitempty"`
 
 	lnrpc.ChannelEdge
+}
+
+// ForwardingHistoryRequestOverride struct
+type ForwardingHistoryRequestOverride struct {
+	StartTime string `json:"start_time,omitempty"`
+	EndTime   string `json:"end_time,omitempty"`
+
+	lnrpc.ForwardingHistoryRequest
+}
+
+// ForwardingHistoryResponseOverride struct
+type ForwardingHistoryResponseOverride struct {
+	ForwardingEvents []*ForwardingEventOverride `json:"forwarding_events,omitempty"`
+	lnrpc.ForwardingHistoryResponse
+}
+
+// ForwardingEventOverride struct
+type ForwardingEventOverride struct {
+	Timestamp   string `json:"timestamp,omitempty"`
+	ChanIDIn    string `json:"chan_id_in,omitempty"`
+	ChanIDOut   string `json:"chan_id_out,omitempty"`
+	AmtIn       string `json:"amt_in,omitempty"`
+	AmtOut      string `json:"amt_out,omitempty"`
+	Fee         string `json:"fee,omitempty"`
+	FeeMsat     string `json:"fee_msat,omitempty"`
+	AmtInMsat   string `json:"amt_in_msat,omitempty"`
+	AmtOutMsat  string `json:"amt_out_msat,omitempty"`
+	TimestampNs string `json:"timestamp_ns,omitempty"`
+
+	lnrpc.ForwardingEvent
+}
+
+// HtlcEventOverride struct
+type HtlcEventOverride struct {
+	IncomingChannelID string             `json:"incoming_channel_id,omitempty"`
+	OutgoingChannelID string             `json:"outgoing_channel_id,omitempty"`
+	IncomingHtlcID    string             `json:"incoming_htlc_id,omitempty"`
+	OutgoingHtlcID    string             `json:"outgoing_htlc_id,omitempty"`
+	TimestampNs       string             `json:"timestamp_ns,omitempty"`
+	EventType         string             `json:"event_type,omitempty"`
+	Event             HtlcEventComposite `json:"event,omitempty"`
+
+	routerrpc.HtlcEvent
+}
+
+// HtlcInfoOverride struct
+type HtlcInfoOverride struct {
+	IncomingAmtMsat string `json:"incoming_amt_msat,omitempty"`
+	OutgoingAmtMsat string `json:"outgoing_amt_msat,omitempty"`
+}
+
+// HtlcEventComposite struct (our abstraction over that mess with inheritance)
+type HtlcEventComposite struct {
+	Info          *HtlcInfoOverride `json:"info,omitempty"`
+	Preimage      string            `json:"preimage,omitempty"`
+	WireFailure   string            `json:"wire_failure,omitempty"`
+	FailureDetail string            `json:"failure_detail,omitempty"`
+	FailureString string            `json:"failure_string,omitempty"`
+}
+
+// ListInvoiceRequestOverride struct
+type ListInvoiceRequestOverride struct {
+	IndexOffset    string `json:"index_offset,omitempty"`
+	NumMaxInvoices string `json:"num_max_invoices,omitempty"`
+
+	lnrpc.ListInvoiceRequest
+}
+
+// ListInvoiceResponseOverride struct
+type ListInvoiceResponseOverride struct {
+	Invoices         []*InvoiceOverride `json:"invoices,omitempty"`
+	LastIndexOffset  string             `json:"last_index_offset,omitempty"`
+	FirstIndexOffset string             `json:"first_index_offset,omitempty"`
+
+	lnrpc.ListInvoiceResponse
+}
+
+// InvoiceOverride struct
+type InvoiceOverride struct {
+	Value        string `json:"value,omitempty"`
+	ValueMsat    string `json:"value_msat,omitempty"`
+	RPreimage    string `json:"r_preimage,omitempty"`
+	RHash        string `json:"r_hash,omitempty"`
+	CreationDate string `json:"creation_date,omitempty"`
+	SettleDate   string `json:"settle_date,omitempty"`
+	Expiry       string `json:"expiry,omitempty"`
+	CltvExpiry   string `json:"cltv_expiry,omitempty"`
+
+	AddIndex    string `json:"add_index,omitempty"`
+	SettleIndex string `json:"settle_index,omitempty"`
+	AmtPaid     string `json:"amt_paid,omitempty"`
+	AmtPaidSat  string `json:"amt_paid_sat,omitempty"`
+	AmtPaidMsat string `json:"amt_paid_msat,omitempty"`
+
+	DescriptionHash string               `json:"description_hash,omitempty"`
+	RouteHints      []*RouteHintOverride `json:"route_hints,omitempty"`
+	State           string               `json:"state,omitempty"`
+
+	// Ignore this stuff
+	Features        json.RawMessage `json:"features,omitempty"`
+	Htlcs           json.RawMessage `json:"htlcs,omitempty"`
+	AmpInvoiceState json.RawMessage `json:"amp_invoice_state,omitempty"`
+
+	lnrpc.Invoice
+}
+
+// RouteHintOverride struct
+type RouteHintOverride struct {
+	HopHints []*HopHintOverride `json:"hop_hints,omitempty"`
+
+	lnrpc.RouteHint
+}
+
+// HopHintOverride struct
+type HopHintOverride struct {
+	ChanID string `json:"chan_id,omitempty"`
+
+	lnrpc.HopHint
+}
+
+// ListPaymentsRequestOverride struct
+type ListPaymentsRequestOverride struct {
+	IndexOffset string `json:"index_offset,omitempty"`
+	MaxPayments string `json:"max_payments,omitempty"`
+
+	lnrpc.ListPaymentsRequest
+}
+
+// ListPaymentsResponseOverride struct
+type ListPaymentsResponseOverride struct {
+	Payments         []*PaymentOverride `json:"payments,omitempty"`
+	LastIndexOffset  string             `json:"last_index_offset,omitempty"`
+	FirstIndexOffset string             `json:"first_index_offset,omitempty"`
+	TotalNumPayments string             `json:"total_num_payments,omitempty"`
+
+	lnrpc.ListPaymentsResponse
+}
+
+// PaymentOverride struct
+type PaymentOverride struct {
+	Value          string                 `json:"value,omitempty"`
+	CreationDate   string                 `json:"creation_date,omitempty"`
+	Fee            string                 `json:"fee,omitempty"`
+	ValueSat       string                 `json:"value_sat,omitempty"`
+	ValueMsat      string                 `json:"value_msat,omitempty"`
+	Status         string                 `json:"status,omitempty"`
+	FeeSat         string                 `json:"fee_sat,omitempty"`
+	FeeMsat        string                 `json:"fee_msat,omitempty"`
+	CreationTimeNs string                 `json:"creation_time_ns,omitempty"`
+	Htlcs          []*HTLCAttemptOverride `json:"htlcs,omitempty"`
+	PaymentIndex   string                 `json:"payment_index,omitempty"`
+	FailureReason  string                 `json:"failure_reason,omitempty"`
+
+	lnrpc.Payment
+}
+
+// HTLCAttemptOverride struct
+type HTLCAttemptOverride struct {
+	AttemptID     string          `json:"attempt_id,omitempty"`
+	Status        string          `json:"status,omitempty"`
+	Route         *RouteOverride  `json:"route,omitempty"`
+	AttemptTimeNs string          `json:"attempt_time_ns,omitempty"`
+	ResolveTimeNs string          `json:"resolve_time_ns,omitempty"`
+	Failure       json.RawMessage `json:"failure,omitempty"` // ignore
+	Preimage      string          `protobuf:"bytes,6,opt,name=preimage,proto3" json:"preimage,omitempty"`
+
+	lnrpc.HTLCAttempt
+}
+
+// RouteOverride struct
+type RouteOverride struct {
+	TotalFees     string         `json:"total_fees,omitempty"`
+	TotalAmt      string         `json:"total_amt,omitempty"`
+	Hops          []*HopOverride `json:"hops,omitempty"`
+	TotalFeesMsat string         `json:"total_fees_msat,omitempty"`
+	TotalAmtMsat  string         `json:"total_amt_msat,omitempty"`
+
+	lnrpc.Route
+}
+
+// HopOverride struct
+type HopOverride struct {
+	ChanID           string          `json:"chan_id,omitempty"`
+	ChanCapacity     string          `json:"chan_capacity,omitempty"`
+	AmtToForward     string          `json:"amt_to_forward,omitempty"`
+	Fee              string          `json:"fee,omitempty"`
+	AmtToForwardMsat string          `json:"amt_to_forward_msat,omitempty"`
+	FeeMsat          string          `json:"fee_msat,omitempty"`
+	MppRecord        json.RawMessage `json:"mpp_record,omitempty"`     // ignore
+	AmpRecord        json.RawMessage `json:"amp_record,omitempty"`     // ignore
+	CustomRecords    json.RawMessage `json:"custom_records,omitempty"` // ignore
+	Metadata         string          `json:"metadata,omitempty"`
+
+	lnrpc.Hop
 }
