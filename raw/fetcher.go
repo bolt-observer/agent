@@ -15,6 +15,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ReportBatch is how often a log is printed to show progress
+const ReportBatch = 10
+
 // Fetcher struct
 type Fetcher struct {
 	AuthToken    string
@@ -58,8 +61,11 @@ func MakeFetcher(ctx context.Context, authToken string, endpoint string, l api.L
 }
 
 func makePermanent(err error) error {
-	// TODO: remove
-	fmt.Printf("%+v %s\n", err, err.Error())
+	if err == nil {
+		return nil
+	}
+
+	fmt.Printf("Error: %+v\n", err)
 
 	st := status.Convert(err)
 	if st.Code() == codes.Unknown {
@@ -71,30 +77,47 @@ func makePermanent(err error) error {
 	return err
 }
 
-// FetchInvoices will fetch and report invoices
-func (f *Fetcher) FetchInvoices(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
+// FetcherGetTime a function signature to get time
+type FetcherGetTime func(ctx context.Context) (*agent.TimestampResponse, error)
 
+// FetcherGetChan a function signature to get chan
+type FetcherGetChan func(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage
+
+// FetcherPushData a function signature to push data
+type FetcherPushData func(ctx context.Context, data *agent.DataRequest) error
+
+func (f *Fetcher) fetch(
+	ctx context.Context,
+	methodName string,
+	entityName string,
+	getTime FetcherGetTime,
+	getChan FetcherGetChan,
+	pushData FetcherPushData,
+	shouldUpdateTimeToLatest bool,
+	from time.Time) {
+
+	// TODO: fix this
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
 
-	defer glog.Warningf("FetchInvoices stopped running")
+	defer glog.Warningf("%s stopped running", methodName)
 
 	if shouldUpdateTimeToLatest {
-		ts, err := f.AgentAPI.LatestInvoiceTimestamp(ctx, &agent.Empty{})
+		ts, err := getTime(ctx)
 
 		if err != nil {
-			glog.Warningf("Coud not get latest invoice timestamps: %v", err)
+			glog.Warningf("Coud not get latest %s timestamps: %v", entityName, err)
 		}
 
 		if ts != nil {
 			t := time.Unix(0, ts.Timestamp)
-			glog.V(2).Infof("Latest invoice timestamp: %v", t)
+			glog.V(2).Infof("Latest %s timestamp: %v", entityName, t)
 			if t.After(from) {
 				from = t
 			}
 		}
 	}
 
-	outchan := GetInvoicesChannel(ctx, f.LightningAPI, from)
+	outchan := getChan(ctx, f.LightningAPI, from)
 
 	cnt := 0
 
@@ -105,148 +128,83 @@ func (f *Fetcher) FetchInvoices(ctx context.Context, shouldUpdateTimeToLatest bo
 		select {
 		case <-ctx.Done():
 			return
-		case invoice := <-outchan:
+		case entity := <-outchan:
 			data := &agent.DataRequest{
-				Timestamp: invoice.Timestamp.UnixNano(),
-				Data:      string(invoice.Message),
+				Timestamp: entity.Timestamp.UnixNano(),
+				Data:      string(entity.Message),
 			}
 
 			err := backoff.RetryNotify(func() error {
-				_, err := f.AgentAPI.Invoices(ctx, data)
+				err := pushData(ctx, data)
 				return makePermanent(err)
 			}, b, func(e error, d time.Duration) {
 				glog.Warningf("Could not send data to GRPC endpoint: %v %v", data, e)
 			})
 
 			if err != nil {
-				glog.Warningf("Fatal error in FetchInvoices: %v", err)
+				glog.Warningf("Fatal error in %s: %v", methodName, err)
 				return
 			}
 
 			cnt++
-			if cnt%10 == 0 {
-				glog.V(2).Infof("Reported %d invoices (last timestamp %v)", cnt, invoice.Timestamp)
+			if cnt%ReportBatch == 0 {
+				glog.V(2).Infof("Reported %d %s (last timestamp %v)", cnt, entityName, entity.Timestamp)
 			}
 		}
 	}
+}
+
+// FetchInvoices will fetch and report invoices
+func (f *Fetcher) FetchInvoices(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
+	getTime := func(ctx context.Context) (*agent.TimestampResponse, error) {
+		return f.AgentAPI.LatestInvoiceTimestamp(ctx, &agent.Empty{})
+	}
+
+	getChan := func(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
+		return GetInvoicesChannel(ctx, itf, from)
+	}
+
+	pushData := func(ctx context.Context, data *agent.DataRequest) error {
+		_, err := f.AgentAPI.Invoices(ctx, data)
+		return err
+	}
+
+	f.fetch(ctx, "FetchInvoices", "invoices", getTime, getChan, pushData, shouldUpdateTimeToLatest, from)
 }
 
 // FetchForwards will fetch and report forwards
 func (f *Fetcher) FetchForwards(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
 
-	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
-
-	defer glog.Warningf("FetchForwards stopped running")
-
-	if shouldUpdateTimeToLatest {
-		ts, err := f.AgentAPI.LatestForwardTimestamp(ctx, &agent.Empty{})
-
-		if err != nil {
-			glog.Warningf("Coud not get latest forward timestamps: %v", err)
-		}
-
-		if ts != nil {
-			t := time.Unix(0, ts.Timestamp)
-			glog.V(2).Infof("Latest forwards timestamp: %v", t)
-			if t.After(from) {
-				from = t
-			}
-		}
+	getTime := func(ctx context.Context) (*agent.TimestampResponse, error) {
+		return f.AgentAPI.LatestForwardTimestamp(ctx, &agent.Empty{})
 	}
 
-	outchan := GetForwardsChannel(ctx, f.LightningAPI, from)
-
-	cnt := 0
-
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = 0
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case forward := <-outchan:
-			data := &agent.DataRequest{
-				Timestamp: forward.Timestamp.UnixNano(),
-				Data:      string(forward.Message),
-			}
-
-			err := backoff.RetryNotify(func() error {
-				_, err := f.AgentAPI.Forwards(ctx, data)
-				return makePermanent(err)
-			}, b, func(e error, d time.Duration) {
-				glog.Warningf("Could not send data to GRPC endpoint: %v %v", data, e)
-			})
-
-			if err != nil {
-				glog.Warningf("Fatal error in FetchForwards: %v", err)
-				return
-			}
-
-			cnt++
-			if cnt%10 == 0 {
-				glog.V(2).Infof("Reported %d forwards (last timestamp %v)", cnt, forward.Timestamp)
-			}
-		}
+	getChan := func(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
+		return GetForwardsChannel(ctx, itf, from)
 	}
+
+	pushData := func(ctx context.Context, data *agent.DataRequest) error {
+		_, err := f.AgentAPI.Forwards(ctx, data)
+		return err
+	}
+
+	f.fetch(ctx, "FetchForwards", "forwards", getTime, getChan, pushData, shouldUpdateTimeToLatest, from)
 }
 
 // FetchPayments will fetch and report payments
 func (f *Fetcher) FetchPayments(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
-
-	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
-
-	defer glog.Warningf("FetchPayments stopped running")
-
-	if shouldUpdateTimeToLatest {
-		ts, err := f.AgentAPI.LatestPaymentTimestamp(ctx, &agent.Empty{})
-
-		if err != nil {
-			glog.Warningf("Coud not get latest forward timestamps: %v", err)
-		}
-
-		if ts != nil {
-			t := time.Unix(0, ts.Timestamp)
-			glog.V(2).Infof("Latest payments timestamp: %v", t)
-			if t.After(from) {
-				from = t
-			}
-		}
+	getTime := func(ctx context.Context) (*agent.TimestampResponse, error) {
+		return f.AgentAPI.LatestPaymentTimestamp(ctx, &agent.Empty{})
 	}
 
-	outchan := GetPaymentsChannel(ctx, f.LightningAPI, from)
-
-	cnt := 0
-
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = 0
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case payment := <-outchan:
-			data := &agent.DataRequest{
-				Timestamp: payment.Timestamp.UnixNano(),
-				Data:      string(payment.Message),
-			}
-
-			err := backoff.RetryNotify(func() error {
-				_, err := f.AgentAPI.Payments(ctx, data)
-				return makePermanent(err)
-			}, b, func(e error, d time.Duration) {
-				glog.Warningf("Could not send data to GRPC endpoint: %v %v", data, e)
-			})
-
-			if err != nil {
-				glog.Warningf("Fatal error in FetchPayments: %v", err)
-				return
-			}
-
-			cnt++
-			if cnt%10 == 0 {
-				glog.V(2).Infof("Reported %d payments (last timestamp %v)", cnt, payment.Timestamp)
-			}
-		}
+	getChan := func(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
+		return GetPaymentsChannel(ctx, itf, from)
 	}
+
+	pushData := func(ctx context.Context, data *agent.DataRequest) error {
+		_, err := f.AgentAPI.Payments(ctx, data)
+		return err
+	}
+
+	f.fetch(ctx, "FetchPayments", "payments", getTime, getChan, pushData, shouldUpdateTimeToLatest, from)
 }

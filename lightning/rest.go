@@ -355,6 +355,7 @@ func (h *HTTPAPI) doRequest(req *http.Request, data any) error {
 
 	err = decoder.Decode(&data)
 	if err != nil {
+
 		return fmt.Errorf("got error %v", err)
 	}
 

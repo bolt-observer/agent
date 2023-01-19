@@ -68,14 +68,14 @@ func findUnixSocket(paths ...string) string {
 	return ""
 }
 
-func getData(ctx *cli.Context) (*entities.Data, error) {
+func getData(cmdCtx *cli.Context) (*entities.Data, error) {
 	resp := &entities.Data{}
-	resp.Endpoint = ctx.String("rpcserver")
+	resp.Endpoint = cmdCtx.String("rpcserver")
 	resp.ApiType = nil
 
 	// Assume CLN first (shouldn't really matter unless you have CLN and LND on the same machine, then you can select LND through "ignorecln")
-	if !ctx.Bool("ignorecln") {
-		path := findUnixSocket(filepath.Join(defaultLightningDir, ctx.String("chain"), "lightning-rpc"), resp.Endpoint)
+	if !cmdCtx.Bool("ignorecln") {
+		path := findUnixSocket(filepath.Join(defaultLightningDir, cmdCtx.String("chain"), "lightning-rpc"), resp.Endpoint)
 		if path != "" {
 			resp.Endpoint = path
 			v := int(api.ClnSocket)
@@ -84,7 +84,7 @@ func getData(ctx *cli.Context) (*entities.Data, error) {
 	}
 
 	if resp.ApiType == nil {
-		if ctx.Bool("userest") {
+		if cmdCtx.Bool("userest") {
 			v := int(api.LndRest)
 			resp.ApiType = &v
 		} else {
@@ -98,7 +98,7 @@ func getData(ctx *cli.Context) (*entities.Data, error) {
 		return resp, nil
 	}
 
-	tlsCertPath, macPath, err := extractPathArgs(ctx)
+	tlsCertPath, macPath, err := extractPathArgs(cmdCtx)
 	if err != nil {
 		return nil, fmt.Errorf("could not extractPathArgs %v", err)
 	}
@@ -335,9 +335,9 @@ func getApp() *cli.App {
 	return app
 }
 
-func getInterval(ctx *cli.Context, name string) (agent_entities.Interval, error) {
+func getInterval(cmdCtx *cli.Context, name string) (agent_entities.Interval, error) {
 	i := agent_entities.Interval(0)
-	s := strings.ToLower(ctx.String(name))
+	s := strings.ToLower(cmdCtx.String(name))
 
 	err := i.UnmarshalJSON([]byte(s))
 	if err != nil {
@@ -456,10 +456,10 @@ func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport
 	return true
 }
 
-func mkGetLndAPI(ctx *cli.Context) agent_entities.NewAPICall {
+func mkGetLndAPI(cmdCtx *cli.Context) agent_entities.NewAPICall {
 	return func() api.LightingAPICalls {
 		return api.NewAPI(api.LndGrpc, func() (*entities.Data, error) {
-			return getData(ctx)
+			return getData(cmdCtx)
 		})
 	}
 }
@@ -512,13 +512,13 @@ func signalHandler(ctx context.Context, f filter.FilteringInterface) {
 	os.Exit(code)
 }
 
-func nodeDataChecker(ctx *cli.Context) error {
+func nodeDataChecker(cmdCtx *cli.Context) error {
 	apiKey = utils.GetEnvWithDefault("API_KEY", "")
 	if apiKey == "" {
-		apiKey = ctx.String("apikey")
+		apiKey = cmdCtx.String("apikey")
 	}
 
-	if apiKey == "" && ctx.String("url") != "" {
+	if apiKey == "" && cmdCtx.String("url") != "" {
 		// We don't return error here since we don't want glog to handle it
 		fmt.Fprintf(os.Stderr, "missing API key (use --apikey or set API_KEY environment variable)\n")
 		os.Exit(1)
@@ -529,8 +529,8 @@ func nodeDataChecker(ctx *cli.Context) error {
 	var err error
 
 	f, _ := filter.NewAllowAllFilter()
-	if ctx.String(whitelist) != "" {
-		if _, err = os.Stat(ctx.String(whitelist)); err != nil {
+	if cmdCtx.String(whitelist) != "" {
+		if _, err = os.Stat(cmdCtx.String(whitelist)); err != nil {
 			// We don't return error here since we don't want glog to handle it
 			fmt.Fprintf(os.Stderr, "%s points to non-existing file", whitelist)
 			os.Exit(1)
@@ -538,15 +538,15 @@ func nodeDataChecker(ctx *cli.Context) error {
 
 		o := filter.None
 
-		if ctx.Bool("private") {
+		if cmdCtx.Bool("private") {
 			o |= filter.AllowAllPrivate
 		}
 
-		if ctx.Bool("public") {
+		if cmdCtx.Bool("public") {
 			o |= filter.AllowAllPublic
 		}
 
-		f, err = filter.NewFilterFromFile(ct, ctx.String(whitelist), o)
+		f, err = filter.NewFilterFromFile(ct, cmdCtx.String(whitelist), o)
 		if err != nil {
 			return err
 		}
@@ -554,36 +554,36 @@ func nodeDataChecker(ctx *cli.Context) error {
 
 	go signalHandler(ct, f)
 
-	url = ctx.String("url")
-	private = ctx.Bool("private") || ctx.String(whitelist) != ""
+	url = cmdCtx.String("url")
+	private = cmdCtx.Bool("private") || cmdCtx.String(whitelist) != ""
 
-	interval, err := getInterval(ctx, "interval")
+	interval, err := getInterval(cmdCtx, "interval")
 	if err != nil {
 		return err
 	}
 
-	preferipv4 = ctx.Bool("preferipv4")
+	preferipv4 = cmdCtx.Bool("preferipv4")
 
 	if interval == agent_entities.Second {
 		// Second is just for testing purposes
 		interval = agent_entities.TenSeconds
 	}
 
-	nodeDataChecker := nodedata.NewDefaultNodeData(ct, ctx.Duration("keepalive"), ctx.Bool("smooth"), ctx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedata checker"))
+	nodeDataChecker := nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedata checker"))
 
-	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: ctx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
+	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
-	fetcher(ct, ctx, apiKey)
+	fetcher(ct, cmdCtx, apiKey)
 
 	if settings.PollInterval == agent_entities.ManualRequest {
-		nodeDataChecker.GetState("", ctx.String("uniqueid"), mkGetLndAPI(ctx), settings, nodeDataCallback)
+		nodeDataChecker.GetState("", cmdCtx.String("uniqueid"), mkGetLndAPI(cmdCtx), settings, nodeDataCallback)
 	} else {
 		err = nodeDataChecker.Subscribe(
 			nodeDataCallback,
-			mkGetLndAPI(ctx),
+			mkGetLndAPI(cmdCtx),
 			"",
 			settings,
-			ctx.String("uniqueid"),
+			cmdCtx.String("uniqueid"),
 		)
 
 		if err != nil {
@@ -603,9 +603,7 @@ type fetchSettings struct {
 	useLatestTimeFromServer bool
 }
 
-func convertTimeSetting(ctx *cli.Context, name string) fetchSettings {
-	fetchSettingsValue := ctx.Int64(name)
-
+func convertTimeSetting(fetchSettingsValue int64) fetchSettings {
 	fetchSettingsAbsValue := int64(0)
 	if fetchSettingsValue < 0 {
 		fetchSettingsAbsValue = -fetchSettingsValue
@@ -620,34 +618,34 @@ func convertTimeSetting(ctx *cli.Context, name string) fetchSettings {
 	}
 }
 
-func fetcher(ct context.Context, ctx *cli.Context, apiKey string) {
-	if ctx.String("datastore-url") != "" && apiKey != "" {
-		glog.Infof("Datastore server URL: %s", ctx.String("datastore-url"))
+func fetcher(ctx context.Context, cmdCtx *cli.Context, apiKey string) {
+	if cmdCtx.String("datastore-url") != "" && apiKey != "" {
+		glog.Infof("Datastore server URL: %s", cmdCtx.String("datastore-url"))
 
-		lightningAPI := mkGetLndAPI(ctx)()
+		lightningAPI := mkGetLndAPI(cmdCtx)()
 		if lightningAPI == nil {
 			glog.Warningf("GRPC get ligtning failure\n")
 			return
 		}
-		f, err := raw.MakeFetcher(ct, apiKey, ctx.String("datastore-url"), lightningAPI)
+		f, err := raw.MakeFetcher(ctx, apiKey, cmdCtx.String("datastore-url"), lightningAPI)
 		if err != nil {
 			glog.Warningf("GRPC get fetcher failure %v\n", err)
 			return
 		}
 
-		s := convertTimeSetting(ctx, "fetch-invoices")
+		s := convertTimeSetting(cmdCtx.Int64("fetch-invoices"))
 		if s.enabled {
 			glog.Infof("Fetching invoices after %v\n", s.time)
 			go f.FetchInvoices(context.Background(), s.useLatestTimeFromServer, s.time)
 		}
 
-		s = convertTimeSetting(ctx, "fetch-forwards")
+		s = convertTimeSetting(cmdCtx.Int64("fetch-forwards"))
 		if s.enabled {
 			glog.Infof("Fetching forwards after %v\n", s.time)
 			go f.FetchForwards(context.Background(), s.useLatestTimeFromServer, s.time)
 		}
 
-		s = convertTimeSetting(ctx, "fetch-payments")
+		s = convertTimeSetting(cmdCtx.Int64("fetch-payments"))
 		if s.enabled {
 			glog.Infof("Fetching payments after %v\n", s.time)
 			go f.FetchPayments(context.Background(), s.useLatestTimeFromServer, s.time)
@@ -659,9 +657,9 @@ func main() {
 	app := getApp()
 	app.Name = "balance-agent"
 	app.Usage = "Utility to monitor channel balances"
-	app.Action = func(c *cli.Context) error {
-		glogShim(c)
-		if err := nodeDataChecker(c); err != nil {
+	app.Action = func(cmdCtx *cli.Context) error {
+		glogShim(cmdCtx)
+		if err := nodeDataChecker(cmdCtx); err != nil {
 			return err
 		}
 

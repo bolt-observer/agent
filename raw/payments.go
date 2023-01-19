@@ -11,6 +11,9 @@ import (
 // GetRawData - signature for the function to get raw data
 type GetRawData func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error)
 
+// DefaultBatchSize is the default batch size
+const DefaultBatchSize = 50
+
 // GetPaymentsChannel returns payments
 func GetPaymentsChannel(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
@@ -20,7 +23,7 @@ func GetPaymentsChannel(ctx context.Context, itf api.LightingAPICalls, from time
 			return itf.GetPaymentsRaw(ctx, false, pagination)
 		},
 		from,
-		3,
+		3, // using a small batch size here because more did not work fine with test lnd node (due to big payload size)
 		outchan)
 
 	return outchan
@@ -35,7 +38,7 @@ func GetInvoicesChannel(ctx context.Context, itf api.LightingAPICalls, from time
 			return itf.GetInvoicesRaw(ctx, false, pagination)
 		},
 		from,
-		50,
+		DefaultBatchSize,
 		outchan)
 
 	return outchan
@@ -50,7 +53,7 @@ func GetForwardsChannel(ctx context.Context, itf api.LightingAPICalls, from time
 			return itf.GetForwardsRaw(ctx, pagination)
 		},
 		from,
-		50,
+		DefaultBatchSize,
 		outchan)
 
 	return outchan
