@@ -14,14 +14,14 @@ type GetRawData func(ctx context.Context, itf api.LightingAPICalls, pagination a
 // DefaultBatchSize is the default batch size
 const DefaultBatchSize = 50
 
-// GetPaymentsChannel returns payments
+// GetPaymentsChannel returns a channel with raw payments
 func GetPaymentsChannel(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
-	go paginator(ctx, itf,
+	go paginator(ctx, itf, GetRawData(
 		func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
 			return itf.GetPaymentsRaw(ctx, false, pagination)
-		},
+		}),
 		from,
 		3, // using a small batch size here because more did not work fine with test lnd node (due to big payload size)
 		outchan)
@@ -29,14 +29,14 @@ func GetPaymentsChannel(ctx context.Context, itf api.LightingAPICalls, from time
 	return outchan
 }
 
-// GetInvoicesChannel returns invoices
+// GetInvoicesChannel returns a channel with raw invoices
 func GetInvoicesChannel(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
-	go paginator(ctx, itf,
+	go paginator(ctx, itf, GetRawData(
 		func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
 			return itf.GetInvoicesRaw(ctx, false, pagination)
-		},
+		}),
 		from,
 		DefaultBatchSize,
 		outchan)
@@ -44,14 +44,14 @@ func GetInvoicesChannel(ctx context.Context, itf api.LightingAPICalls, from time
 	return outchan
 }
 
-// GetForwardsChannel returns forwards
+// GetForwardsChannel returns a channel with raw forwards
 func GetForwardsChannel(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
-	go paginator(ctx, itf,
+	go paginator(ctx, itf, GetRawData(
 		func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
 			return itf.GetForwardsRaw(ctx, pagination)
-		},
+		}),
 		from,
 		DefaultBatchSize,
 		outchan)

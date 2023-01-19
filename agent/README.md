@@ -1,6 +1,9 @@
-# New API endpoint
+# Agent
 
-Use
+This is the GRPC client side.
+
+## Usage
+
 ```
 ./gen.sh
 ```
