@@ -3,6 +3,7 @@ package lightning
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
@@ -204,10 +205,10 @@ func (r ClnRawInvoiceTime) GetTime() uint64 {
 
 // ClnRawForwardsTime struct
 type ClnRawForwardsTime struct {
-	Time uint64 `json:"received_time,omitempty"`
+	Time float64 `json:"received_time,omitempty"`
 }
 
 // GetTime to comply with ClnRawTimeItf
 func (r ClnRawForwardsTime) GetTime() uint64 {
-	return r.Time
+	return uint64(math.Round(r.Time * 1000))
 }

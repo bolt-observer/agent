@@ -512,10 +512,11 @@ func (l *ClnSocketLightningAPI) SubscribeForwards(ctx context.Context, since tim
 	return outChan, errorChan
 }
 
-func (l *ClnSocketLightningAPI) getRaw(ctx context.Context, reply ClnRawMessageItf, gettime ClnRawTimeItf, method string, pagination *RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+func getRaw[R ClnRawMessageItf, T ClnRawTimeItf](ctx context.Context, l *ClnSocketLightningAPI, reply R, gettime T, method string, pagination *RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	respPagination := &ResponseRawPagination{UseTimestamp: true}
 
 	err := l.CallWithTimeout(method, []interface{}{}, &reply)
+
 	if err != nil {
 		return nil, respPagination, err
 	}
@@ -566,7 +567,7 @@ func (l *ClnSocketLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly 
 		gettime ClnRawInvoiceTime
 	)
 
-	return l.getRaw(ctx, reply, gettime, LISTINVOICES, &pagination)
+	return getRaw(ctx, l, reply, gettime, LISTINVOICES, &pagination)
 }
 
 // GetPaymentsRaw - API call
@@ -576,7 +577,7 @@ func (l *ClnSocketLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncom
 		gettime ClnRawPayTime
 	)
 
-	return l.getRaw(ctx, reply, gettime, LISTPAYMENTS, &pagination)
+	return getRaw(ctx, l, reply, gettime, LISTPAYMENTS, &pagination)
 }
 
 // GetForwardsRaw - API call
@@ -586,7 +587,7 @@ func (l *ClnSocketLightningAPI) GetForwardsRaw(ctx context.Context, pagination R
 		gettime ClnRawForwardsTime
 	)
 
-	return l.getRaw(ctx, reply, gettime, LISTFORWARDS, &pagination)
+	return getRaw(ctx, l, reply, gettime, LISTFORWARDS, &pagination)
 }
 
 // GetInvoices - API call
