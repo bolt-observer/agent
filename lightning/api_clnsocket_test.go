@@ -280,11 +280,12 @@ func TestClnGetForwardsRaw(t *testing.T) {
 	resp, _, err := api.GetForwardsRaw(context.Background(), RawPagination{})
 	assert.NoError(t, err)
 	assert.Equal(t, 10, len(resp))
+	assert.Equal(t, 2023, resp[0].Timestamp.Year())
 }
 
 func TestClnGetInvoicesRaw(t *testing.T) {
 
-	data := clnData(t, "cln_invoices")
+	data := clnData(t, "cln_listinvoices")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
 		buf := make([]byte, BUFSIZE)
@@ -322,6 +323,7 @@ func TestClnGetInvoicesRaw(t *testing.T) {
 	resp, _, err := api.GetInvoicesRaw(context.Background(), false, RawPagination{})
 	assert.NoError(t, err)
 	assert.Equal(t, 10, len(resp))
+	assert.Equal(t, 2023, resp[0].Timestamp.Year())
 }
 
 func TestClnGetPaymentsRaw(t *testing.T) {
@@ -364,4 +366,5 @@ func TestClnGetPaymentsRaw(t *testing.T) {
 	resp, _, err := api.GetPaymentsRaw(context.Background(), false, RawPagination{})
 	assert.NoError(t, err)
 	assert.Equal(t, 10, len(resp))
+	assert.Equal(t, 2023, resp[0].Timestamp.Year())
 }

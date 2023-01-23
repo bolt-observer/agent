@@ -190,7 +190,7 @@ type ClnRawPayTime struct {
 
 // GetTime to comply with ClnRawTimeItf
 func (r ClnRawPayTime) GetTime() uint64 {
-	return r.Time
+	return r.Time * 1000
 }
 
 // ClnRawInvoiceTime struct
@@ -200,7 +200,7 @@ type ClnRawInvoiceTime struct {
 
 // GetTime to comply with ClnRawTimeItf
 func (r ClnRawInvoiceTime) GetTime() uint64 {
-	return r.Time
+	return r.Time * 1000
 }
 
 // ClnRawForwardsTime struct

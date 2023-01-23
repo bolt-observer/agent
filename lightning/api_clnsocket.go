@@ -536,7 +536,7 @@ func getRaw[R ClnRawMessageItf, T ClnRawTimeItf](ctx context.Context, l *ClnSock
 			return nil, respPagination, err
 		}
 
-		t := time.Unix(int64(gettime.GetTime()), 0)
+		t := time.Unix(0, int64(gettime.GetTime()*1e6))
 
 		if t.Before(minTime) {
 			minTime = t
