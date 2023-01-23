@@ -43,13 +43,13 @@ GLOBAL OPTIONS:
 ```
 
 It tries the best to have sane defaults so you can just start it up on your node without further hassle.
-If you have a strange lnd dir (`/storage` in the example) you might need:
+If you have a custom lnd dir (`/storage` in the example) you might need:
 ```
 balance-agent --lnddir /storage/lnd/ --tlscertpath /storage/lnd/data/secrets/lnd.cert
 ```
 but that should be it.
 
-Only thing that is mandatory is apikey which can also be provided through `API_KEY` environment variable.
+Only thing that is mandatory is the apikey which can also be provided through `API_KEY` environment variable.
 
 By default it will try to communicate with LND using local gRPC connection and `readonly.macaroon`.
 
