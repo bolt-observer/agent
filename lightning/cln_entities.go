@@ -3,6 +3,7 @@ package lightning
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
@@ -149,7 +150,7 @@ type ClnRawMessageItf interface {
 
 // ClnRawTimeItf interface
 type ClnRawTimeItf interface {
-	GetTime() uint64
+	GetUnixTimeMs() uint64
 }
 
 // ClnRawForwardEntries struct
@@ -187,9 +188,9 @@ type ClnRawPayTime struct {
 	Time uint64 `json:"created_at,omitempty"`
 }
 
-// GetTime to comply with ClnRawTimeItf
-func (r ClnRawPayTime) GetTime() uint64 {
-	return r.Time
+// GetUnixTimeMs to comply with ClnRawTimeItf
+func (r ClnRawPayTime) GetUnixTimeMs() uint64 {
+	return r.Time * 1000
 }
 
 // ClnRawInvoiceTime struct
@@ -197,17 +198,17 @@ type ClnRawInvoiceTime struct {
 	Time uint64 `json:"expires_at,omitempty"`
 }
 
-// GetTime to comply with ClnRawTimeItf
-func (r ClnRawInvoiceTime) GetTime() uint64 {
-	return r.Time
+// GetUnixTimeMs to comply with ClnRawTimeItf
+func (r ClnRawInvoiceTime) GetUnixTimeMs() uint64 {
+	return r.Time * 1000
 }
 
 // ClnRawForwardsTime struct
 type ClnRawForwardsTime struct {
-	Time uint64 `json:"received_time,omitempty"`
+	Time float64 `json:"received_time,omitempty"`
 }
 
-// GetTime to comply with ClnRawTimeItf
-func (r ClnRawForwardsTime) GetTime() uint64 {
-	return r.Time
+// GetUnixTimeMs to comply with ClnRawTimeItf
+func (r ClnRawForwardsTime) GetUnixTimeMs() uint64 {
+	return uint64(math.Round(r.Time * 1000))
 }

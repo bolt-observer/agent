@@ -9,6 +9,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const BUFSIZE = 2048
@@ -236,4 +238,76 @@ func TestClnGetChanInfo(t *testing.T) {
 	if resp.ChannelID != 839247329907769344 || resp.Node1Pub != "020f63ca0fd5cbb11012727c035b7c087c2d014a26ed8ed5ed2115c783945a3fc7" || resp.Node2Pub != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" {
 		t.Fatal("Wrong response")
 	}
+}
+
+type RawMethodCall func(ctx context.Context, api LightingAPICalls) ([]RawMessage, error)
+
+func rawCommon(t *testing.T, file string, method string, call RawMethodCall) {
+
+	data := clnData(t, file)
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		buf := make([]byte, BUFSIZE)
+		n, err := c.Read(buf)
+		if err != nil {
+			t.Fatalf("Could not read request body: %v", err)
+		}
+
+		// Reslice else the thing contains zero bytes
+		buf = buf[:n]
+		s := string(buf)
+
+		id := IDExtractor{}
+		err = json.Unmarshal(buf, &id)
+		if err != nil {
+			t.Fatalf("Unmarshal error: %v", err)
+		}
+
+		if strings.Contains(s, method) {
+			reply := fmt.Sprintf(string(data), id.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	resp, err := call(context.Background(), api)
+	assert.NoError(t, err)
+	assert.Equal(t, 10, len(resp))
+	assert.Equal(t, 2023, resp[0].Timestamp.Year())
+}
+
+func TestClnGetForwardsRaw(t *testing.T) {
+	rawCommon(t, "cln_listforwards", "listforwards",
+		RawMethodCall(func(ctx context.Context, api LightingAPICalls) ([]RawMessage, error) {
+			resp, _, err := api.GetForwardsRaw(ctx, RawPagination{})
+			return resp, err
+		}),
+	)
+}
+
+func TestClnGetInvoicesRaw(t *testing.T) {
+	rawCommon(t, "cln_listinvoices", "listinvoices",
+		RawMethodCall(func(ctx context.Context, api LightingAPICalls) ([]RawMessage, error) {
+			resp, _, err := api.GetInvoicesRaw(ctx, false, RawPagination{})
+			return resp, err
+		}),
+	)
+}
+
+func TestClnGetPaymentsRaw(t *testing.T) {
+	rawCommon(t, "cln_listsendpays", "listsendpays",
+		RawMethodCall(func(ctx context.Context, api LightingAPICalls) ([]RawMessage, error) {
+			resp, _, err := api.GetPaymentsRaw(ctx, false, RawPagination{})
+			return resp, err
+		}),
+	)
 }
