@@ -143,7 +143,13 @@ func (f *Sender) send(
 				_, err := method.pushData(ctx, data)
 				return makePermanent(err)
 			}, b, func(e error, d time.Duration) {
-				glog.Warningf("Could not send data to GRPC endpoint: %v %v", data, e)
+				st := status.Convert(e)
+				switch st.Code() {
+				case codes.ResourceExhausted:
+					glog.V(4).Infof("Got resource exhausted error %v", e)
+				default:
+					glog.Warningf("Could not send data to GRPC endpoint: %v", e)
+				}
 			})
 
 			if err != nil {
