@@ -251,8 +251,6 @@ func (l *ClnSocketLightningAPI) getMyChannels(ctx context.Context) ([]NodeChanne
 		return nil, err
 	}
 
-	fmt.Printf("REPLY %+v\n", fundsReply)
-
 	channels := make([]NodeChannelAPIExtended, 0)
 
 	var listChanReply ClnListChanResp
@@ -691,7 +689,6 @@ func (l *ClnSocketLightningAPI) GetInternalChannelsAll() (map[string][]ClnListCh
 // CallWithTimeout - helper to call rpc method with a timeout
 func (l *ClnSocketLightningAPI) CallWithTimeout(serviceMethod string, args any, reply any) error {
 	c := make(chan *r.Call, 1)
-	fmt.Printf("Called %s\n", serviceMethod)
 	go func() { l.Client.Go(serviceMethod, args, reply, c) }()
 	select {
 	case call := <-c:
