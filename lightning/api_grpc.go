@@ -382,8 +382,6 @@ func (l *LndGrpcLightningAPI) getSubscribeClient(ctx context.Context, maxErrors 
 			return &subscribeClient, nil
 		}
 	}
-
-	return nil, fmt.Errorf("timeout")
 }
 
 // SubscribeForwards API

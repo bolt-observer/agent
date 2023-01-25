@@ -84,7 +84,7 @@ type ClnFundsChan struct {
 	State          string `json:"state"`
 	Capacity       uint64 `json:"channel_total_sat"`
 	OurAmount      uint64 `json:"channel_sat"`
-	FundingTxID    string `json:"funding_tx_id"`
+	FundingTxID    string `json:"funding_txid"`
 	FundingOutput  int    `json:"funding_output"`
 }
 

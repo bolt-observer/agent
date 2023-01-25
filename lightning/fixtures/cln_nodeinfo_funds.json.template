@@ -1,0 +1,30 @@
+{"jsonrpc":"2.0","id":%d,"result":{
+   "outputs": [
+      {
+         "txid": "031f786dcbac09a9174522a17a1bd6dfa6d01638d1fe250c6d0927ca0fdce36d",
+         "output": 1,
+         "value": 94999846,
+         "amount_msat": "94999846000msat",
+         "scriptpubkey": "0014647e82b39e799fbb5b08fad7c5e0ee2c255832bb",
+         "address": "bcrt1qv3lg9vu70x0mkkcglttutc8w9sj4sv4myfs7lv",
+         "status": "confirmed",
+         "blockheight": 117,
+         "reserved": false
+      }
+   ],
+   "channels": [
+      {
+         "peer_id": "03e33ad277203bf5c6317592de1d03711ac0cccf47b1f7cd5b9584c1d6610257e9",
+         "connected": true,
+         "state": "CHANNELD_NORMAL",
+         "short_channel_id": "117x1x0",
+         "channel_sat": 4997221,
+         "our_amount_msat": "4997221000msat",
+         "channel_total_sat": 5000000,
+         "amount_msat": "5000000000msat",
+         "funding_txid": "031f786dcbac09a9174522a17a1bd6dfa6d01638d1fe250c6d0927ca0fdce36d",
+         "funding_output": 0
+      }
+   ]
+}
+}
