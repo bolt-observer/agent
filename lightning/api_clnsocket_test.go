@@ -271,34 +271,22 @@ func TestClnGetNodeInfoFull(t *testing.T) {
 				buf = make([]byte, 0)
 			}
 
+			reply := ""
 			if strings.Contains(s, "getinfo") {
-				reply := fmt.Sprintf(string(info), id.ID)
-				_, err = c.Write(([]byte)(reply))
-
-				fmt.Printf("Getinfo reply: %v\n", reply)
-
-				if err != nil {
-					t.Fatalf("Could not write to socket: %v", err)
-				}
+				reply = fmt.Sprintf(string(info), id.ID)
 			} else if strings.Contains(s, "listfunds") {
-				reply := fmt.Sprintf(string(funds), id.ID)
-				_, err = c.Write(([]byte)(reply))
-
-				fmt.Printf("Listfunds reply: %v\n", reply)
-
-				if err != nil {
-					t.Fatalf("Could not write to socket: %v", err)
-				}
+				reply = fmt.Sprintf(string(funds), id.ID)
 			} else if strings.Contains(s, "listchannels") {
-				reply := fmt.Sprintf(string(channels), id.ID)
-				_, err = c.Write(([]byte)(reply))
-
-				if err != nil {
-					t.Fatalf("Could not write to socket: %v", err)
-				}
-			} else {
-				t.Fatalf("Called unexpected method %s", s)
+				reply = fmt.Sprintf(string(channels), id.ID)
 			}
+
+			if reply == "" {
+				t.Fatalf("Called unexpected method %s", s)
+				return
+			}
+
+			_, err = c.Write(([]byte)(reply))
+			assert.NoError(t, err)
 		}
 	})
 	defer closer()
