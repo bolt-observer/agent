@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -238,6 +239,62 @@ func TestClnGetChanInfo(t *testing.T) {
 	if resp.ChannelID != 839247329907769344 || resp.Node1Pub != "020f63ca0fd5cbb11012727c035b7c087c2d014a26ed8ed5ed2115c783945a3fc7" || resp.Node2Pub != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" {
 		t.Fatal("Wrong response")
 	}
+}
+
+func TestClnGetNodeInfoFull(t *testing.T) {
+	info := clnData(t, "cln_nodeinfo_info")
+	funds := clnData(t, "cln_nodeinfo_funds")
+	channels := clnData(t, "cln_nodeinfo_channels")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		buf := make([]byte, 0)
+
+		for {
+			tmp := make([]byte, BUFSIZE)
+			n, err := c.Read(tmp)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				t.Fatalf("Could not read request body: %v", err)
+			}
+
+			buf = append(buf, tmp[:n]...)
+			s := string(buf)
+
+			id := IDExtractor{}
+			err = json.Unmarshal(buf, &id)
+			if err != nil {
+				continue
+			} else {
+				// Reset buf
+				buf = make([]byte, 0)
+			}
+
+			reply := ""
+			if strings.Contains(s, "getinfo") {
+				reply = fmt.Sprintf(string(info), id.ID)
+			} else if strings.Contains(s, "listfunds") {
+				reply = fmt.Sprintf(string(funds), id.ID)
+			} else if strings.Contains(s, "listchannels") {
+				reply = fmt.Sprintf(string(channels), id.ID)
+			}
+
+			if reply == "" {
+				t.Fatalf("Called unexpected method %s", s)
+				return
+			}
+
+			_, err = c.Write(([]byte)(reply))
+			assert.NoError(t, err)
+		}
+	})
+	defer closer()
+
+	resp, err := api.GetNodeInfoFull(context.Background(), true, true)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(resp.Channels))
+	assert.Equal(t, "031f786dcbac09a9174522a17a1bd6dfa6d01638d1fe250c6d0927ca0fdce36d:0", resp.Channels[0].ChanPoint)
 }
 
 type RawMethodCall func(ctx context.Context, api LightingAPICalls) ([]RawMessage, error)

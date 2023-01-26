@@ -1,0 +1,41 @@
+{"jsonrpc":"2.0","id":%d,"result":
+{
+   "channels": [
+      {
+         "source": "03636dd8b5f2719aab198b1211be4feb04deabd338a5701bd1842868bccae74251",
+         "destination": "03e33ad277203bf5c6317592de1d03711ac0cccf47b1f7cd5b9584c1d6610257e9",
+         "short_channel_id": "117x1x0",
+         "public": true,
+         "satoshis": 5000000,
+         "amount_msat": "5000000000msat",
+         "message_flags": 1,
+         "channel_flags": 0,
+         "active": true,
+         "last_update": 1674558846,
+         "base_fee_millisatoshi": 1,
+         "fee_per_millionth": 10,
+         "delay": 6,
+         "htlc_minimum_msat": "0msat",
+         "htlc_maximum_msat": "4950000000msat",
+         "features": ""
+      },
+      {
+         "source": "03e33ad277203bf5c6317592de1d03711ac0cccf47b1f7cd5b9584c1d6610257e9",
+         "destination": "03636dd8b5f2719aab198b1211be4feb04deabd338a5701bd1842868bccae74251",
+         "short_channel_id": "117x1x0",
+         "public": true,
+         "satoshis": 5000000,
+         "amount_msat": "5000000000msat",
+         "message_flags": 1,
+         "channel_flags": 1,
+         "active": true,
+         "last_update": 1674558846,
+         "base_fee_millisatoshi": 1,
+         "fee_per_millionth": 10,
+         "delay": 6,
+         "htlc_minimum_msat": "0msat",
+         "htlc_maximum_msat": "4950000000msat",
+         "features": ""
+      }
+   ]
+}}

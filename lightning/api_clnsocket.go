@@ -89,7 +89,7 @@ func (l *ClnSocketLightningAPI) DescribeGraph(ctx context.Context, unannounced b
 			continue
 		}
 
-		ret, err := ConvertChannelInternal(v, lnd)
+		ret, err := ConvertChannelInternal(v, lnd, "none")
 		if err != nil {
 			glog.Warningf("Could not convert %v", k)
 			continue
@@ -109,13 +109,12 @@ func (l *ClnSocketLightningAPI) DescribeGraph(ctx context.Context, unannounced b
 }
 
 // ConvertChannelInternal - convert CLN channel to internal format
-func ConvertChannelInternal(chans []ClnListChan, id uint64) (*NodeChannelAPIExtended, error) {
+func ConvertChannelInternal(chans []ClnListChan, id uint64, chanpoint string) (*NodeChannelAPIExtended, error) {
 	ret := &NodeChannelAPIExtended{
 		NodeChannelAPI: NodeChannelAPI{
 			ChannelID: id,
 			Capacity:  chans[0].Capacity,
-			// TODO: we don't have that
-			ChanPoint: "none",
+			ChanPoint: chanpoint,
 		},
 		Private: !chans[0].Public,
 	}
@@ -178,7 +177,7 @@ func (l *ClnSocketLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) 
 		return nil, ErrNoChan
 	}
 
-	ret, err := ConvertChannelInternal(listChanReply.Channels, chanID)
+	ret, err := ConvertChannelInternal(listChanReply.Channels, chanID, "none")
 	if err != nil {
 		return nil, err
 	}
@@ -243,6 +242,45 @@ func (l *ClnSocketLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, 
 	}
 
 	return &ChannelsAPI{Channels: channels}, nil
+}
+
+func (l *ClnSocketLightningAPI) getMyChannels(ctx context.Context) ([]NodeChannelAPIExtended, error) {
+	var fundsReply ClnFundsChanResp
+	err := l.CallWithTimeout(LISTFUNDS, []string{}, &fundsReply)
+	if err != nil {
+		return nil, err
+	}
+
+	channels := make([]NodeChannelAPIExtended, 0)
+
+	var listChanReply ClnListChanResp
+
+	for _, one := range fundsReply.Channels {
+
+		err = l.CallWithTimeout(LISTCHANNELS, []string{one.ShortChannelID}, &listChanReply)
+		if err != nil {
+			return nil, err
+		}
+
+		if one.ShortChannelID == "" {
+			continue
+		}
+
+		lnd, err := ToLndChanID(one.ShortChannelID)
+		if err != nil {
+			glog.Warningf("Could not convert %v", one.ShortChannelID)
+			continue
+		}
+
+		ret, err := ConvertChannelInternal(listChanReply.Channels, lnd, fmt.Sprintf("%s:%d", one.FundingTxID, one.FundingOutput))
+		if err != nil {
+			return nil, err
+		}
+
+		channels = append(channels, *ret)
+	}
+
+	return channels, nil
 }
 
 // GetInfo - GetInfo API call
@@ -349,7 +387,7 @@ func (l *ClnSocketLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, 
 			continue
 		}
 
-		ret, err := ConvertChannelInternal(v, lnd)
+		ret, err := ConvertChannelInternal(v, lnd, "none")
 		if err != nil {
 			glog.Warningf("Could not convert %v", k)
 			continue
@@ -393,35 +431,11 @@ func (l *ClnSocketLightningAPI) GetNodeInfoFull(ctx context.Context, channels bo
 		return result, nil
 	}
 
-	chans, err := l.GetInternalChannels(node.PubKey)
+	chans, err := l.getMyChannels(ctx)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
-
-	for k, v := range chans {
-		if len(v) < 1 {
-			glog.Warningf("Bad data for %v", k)
-			continue
-		}
-
-		lnd, err := ToLndChanID(k)
-		if err != nil {
-			glog.Warningf("Could not convert %v", k)
-			continue
-		}
-
-		ret, err := ConvertChannelInternal(v, lnd)
-		if err != nil {
-			glog.Warningf("Could not convert %v", k)
-			continue
-		}
-
-		if !unannounced && ret.Private {
-			continue
-		}
-
-		result.Channels = append(result.Channels, *ret)
-	}
+	result.Channels = chans
 
 	result.NumChannels = uint32(len(result.Channels))
 	result.TotalCapacity = SumCapacityExtended(result.Channels)

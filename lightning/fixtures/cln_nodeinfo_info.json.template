@@ -1,0 +1,30 @@
+{"jsonrpc":"2.0","id":%d,"result":
+{
+   "id": "03636dd8b5f2719aab198b1211be4feb04deabd338a5701bd1842868bccae74251",
+   "alias": "A",
+   "color": "03636d",
+   "num_peers": 1,
+   "num_pending_channels": 0,
+   "num_active_channels": 1,
+   "num_inactive_channels": 0,
+   "address": [],
+   "binding": [
+      {
+         "type": "ipv6",
+         "address": "::",
+         "port": 9735
+      }
+   ],
+   "version": "v22.11.1",
+   "blockheight": 140,
+   "network": "regtest",
+   "msatoshi_fees_collected": 0,
+   "fees_collected_msat": "0msat",
+   "lightning-dir": "/tmp/lnregtest-data/dev_network/lnnodes/A/regtest",
+   "our_features": {
+      "init": "08a0802a2a69a2",
+      "node": "88a0802a2a69a2",
+      "channel": "",
+      "invoice": "02000022024100"
+   }
+}}
