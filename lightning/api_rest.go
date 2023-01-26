@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
@@ -548,15 +549,48 @@ func (l *LndRestLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 	return ret, nil
 }
 
-// SubscribeHtlcEvents API
-func (l *LndRestLightningAPI) SubscribeHtlcEvents(ctx context.Context) (<-chan *HtlcEventOverride, error) {
-	// Very thin wrapper
-	resp, err := l.HTTPAPI.HTTPSubscribeHtlcEvents(ctx, l.Request)
-	if err != nil {
-		return nil, err
-	}
+// SubscribeFailedForwards is used to subscribe to failed forwards
+func (l *LndRestLightningAPI) SubscribeFailedForwards(ctx context.Context, outchan chan RawMessage) error {
 
-	return resp, err
+	go func() {
+		resp, err := l.HTTPAPI.HTTPSubscribeHtlcEvents(ctx, l.Request)
+		if err != nil {
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// Do nothing
+			}
+
+			event := <-resp
+
+			if !strings.Contains(strings.ToLower(event.EventType), "forward") {
+				continue
+			}
+
+			if event.Event.FailureString == "" {
+				continue
+			}
+
+			m := RawMessage{
+				Implementation: l.Name,
+				Timestamp:      time.Unix(0, stringToInt64(event.TimestampNs)),
+			}
+
+			m.Message, err = json.Marshal(event)
+			if err != nil {
+				continue
+			}
+
+			outchan <- m
+		}
+	}()
+
+	return nil
 }
 
 // GetAPIType API

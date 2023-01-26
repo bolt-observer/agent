@@ -11,6 +11,7 @@ import (
 	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
+	"github.com/stretchr/testify/assert"
 )
 
 func getAPI(t *testing.T, name string, typ APIType) LightingAPICalls {
@@ -82,36 +83,39 @@ func TestGetInvoicesGrpc(t *testing.T) {
 	//t.Fail()
 }
 
-func TestSubscribeHtlcEvents(t *testing.T) {
-
-	api := getAPI(t, "fixture.secret", LndRest)
-	if api == nil {
+func TestSubscribeFailedForwards(t *testing.T) {
+	var err error
+	rest := getAPI(t, "fixture.secret", LndRest)
+	if rest == nil {
+		return
+	}
+	grpc := getAPI(t, "fixture-grpc.secret", LndGrpc)
+	if grpc == nil {
 		return
 	}
 
-	a := api.(*LndRestLightningAPI)
+	a := rest.(*LndRestLightningAPI)
+	b := grpc.(*LndGrpcLightningAPI)
+
+	assert.NotNil(t, a)
+	assert.NotNil(t, b)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
 
-	outchan, err := a.SubscribeHtlcEvents(ctx)
-	if err != nil {
-		cancel()
-		t.Fatalf("SubscribeHtlcEvents error %v\n", err)
-		return
-	}
+	outchan := make(chan RawMessage)
 
-outer:
+	err = a.SubscribeFailedForwards(ctx, outchan)
+	assert.NoError(t, err)
+	err = b.SubscribeFailedForwards(ctx, outchan)
+	assert.NoError(t, err)
+
 	for {
 		select {
-		case event := <-outchan:
-			fmt.Printf("Received event: %v\n", event)
 		case <-ctx.Done():
-			break outer
-		default:
-			// Do nothing
+			return
+		case data := <-outchan:
+			fmt.Printf("Received %v\n", data)
 		}
 	}
-
-	cancel()
-	//t.Fail()
 }

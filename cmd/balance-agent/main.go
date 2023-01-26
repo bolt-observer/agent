@@ -22,10 +22,10 @@ import (
 	"github.com/golang/glog"
 	cli "github.com/urfave/cli"
 
+	raw "github.com/bolt-observer/agent/data-upload"
 	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/agent/nodedata"
-	"github.com/bolt-observer/agent/raw"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 
@@ -307,7 +307,7 @@ func getApp() *cli.App {
 		&cli.StringFlag{
 			Name:   "datastore-url",
 			Usage:  "Datastore URL",
-			Value:  "",
+			Value:  "agent-api.bolt.observer:443",
 			Hidden: true,
 		},
 		&cli.Int64Flag{

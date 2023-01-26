@@ -48,6 +48,19 @@ func GetInvoicesChannel(ctx context.Context, itf api.LightingAPICalls, from time
 func GetForwardsChannel(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
+	// A hack to get failed forwards too
+	if itf.GetAPIType() == api.LndGrpc {
+		lndGrpc, ok := itf.(*api.LndGrpcLightningAPI)
+		if ok {
+			lndGrpc.SubscribeFailedForwards(ctx, outchan)
+		}
+	} else if itf.GetAPIType() == api.LndRest {
+		lndRest, ok := itf.(*api.LndRestLightningAPI)
+		if ok {
+			lndRest.SubscribeFailedForwards(ctx, outchan)
+		}
+	}
+
 	go paginator(ctx, itf, GetRawData(
 		func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
 			return itf.GetForwardsRaw(ctx, pagination)

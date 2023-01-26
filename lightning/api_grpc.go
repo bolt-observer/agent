@@ -737,6 +737,58 @@ func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 	return ret, respPagination, nil
 }
 
+// SubscribeFailedForwards is used to subscribe to failed forwards
+func (l *LndGrpcLightningAPI) SubscribeFailedForwards(ctx context.Context, outchan chan RawMessage) error {
+	subscribeClient, err := l.RouterClient.SubscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// Do nothing
+			}
+
+			event, err := subscribeClient.Recv()
+			if err == io.EOF {
+				return
+			}
+
+			if event == nil {
+				continue
+			}
+
+			if event.EventType != routerrpc.HtlcEvent_FORWARD {
+				// Ignore non-forward events
+				continue
+			}
+
+			if event.GetForwardFailEvent() == nil {
+				// Ignore success events
+				continue
+			}
+
+			m := RawMessage{
+				Implementation: l.Name,
+				Timestamp:      time.Unix(0, int64(event.TimestampNs)),
+			}
+
+			m.Message, err = json.Marshal(event)
+			if err != nil {
+				continue
+			}
+
+			outchan <- m
+		}
+	}()
+
+	return nil
+}
+
 // GetAPIType API
 func (l *LndGrpcLightningAPI) GetAPIType() APIType {
 	return LndGrpc
