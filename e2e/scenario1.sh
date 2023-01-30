@@ -3,6 +3,7 @@
 # Set outside usually
 API_KEY=${API_KEY:-wrong}
 SERVER=${SERVER:-"bolt.observer"}
+DATASTORE_SERVER=${DATASTORE_SERVER:-"agent-api.bolt.observer:443"}
 TAG=${TAG:-"unstable"}
 
 NAME=${NAME:-polar-n3-alice}
@@ -52,11 +53,11 @@ fi
 chmod 666 $DIR/*
 
 echo "----"
-docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/node-data-report/" --verbosity 3
+docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/node-data-report/" --datastore-url $DATASTORE_SERVER --verbosity 3
 echo "----"
 
 # Normal run
-docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/node-data-report/" --verbosity 3 2>&1 > $DIR/output.txt
+docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/node-data-report/" --datastore-url $DATASTORE_SERVER --verbosity 3 2>&1 > $DIR/output.txt
 cat $DIR/output.txt
 
 grep -q "Sent out nodeinfo callback" $DIR/output.txt || { echo "Failed to send nodeinfo callback"; exit 1; }
@@ -69,7 +70,7 @@ if [ "$NUM_CHANS" != "2" ]; then
 fi
 
 # Private run
-docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/node-data-report/" --verbosity 3 --private 2>&1 > $DIR/output.txt
+docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/node-data-report/" --datastore-url $DATASTORE_SERVER --verbosity 3 --private 2>&1 > $DIR/output.txt
 cat $DIR/output.txt
 
 grep -q "Sent out nodeinfo callback" $DIR/output.txt || { echo "Failed to send nodeinfo callback"; exit 1; }
