@@ -507,7 +507,7 @@ func (l *ClnSocketRawAPI) SubscribeForwards(ctx context.Context, since time.Time
 	return outChan, errorChan
 }
 
-func rawJsonIterator(ctx context.Context, reader io.Reader, name string, channel chan json.RawMessage) error {
+func rawJSONIterator(ctx context.Context, reader io.Reader, name string, channel chan json.RawMessage) error {
 	dec := json.NewDecoder(reader)
 
 	// read open bracket
@@ -582,7 +582,7 @@ func getRaw[T ClnRawTimeItf](ctx context.Context, l *ClnSocketRawAPI, gettime T,
 
 	ret := make([]RawMessage, 0, pagination.BatchSize)
 
-	err = rawJsonIterator(ctx, reader, jsonArray, outchan)
+	err = rawJSONIterator(ctx, reader, jsonArray, outchan)
 	if err != nil {
 		return nil, respPagination, err
 	}

@@ -7,7 +7,6 @@ import (
 	"io"
 	r "net/rpc"
 	"os"
-	"time"
 
 	"github.com/golang/glog"
 	rpc "github.com/powerman/rpc-codec/jsonrpc2"
@@ -24,10 +23,7 @@ type ClnUnixConnection struct {
 var _ ClnConnectionAPI = &ClnUnixConnection{}
 
 // MakeUnixConnection create a new CLN connection
-// "unix" corresponds to SOCK_STREAM
-// "unixgram" corresponds to SOCK_DGRAM
-// "unixpacket" corresponds to SOCK_SEQPACKET
-func MakeUnixConnection(socketType string, address string, timeout time.Duration) *ClnUnixConnection {
+func MakeUnixConnection(socketType string, address string) *ClnUnixConnection {
 	ret := &ClnUnixConnection{}
 
 	client, err := rpc.Dial(socketType, address)
