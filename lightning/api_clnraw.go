@@ -530,6 +530,7 @@ func rawJSONIterator(ctx context.Context, reader io.Reader, name string, channel
 		return fmt.Errorf("unexpected name")
 	}
 
+	// read begin of array
 	t, err = dec.Token()
 	if err != nil {
 		return err
@@ -541,6 +542,7 @@ func rawJSONIterator(ctx context.Context, reader io.Reader, name string, channel
 
 	go func(ctx context.Context) {
 		for dec.More() {
+			// elements of array
 			var m json.RawMessage
 
 			select {

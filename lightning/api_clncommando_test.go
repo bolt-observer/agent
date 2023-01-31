@@ -9,7 +9,6 @@ import (
 )
 
 func TestGetViaCommando(t *testing.T) {
-
 	api := getAPI(t, "fixture-cln.secret", ClnCommando)
 	if api == nil {
 		return

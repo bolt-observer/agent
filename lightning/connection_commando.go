@@ -24,7 +24,7 @@ type ClnCommandoConnection struct {
 // Compile time check for the interface
 var _ ClnConnectionAPI = &ClnCommandoConnection{}
 
-// MakeCommandoConnection create a new CLN connection
+// MakeCommandoConnection creates a new CLN connection
 func MakeCommandoConnection(addr string, rune string, timeout time.Duration) *ClnCommandoConnection {
 	ret := &ClnCommandoConnection{}
 
@@ -53,7 +53,6 @@ func convertArgs(param any) string {
 
 // Call gets response
 func (l *ClnCommandoConnection) Call(ctx context.Context, serviceMethod string, args any, reply any) error {
-
 	err := l.initConnection()
 	if err != nil {
 		return err

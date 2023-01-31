@@ -13,7 +13,7 @@ type ClnCommandoAPI struct {
 // Compile time check for the interface
 var _ LightingAPICalls = &ClnCommandoAPI{}
 
-// NewClnCommandoLightningAPIRaw gets a new API (not that addr is in pubkey@address format)
+// NewClnCommandoLightningAPIRaw gets a new API (note that addr is in pubkey@address format)
 func NewClnCommandoLightningAPIRaw(addr, rune string) LightingAPICalls {
 	api := &ClnCommandoAPI{}
 
