@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const BUFSIZE = 2048
+const Deadline = 15 * time.Second
 
 func TestConvertChanId(t *testing.T) {
 	clnID := "761764x816x0"
@@ -112,7 +112,7 @@ func clnData(t *testing.T, name string) []byte {
 	}
 	defer f.Close()
 
-	contents, err := ioutil.ReadAll(f)
+	contents, err := io.ReadAll(f)
 	if err != nil {
 		t.Fatalf("Could not read file: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestClnGetInfo(t *testing.T) {
 	})
 	defer closer()
 
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
 	defer cancel()
 
 	resp, err := api.GetInfo(ctx)
@@ -215,7 +215,7 @@ func TestClnGetChanInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not convert id %d", err)
 	}
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
 	defer cancel()
 
 	resp, err := api.GetChanInfo(ctx, id)
@@ -262,7 +262,7 @@ func TestClnGetNodeInfoFull(t *testing.T) {
 	})
 	defer closer()
 
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
 	defer cancel()
 
 	resp, err := api.GetNodeInfoFull(ctx, true, true)
@@ -300,7 +300,7 @@ func rawCommon(t *testing.T, file string, method string, call RawMethodCall) {
 	})
 	defer closer()
 
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
 	defer cancel()
 	resp, err := call(ctx, api)
 	assert.NoError(t, err)

@@ -24,8 +24,8 @@ type ClnCommandoConnection struct {
 // Compile time check for the interface
 var _ ClnConnectionAPI = &ClnCommandoConnection{}
 
-// MakeCommandoConnection creates a new CLN connection
-func MakeCommandoConnection(addr string, rune string, timeout time.Duration) *ClnCommandoConnection {
+// NewCommandoConnection creates a new CLN connection
+func NewCommandoConnection(addr string, rune string, timeout time.Duration) *ClnCommandoConnection {
 	ret := &ClnCommandoConnection{}
 
 	ret.addr = addr
@@ -35,23 +35,7 @@ func MakeCommandoConnection(addr string, rune string, timeout time.Duration) *Cl
 	return ret
 }
 
-func convertArgs(param any) string {
-	const Empty = "[]"
-	if param == nil {
-		return Empty
-	}
-
-	sb := new(strings.Builder)
-	enc := json.NewEncoder(sb)
-	err := enc.Encode(param)
-	if err != nil {
-		return Empty
-	}
-
-	return strings.TrimRight(sb.String(), "\r\n\t")
-}
-
-// Call gets response
+// Call calls serviceMethod with args and fills reply with response
 func (l *ClnCommandoConnection) Call(ctx context.Context, serviceMethod string, args any, reply any) error {
 	err := l.initConnection()
 	if err != nil {
@@ -79,7 +63,7 @@ func (l *ClnCommandoConnection) Call(ctx context.Context, serviceMethod string, 
 	return nil
 }
 
-// StreamResponse streams the response
+// StreamResponse is meant for streaming responses it calls serviceMethod with args and returns an io.Reader
 func (l *ClnCommandoConnection) StreamResponse(ctx context.Context, serviceMethod string, args any) (io.Reader, error) {
 	err := l.initConnection()
 	if err != nil {
@@ -124,6 +108,7 @@ func parseResp(reader io.Reader) (ClnSuccessResp, error) {
 	if err != nil {
 		return ClnSuccessResp{}, err
 	}
+
 	r := bytes.NewReader(data)
 
 	var errResp ClnErrorResp
@@ -132,7 +117,7 @@ func parseResp(reader io.Reader) (ClnSuccessResp, error) {
 		return ClnSuccessResp{}, err
 	}
 	if errResp.Error.Code != 0 {
-		return ClnSuccessResp{}, fmt.Errorf("invalid response %s", errResp.Error.Message)
+		return ClnSuccessResp{}, fmt.Errorf("invalid response: %s", errResp.Error.Message)
 	}
 
 	var successResp ClnSuccessResp
@@ -143,4 +128,20 @@ func parseResp(reader io.Reader) (ClnSuccessResp, error) {
 		return ClnSuccessResp{}, err
 	}
 	return successResp, nil
+}
+
+func convertArgs(param any) string {
+	const Empty = "[]"
+	if param == nil {
+		return Empty
+	}
+
+	sb := new(strings.Builder)
+	enc := json.NewEncoder(sb)
+	err := enc.Encode(param)
+	if err != nil {
+		return Empty
+	}
+
+	return strings.TrimRight(sb.String(), "\r\n\t")
 }

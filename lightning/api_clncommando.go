@@ -17,7 +17,7 @@ var _ LightingAPICalls = &LndClnCommandoLightningAPI{}
 func NewClnCommandoLightningAPIRaw(addr, rune string) LightingAPICalls {
 	api := &LndClnCommandoLightningAPI{}
 
-	api.connection = MakeCommandoConnection(addr, rune, 30*time.Second)
+	api.connection = NewCommandoConnection(addr, rune, 30*time.Second)
 	api.Name = "clncommando"
 
 	return api

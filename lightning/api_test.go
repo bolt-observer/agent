@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -379,7 +378,7 @@ func TestRawMessageSerialization(t *testing.T) {
 		return
 	}
 
-	content, err := ioutil.ReadFile(FixtureSecret)
+	content, err := os.ReadFile(FixtureSecret)
 	if err != nil {
 		t.Fatalf("Error when opening file: %v", err)
 		return

@@ -22,8 +22,8 @@ type ClnUnixConnection struct {
 // Compile time check for the interface
 var _ ClnConnectionAPI = &ClnUnixConnection{}
 
-// MakeUnixConnection create a new CLN connection
-func MakeUnixConnection(socketType string, address string) *ClnUnixConnection {
+// NewUnixConnection create a new CLN connection
+func NewUnixConnection(socketType string, address string) *ClnUnixConnection {
 	ret := &ClnUnixConnection{}
 
 	client, err := rpc.Dial(socketType, address)
@@ -37,11 +37,11 @@ func MakeUnixConnection(socketType string, address string) *ClnUnixConnection {
 	return ret
 }
 
-// Call helper to call rpc method
+// Call calls serviceMethod with args and fills reply with response
 func (l *ClnUnixConnection) Call(ctx context.Context, serviceMethod string, args any, reply any) error {
 	c := make(chan *r.Call, 1)
 
-	go func() { l.Client.Go(serviceMethod, args, reply, c) }()
+	go l.Client.Go(serviceMethod, args, reply, c)
 	select {
 	case call := <-c:
 		return call.Error
@@ -50,11 +50,11 @@ func (l *ClnUnixConnection) Call(ctx context.Context, serviceMethod string, args
 	}
 }
 
-// StreamResponse streams the response
+// StreamResponse is meant for streaming responses it calls serviceMethod with args and returns an io.Reader
 func (l *ClnUnixConnection) StreamResponse(ctx context.Context, serviceMethod string, args any) (io.Reader, error) {
 	c := make(chan *r.Call, 1)
 	var reply json.RawMessage
-	go func() { l.Client.Go(serviceMethod, args, &reply, c) }()
+	go l.Client.Go(serviceMethod, args, &reply, c)
 
 	select {
 	case call := <-c:
@@ -63,6 +63,7 @@ func (l *ClnUnixConnection) StreamResponse(ctx context.Context, serviceMethod st
 		}
 
 		// TODO: currently we are cheating a bit here by serializing and unserializing
+		// since rpc.Client does not allow us to directly get response as io.Reader
 		b, err := json.Marshal(reply)
 		if err != nil {
 			return nil, err
