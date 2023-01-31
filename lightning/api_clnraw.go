@@ -12,7 +12,7 @@ import (
 )
 
 // Compile time check for the interface
-var _ LightingAPICalls = &ClnSocketRawAPI{}
+var _ LightingAPICalls = &ClnRawLightningAPI{}
 
 // Method names
 const (
@@ -25,20 +25,20 @@ const (
 	LISTPAYMENTS = "listsendpays"
 )
 
-// ClnSocketRawAPI struct
-type ClnSocketRawAPI struct {
+// ClnRawLightningAPI struct
+type ClnRawLightningAPI struct {
 	API
 
 	connection ClnConnectionAPI
 }
 
 // Cleanup - clean up API
-func (l *ClnSocketRawAPI) Cleanup() {
+func (l *ClnRawLightningAPI) Cleanup() {
 	// do nothing
 }
 
 // DescribeGraph - DescribeGraph API call
-func (l *ClnSocketRawAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
+func (l *ClnRawLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
 	var reply ClnListNodeResp
 	err := l.connection.Call(ctx, LISTNODES, []interface{}{}, &reply)
 	if err != nil {
@@ -145,7 +145,7 @@ func ConvertChannelInternal(chans []ClnListChan, id uint64, chanpoint string) (*
 }
 
 // GetChanInfo - GetChanInfo API call
-func (l *ClnSocketRawAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
+func (l *ClnRawLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
 
 	var listChanReply ClnListChanResp
 	err := l.connection.Call(ctx, LISTCHANNELS, []string{FromLndChanID(chanID)}, &listChanReply)
@@ -167,7 +167,7 @@ func (l *ClnSocketRawAPI) GetChanInfo(ctx context.Context, chanID uint64) (*Node
 }
 
 // GetChannels - GetChannels API call
-func (l *ClnSocketRawAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
+func (l *ClnRawLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
 	var fundsReply ClnFundsChanResp
 	err := l.connection.Call(ctx, LISTFUNDS, []string{}, &fundsReply)
 	if err != nil {
@@ -225,7 +225,7 @@ func (l *ClnSocketRawAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error)
 	return &ChannelsAPI{Channels: channels}, nil
 }
 
-func (l *ClnSocketRawAPI) getMyChannels(ctx context.Context) ([]NodeChannelAPIExtended, error) {
+func (l *ClnRawLightningAPI) getMyChannels(ctx context.Context) ([]NodeChannelAPIExtended, error) {
 	var fundsReply ClnFundsChanResp
 	err := l.connection.Call(ctx, LISTFUNDS, []string{}, &fundsReply)
 	if err != nil {
@@ -265,7 +265,7 @@ func (l *ClnSocketRawAPI) getMyChannels(ctx context.Context) ([]NodeChannelAPIEx
 }
 
 // GetInfo - GetInfo API call
-func (l *ClnSocketRawAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
+func (l *ClnRawLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	var reply ClnInfo
 	err := l.connection.Call(ctx, GETINFO, []string{}, &reply)
 	if err != nil {
@@ -329,7 +329,7 @@ func ConvertAddresses(addr []ClnListNodeAddr) []NodeAddressAPI {
 }
 
 // GetNodeInfo - API call
-func (l *ClnSocketRawAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
+func (l *ClnRawLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
 	var reply ClnListNodeResp
 	err := l.connection.Call(ctx, LISTNODES, []string{pubKey}, &reply)
 	if err != nil {
@@ -385,7 +385,7 @@ func (l *ClnSocketRawAPI) GetNodeInfo(ctx context.Context, pubKey string, channe
 }
 
 // GetNodeInfoFull - API call
-func (l *ClnSocketRawAPI) GetNodeInfoFull(ctx context.Context, channels bool, unannounced bool) (*NodeInfoAPIExtended, error) {
+func (l *ClnRawLightningAPI) GetNodeInfoFull(ctx context.Context, channels bool, unannounced bool) (*NodeInfoAPIExtended, error) {
 	var reply ClnInfo
 	err := l.connection.Call(ctx, GETINFO, []string{}, &reply)
 	if err != nil {
@@ -425,7 +425,7 @@ func (l *ClnSocketRawAPI) GetNodeInfoFull(ctx context.Context, channels bool, un
 }
 
 // SubscribeForwards - API call
-func (l *ClnSocketRawAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
+func (l *ClnRawLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	var reply ClnForwardEntries
 
 	if batchSize == 0 {
@@ -565,7 +565,7 @@ func rawJSONIterator(ctx context.Context, reader io.Reader, name string, channel
 	return nil
 }
 
-func getRaw[T ClnRawTimeItf](ctx context.Context, l *ClnSocketRawAPI, gettime T, method string, jsonArray string, pagination *RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+func getRaw[T ClnRawTimeItf](ctx context.Context, l *ClnRawLightningAPI, gettime T, method string, jsonArray string, pagination *RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	respPagination := &ResponseRawPagination{UseTimestamp: true}
 
 	if pagination.BatchSize == 0 {
@@ -641,7 +641,7 @@ func getRaw[T ClnRawTimeItf](ctx context.Context, l *ClnSocketRawAPI, gettime T,
 }
 
 // GetInvoicesRaw - API call
-func (l *ClnSocketRawAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+func (l *ClnRawLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	var (
 		gettime ClnRawInvoiceTime
 	)
@@ -650,7 +650,7 @@ func (l *ClnSocketRawAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, 
 }
 
 // GetPaymentsRaw - API call
-func (l *ClnSocketRawAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+func (l *ClnRawLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	var (
 		gettime ClnRawPayTime
 	)
@@ -659,7 +659,7 @@ func (l *ClnSocketRawAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete 
 }
 
 // GetForwardsRaw - API call
-func (l *ClnSocketRawAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+func (l *ClnRawLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	var (
 		gettime ClnRawForwardsTime
 	)
@@ -668,22 +668,22 @@ func (l *ClnSocketRawAPI) GetForwardsRaw(ctx context.Context, pagination RawPagi
 }
 
 // GetInvoices - API call
-func (l *ClnSocketRawAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
+func (l *ClnRawLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
 	panic("not implemented")
 }
 
 // GetPayments - API call
-func (l *ClnSocketRawAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
+func (l *ClnRawLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
 	panic("not implemented")
 }
 
 // GetAPIType - API call
-func (l *ClnSocketRawAPI) GetAPIType() APIType {
+func (l *ClnRawLightningAPI) GetAPIType() APIType {
 	return ClnSocket
 }
 
 // GetInternalChannels - internal method to get channels
-func (l *ClnSocketRawAPI) GetInternalChannels(ctx context.Context, pubKey string) (map[string][]ClnListChan, error) {
+func (l *ClnRawLightningAPI) GetInternalChannels(ctx context.Context, pubKey string) (map[string][]ClnListChan, error) {
 	result := make(map[string][]ClnListChan, 0)
 
 	var listChanReply ClnListChanResp
@@ -725,7 +725,7 @@ func (l *ClnSocketRawAPI) GetInternalChannels(ctx context.Context, pubKey string
 }
 
 // GetInternalChannelsAll - internal method to get all channels
-func (l *ClnSocketRawAPI) GetInternalChannelsAll(ctx context.Context) (map[string][]ClnListChan, error) {
+func (l *ClnRawLightningAPI) GetInternalChannelsAll(ctx context.Context) (map[string][]ClnListChan, error) {
 	result := make(map[string][]ClnListChan, 0)
 
 	var listChanReply ClnListChanResp

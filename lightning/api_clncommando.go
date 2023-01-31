@@ -5,17 +5,17 @@ import (
 	"time"
 )
 
-// LndClnCommandoLightningAPI struct
-type LndClnCommandoLightningAPI struct {
-	ClnSocketRawAPI
+// ClnCommandoLightningAPI struct
+type ClnCommandoLightningAPI struct {
+	ClnRawLightningAPI
 }
 
 // Compile time check for the interface
-var _ LightingAPICalls = &LndClnCommandoLightningAPI{}
+var _ LightingAPICalls = &ClnCommandoLightningAPI{}
 
 // NewClnCommandoLightningAPIRaw gets a new API (note that addr is in pubkey@address format)
 func NewClnCommandoLightningAPIRaw(addr, rune string) LightingAPICalls {
-	api := &LndClnCommandoLightningAPI{}
+	api := &ClnCommandoLightningAPI{}
 
 	api.connection = NewCommandoConnection(addr, rune, 30*time.Second)
 	api.Name = "clncommando"

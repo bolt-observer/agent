@@ -1,16 +1,16 @@
 package lightning
 
-// LndClnSocketLightningAPI struct
-type LndClnSocketLightningAPI struct {
-	ClnSocketRawAPI
+// ClnSocketLightningAPI struct
+type ClnSocketLightningAPI struct {
+	ClnRawLightningAPI
 }
 
 // Compile time check for the interface
-var _ LightingAPICalls = &LndClnSocketLightningAPI{}
+var _ LightingAPICalls = &ClnSocketLightningAPI{}
 
 // NewClnSocketLightningAPIRaw gets a new API - usage "unix", "/home/ubuntu/.lightning/bitcoin/lightning-rpc"
 func NewClnSocketLightningAPIRaw(socketType string, address string) LightingAPICalls {
-	api := &LndClnSocketLightningAPI{}
+	api := &ClnSocketLightningAPI{}
 
 	api.connection = NewUnixConnection(socketType, address)
 	api.Name = "clnsocket"
