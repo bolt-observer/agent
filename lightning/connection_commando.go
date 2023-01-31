@@ -2,10 +2,10 @@ package lightning
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"time"
 
@@ -21,6 +21,9 @@ type ClnCommandoConnection struct {
 	ClnConnection
 }
 
+// Compile time check for the interface
+var _ ClnConnectionAPI = &ClnCommandoConnection{}
+
 // MakeCommandoConnection create a new CLN connection
 func MakeCommandoConnection(addr string, rune string, timeout time.Duration) *ClnCommandoConnection {
 	ret := &ClnCommandoConnection{}
@@ -28,7 +31,6 @@ func MakeCommandoConnection(addr string, rune string, timeout time.Duration) *Cl
 	ret.addr = addr
 	ret.rune = rune
 	ret.ln = lnsocket.MakeLN(timeout)
-	ret.Timeout = timeout
 
 	return ret
 }
@@ -49,24 +51,22 @@ func convertArgs(param any) string {
 	return strings.TrimRight(sb.String(), "\r\n\t")
 }
 
-// CallWithTimeout - helper to call rpc method with a timeout
-func (l *ClnCommandoConnection) CallWithTimeout(serviceMethod string, args any, reply any) error {
+// Call gets response
+func (l *ClnCommandoConnection) Call(ctx context.Context, serviceMethod string, args any, reply any) error {
 
-	disconnect, err := l.initConnection()
-	if disconnect != nil {
-		defer disconnect()
-	}
+	err := l.initConnection()
 	if err != nil {
 		return err
 	}
 
 	params := convertArgs(args)
 
-	reader, err := l.ln.NewCommandoReader(l.rune, serviceMethod, params, l.ln.Timeout)
+	reader, err := l.ln.NewCommandoReader(ctx, l.rune, serviceMethod, params)
 	if err != nil {
 		return err
 	}
 
+	// To get meaningful error messages
 	data, err := parseResp(reader)
 	if err != nil {
 		return err
@@ -80,26 +80,48 @@ func (l *ClnCommandoConnection) CallWithTimeout(serviceMethod string, args any, 
 	return nil
 }
 
-func (l *ClnCommandoConnection) initConnection() (func(), error) {
-	err := l.ln.Connect(l.addr)
+// StreamResponse streams the response
+func (l *ClnCommandoConnection) StreamResponse(ctx context.Context, serviceMethod string, args any) (io.Reader, error) {
+	err := l.initConnection()
 	if err != nil {
 		return nil, err
 	}
-	disconnect := func() {
-		l.ln.Disconnect()
+
+	params := convertArgs(args)
+
+	reader, err := l.ln.NewCommandoReader(ctx, l.rune, serviceMethod, params)
+	if err != nil {
+		return nil, err
+	}
+
+	return reader, nil
+}
+
+func (l *ClnCommandoConnection) initConnection() error {
+	// Check if connection is still usable
+	err := l.ln.Ping()
+	if err == nil {
+		return nil
+	}
+
+	l.ln.Disconnect()
+
+	err = l.ln.Connect(l.addr)
+	if err != nil {
+		return err
 	}
 
 	err = l.ln.Handshake()
 	if err != nil {
-		return disconnect, err
+		return err
 	}
 
-	return disconnect, nil
+	return nil
 }
 
 func parseResp(reader io.Reader) (ClnSuccessResp, error) {
-	// I have to buffer the response (to parse it twice)
-	data, err := ioutil.ReadAll(reader)
+	// Need to buffer the response (to parse it twice)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return ClnSuccessResp{}, err
 	}

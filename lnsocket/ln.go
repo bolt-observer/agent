@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
@@ -57,6 +58,10 @@ func (ln *LN) Clone() *LN {
 
 // Disconnect disconnect
 func (ln *LN) Disconnect() {
+	if ln.Conn == nil {
+		return
+	}
+
 	ln.Conn.Close()
 }
 
@@ -90,6 +95,10 @@ func (ln *LN) DeserializeKey(key string) error {
 
 // Read reads from connection
 func (ln *LN) Read() (uint16, []byte, error) {
+	if ln.Conn == nil {
+		return 0, nil, io.ErrClosedPipe
+	}
+
 	res := make([]byte, 65535)
 	ln.Conn.SetDeadline(time.Now().Add(ln.Timeout))
 	n, err := ln.Conn.Read(res)
@@ -106,6 +115,9 @@ func (ln *LN) Read() (uint16, []byte, error) {
 
 // Write writes to connection
 func (ln *LN) Write(b []byte) (int, error) {
+	if ln.Conn == nil {
+		return 0, io.ErrClosedPipe
+	}
 	ln.Conn.SetDeadline(time.Now().Add(ln.Timeout))
 	return ln.Conn.Write(b)
 }

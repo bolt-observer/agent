@@ -3,6 +3,7 @@ package lnsocket
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -92,7 +93,7 @@ func (ln *LN) CommandoReadAll() (string, error) {
 }
 
 // NewCommandoReader invokes a command and retruns a reader to read reply
-func (ln *LN) NewCommandoReader(rune, serviceMethod, params string, timeout time.Duration) (io.Reader, error) {
+func (ln *LN) NewCommandoReader(ctx context.Context, rune, serviceMethod, params string) (io.Reader, error) {
 	commando := NewCommandoMsg(rune, serviceMethod, params)
 
 	var b bytes.Buffer
@@ -110,9 +111,14 @@ func (ln *LN) NewCommandoReader(rune, serviceMethod, params string, timeout time
 	w := bufio.NewWriter(writer)
 
 	go func() {
-		start := time.Now()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// Do nothing
+			}
 
-		for timeout == 0 || time.Now().Before(start.Add(timeout)) {
 			msgtype, res, err := ln.Read()
 			if err != nil {
 				writer.CloseWithError(err)
@@ -130,9 +136,6 @@ func (ln *LN) NewCommandoReader(rune, serviceMethod, params string, timeout time
 				continue
 			}
 		}
-
-		w.Flush()
-		writer.CloseWithError(os.ErrDeadlineExceeded)
 	}()
 
 	return bufio.NewReader(reader), nil

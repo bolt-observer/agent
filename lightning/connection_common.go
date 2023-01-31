@@ -1,13 +1,16 @@
 package lightning
 
-import "time"
+import (
+	"context"
+	"io"
+)
 
 // ClnConnection struct
 type ClnConnection struct {
-	Timeout time.Duration
 }
 
 // ClnConnectionAPI interface
 type ClnConnectionAPI interface {
-	CallWithTimeout(serviceMethod string, args any, reply any) error
+	Call(ctx context.Context, serviceMethod string, args any, reply any) error
+	StreamResponse(ctx context.Context, serviceMethod string, args any) (io.Reader, error)
 }

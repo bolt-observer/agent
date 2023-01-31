@@ -14,7 +14,7 @@ type ClnCommandoAPI struct {
 var _ LightingAPICalls = &ClnCommandoAPI{}
 
 // NewClnCommandoLightningAPIRaw gets a new API
-func NewClnCommandoLightningAPIRaw(addr string, rune string) LightingAPICalls {
+func NewClnCommandoLightningAPIRaw(addr, rune string) LightingAPICalls {
 
 	api := &ClnCommandoAPI{}
 
@@ -24,7 +24,7 @@ func NewClnCommandoLightningAPIRaw(addr string, rune string) LightingAPICalls {
 	return api
 }
 
-// NewClnCommandoLightningAPI return a new lightning API
+// NewClnCommandoLightningAPI returns a new lightning API
 func NewClnCommandoLightningAPI(getData GetDataCall) LightingAPICalls {
 	if getData == nil {
 		return nil

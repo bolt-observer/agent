@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
@@ -39,7 +40,7 @@ func (l *ClnSocketRawAPI) Cleanup() {
 // DescribeGraph - DescribeGraph API call
 func (l *ClnSocketRawAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
 	var reply ClnListNodeResp
-	err := l.connection.CallWithTimeout(LISTNODES, []interface{}{}, &reply)
+	err := l.connection.Call(ctx, LISTNODES, []interface{}{}, &reply)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +53,7 @@ func (l *ClnSocketRawAPI) DescribeGraph(ctx context.Context, unannounced bool) (
 
 	channels := make([]NodeChannelAPI, 0)
 
-	chans, err := l.GetInternalChannelsAll()
+	chans, err := l.GetInternalChannelsAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +148,7 @@ func ConvertChannelInternal(chans []ClnListChan, id uint64, chanpoint string) (*
 func (l *ClnSocketRawAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
 
 	var listChanReply ClnListChanResp
-	err := l.connection.CallWithTimeout(LISTCHANNELS, []string{FromLndChanID(chanID)}, &listChanReply)
+	err := l.connection.Call(ctx, LISTCHANNELS, []string{FromLndChanID(chanID)}, &listChanReply)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +169,7 @@ func (l *ClnSocketRawAPI) GetChanInfo(ctx context.Context, chanID uint64) (*Node
 // GetChannels - GetChannels API call
 func (l *ClnSocketRawAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
 	var fundsReply ClnFundsChanResp
-	err := l.connection.CallWithTimeout(LISTFUNDS, []string{}, &fundsReply)
+	err := l.connection.Call(ctx, LISTFUNDS, []string{}, &fundsReply)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +180,7 @@ func (l *ClnSocketRawAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error)
 
 	for _, one := range fundsReply.Channels {
 
-		err = l.connection.CallWithTimeout(LISTCHANNELS, []string{one.ShortChannelID}, &listChanReply)
+		err = l.connection.Call(ctx, LISTCHANNELS, []string{one.ShortChannelID}, &listChanReply)
 		if err != nil {
 			return nil, err
 		}
@@ -226,7 +227,7 @@ func (l *ClnSocketRawAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error)
 
 func (l *ClnSocketRawAPI) getMyChannels(ctx context.Context) ([]NodeChannelAPIExtended, error) {
 	var fundsReply ClnFundsChanResp
-	err := l.connection.CallWithTimeout(LISTFUNDS, []string{}, &fundsReply)
+	err := l.connection.Call(ctx, LISTFUNDS, []string{}, &fundsReply)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +238,7 @@ func (l *ClnSocketRawAPI) getMyChannels(ctx context.Context) ([]NodeChannelAPIEx
 
 	for _, one := range fundsReply.Channels {
 
-		err = l.connection.CallWithTimeout(LISTCHANNELS, []string{one.ShortChannelID}, &listChanReply)
+		err = l.connection.Call(ctx, LISTCHANNELS, []string{one.ShortChannelID}, &listChanReply)
 		if err != nil {
 			return nil, err
 		}
@@ -266,7 +267,7 @@ func (l *ClnSocketRawAPI) getMyChannels(ctx context.Context) ([]NodeChannelAPIEx
 // GetInfo - GetInfo API call
 func (l *ClnSocketRawAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	var reply ClnInfo
-	err := l.connection.CallWithTimeout(GETINFO, []string{}, &reply)
+	err := l.connection.Call(ctx, GETINFO, []string{}, &reply)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +331,7 @@ func ConvertAddresses(addr []ClnListNodeAddr) []NodeAddressAPI {
 // GetNodeInfo - API call
 func (l *ClnSocketRawAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
 	var reply ClnListNodeResp
-	err := l.connection.CallWithTimeout(LISTNODES, []string{pubKey}, &reply)
+	err := l.connection.Call(ctx, LISTNODES, []string{pubKey}, &reply)
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +351,7 @@ func (l *ClnSocketRawAPI) GetNodeInfo(ctx context.Context, pubKey string, channe
 		return result, nil
 	}
 
-	chans, err := l.GetInternalChannels(pubKey)
+	chans, err := l.GetInternalChannels(ctx, pubKey)
 	if err != nil {
 		return result, err
 	}
@@ -386,7 +387,7 @@ func (l *ClnSocketRawAPI) GetNodeInfo(ctx context.Context, pubKey string, channe
 // GetNodeInfoFull - API call
 func (l *ClnSocketRawAPI) GetNodeInfoFull(ctx context.Context, channels bool, unannounced bool) (*NodeInfoAPIExtended, error) {
 	var reply ClnInfo
-	err := l.connection.CallWithTimeout(GETINFO, []string{}, &reply)
+	err := l.connection.Call(ctx, GETINFO, []string{}, &reply)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +449,7 @@ func (l *ClnSocketRawAPI) SubscribeForwards(ctx context.Context, since time.Time
 				// Do nothing
 			}
 
-			err := l.connection.CallWithTimeout(LISTFORWARDS, []interface{}{}, &reply)
+			err := l.connection.Call(ctx, LISTFORWARDS, []interface{}{}, &reply)
 			if err != nil {
 				glog.Warningf("Error getting forwards %v\n", err)
 				if errors >= int(maxErrors) {
@@ -506,82 +507,162 @@ func (l *ClnSocketRawAPI) SubscribeForwards(ctx context.Context, since time.Time
 	return outChan, errorChan
 }
 
-func getRaw[R ClnRawMessageItf, T ClnRawTimeItf](ctx context.Context, l *ClnSocketRawAPI, reply R, gettime T, method string, pagination *RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+func rawJsonIterator(ctx context.Context, reader io.Reader, name string, channel chan json.RawMessage) error {
+	dec := json.NewDecoder(reader)
+
+	// read open bracket
+	t, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	x, ok := t.(json.Delim)
+	if !ok || x.String() != "{" {
+		return fmt.Errorf("unexpected character")
+	}
+
+	// read array name
+	t, err = dec.Token()
+	if err != nil {
+		return err
+	}
+	s, ok := t.(string)
+	if !ok || s != name {
+		return fmt.Errorf("unexpected name")
+	}
+
+	t, err = dec.Token()
+	if err != nil {
+		return err
+	}
+	x, ok = t.(json.Delim)
+	if !ok || x.String() != "[" {
+		return fmt.Errorf("unexpected character")
+	}
+
+	go func(ctx context.Context) {
+		for dec.More() {
+			var m json.RawMessage
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// Do nothing
+			}
+			err := dec.Decode(&m)
+			if err != nil {
+				return
+			}
+
+			channel <- m
+		}
+
+		close(channel)
+	}(ctx)
+
+	return nil
+}
+
+func getRaw[T ClnRawTimeItf](ctx context.Context, l *ClnSocketRawAPI, gettime T, method string, jsonArray string, pagination *RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	respPagination := &ResponseRawPagination{UseTimestamp: true}
 
-	err := l.connection.CallWithTimeout(method, []interface{}{}, &reply)
-
-	if err != nil {
-		return nil, respPagination, err
+	if pagination.BatchSize == 0 {
+		pagination.BatchSize = uint64(l.GetDefaultBatchSize())
 	}
-
-	if err != nil {
-		return nil, respPagination, err
-	}
-
-	ret := make([]RawMessage, 0, len(reply.GetEntries()))
 
 	minTime := time.Unix(1<<63-1, 0)
 	maxTime := time.Unix(0, 0)
 
-	for _, one := range reply.GetEntries() {
-		err = json.Unmarshal(one, &gettime)
-		if err != nil {
-			return nil, respPagination, err
-		}
-
-		t := time.Unix(0, int64(gettime.GetUnixTimeMs()*1e6))
-
-		if t.Before(minTime) {
-			minTime = t
-		}
-		if t.After(maxTime) {
-			maxTime = t
-		}
-
-		m := RawMessage{
-			Implementation: l.Name,
-			Timestamp:      t,
-			Message:        one,
-		}
-
-		ret = append(ret, m)
+	reader, err := l.connection.StreamResponse(ctx, method, []interface{}{})
+	if err != nil {
+		return nil, respPagination, err
 	}
 
-	respPagination.FirstTime = minTime
-	respPagination.LastTime = maxTime
+	outchan := make(chan json.RawMessage, pagination.BatchSize)
 
-	return ret, respPagination, nil
+	ret := make([]RawMessage, 0, pagination.BatchSize)
+
+	err = rawJsonIterator(ctx, reader, jsonArray, outchan)
+	if err != nil {
+		return nil, respPagination, err
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ret, respPagination, nil
+		case one, ok := <-outchan:
+			if !ok {
+				respPagination.FirstTime = minTime
+				respPagination.LastTime = maxTime
+				return ret, respPagination, nil
+			}
+
+			err = json.Unmarshal(one, &gettime)
+			if err != nil {
+				return nil, respPagination, err
+			}
+
+			t := time.Unix(0, int64(gettime.GetUnixTimeMs()*1e6))
+
+			if pagination.From != nil && t.Before(*pagination.From) {
+				continue
+			}
+
+			if t.Before(minTime) {
+				minTime = t
+			}
+			if t.After(maxTime) {
+				maxTime = t
+			}
+
+			m := RawMessage{
+				Implementation: l.Name,
+				Timestamp:      t,
+				Message:        one,
+			}
+
+			ret = append(ret, m)
+
+			if len(ret) >= int(pagination.BatchSize) {
+				respPagination.FirstTime = minTime
+				respPagination.LastTime = maxTime
+				return ret, respPagination, nil
+			}
+		case <-time.After(1 * time.Second):
+			respPagination.FirstTime = minTime
+			respPagination.LastTime = maxTime
+			return ret, respPagination, nil
+		}
+
+	}
 }
 
 // GetInvoicesRaw - API call
 func (l *ClnSocketRawAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	var (
-		reply   ClnRawInvoices
 		gettime ClnRawInvoiceTime
 	)
 
-	return getRaw(ctx, l, reply, gettime, LISTINVOICES, &pagination)
+	return getRaw(ctx, l, gettime, LISTINVOICES, "invoices", &pagination)
 }
 
 // GetPaymentsRaw - API call
 func (l *ClnSocketRawAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	var (
-		reply   ClnRawPayments
 		gettime ClnRawPayTime
 	)
 
-	return getRaw(ctx, l, reply, gettime, LISTPAYMENTS, &pagination)
+	return getRaw(ctx, l, gettime, LISTPAYMENTS, "payments", &pagination)
 }
 
 // GetForwardsRaw - API call
 func (l *ClnSocketRawAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	var (
-		reply   ClnRawForwardEntries
 		gettime ClnRawForwardsTime
 	)
 
-	return getRaw(ctx, l, reply, gettime, LISTFORWARDS, &pagination)
+	return getRaw(ctx, l, gettime, LISTFORWARDS, "forwards", &pagination)
 }
 
 // GetInvoices - API call
@@ -600,11 +681,11 @@ func (l *ClnSocketRawAPI) GetAPIType() APIType {
 }
 
 // GetInternalChannels - internal method to get channels
-func (l *ClnSocketRawAPI) GetInternalChannels(pubKey string) (map[string][]ClnListChan, error) {
+func (l *ClnSocketRawAPI) GetInternalChannels(ctx context.Context, pubKey string) (map[string][]ClnListChan, error) {
 	result := make(map[string][]ClnListChan, 0)
 
 	var listChanReply ClnListChanResp
-	err := l.connection.CallWithTimeout(LISTCHANNELS, []interface{}{nil, pubKey, nil}, &listChanReply)
+	err := l.connection.Call(ctx, LISTCHANNELS, []interface{}{nil, pubKey, nil}, &listChanReply)
 	if err != nil {
 		return nil, err
 	}
@@ -621,7 +702,7 @@ func (l *ClnSocketRawAPI) GetInternalChannels(pubKey string) (map[string][]ClnLi
 		result[one.ShortChannelID] = append(result[one.ShortChannelID], one)
 	}
 
-	err = l.connection.CallWithTimeout(LISTCHANNELS, []interface{}{nil, nil, pubKey}, &listChanReply)
+	err = l.connection.Call(ctx, LISTCHANNELS, []interface{}{nil, nil, pubKey}, &listChanReply)
 	if err != nil {
 		return nil, err
 	}
@@ -642,11 +723,11 @@ func (l *ClnSocketRawAPI) GetInternalChannels(pubKey string) (map[string][]ClnLi
 }
 
 // GetInternalChannelsAll - internal method to get all channels
-func (l *ClnSocketRawAPI) GetInternalChannelsAll() (map[string][]ClnListChan, error) {
+func (l *ClnSocketRawAPI) GetInternalChannelsAll(ctx context.Context) (map[string][]ClnListChan, error) {
 	result := make(map[string][]ClnListChan, 0)
 
 	var listChanReply ClnListChanResp
-	err := l.connection.CallWithTimeout(LISTCHANNELS, []interface{}{}, &listChanReply)
+	err := l.connection.Call(ctx, LISTCHANNELS, []interface{}{}, &listChanReply)
 	if err != nil {
 		return nil, err
 	}

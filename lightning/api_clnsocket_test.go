@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -166,7 +167,10 @@ func TestClnGetInfo(t *testing.T) {
 	})
 	defer closer()
 
-	resp, err := api.GetInfo(context.Background())
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	defer cancel()
+
+	resp, err := api.GetInfo(ctx)
 	if err != nil {
 		t.Fatalf("GetInfo call failed: %v", err)
 	}
@@ -211,7 +215,10 @@ func TestClnGetChanInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not convert id %d", err)
 	}
-	resp, err := api.GetChanInfo(context.Background(), id)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	defer cancel()
+
+	resp, err := api.GetChanInfo(ctx, id)
 	if err != nil {
 		t.Fatalf("GetInfo call failed: %v", err)
 	}
@@ -255,7 +262,10 @@ func TestClnGetNodeInfoFull(t *testing.T) {
 	})
 	defer closer()
 
-	resp, err := api.GetNodeInfoFull(context.Background(), true, true)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	defer cancel()
+
+	resp, err := api.GetNodeInfoFull(ctx, true, true)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(resp.Channels))
 	assert.Equal(t, "031f786dcbac09a9174522a17a1bd6dfa6d01638d1fe250c6d0927ca0fdce36d:0", resp.Channels[0].ChanPoint)
@@ -290,34 +300,42 @@ func rawCommon(t *testing.T, file string, method string, call RawMethodCall) {
 	})
 	defer closer()
 
-	resp, err := call(context.Background(), api)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	defer cancel()
+	resp, err := call(ctx, api)
 	assert.NoError(t, err)
 	assert.Equal(t, 10, len(resp))
 	assert.Equal(t, 2023, resp[0].Timestamp.Year())
 }
 
 func TestClnGetForwardsRaw(t *testing.T) {
+	p := RawPagination{}
+	p.BatchSize = 50
 	rawCommon(t, "cln_listforwards", "listforwards",
 		RawMethodCall(func(ctx context.Context, api LightingAPICalls) ([]RawMessage, error) {
-			resp, _, err := api.GetForwardsRaw(ctx, RawPagination{})
+			resp, _, err := api.GetForwardsRaw(ctx, p)
 			return resp, err
 		}),
 	)
 }
 
 func TestClnGetInvoicesRaw(t *testing.T) {
+	p := RawPagination{}
+	p.BatchSize = 50
 	rawCommon(t, "cln_listinvoices", "listinvoices",
 		RawMethodCall(func(ctx context.Context, api LightingAPICalls) ([]RawMessage, error) {
-			resp, _, err := api.GetInvoicesRaw(ctx, false, RawPagination{})
+			resp, _, err := api.GetInvoicesRaw(ctx, false, p)
 			return resp, err
 		}),
 	)
 }
 
 func TestClnGetPaymentsRaw(t *testing.T) {
+	p := RawPagination{}
+	p.BatchSize = 50
 	rawCommon(t, "cln_listsendpays", "listsendpays",
 		RawMethodCall(func(ctx context.Context, api LightingAPICalls) ([]RawMessage, error) {
-			resp, _, err := api.GetPaymentsRaw(ctx, false, RawPagination{})
+			resp, _, err := api.GetPaymentsRaw(ctx, false, p)
 			return resp, err
 		}),
 	)
