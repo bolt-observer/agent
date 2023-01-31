@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -136,32 +135,23 @@ func clnCommon(t *testing.T, handler Handler) (*ClnSocketAPI, LightingAPICalls, 
 	return d, api, closeFunc
 }
 
-type IDExtractor struct {
-	ID int `json:"id"`
+type RequestExtractor struct {
+	ID     int    `json:"id"`
+	Method string `json:"method"`
 }
 
 func TestClnGetInfo(t *testing.T) {
 	data := clnData(t, "cln_info")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		buf := make([]byte, BUFSIZE)
-		n, err := c.Read(buf)
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
 		if err != nil {
-			t.Fatalf("Could not read request body: %v", err)
+			t.Fatalf("Decode error: %v", err)
 		}
 
-		// Reslice else the thing contains zero bytes
-		buf = buf[:n]
-		s := string(buf)
-
-		id := IDExtractor{}
-		err = json.Unmarshal(buf, &id)
-		if err != nil {
-			t.Fatalf("Unmarshal error: %v", err)
-		}
-
-		if strings.Contains(s, "getinfo") {
-			reply := fmt.Sprintf(string(data), id.ID)
+		if strings.Contains(req.Method, "getinfo") {
+			reply := fmt.Sprintf(string(data), req.ID)
 			_, err = c.Write(([]byte)(reply))
 
 			if err != nil {
@@ -195,24 +185,14 @@ func TestClnGetChanInfo(t *testing.T) {
 	data := clnData(t, "cln_listchans")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		buf := make([]byte, BUFSIZE)
-		n, err := c.Read(buf)
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
 		if err != nil {
-			t.Fatalf("Could not read request body: %v", err)
+			t.Fatalf("Decode error: %v", err)
 		}
 
-		// Reslice else the thing contains zero bytes
-		buf = buf[:n]
-		s := string(buf)
-
-		id := IDExtractor{}
-		err = json.Unmarshal(buf, &id)
-		if err != nil {
-			t.Fatalf("Unmarshal error: %v", err)
-		}
-
-		if strings.Contains(s, "listchannels") {
-			reply := fmt.Sprintf(string(data), id.ID)
+		if strings.Contains(req.Method, "listchannels") {
+			reply := fmt.Sprintf(string(data), req.ID)
 			_, err = c.Write(([]byte)(reply))
 
 			if err != nil {
@@ -247,41 +227,25 @@ func TestClnGetNodeInfoFull(t *testing.T) {
 	channels := clnData(t, "cln_nodeinfo_channels")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		buf := make([]byte, 0)
-
 		for {
-			tmp := make([]byte, BUFSIZE)
-			n, err := c.Read(tmp)
+			req := RequestExtractor{}
+			err := json.NewDecoder(c).Decode(&req)
 			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				t.Fatalf("Could not read request body: %v", err)
-			}
-
-			buf = append(buf, tmp[:n]...)
-			s := string(buf)
-
-			id := IDExtractor{}
-			err = json.Unmarshal(buf, &id)
-			if err != nil {
-				continue
-			} else {
-				// Reset buf
-				buf = make([]byte, 0)
+				t.Fatalf("Decode error: %v", err)
 			}
 
 			reply := ""
-			if strings.Contains(s, "getinfo") {
-				reply = fmt.Sprintf(string(info), id.ID)
-			} else if strings.Contains(s, "listfunds") {
-				reply = fmt.Sprintf(string(funds), id.ID)
-			} else if strings.Contains(s, "listchannels") {
-				reply = fmt.Sprintf(string(channels), id.ID)
+
+			if strings.Contains(req.Method, "getinfo") {
+				reply = fmt.Sprintf(string(info), req.ID)
+			} else if strings.Contains(req.Method, "listfunds") {
+				reply = fmt.Sprintf(string(funds), req.ID)
+			} else if strings.Contains(req.Method, "listchannels") {
+				reply = fmt.Sprintf(string(channels), req.ID)
 			}
 
 			if reply == "" {
-				t.Fatalf("Called unexpected method %s", s)
+				t.Fatalf("Called unexpected method %s", req.Method)
 				return
 			}
 
@@ -304,24 +268,14 @@ func rawCommon(t *testing.T, file string, method string, call RawMethodCall) {
 	data := clnData(t, file)
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		buf := make([]byte, BUFSIZE)
-		n, err := c.Read(buf)
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
 		if err != nil {
-			t.Fatalf("Could not read request body: %v", err)
+			t.Fatalf("Decode error: %v", err)
 		}
 
-		// Reslice else the thing contains zero bytes
-		buf = buf[:n]
-		s := string(buf)
-
-		id := IDExtractor{}
-		err = json.Unmarshal(buf, &id)
-		if err != nil {
-			t.Fatalf("Unmarshal error: %v", err)
-		}
-
-		if strings.Contains(s, method) {
-			reply := fmt.Sprintf(string(data), id.ID)
+		if strings.Contains(req.Method, method) {
+			reply := fmt.Sprintf(string(data), req.ID)
 			_, err = c.Write(([]byte)(reply))
 
 			if err != nil {

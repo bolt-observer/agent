@@ -1,6 +1,7 @@
 package lnsocket
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -88,4 +89,51 @@ func (ln *LN) CommandoReadAll() (string, error) {
 	}
 
 	return "", os.ErrDeadlineExceeded
+}
+
+// NewCommandoReader invokes a command and retruns a reader to read reply
+func (ln *LN) NewCommandoReader(rune, serviceMethod, params string, timeout time.Duration) (io.Reader, error) {
+	commando := NewCommandoMsg(rune, serviceMethod, params)
+
+	var b bytes.Buffer
+	_, err := lnwire.WriteMessage(&b, &commando, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = ln.Write(b.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	reader, writer := io.Pipe()
+	w := bufio.NewWriter(writer)
+
+	go func() {
+		start := time.Now()
+
+		for timeout == 0 || time.Now().Before(start.Add(timeout)) {
+			msgtype, res, err := ln.Read()
+			if err != nil {
+				writer.CloseWithError(err)
+			}
+			switch msgtype {
+			case CommandoReplyContinues:
+				w.Write(res[8:])
+				continue
+			case CommandoReplyTerm:
+				w.Write(res[8:])
+				w.Flush()
+				writer.Close()
+				return
+			default:
+				continue
+			}
+		}
+
+		w.Flush()
+		writer.CloseWithError(os.ErrDeadlineExceeded)
+	}()
+
+	return bufio.NewReader(reader), nil
 }

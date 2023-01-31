@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"reflect"
+	"io"
+	"io/ioutil"
 	"strings"
 	"time"
 
 	"github.com/bolt-observer/agent/lnsocket"
-	"github.com/lightningnetwork/lnd/lnwire"
 )
 
 // ClnCommandoConnection struct
@@ -39,40 +39,6 @@ func convertArgs(param any) string {
 		return Empty
 	}
 
-	if param != nil {
-		switch k := reflect.TypeOf(param).Kind(); k {
-		case reflect.Map:
-			if reflect.TypeOf(param).Key().Kind() == reflect.String {
-				if reflect.ValueOf(param).IsNil() {
-					param = nil
-				}
-			}
-		case reflect.Slice:
-			if reflect.ValueOf(param).IsNil() {
-				param = nil
-			}
-		case reflect.Array, reflect.Struct:
-		case reflect.Ptr:
-			switch kk := reflect.TypeOf(param).Elem().Kind(); kk {
-			case reflect.Map:
-				if reflect.TypeOf(param).Elem().Key().Kind() == reflect.String {
-					if reflect.ValueOf(param).Elem().IsNil() {
-						param = nil
-					}
-				}
-			case reflect.Slice:
-				if reflect.ValueOf(param).Elem().IsNil() {
-					param = nil
-				}
-			case reflect.Array, reflect.Struct:
-			default:
-				return Empty
-			}
-		default:
-			return Empty
-		}
-	}
-
 	sb := new(strings.Builder)
 	enc := json.NewEncoder(sb)
 	err := enc.Encode(param)
@@ -86,55 +52,74 @@ func convertArgs(param any) string {
 // CallWithTimeout - helper to call rpc method with a timeout
 func (l *ClnCommandoConnection) CallWithTimeout(serviceMethod string, args any, reply any) error {
 
-	err := l.ln.Connect(l.addr)
-	if err != nil {
-		return err
+	disconnect, err := l.initConnection()
+	if disconnect != nil {
+		defer disconnect()
 	}
-	defer l.ln.Disconnect()
-
-	err = l.ln.Handshake()
 	if err != nil {
 		return err
 	}
 
 	params := convertArgs(args)
 
-	commando := lnsocket.NewCommandoMsg(l.rune, serviceMethod, params)
-	var b bytes.Buffer
-	_, err = lnwire.WriteMessage(&b, &commando, 0)
+	reader, err := l.ln.NewCommandoReader(l.rune, serviceMethod, params, l.ln.Timeout)
 	if err != nil {
 		return err
 	}
 
-	_, err = l.ln.Write(b.Bytes())
+	data, err := parseResp(reader)
 	if err != nil {
 		return err
 	}
 
-	resp, err := l.ln.CommandoReadAll()
-	if err != nil {
-		return err
-	}
-
-	var errResp ClnErrorResp
-	err = json.Unmarshal([]byte(resp), &errResp)
-	if err != nil {
-		return err
-	}
-	if errResp.Error.Code != 0 {
-		return fmt.Errorf("invalid response %s", errResp.Error.Message)
-	}
-
-	var successResp ClnSuccessResp
-	err = json.Unmarshal([]byte(resp), &successResp)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(successResp.Result, &reply)
+	err = json.Unmarshal(data.Result, &reply)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (l *ClnCommandoConnection) initConnection() (func(), error) {
+	err := l.ln.Connect(l.addr)
+	if err != nil {
+		return nil, err
+	}
+	disconnect := func() {
+		l.ln.Disconnect()
+	}
+
+	err = l.ln.Handshake()
+	if err != nil {
+		return disconnect, err
+	}
+
+	return disconnect, nil
+}
+
+func parseResp(reader io.Reader) (ClnSuccessResp, error) {
+	// I have to buffer the response (to parse it twice)
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return ClnSuccessResp{}, err
+	}
+	r := bytes.NewReader(data)
+
+	var errResp ClnErrorResp
+	err = json.NewDecoder(r).Decode(&errResp)
+	if err != nil {
+		return ClnSuccessResp{}, err
+	}
+	if errResp.Error.Code != 0 {
+		return ClnSuccessResp{}, fmt.Errorf("invalid response %s", errResp.Error.Message)
+	}
+
+	var successResp ClnSuccessResp
+	r = bytes.NewReader(data)
+
+	err = json.NewDecoder(r).Decode(&successResp)
+	if err != nil {
+		return ClnSuccessResp{}, err
+	}
+	return successResp, nil
 }
