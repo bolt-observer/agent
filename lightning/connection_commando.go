@@ -30,7 +30,7 @@ func NewCommandoConnection(addr string, rune string, timeout time.Duration) *Cln
 
 	ret.addr = addr
 	ret.rune = rune
-	ret.ln = lnsocket.MakeLN(timeout)
+	ret.ln = lnsocket.NewLN(timeout)
 
 	return ret
 }

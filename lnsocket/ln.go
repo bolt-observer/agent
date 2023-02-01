@@ -20,6 +20,8 @@ import (
 
 	"github.com/lightningnetwork/lnd/brontide"
 	"github.com/lightningnetwork/lnd/tor"
+
+	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 // LN struct - heavily borrowed from https://github.com/jb55/lnsocket/blob/master/go/lnsocket.go
@@ -30,8 +32,8 @@ type LN struct {
 	Timeout     time.Duration
 }
 
-// MakeLN creates a new LN instance
-func MakeLN(timeout time.Duration) *LN {
+// NewLN creates a new LN instance
+func NewLN(timeout time.Duration) *LN {
 	server := os.Getenv("SOCKS_PROXY")
 	if server == "" {
 		server = "127.0.0.1:9050"
@@ -220,60 +222,74 @@ func (ln *LN) connectWith(netAddr *lnwire.NetAddress) error {
 	return err
 }
 
-// Connect connects to pubkey@host
-func (ln *LN) Connect(s string) error {
-	if ln.PrivKeyECDH == nil {
-		ln.GenKey()
-	}
+type lightningURL struct {
+	pubkey *secp.PublicKey
+	addr   net.Addr
+}
 
-	split := strings.Split(s, "@")
+func (ln *LN) parseURL(url string) (*lightningURL, error) {
+	var ret lightningURL
+
+	split := strings.Split(url, "@")
 	if len(split) != 2 {
-		return fmt.Errorf("wrong url")
+		return nil, fmt.Errorf("wrong url")
 	}
 
 	bytes, err := hex.DecodeString(split[0])
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	key, err := btcec.ParsePubKey(bytes)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	ret.pubkey = key
 
-	endpoint := split[1]
-
-	var addr net.Addr
+	endpoint := strings.ToLower(split[1])
 
 	if strings.Contains(endpoint, ".onion") {
 		if ln.Proxy == nil {
-			return fmt.Errorf("tor is not available")
+			return nil, fmt.Errorf("tor is not available")
 		}
 		s := strings.Split(endpoint, ":")
 		if len(s) != 2 {
-			return fmt.Errorf("wrong url")
+			return nil, fmt.Errorf("wrong url")
 		}
 
 		port, err := strconv.Atoi(s[1])
 		if err != nil {
-			return err
+			return nil, err
 		}
-		addr = &tor.OnionAddr{OnionService: s[0], Port: port}
+		ret.addr = &tor.OnionAddr{OnionService: s[0], Port: port}
 	} else {
 		if ln.Proxy == nil {
-			addr, err = net.ResolveTCPAddr("tcp", endpoint)
+			ret.addr, err = net.ResolveTCPAddr("tcp", endpoint)
 		} else {
-			addr, err = ln.Proxy.ResolveTCPAddr("tcp", endpoint)
+			ret.addr, err = ln.Proxy.ResolveTCPAddr("tcp", endpoint)
 		}
-
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
+	return &ret, nil
+}
+
+// Connect connects to pubkey@host
+func (ln *LN) Connect(endpoint string) error {
+	if ln.PrivKeyECDH == nil {
+		ln.GenKey()
+	}
+
+	url, err := ln.parseURL(endpoint)
+	if err != nil {
+		return err
+	}
+
 	netAddr := &lnwire.NetAddress{
-		IdentityKey: key,
-		Address:     addr,
+		IdentityKey: url.pubkey,
+		Address:     url.addr,
 	}
 
 	return ln.connectWith(netAddr)
