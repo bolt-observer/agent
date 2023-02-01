@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -29,7 +29,7 @@ func TestObtainDataGrpc(t *testing.T) {
 		return
 	}
 
-	content, err := ioutil.ReadFile(FixtureSecret)
+	content, err := os.ReadFile(FixtureSecret)
 	if err != nil {
 		t.Fatalf("Error when opening file: %v", err)
 		return
@@ -103,7 +103,7 @@ func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte
 	}
 	defer f.Close()
 
-	contents, err := ioutil.ReadAll(f)
+	contents, err := io.ReadAll(f)
 	if err != nil {
 		t.Fatalf("Could not read file: %v", err)
 		return nil, nil

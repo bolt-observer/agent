@@ -19,7 +19,6 @@ type LndGrpcLightningAPI struct {
 	Client       lnrpc.LightningClient
 	RouterClient routerrpc.RouterClient
 	CleanupFunc  func()
-	Name         string
 
 	API
 }
@@ -35,13 +34,15 @@ func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
 		return nil
 	}
 
-	return &LndGrpcLightningAPI{
+	ret := &LndGrpcLightningAPI{
 		Client:       client,
 		RouterClient: routerClient,
 		CleanupFunc:  cleanup,
 		API:          API{GetNodeInfoFullThreshUseDescribeGraph: 500},
-		Name:         "lndgrpc",
 	}
+
+	ret.Name = "lndgrpc"
+	return ret
 }
 
 // Not used

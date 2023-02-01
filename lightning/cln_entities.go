@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
-	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
-	rpc "github.com/powerman/rpc-codec/jsonrpc2"
 )
 
 var (
@@ -18,6 +16,10 @@ var (
 	// ErrInvalidResponse indicates invaid response
 	ErrInvalidResponse = errors.New("invalid response")
 )
+
+// ClnResp struct is the base type for all responses
+type ClnResp struct {
+}
 
 // ClnInfo struct
 type ClnInfo struct {
@@ -54,6 +56,7 @@ type ClnSetChan struct {
 // ClnSetChanResp struct
 type ClnSetChanResp struct {
 	Settings []ClnSetChan `json:"channels,omitempty"`
+	ClnResp
 }
 
 // ClnListChan struct
@@ -75,6 +78,7 @@ type ClnListChan struct {
 // ClnListChanResp struct
 type ClnListChanResp struct {
 	Channels []ClnListChan `json:"channels,omitempty"`
+	ClnResp
 }
 
 // ClnFundsChan struct
@@ -92,14 +96,7 @@ type ClnFundsChan struct {
 // ClnFundsChanResp struct
 type ClnFundsChanResp struct {
 	Channels []ClnFundsChan `json:"channels,omitempty"`
-}
-
-// ClnSocketLightningAPI struct
-type ClnSocketLightningAPI struct {
-	API
-	Client  *rpc.Client
-	Timeout time.Duration
-	Name    string
+	ClnResp
 }
 
 // ClnListNodeAddr struct
@@ -122,6 +119,7 @@ type ClnListNode struct {
 // ClnListNodeResp struct
 type ClnListNodeResp struct {
 	Nodes []ClnListNode `json:"nodes,omitempty"`
+	ClnResp
 }
 
 // ClnForwardEntry struct
@@ -211,4 +209,21 @@ type ClnRawForwardsTime struct {
 // GetUnixTimeMs to comply with ClnRawTimeItf
 func (r ClnRawForwardsTime) GetUnixTimeMs() uint64 {
 	return uint64(math.Round(r.Time * 1000))
+}
+
+// ClnErrorResp struct
+type ClnErrorResp struct {
+	ClnResp
+
+	Error struct {
+		Code    int    `json:"code,omitempty"`
+		Message string `json:"message,omitempty"`
+	} `json:"error"`
+}
+
+// ClnSuccessResp struct
+type ClnSuccessResp struct {
+	ClnResp
+
+	Result json.RawMessage `json:"result,omitempty"`
 }

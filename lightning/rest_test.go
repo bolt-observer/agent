@@ -2,7 +2,7 @@ package lightning
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -23,7 +23,7 @@ func TestDoRequest(t *testing.T) {
 	h := &HTTPAPI{}
 
 	h.DoFunc = func(req *http.Request) (*http.Response, error) {
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -36,7 +36,7 @@ func TestDoRequest(t *testing.T) {
 	assert.Equal(t, 1, data.Bar)
 
 	h.DoFunc = func(req *http.Request) (*http.Response, error) {
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 400,

@@ -21,6 +21,7 @@ const (
 	LndGrpc APIType = iota
 	LndRest
 	ClnSocket
+	ClnCommando
 )
 
 // GetAPIType from integer
@@ -28,7 +29,7 @@ func GetAPIType(t *int) (*APIType, error) {
 	if t == nil {
 		return nil, fmt.Errorf("no api type specified")
 	}
-	if *t != int(LndGrpc) && *t != int(LndRest) && *t != int(ClnSocket) {
+	if *t != int(LndGrpc) && *t != int(LndRest) && *t != int(ClnSocket) && *t != int(ClnCommando) {
 		return nil, fmt.Errorf("invalid api type specified")
 	}
 
@@ -357,6 +358,7 @@ type RawPagination struct {
 
 // API - generic API settings
 type API struct {
+	Name                                  string
 	GetNodeInfoFullThreshUseDescribeGraph int // If node has more than that number of channels use DescribeGraph else do GetChanInfo for each one
 }
 
@@ -535,6 +537,8 @@ func NewAPI(apiType APIType, getData GetDataCall) LightingAPICalls {
 		return NewLndRestLightningAPI(getData)
 	case ClnSocket:
 		return NewClnSocketLightningAPI(getData)
+	case ClnCommando:
+		return NewClnCommandoLightningAPI(getData)
 	}
 
 	sentry.CaptureMessage("Invalid api type")

@@ -5,16 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-const BUFSIZE = 2048
+const Deadline = 15 * time.Second
 
 func TestConvertChanId(t *testing.T) {
 	clnID := "761764x816x0"
@@ -112,7 +112,7 @@ func clnData(t *testing.T, name string) []byte {
 	}
 	defer f.Close()
 
-	contents, err := ioutil.ReadAll(f)
+	contents, err := io.ReadAll(f)
 	if err != nil {
 		t.Fatalf("Could not read file: %v", err)
 	}
@@ -136,32 +136,23 @@ func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningAPI, LightingA
 	return d, api, closeFunc
 }
 
-type IDExtractor struct {
-	ID int `json:"id"`
+type RequestExtractor struct {
+	ID     int    `json:"id"`
+	Method string `json:"method"`
 }
 
 func TestClnGetInfo(t *testing.T) {
 	data := clnData(t, "cln_info")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		buf := make([]byte, BUFSIZE)
-		n, err := c.Read(buf)
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
 		if err != nil {
-			t.Fatalf("Could not read request body: %v", err)
+			t.Fatalf("Decode error: %v", err)
 		}
 
-		// Reslice else the thing contains zero bytes
-		buf = buf[:n]
-		s := string(buf)
-
-		id := IDExtractor{}
-		err = json.Unmarshal(buf, &id)
-		if err != nil {
-			t.Fatalf("Unmarshal error: %v", err)
-		}
-
-		if strings.Contains(s, "getinfo") {
-			reply := fmt.Sprintf(string(data), id.ID)
+		if strings.Contains(req.Method, "getinfo") {
+			reply := fmt.Sprintf(string(data), req.ID)
 			_, err = c.Write(([]byte)(reply))
 
 			if err != nil {
@@ -176,7 +167,10 @@ func TestClnGetInfo(t *testing.T) {
 	})
 	defer closer()
 
-	resp, err := api.GetInfo(context.Background())
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetInfo(ctx)
 	if err != nil {
 		t.Fatalf("GetInfo call failed: %v", err)
 	}
@@ -195,24 +189,14 @@ func TestClnGetChanInfo(t *testing.T) {
 	data := clnData(t, "cln_listchans")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		buf := make([]byte, BUFSIZE)
-		n, err := c.Read(buf)
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
 		if err != nil {
-			t.Fatalf("Could not read request body: %v", err)
+			t.Fatalf("Decode error: %v", err)
 		}
 
-		// Reslice else the thing contains zero bytes
-		buf = buf[:n]
-		s := string(buf)
-
-		id := IDExtractor{}
-		err = json.Unmarshal(buf, &id)
-		if err != nil {
-			t.Fatalf("Unmarshal error: %v", err)
-		}
-
-		if strings.Contains(s, "listchannels") {
-			reply := fmt.Sprintf(string(data), id.ID)
+		if strings.Contains(req.Method, "listchannels") {
+			reply := fmt.Sprintf(string(data), req.ID)
 			_, err = c.Write(([]byte)(reply))
 
 			if err != nil {
@@ -231,7 +215,10 @@ func TestClnGetChanInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not convert id %d", err)
 	}
-	resp, err := api.GetChanInfo(context.Background(), id)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetChanInfo(ctx, id)
 	if err != nil {
 		t.Fatalf("GetInfo call failed: %v", err)
 	}
@@ -247,41 +234,25 @@ func TestClnGetNodeInfoFull(t *testing.T) {
 	channels := clnData(t, "cln_nodeinfo_channels")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		buf := make([]byte, 0)
-
 		for {
-			tmp := make([]byte, BUFSIZE)
-			n, err := c.Read(tmp)
+			req := RequestExtractor{}
+			err := json.NewDecoder(c).Decode(&req)
 			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				t.Fatalf("Could not read request body: %v", err)
-			}
-
-			buf = append(buf, tmp[:n]...)
-			s := string(buf)
-
-			id := IDExtractor{}
-			err = json.Unmarshal(buf, &id)
-			if err != nil {
-				continue
-			} else {
-				// Reset buf
-				buf = make([]byte, 0)
+				t.Fatalf("Decode error: %v", err)
 			}
 
 			reply := ""
-			if strings.Contains(s, "getinfo") {
-				reply = fmt.Sprintf(string(info), id.ID)
-			} else if strings.Contains(s, "listfunds") {
-				reply = fmt.Sprintf(string(funds), id.ID)
-			} else if strings.Contains(s, "listchannels") {
-				reply = fmt.Sprintf(string(channels), id.ID)
+
+			if strings.Contains(req.Method, "getinfo") {
+				reply = fmt.Sprintf(string(info), req.ID)
+			} else if strings.Contains(req.Method, "listfunds") {
+				reply = fmt.Sprintf(string(funds), req.ID)
+			} else if strings.Contains(req.Method, "listchannels") {
+				reply = fmt.Sprintf(string(channels), req.ID)
 			}
 
 			if reply == "" {
-				t.Fatalf("Called unexpected method %s", s)
+				t.Fatalf("Called unexpected method %s", req.Method)
 				return
 			}
 
@@ -291,7 +262,10 @@ func TestClnGetNodeInfoFull(t *testing.T) {
 	})
 	defer closer()
 
-	resp, err := api.GetNodeInfoFull(context.Background(), true, true)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetNodeInfoFull(ctx, true, true)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(resp.Channels))
 	assert.Equal(t, "031f786dcbac09a9174522a17a1bd6dfa6d01638d1fe250c6d0927ca0fdce36d:0", resp.Channels[0].ChanPoint)
@@ -304,24 +278,14 @@ func rawCommon(t *testing.T, file string, method string, call RawMethodCall) {
 	data := clnData(t, file)
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		buf := make([]byte, BUFSIZE)
-		n, err := c.Read(buf)
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
 		if err != nil {
-			t.Fatalf("Could not read request body: %v", err)
+			t.Fatalf("Decode error: %v", err)
 		}
 
-		// Reslice else the thing contains zero bytes
-		buf = buf[:n]
-		s := string(buf)
-
-		id := IDExtractor{}
-		err = json.Unmarshal(buf, &id)
-		if err != nil {
-			t.Fatalf("Unmarshal error: %v", err)
-		}
-
-		if strings.Contains(s, method) {
-			reply := fmt.Sprintf(string(data), id.ID)
+		if strings.Contains(req.Method, method) {
+			reply := fmt.Sprintf(string(data), req.ID)
 			_, err = c.Write(([]byte)(reply))
 
 			if err != nil {
@@ -336,34 +300,42 @@ func rawCommon(t *testing.T, file string, method string, call RawMethodCall) {
 	})
 	defer closer()
 
-	resp, err := call(context.Background(), api)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+	resp, err := call(ctx, api)
 	assert.NoError(t, err)
 	assert.Equal(t, 10, len(resp))
 	assert.Equal(t, 2023, resp[0].Timestamp.Year())
 }
 
 func TestClnGetForwardsRaw(t *testing.T) {
+	p := RawPagination{}
+	p.BatchSize = 50
 	rawCommon(t, "cln_listforwards", "listforwards",
 		RawMethodCall(func(ctx context.Context, api LightingAPICalls) ([]RawMessage, error) {
-			resp, _, err := api.GetForwardsRaw(ctx, RawPagination{})
+			resp, _, err := api.GetForwardsRaw(ctx, p)
 			return resp, err
 		}),
 	)
 }
 
 func TestClnGetInvoicesRaw(t *testing.T) {
+	p := RawPagination{}
+	p.BatchSize = 50
 	rawCommon(t, "cln_listinvoices", "listinvoices",
 		RawMethodCall(func(ctx context.Context, api LightingAPICalls) ([]RawMessage, error) {
-			resp, _, err := api.GetInvoicesRaw(ctx, false, RawPagination{})
+			resp, _, err := api.GetInvoicesRaw(ctx, false, p)
 			return resp, err
 		}),
 	)
 }
 
 func TestClnGetPaymentsRaw(t *testing.T) {
+	p := RawPagination{}
+	p.BatchSize = 50
 	rawCommon(t, "cln_listsendpays", "listsendpays",
 		RawMethodCall(func(ctx context.Context, api LightingAPICalls) ([]RawMessage, error) {
-			resp, _, err := api.GetPaymentsRaw(ctx, false, RawPagination{})
+			resp, _, err := api.GetPaymentsRaw(ctx, false, p)
 			return resp, err
 		}),
 	)

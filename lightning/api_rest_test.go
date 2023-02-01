@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -29,7 +29,7 @@ func TestObtainData(t *testing.T) {
 		return
 	}
 
-	content, err := ioutil.ReadFile(FixtureSecret)
+	content, err := os.ReadFile(FixtureSecret)
 	if err != nil {
 		t.Fatalf("Error when opening file: %v", err)
 		return
@@ -71,7 +71,7 @@ func TestObtainData(t *testing.T) {
 			return nil, err
 		}
 
-		bodyData, _ := ioutil.ReadAll(resp.Body)
+		bodyData, _ := io.ReadAll(resp.Body)
 		name := strings.ReplaceAll(strings.ReplaceAll(req.URL.Path, "/", "_"), "_v1_", "")
 
 		if name == "channels" {
@@ -133,7 +133,7 @@ func TestObtainData(t *testing.T) {
 
 		fmt.Fprintf(f, "%s\n", string(bodyData))
 
-		resp.Body = ioutil.NopCloser(bytes.NewBuffer(bodyData))
+		resp.Body = io.NopCloser(bytes.NewBuffer(bodyData))
 		return resp, nil
 	}
 
@@ -192,7 +192,7 @@ func common(t *testing.T, name string) ([]byte, *LndRestLightningAPI, LightingAP
 	}
 	defer f.Close()
 
-	contents, err := ioutil.ReadAll(f)
+	contents, err := io.ReadAll(f)
 	if err != nil {
 		t.Fatalf("Could not read file: %v", err)
 		return nil, nil, nil
@@ -226,7 +226,7 @@ func TestGetInfo(t *testing.T) {
 			t.Fatalf("URL should contain v1/getinfo")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader(contents))
+		r := io.NopCloser(bytes.NewReader(contents))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -260,7 +260,7 @@ func TestGetChannels(t *testing.T) {
 			t.Fatalf("URL should contain v1/channels")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader(contents))
+		r := io.NopCloser(bytes.NewReader(contents))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -298,7 +298,7 @@ func TestDescribeGraph(t *testing.T) {
 			t.Fatalf("URL should contain v1/graph")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader(contents))
+		r := io.NopCloser(bytes.NewReader(contents))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -323,7 +323,7 @@ func TestGetNodeInfo(t *testing.T) {
 			t.Fatalf("URL should contain v1/graph/node")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader(contents))
+		r := io.NopCloser(bytes.NewReader(contents))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -359,7 +359,7 @@ func TestGetChanInfo(t *testing.T) {
 			t.Fatalf("URL should contain v1/graph/edge")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader(contents))
+		r := io.NopCloser(bytes.NewReader(contents))
 
 		return &http.Response{
 			StatusCode: 200,

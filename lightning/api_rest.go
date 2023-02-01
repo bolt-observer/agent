@@ -18,7 +18,7 @@ type LndRestLightningAPI struct {
 	Request   *http.Request
 	Transport *http.Transport
 	HTTPAPI   *HTTPAPI
-	Name      string
+
 	API
 }
 
@@ -37,13 +37,16 @@ func NewLndRestLightningAPI(getData GetDataCall) LightingAPICalls {
 
 	api.SetTransport(transport)
 
-	return &LndRestLightningAPI{
+	ret := &LndRestLightningAPI{
 		Request:   request,
 		Transport: transport,
 		HTTPAPI:   api,
-		Name:      "lndrest",
 		API:       API{GetNodeInfoFullThreshUseDescribeGraph: 500},
 	}
+
+	ret.Name = "lndrest"
+
+	return ret
 }
 
 // GetInfo - GetInfo API
