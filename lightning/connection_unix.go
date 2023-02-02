@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	r "net/rpc"
 	"os"
@@ -39,6 +40,10 @@ func NewUnixConnection(socketType string, address string) *ClnUnixConnection {
 
 // Call calls serviceMethod with args and fills reply with response
 func (l *ClnUnixConnection) Call(ctx context.Context, serviceMethod string, args any, reply any) error {
+	if l.Client == nil {
+		return fmt.Errorf("no client")
+	}
+
 	c := make(chan *r.Call, 1)
 
 	go l.Client.Go(serviceMethod, args, reply, c)
@@ -52,6 +57,10 @@ func (l *ClnUnixConnection) Call(ctx context.Context, serviceMethod string, args
 
 // StreamResponse is meant for streaming responses it calls serviceMethod with args and returns an io.Reader
 func (l *ClnUnixConnection) StreamResponse(ctx context.Context, serviceMethod string, args any) (io.Reader, error) {
+	if l.Client == nil {
+		return nil, fmt.Errorf("no client")
+	}
+
 	c := make(chan *r.Call, 1)
 	var reply json.RawMessage
 	go l.Client.Go(serviceMethod, args, &reply, c)

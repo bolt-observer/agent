@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -31,7 +30,7 @@ func getAPI(t *testing.T, name string, typ api.APIType) api.LightingAPICalls {
 		return nil
 	}
 
-	content, err := ioutil.ReadFile(name)
+	content, err := os.ReadFile(name)
 	if err != nil {
 		t.Fatalf("Error when opening file: %v", err)
 		return nil

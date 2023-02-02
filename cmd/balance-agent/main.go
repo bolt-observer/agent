@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/golang/glog"
 	cli "github.com/urfave/cli"
 
@@ -103,14 +104,14 @@ func getData(cmdCtx *cli.Context) (*entities.Data, error) {
 		return nil, fmt.Errorf("could not extractPathArgs %v", err)
 	}
 
-	content, err := ioutil.ReadFile(tlsCertPath)
+	content, err := os.ReadFile(tlsCertPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read certificate file %s", tlsCertPath)
 	}
 
 	resp.CertificateBase64 = base64.StdEncoding.EncodeToString(content)
 
-	macBytes, err := ioutil.ReadFile(macPath)
+	macBytes, err := os.ReadFile(macPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read macaroon file %s", macPath)
 	}
@@ -439,7 +440,7 @@ func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		glog.Warningf("Status was not OK but, %d", resp.StatusCode)
 		defer resp.Body.Close()
-		bodyData, _ := ioutil.ReadAll(resp.Body)
+		bodyData, _ := io.ReadAll(resp.Body)
 
 		glog.V(2).Infof("Failed to send out callback %s, server said %s", string(rep), string(bodyData))
 		shouldCrash(resp.StatusCode, string(bodyData))
@@ -622,35 +623,49 @@ func sender(ctx context.Context, cmdCtx *cli.Context, apiKey string) {
 	if cmdCtx.String("datastore-url") != "" && apiKey != "" {
 		glog.Infof("Datastore server URL: %s", cmdCtx.String("datastore-url"))
 
-		lightningAPI := mkGetLndAPI(cmdCtx)()
-		if lightningAPI == nil {
-			glog.Warningf("GRPC get ligtning failure\n")
-			return
-		}
-		sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), lightningAPI)
+		b := backoff.NewExponentialBackOff()
+		b.MaxElapsedTime = 0
+
+		err := backoff.RetryNotify(func() error {
+			return senderWithRetries(ctx, cmdCtx, apiKey)
+		}, b, func(e error, d time.Duration) {
+			glog.Warningf("Could not init GRPC sending %v\n", e)
+		})
 		if err != nil {
-			glog.Warningf("GRPC get fetcher failure %v\n", err)
-			return
-		}
-
-		s := convertTimeSetting(cmdCtx.Int64("fetch-invoices"))
-		if s.enabled {
-			glog.Infof("Fetching invoices after %v\n", s.time)
-			go sender.SendInvoices(context.Background(), s.useLatestTimeFromServer, s.time)
-		}
-
-		s = convertTimeSetting(cmdCtx.Int64("fetch-forwards"))
-		if s.enabled {
-			glog.Infof("Fetching forwards after %v\n", s.time)
-			go sender.SendForwards(context.Background(), s.useLatestTimeFromServer, s.time)
-		}
-
-		s = convertTimeSetting(cmdCtx.Int64("fetch-payments"))
-		if s.enabled {
-			glog.Infof("Fetching payments after %v\n", s.time)
-			go sender.SendPayments(context.Background(), s.useLatestTimeFromServer, s.time)
+			glog.Warningf("Fatal error with GRPC sending init %v\n", err)
 		}
 	}
+}
+
+func senderWithRetries(ctx context.Context, cmdCtx *cli.Context, apiKey string) error {
+	lightningAPI := mkGetLndAPI(cmdCtx)()
+	if lightningAPI == nil {
+		return fmt.Errorf("get GRPC ligtning failure")
+	}
+	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), lightningAPI)
+	if err != nil {
+		return fmt.Errorf("get GRPC fetcher failure %v", err)
+	}
+
+	s := convertTimeSetting(cmdCtx.Int64("fetch-invoices"))
+	if s.enabled {
+		glog.Infof("Fetching invoices after %v\n", s.time)
+		go sender.SendInvoices(ctx, s.useLatestTimeFromServer, s.time)
+	}
+
+	s = convertTimeSetting(cmdCtx.Int64("fetch-forwards"))
+	if s.enabled {
+		glog.Infof("Fetching forwards after %v\n", s.time)
+		go sender.SendForwards(ctx, s.useLatestTimeFromServer, s.time)
+	}
+
+	s = convertTimeSetting(cmdCtx.Int64("fetch-payments"))
+	if s.enabled {
+		glog.Infof("Fetching payments after %v\n", s.time)
+		go sender.SendPayments(ctx, s.useLatestTimeFromServer, s.time)
+	}
+
+	return nil
 }
 
 func main() {
