@@ -52,6 +52,9 @@ fi
 
 chmod 666 $DIR/*
 
+# Ugly but lnd needs some time to become ready
+sleep 30
+
 echo "----"
 docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/node-data-report/" --datastore-url $DATASTORE_SERVER --verbosity 3
 echo "----"
