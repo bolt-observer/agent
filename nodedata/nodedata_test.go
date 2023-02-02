@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -208,7 +208,7 @@ func TestBasicFlow(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -270,7 +270,7 @@ func TestContextCanBeNil(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -329,7 +329,7 @@ func TestGetState(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -379,7 +379,7 @@ func TestGetStateCallback(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -451,7 +451,7 @@ func TestSubscription(t *testing.T) {
 			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -533,7 +533,7 @@ func TestPrivateChannelsExcluded(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -602,7 +602,7 @@ func TestInactiveFlow(t *testing.T) {
 			contents = getChanInfo(req.URL.Path)
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -691,7 +691,7 @@ func TestChange(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -766,7 +766,7 @@ func TestPubkeyWrong(t *testing.T) {
 			contents = getInfoJSON("wrong")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -821,7 +821,7 @@ func TestKeepAliveIsSent(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -907,7 +907,7 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -987,7 +987,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -1077,7 +1077,7 @@ func TestGraphIsRequested(t *testing.T) {
 			success = true
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -1143,7 +1143,7 @@ func TestBasicFlowRedis(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -1212,7 +1212,7 @@ func TestBaseFeePolicyChange(t *testing.T) {
 			}
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -1292,7 +1292,7 @@ func TestBasicFlowFilterOne(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,
@@ -1359,7 +1359,7 @@ func TestBasicFlowFilterTwo(t *testing.T) {
 			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
 		}
 
-		r := ioutil.NopCloser(bytes.NewReader([]byte(contents)))
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
 
 		return &http.Response{
 			StatusCode: 200,

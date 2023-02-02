@@ -3,7 +3,6 @@ package raw
 import (
 	"context"
 	"errors"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -30,7 +29,7 @@ func TestSender(t *testing.T) {
 		return
 	}
 
-	tokenData, err := ioutil.ReadFile(TokenFile)
+	tokenData, err := os.ReadFile(TokenFile)
 	if err != nil {
 		t.Fatalf("Error when opening file: %v", err)
 		return
