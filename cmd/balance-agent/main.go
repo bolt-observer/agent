@@ -69,6 +69,10 @@ func findUnixSocket(paths ...string) string {
 	return ""
 }
 
+func intPtr(i int) *int {
+	return &i
+}
+
 func getData(cmdCtx *cli.Context) (*entities.Data, error) {
 	resp := &entities.Data{}
 	resp.Endpoint = cmdCtx.String("rpcserver")
@@ -79,18 +83,15 @@ func getData(cmdCtx *cli.Context) (*entities.Data, error) {
 		path := findUnixSocket(filepath.Join(defaultLightningDir, cmdCtx.String("chain"), "lightning-rpc"), resp.Endpoint)
 		if path != "" {
 			resp.Endpoint = path
-			v := int(api.ClnSocket)
-			resp.ApiType = &v
+			resp.ApiType = intPtr(int(api.ClnSocket))
 		}
 	}
 
 	if resp.ApiType == nil {
 		if cmdCtx.Bool("userest") {
-			v := int(api.LndRest)
-			resp.ApiType = &v
+			resp.ApiType = intPtr(int(api.LndRest))
 		} else {
-			v := int(api.LndGrpc)
-			resp.ApiType = &v
+			resp.ApiType = intPtr(int(api.LndGrpc))
 		}
 	}
 

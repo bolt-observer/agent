@@ -13,6 +13,9 @@ func NewClnSocketLightningAPIRaw(socketType string, address string) LightingAPIC
 	api := &ClnSocketLightningAPI{}
 
 	api.connection = NewUnixConnection(socketType, address)
+	if api.connection == nil {
+		return nil
+	}
 	api.Name = "clnsocket"
 
 	return api

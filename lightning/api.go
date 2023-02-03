@@ -525,7 +525,6 @@ func NewAPI(apiType APIType, getData GetDataCall) LightingAPICalls {
 		} else {
 			t = *foo
 		}
-
 	} else {
 		t = apiType
 	}

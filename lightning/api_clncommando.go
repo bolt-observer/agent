@@ -18,6 +18,9 @@ func NewClnCommandoLightningAPIRaw(addr, rune string) LightingAPICalls {
 	api := &ClnCommandoLightningAPI{}
 
 	api.connection = NewCommandoConnection(addr, rune, 30*time.Second)
+	if api.connection == nil {
+		return nil
+	}
 	api.Name = "clncommando"
 
 	return api
