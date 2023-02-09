@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	common_entities "github.com/bolt-observer/agent/entities"
+
 	"github.com/bolt-observer/go_common/entities"
 	"github.com/stretchr/testify/assert"
 
@@ -94,7 +96,9 @@ func TestGetInvoices(t *testing.T) {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
 		defer cancel()
 
-		channel := GetInvoicesChannel(ctx, itf, from)
+		channel := GetInvoicesChannel(ctx, func() api.LightingAPICalls {
+			return itf
+		}, from)
 		num := 0
 		for i := 0; i < Limit; i++ {
 			data := <-channel
@@ -125,7 +129,9 @@ func TestGetForwards(t *testing.T) {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
 		defer cancel()
 
-		channel := GetForwardsChannel(ctx, itf, from)
+		channel := GetForwardsChannel(ctx, func() api.LightingAPICalls {
+			return itf
+		}, from)
 		num := 0
 		for i := 0; i < Limit; i++ {
 			data := <-channel
@@ -156,7 +162,9 @@ func TestGetPayments(t *testing.T) {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(30*time.Minute))
 		defer cancel()
 
-		channel := GetPaymentsChannel(ctx, itf, from)
+		channel := GetPaymentsChannel(ctx, func() api.LightingAPICalls {
+			return itf
+		}, from)
 		num := 0
 		for i := 0; i < Limit; i++ {
 			data := <-channel
@@ -180,7 +188,7 @@ func TestPaginatorSimple(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 	defer cancel()
 
-	f := func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+	f := func(ctx context.Context, lightning common_entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
 		return []api.RawMessage{
 				{Timestamp: time.Unix(min-1, 0), Implementation: "A"},
 				{Timestamp: time.Unix(min-1, 0), Implementation: "B"},
@@ -220,7 +228,7 @@ func TestPaginatorSplit(t *testing.T) {
 
 	ctx = context.WithValue(ctx, ctxKey{}, &step)
 
-	f := func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+	f := func(ctx context.Context, lightning common_entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
 
 		ptr, ok := ctx.Value(ctxKey{}).(*int)
 		if !ok {

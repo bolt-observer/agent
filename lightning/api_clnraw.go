@@ -34,7 +34,7 @@ type ClnRawLightningAPI struct {
 
 // Cleanup - clean up API
 func (l *ClnRawLightningAPI) Cleanup() {
-	// do nothing
+	l.connection.Cleanup()
 }
 
 // DescribeGraph - DescribeGraph API call

@@ -80,6 +80,13 @@ func (l *ClnCommandoConnection) StreamResponse(ctx context.Context, serviceMetho
 	return reader, nil
 }
 
+// Cleanup does the cleanup
+func (l *ClnCommandoConnection) Cleanup() {
+	if l.ln != nil {
+		l.ln.Disconnect()
+	}
+}
+
 func (l *ClnCommandoConnection) initConnection() error {
 	// Check if connection is still usable
 	err := l.ln.Ping()

@@ -639,11 +639,7 @@ func sender(ctx context.Context, cmdCtx *cli.Context, apiKey string) {
 }
 
 func senderWithRetries(ctx context.Context, cmdCtx *cli.Context, apiKey string) error {
-	lightningAPI := mkGetLndAPI(cmdCtx)()
-	if lightningAPI == nil {
-		return fmt.Errorf("get GRPC ligtning failure")
-	}
-	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), lightningAPI)
+	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), mkGetLndAPI(cmdCtx))
 	if err != nil {
 		return fmt.Errorf("get GRPC fetcher failure %v", err)
 	}
@@ -671,8 +667,8 @@ func senderWithRetries(ctx context.Context, cmdCtx *cli.Context, apiKey string) 
 
 func main() {
 	app := getApp()
-	app.Name = "balance-agent"
-	app.Usage = "Utility to monitor channel balances"
+	app.Name = "bolt-agent"
+	app.Usage = "Utility to monitor and manage lightning node"
 	app.Action = func(cmdCtx *cli.Context) error {
 		glogShim(cmdCtx)
 		if err := nodeDataChecker(cmdCtx); err != nil {
