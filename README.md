@@ -63,7 +63,7 @@ If that file exists program will default to CoreLightning so if have LND install
 that user using which agent is running has correct permissions to access the socket.
 
 There is support for remote connections via commando plugin but you cannot use that option via command-line flags at the moment. We suggest to use
-`socat` utility if you wish to monitor a remote node using agent.
+`socat` utility if you wish to monitor a remote CLN node.
 
 Flag `--private` means whether you want to report data for private ("unannounced") channels too (when true). The default is false.
 
