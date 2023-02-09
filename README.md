@@ -149,7 +149,7 @@ The file looks like this:
 ```
 # Comments start with a # character
 # You can list pubkeys for example:
-0288037d3f0bdcfb240402b43b80cdc32e46528b3e2ebe05884aff507d71fca71a # bolt.observer
+0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a # bolt.observer
 # which means any channel where peer pubkey is this
 # or you can specify a specific short channel id e.g.,
 759930760125546497
