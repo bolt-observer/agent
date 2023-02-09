@@ -41,6 +41,7 @@ GLOBAL OPTIONS:
 ```
 
 It works with LND and CoreLightning and tries the best to have sane defaults so you can just start it up on your node without further hassle.
+Agent is using `glog` library for logging which needs writable `/tmp` (a workaround if that is not the case is to use `--logtostderr` flag).
 
 If you have a custom LND directory (`/storage` in the example) you might need:
 ```
@@ -60,7 +61,7 @@ use cases flags `--userest` and `--rpcserver` are not advertied in help.
 For CoreLightning it will use UNIX domain socket. It will try to use `~/.lightning/bitcoin/lightning-rpc`.
 If that file exists program will default to CoreLightning so if have LND installed on the node too and do not want to use CLN there is a flag
 `--ignorecln`. You can manually override name of UNIX domain socket using `--rpcserver` flag (e.g., `--rpcserver /storage/cln/socket`). Make sure
-that user using which agent is running has correct permissions to access the socket.
+agent is running with correct permissions to access the socket.
 
 There is support for remote connections via commando plugin but you cannot use that option via command-line flags at the moment. We suggest to use
 `socat` utility if you wish to monitor a remote CLN node.
