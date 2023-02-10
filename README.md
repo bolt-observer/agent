@@ -41,7 +41,7 @@ GLOBAL OPTIONS:
 ```
 
 It works with LND and CoreLightning and tries the best to have sane defaults so you can just start it up on your node without further hassle.
-Agent is using `glog` library for logging which needs writable `/tmp` (a workaround if that is not the case is to use `--logtostderr` flag).
+Agent is using `glog` library for logging which needs writable `/tmp` (use `--logtostderr` to prevent writing to filesystem).
 
 If you have a custom LND directory (`/storage` in the example) you might need:
 ```
@@ -56,9 +56,9 @@ By default it will try to communicate with LND using local gRPC connection and `
 You can use `--userest` to start using REST API (default is as mentioned gRPC) - in that case `--rpcserver` can be complete URL to the endpoint.
 
 Of course you can also start the agent on a remote node and just point it to the correct endpoint, but since this is not the default
-use cases flags `--userest` and `--rpcserver` are not advertied in help.
+use cases flags `--userest` and `--rpcserver` are not listed in help.
 
-For CoreLightning it will use UNIX domain socket. It will try to use `~/.lightning/bitcoin/lightning-rpc`.
+For CoreLightning it will use UNIX domain socket. By default agent will try to use `~/.lightning/bitcoin/lightning-rpc`.
 If that file exists program will default to CoreLightning so if have LND installed on the node too and do not want to use CLN there is a flag
 `--ignorecln`. You can manually override name of UNIX domain socket using `--rpcserver` flag (e.g., `--rpcserver /storage/cln/socket`). Make sure
 agent is running with correct permissions to access the socket.
