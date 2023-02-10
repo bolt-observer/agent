@@ -58,6 +58,7 @@ GLOG OPTIONS (described in https://github.com/google/glog#setting-flags):
    --vmodule
    --log_dir
    --log_backtrace_at
+```
 
 Agent works with LND and CoreLightning and tries the best to have sane defaults so you can just start it up on your node without further hassle.
 
