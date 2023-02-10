@@ -218,7 +218,7 @@ func getApp() *cli.App {
 		},
 		&cli.StringFlag{
 			Name:   whitelist,
-			Usage:  "Path to file containing a whitelist of channels",
+			Usage:  "path to file containing a whitelist of channels",
 			Hidden: false,
 		},
 		&cli.StringFlag{
@@ -246,7 +246,7 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:  "preferipv4",
-			Usage: "If you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)",
+			Usage: "if you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)",
 		},
 		&cli.StringFlag{
 			Name:  "rpcserver",
@@ -260,12 +260,12 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:   "userest",
-			Usage:  "Use REST API when true instead of gRPC",
+			Usage:  "use REST API when true instead of gRPC",
 			Hidden: true,
 		},
 		&cli.DurationFlag{
 			Name:   "keepalive",
-			Usage:  "Keepalive interval (if nothing changed after this time an empty message will be sent)",
+			Usage:  "keepalive interval (if nothing changed after this time an empty message will be sent)",
 			Value:  60 * time.Second,
 			Hidden: true,
 		},
@@ -276,13 +276,13 @@ func getApp() *cli.App {
 		},
 		&cli.StringFlag{
 			Name:   "url",
-			Usage:  "Report URL",
+			Usage:  "report URL",
 			Value:  "https://ingress.bolt.observer/api/node-data-report/",
 			Hidden: true,
 		},
 		&cli.StringFlag{
 			Name:   "uniqueid",
-			Usage:  "Unique identifier",
+			Usage:  "unique identifier",
 			Value:  "",
 			Hidden: true,
 		},
@@ -308,25 +308,25 @@ func getApp() *cli.App {
 		},
 		&cli.StringFlag{
 			Name:   "datastore-url",
-			Usage:  "Datastore URL",
+			Usage:  "datastore URL",
 			Value:  "agent-api.bolt.observer:443",
 			Hidden: true,
 		},
 		&cli.Int64Flag{
 			Name:   "fetch-invoices",
-			Usage:  "Fetch invoices",
+			Usage:  "fetch invoices",
 			Value:  0,
 			Hidden: true,
 		},
 		&cli.Int64Flag{
 			Name:   "fetch-forwards",
-			Usage:  "Fetch forwards",
+			Usage:  "fetch forwards",
 			Value:  0,
 			Hidden: true,
 		},
 		&cli.Int64Flag{
 			Name:   "fetch-payments",
-			Usage:  "Fetch payments",
+			Usage:  "fetch payments",
 			Value:  0,
 			Hidden: true,
 		},
