@@ -12,11 +12,12 @@ var _ LightingAPICalls = &ClnSocketLightningAPI{}
 func NewClnSocketLightningAPIRaw(socketType string, address string) LightingAPICalls {
 	api := &ClnSocketLightningAPI{}
 
-	api.connection = NewUnixConnection(socketType, address)
-	if api.connection == nil {
+	connection := NewUnixConnection(socketType, address)
+	if connection == nil {
 		return nil
 	}
 	api.Name = "clnsocket"
+	api.connection = connection
 
 	return api
 }

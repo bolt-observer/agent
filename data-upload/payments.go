@@ -2,24 +2,30 @@ package raw
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/bolt-observer/agent/entities"
 	api "github.com/bolt-observer/agent/lightning"
 	"github.com/golang/glog"
 )
 
 // GetRawData - signature for the function to get raw data
-type GetRawData func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error)
+type GetRawData func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error)
 
 // DefaultBatchSize is the default batch size
 const DefaultBatchSize = 50
 
 // GetPaymentsChannel returns a channel with raw payments
-func GetPaymentsChannel(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
+func GetPaymentsChannel(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
-	go paginator(ctx, itf, GetRawData(
-		func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+	go paginator(ctx, lightning, GetRawData(
+		func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+			itf := lightning()
+			if itf == nil {
+				return nil, nil, fmt.Errorf("could not get lightning API")
+			}
 			return itf.GetPaymentsRaw(ctx, false, pagination)
 		}),
 		from,
@@ -30,11 +36,15 @@ func GetPaymentsChannel(ctx context.Context, itf api.LightingAPICalls, from time
 }
 
 // GetInvoicesChannel returns a channel with raw invoices
-func GetInvoicesChannel(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
+func GetInvoicesChannel(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
-	go paginator(ctx, itf, GetRawData(
-		func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+	go paginator(ctx, lightning, GetRawData(
+		func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+			itf := lightning()
+			if itf == nil {
+				return nil, nil, fmt.Errorf("could not get lightning API")
+			}
 			return itf.GetInvoicesRaw(ctx, false, pagination)
 		}),
 		from,
@@ -45,24 +55,32 @@ func GetInvoicesChannel(ctx context.Context, itf api.LightingAPICalls, from time
 }
 
 // GetForwardsChannel returns a channel with raw forwards
-func GetForwardsChannel(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage {
+func GetForwardsChannel(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
-	// A hack to get failed forwards too
-	if itf.GetAPIType() == api.LndGrpc {
-		lndGrpc, ok := itf.(*api.LndGrpcLightningAPI)
-		if ok {
-			lndGrpc.SubscribeFailedForwards(ctx, outchan)
-		}
-	} else if itf.GetAPIType() == api.LndRest {
-		lndRest, ok := itf.(*api.LndRestLightningAPI)
-		if ok {
-			lndRest.SubscribeFailedForwards(ctx, outchan)
+	itf := lightning()
+
+	if itf != nil {
+		// A hack to get failed forwards too
+		if itf.GetAPIType() == api.LndGrpc {
+			lndGrpc, ok := itf.(*api.LndGrpcLightningAPI)
+			if ok {
+				lndGrpc.SubscribeFailedForwards(ctx, outchan)
+			}
+		} else if itf.GetAPIType() == api.LndRest {
+			lndRest, ok := itf.(*api.LndRestLightningAPI)
+			if ok {
+				lndRest.SubscribeFailedForwards(ctx, outchan)
+			}
 		}
 	}
 
-	go paginator(ctx, itf, GetRawData(
-		func(ctx context.Context, itf api.LightingAPICalls, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+	go paginator(ctx, lightning, GetRawData(
+		func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+			itf := lightning()
+			if itf == nil {
+				return nil, nil, fmt.Errorf("could not get lightning API")
+			}
 			return itf.GetForwardsRaw(ctx, pagination)
 		}),
 		from,
@@ -83,7 +101,7 @@ func GetFirstDay(monthsAgo int) time.Time {
 	return x.AddDate(0, -1*monthsAgo, 0)
 }
 
-func paginator(ctx context.Context, itf api.LightingAPICalls, getData GetRawData, from time.Time, pageSize int, outchan chan api.RawMessage) error {
+func paginator(ctx context.Context, lightning entities.NewAPICall, getData GetRawData, from time.Time, pageSize int, outchan chan api.RawMessage) error {
 	req := api.RawPagination{}
 	req.BatchSize = uint64(pageSize)
 	req.Pagination.BatchSize = uint64(pageSize)
@@ -104,7 +122,7 @@ func paginator(ctx context.Context, itf api.LightingAPICalls, getData GetRawData
 			time.Sleep(10 * time.Second)
 		}
 
-		data, page, err := getData(ctx, itf, req)
+		data, page, err := getData(ctx, lightning, req)
 		if err != nil {
 			// Pretend this is the last page (so we sleep)
 			glog.Warningf("paginator error: %v\n", err)

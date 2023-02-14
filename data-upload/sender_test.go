@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bolt-observer/agent/lightning"
+	api "github.com/bolt-observer/agent/lightning"
 )
 
 const FailNoCredsSender = false
@@ -17,6 +18,7 @@ func TestSender(t *testing.T) {
 	const (
 		TokenFile = "token.secret"
 	)
+
 	itf := getAPI(t, "fixture.secret", lightning.LndGrpc)
 	if itf == nil {
 		return
@@ -37,7 +39,9 @@ func TestSender(t *testing.T) {
 
 	token := strings.Trim(string(tokenData), "\t\r\n ")
 
-	f, err := MakeSender(context.Background(), token, "agent-api-staging-new.bolt.observer:443", itf)
+	f, err := MakeSender(context.Background(), token, os.Getenv("AGENT_API_URL"), func() api.LightingAPICalls {
+		return itf
+	})
 
 	if err != nil {
 		t.Fatalf("failed to make Sender: %v", err)

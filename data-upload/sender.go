@@ -7,6 +7,7 @@ import (
 	"time"
 
 	agent "github.com/bolt-observer/agent/agent"
+	"github.com/bolt-observer/agent/entities"
 	api "github.com/bolt-observer/agent/lightning"
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/golang/glog"
@@ -22,7 +23,7 @@ const ReportBatch = 10
 // Sender struct
 type Sender struct {
 	AuthToken    string
-	LightningAPI api.LightingAPICalls
+	LightningAPI entities.NewAPICall
 	AgentAPI     agent.AgentAPIClient
 	PubKey       string
 	ClientType   int
@@ -34,18 +35,26 @@ func toClientType(t api.APIType) int {
 }
 
 // MakeSender creates a new Sender
-func MakeSender(ctx context.Context, authToken string, endpoint string, l api.LightingAPICalls) (*Sender, error) {
+func MakeSender(ctx context.Context, authToken string, endpoint string, l entities.NewAPICall) (*Sender, error) {
+	if l == nil {
+		return nil, fmt.Errorf("lightning API not specified")
+	}
 	f := &Sender{
 		AuthToken:    authToken,
 		LightningAPI: l,
 	}
 
-	info, err := l.GetInfo(ctx)
+	api := l()
+	if api == nil {
+		return nil, fmt.Errorf("lightning API not obtained")
+	}
+
+	info, err := api.GetInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	f.ClientType = toClientType(l.GetAPIType())
+	f.ClientType = toClientType(api.GetAPIType())
 
 	f.PubKey = info.IdentityPubkey
 	agent, err := getAgentAPI(endpoint, f.PubKey, f.AuthToken)
@@ -84,7 +93,7 @@ func makePermanent(err error) error {
 }
 
 type senderGetTime func(ctx context.Context, empty *agent.Empty, opts ...grpc.CallOption) (*agent.TimestampResponse, error)
-type senderGetChan func(ctx context.Context, itf api.LightingAPICalls, from time.Time) <-chan api.RawMessage
+type senderGetChan func(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage
 type senderPushData func(ctx context.Context, data *agent.DataRequest, opts ...grpc.CallOption) (*agent.Empty, error)
 
 type senderMethod struct {

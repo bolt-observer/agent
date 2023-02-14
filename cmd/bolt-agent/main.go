@@ -218,7 +218,7 @@ func getApp() *cli.App {
 		},
 		&cli.StringFlag{
 			Name:   whitelist,
-			Usage:  "Path to file containing a whitelist of channels",
+			Usage:  "path to file containing a whitelist of channels",
 			Hidden: false,
 		},
 		&cli.StringFlag{
@@ -246,7 +246,7 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:  "preferipv4",
-			Usage: "If you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)",
+			Usage: "if you have the choice between IPv6 and IPv4 prefer IPv4 (default: false)",
 		},
 		&cli.StringFlag{
 			Name:  "rpcserver",
@@ -260,12 +260,12 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:   "userest",
-			Usage:  "Use REST API when true instead of gRPC",
+			Usage:  "use REST API when true instead of gRPC",
 			Hidden: true,
 		},
 		&cli.DurationFlag{
 			Name:   "keepalive",
-			Usage:  "Keepalive interval (if nothing changed after this time an empty message will be sent)",
+			Usage:  "keepalive interval (if nothing changed after this time an empty message will be sent)",
 			Value:  60 * time.Second,
 			Hidden: true,
 		},
@@ -276,13 +276,13 @@ func getApp() *cli.App {
 		},
 		&cli.StringFlag{
 			Name:   "url",
-			Usage:  "Report URL",
+			Usage:  "report URL",
 			Value:  "https://ingress.bolt.observer/api/node-data-report/",
 			Hidden: true,
 		},
 		&cli.StringFlag{
 			Name:   "uniqueid",
-			Usage:  "Unique identifier",
+			Usage:  "unique identifier",
 			Value:  "",
 			Hidden: true,
 		},
@@ -308,25 +308,25 @@ func getApp() *cli.App {
 		},
 		&cli.StringFlag{
 			Name:   "datastore-url",
-			Usage:  "Datastore URL",
+			Usage:  "datastore URL",
 			Value:  "agent-api.bolt.observer:443",
 			Hidden: true,
 		},
 		&cli.Int64Flag{
 			Name:   "fetch-invoices",
-			Usage:  "Fetch invoices",
+			Usage:  "fetch invoices",
 			Value:  0,
 			Hidden: true,
 		},
 		&cli.Int64Flag{
 			Name:   "fetch-forwards",
-			Usage:  "Fetch forwards",
+			Usage:  "fetch forwards",
 			Value:  0,
 			Hidden: true,
 		},
 		&cli.Int64Flag{
 			Name:   "fetch-payments",
-			Usage:  "Fetch payments",
+			Usage:  "fetch payments",
 			Value:  0,
 			Hidden: true,
 		},
@@ -639,11 +639,7 @@ func sender(ctx context.Context, cmdCtx *cli.Context, apiKey string) {
 }
 
 func senderWithRetries(ctx context.Context, cmdCtx *cli.Context, apiKey string) error {
-	lightningAPI := mkGetLndAPI(cmdCtx)()
-	if lightningAPI == nil {
-		return fmt.Errorf("get GRPC ligtning failure")
-	}
-	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), lightningAPI)
+	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), mkGetLndAPI(cmdCtx))
 	if err != nil {
 		return fmt.Errorf("get GRPC fetcher failure %v", err)
 	}
@@ -671,8 +667,8 @@ func senderWithRetries(ctx context.Context, cmdCtx *cli.Context, apiKey string) 
 
 func main() {
 	app := getApp()
-	app.Name = "balance-agent"
-	app.Usage = "Utility to monitor channel balances"
+	app.Name = "bolt-agent"
+	app.Usage = "Utility to monitor and manage lightning node"
 	app.Action = func(cmdCtx *cli.Context) error {
 		glogShim(cmdCtx)
 		if err := nodeDataChecker(cmdCtx); err != nil {

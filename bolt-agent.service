@@ -1,10 +1,10 @@
-# /etc/systemd/system/balance-agent.service
+# /etc/systemd/system/bolt-agent.service
 [Unit]
-Description=BalanceAgent service
+Description=BoltObserverAgent service
 
 [Service]
 Environment="API_KEY=changeme"
-ExecStart=/usr/local/bin/balance-agent
+ExecStart=/usr/local/bin/bolt-agent
 
 Type=simple
 Restart=on-failure

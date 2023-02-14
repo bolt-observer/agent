@@ -32,6 +32,10 @@ func NewUnixConnection(socketType string, address string) *ClnUnixConnection {
 		glog.Warningf("Got error: %v", err)
 		return nil
 	}
+	if client == nil {
+		glog.Warningf("Got nil client")
+		return nil
+	}
 
 	ret.Client = client
 
@@ -83,4 +87,10 @@ func (l *ClnUnixConnection) StreamResponse(ctx context.Context, serviceMethod st
 	case <-ctx.Done():
 		return nil, os.ErrDeadlineExceeded
 	}
+}
+
+// Cleanup does the cleanup
+func (l *ClnUnixConnection) Cleanup() {
+	// Noop
+	return
 }
