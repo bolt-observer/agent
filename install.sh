@@ -98,7 +98,7 @@ echo "Will use sudo to copy to ${bin_dir}, you will probably need to enter crede
 ${sudo} mkdir -p ${bin_dir}
 ${sudo} cp -f *-agent ${bin_dir}
 
-if [ -d "/etc/systemd/system" ] && [ "$restart" == "1" ]; then
+if [ -d "/etc/systemd/system" ] && [ "$restart" = "1" ]; then
   echo "Restarting ${agent}.service"
   ${sudo} systemctl enable ${agent}.service
   ${sudo} systemctl restart ${agent}.service
