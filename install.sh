@@ -66,15 +66,17 @@ fetch "$url" "$tmpDir/key" || oops "failed to download '$url'"
 cat "$tmpDir/key" | gpg --import || true
 
 restart="0"
-if [ -f "/etc/systemd/system" ]; then
+if [ -d "/etc/systemd/system" ]; then
   url="https://raw.githubusercontent.com/bolt-observer/agent/main/${agent}.service"
   echo "downloading key from '$url' to '$tmpDir'..."
   fetch "$url" "$tmpDir/service" || oops "failed to download '$url'"
   if [ ! -f "/etc/systemd/system/${agent}" ]; then
+    echo "Will use sudo to install systemd service, you will probably need to enter credentials"
     ${sudo} cp -f "$tmpDir/service" /etc/systemd/system/${agent}.service
     ${sudo} systemctl daemon-reload
-    echo "Update API key in /etc/systemd/system/${agent}.service"
+    echo "Update API key in /etc/systemd/system/${agent}.service and do \"systemctl daemon-reload ; systemctl enable ${agent}.service ; systemctl start ${agent}.service\""
   else
+    echo "Will use sudo to restart systemd service, you will probably need to enter credentials"
     ${sudo} systemctl daemon-reload
     restart="1"
   fi
@@ -96,7 +98,7 @@ echo "Will use sudo to copy to ${bin_dir}, you will probably need to enter crede
 ${sudo} mkdir -p ${bin_dir}
 ${sudo} cp -f *-agent ${bin_dir}
 
-if [ -f "/etc/systemd/system" ] && [ "$restart" == "1" ]; then
+if [ -d "/etc/systemd/system" ] && [ "$restart" == "1" ]; then
   echo "Restarting ${agent}.service"
   ${sudo} systemctl enable ${agent}.service
   ${sudo} systemctl restart ${agent}.service
