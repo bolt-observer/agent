@@ -263,6 +263,18 @@ func (m *MockLightningAPI) GetAPIType() APIType {
 	panic("not implemented")
 }
 
+func (m *MockLightningAPI) ConnectPeer(ctx context.Context, id string) error {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetOnChainAddress(ctx context.Context) (string, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetOnChainFunds(ctx context.Context) (*Funds, error) {
+	panic("not implemented")
+}
+
 func TestNodeInfoFull(t *testing.T) {
 	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 100, true, true)

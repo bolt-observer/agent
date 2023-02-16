@@ -11,9 +11,10 @@ import (
 
 	entities "github.com/bolt-observer/go_common/entities"
 	"github.com/golang/glog"
+	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
-// LndRestLightningAPI struct
+// LndRestLightningAPI struct.
 type LndRestLightningAPI struct {
 	Request   *http.Request
 	Transport *http.Transport
@@ -22,10 +23,10 @@ type LndRestLightningAPI struct {
 	API
 }
 
-// Compile time check for the interface
+// Compile time check for the interface.
 var _ LightingAPICalls = &LndRestLightningAPI{}
 
-// NewLndRestLightningAPI constructs new lightning API
+// NewLndRestLightningAPI constructs new lightning API.
 func NewLndRestLightningAPI(getData GetDataCall) LightingAPICalls {
 	api := NewHTTPAPI()
 
@@ -49,11 +50,9 @@ func NewLndRestLightningAPI(getData GetDataCall) LightingAPICalls {
 	return ret
 }
 
-// GetInfo - GetInfo API
+// GetInfo - GetInfo API.
 func (l *LndRestLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
-
 	resp, err := l.HTTPAPI.HTTPGetInfo(ctx, l.Request)
-
 	if err != nil {
 		return nil, err
 	}
@@ -66,12 +65,13 @@ func (l *LndRestLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 		Version:         fmt.Sprintf("lnd-%s", resp.Version),
 		IsSyncedToGraph: resp.SyncedToGraph,
 		IsSyncedToChain: resp.SyncedToChain,
+		BlockHeight:     int(resp.BlockHeight),
 	}
 
 	return ret, err
 }
 
-// Cleanup - clean up
+// Cleanup - clean up.
 func (l *LndRestLightningAPI) Cleanup() {
 	// Nothing to do here
 }
@@ -102,17 +102,15 @@ func stringToInt64(str string) int64 {
 	return ret
 }
 
-// GetChannels - GetChannels API
+// GetChannels - GetChannels API.
 func (l *LndRestLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
 	resp, err := l.HTTPAPI.HTTPGetChannels(ctx, l.Request)
-
 	if err != nil {
 		return nil, err
 	}
 
 	chans := make([]ChannelAPI, 0)
 	for _, channel := range resp.Channels {
-
 		htlcs := make([]HtlcAPI, 0)
 		for _, h := range channel.PendingHtlcs {
 			htlcs = append(htlcs, HtlcAPI{
@@ -163,9 +161,8 @@ func toPolicyWeb(policy *RoutingPolicyOverride) *RoutingPolicyAPI {
 	}
 }
 
-// DescribeGraph - DescribeGraph API
+// DescribeGraph - DescribeGraph API.
 func (l *LndRestLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
-
 	resp, err := l.HTTPAPI.HTTPGetGraph(ctx, l.Request, unannounced)
 	if err != nil {
 		return nil, err
@@ -202,8 +199,10 @@ func (l *LndRestLightningAPI) convertNode(node *GraphNodeOverride) DescribeGraph
 		features[fmt.Sprintf("%d", id)] = NodeFeatureAPI{Name: feat.Name, IsRequired: feat.IsRequired, IsKnown: feat.IsKnown}
 	}
 
-	return DescribeGraphNodeAPI{PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Features: features, Addresses: addresses,
-		LastUpdate: entities.JsonTime(time.Unix(int64(node.LastUpdate), 0))}
+	return DescribeGraphNodeAPI{
+		PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Features: features, Addresses: addresses,
+		LastUpdate: entities.JsonTime(time.Unix(int64(node.LastUpdate), 0)),
+	}
 }
 
 func (l *LndRestLightningAPI) convertChan(edge *GraphEdgeOverride) NodeChannelAPI {
@@ -219,7 +218,7 @@ func (l *LndRestLightningAPI) convertChan(edge *GraphEdgeOverride) NodeChannelAP
 	}
 }
 
-// GetNodeInfo - GetNodeInfo API
+// GetNodeInfo - GetNodeInfo API.
 func (l *LndRestLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
 	resp, err := l.HTTPAPI.HTTPGetNodeInfo(ctx, l.Request, pubKey, channels)
 	if err != nil {
@@ -237,7 +236,7 @@ func (l *LndRestLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, ch
 	return ret, nil
 }
 
-// GetChanInfo - GetChanInfo API
+// GetChanInfo - GetChanInfo API.
 func (l *LndRestLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
 	resp, err := l.HTTPAPI.HTTPGetChanInfo(ctx, l.Request, chanID)
 	if err != nil {
@@ -247,12 +246,12 @@ func (l *LndRestLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 	return &ret, nil
 }
 
-// SubscribeForwards - API call
+// SubscribeForwards - API call.
 func (l *LndRestLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	panic("not implemented")
 }
 
-// GetInvoicesRaw - API call
+// GetInvoicesRaw - API call.
 func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	param := &ListInvoiceRequestOverride{
 		NumMaxInvoices: fmt.Sprintf("%d", pagination.BatchSize),
@@ -321,7 +320,7 @@ func (l *LndRestLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 	return ret, respPagination, nil
 }
 
-// GetPaymentsRaw - API call
+// GetPaymentsRaw - API call.
 func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	param := &ListPaymentsRequestOverride{
 		MaxPayments: fmt.Sprintf("%d", pagination.BatchSize),
@@ -390,7 +389,7 @@ func (l *LndRestLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 	return ret, respPagination, nil
 }
 
-// GetForwardsRaw - API call
+// GetForwardsRaw - API call.
 func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	param := &ForwardingHistoryRequestOverride{}
 
@@ -447,9 +446,8 @@ func (l *LndRestLightningAPI) GetForwardsRaw(ctx context.Context, pagination Raw
 	return ret, respPagination, nil
 }
 
-// GetInvoices API
+// GetInvoices API.
 func (l *LndRestLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
-
 	param := &ListInvoiceRequestOverride{
 		NumMaxInvoices: fmt.Sprintf("%d", pagination.BatchSize),
 		IndexOffset:    fmt.Sprintf("%d", pagination.Offset),
@@ -512,7 +510,7 @@ func (l *LndRestLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 	return ret, nil
 }
 
-// GetPayments API
+// GetPayments API.
 func (l *LndRestLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
 	param := &ListPaymentsRequestOverride{
 		MaxPayments: fmt.Sprintf("%d", pagination.BatchSize),
@@ -552,9 +550,8 @@ func (l *LndRestLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 	return ret, nil
 }
 
-// SubscribeFailedForwards is used to subscribe to failed forwards
+// SubscribeFailedForwards is used to subscribe to failed forwards.
 func (l *LndRestLightningAPI) SubscribeFailedForwards(ctx context.Context, outchan chan RawMessage) error {
-
 	go func() {
 		resp, err := l.HTTPAPI.HTTPSubscribeHtlcEvents(ctx, l.Request)
 		if err != nil {
@@ -596,7 +593,59 @@ func (l *LndRestLightningAPI) SubscribeFailedForwards(ctx context.Context, outch
 	return nil
 }
 
-// GetAPIType API
+// GetAPIType API.
 func (l *LndRestLightningAPI) GetAPIType() APIType {
 	return LndRest
+}
+
+// ConnectPeer API.
+func (l *LndRestLightningAPI) ConnectPeer(ctx context.Context, id string) error {
+	split := strings.Split(id, "@")
+	if len(split) != 2 {
+		return fmt.Errorf("invalid id")
+	}
+
+	addr := &LightningAddressOverride{}
+	addr.Pubkey = split[0]
+	addr.Host = split[1]
+
+	input := &ConnectPeerRequestOverride{
+		Addr:    addr,
+		Timeout: "10",
+	}
+	input.Perm = false
+
+	err := l.HTTPAPI.HTTPPeers(ctx, l.Request, input)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetOnChainAddress API.
+func (l *LndRestLightningAPI) GetOnChainAddress(ctx context.Context) (string, error) {
+	input := &lnrpc.NewAddressRequest{Type: lnrpc.AddressType_WITNESS_PUBKEY_HASH}
+
+	resp, err := l.HTTPAPI.HTTPNewAddress(ctx, l.Request, input)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Address, nil
+}
+
+// GetOnChainFunds API.
+func (l *LndRestLightningAPI) GetOnChainFunds(ctx context.Context) (*Funds, error) {
+	resp, err := l.HTTPAPI.HTTPBalance(ctx, l.Request)
+	if err != nil {
+		return nil, err
+	}
+
+	f := &Funds{}
+	f.ConfirmedBalance = stringToInt64(resp.ConfirmedBalance)
+	f.TotalBalance = stringToInt64(resp.TotalBalance)
+	f.LockedBalance = stringToInt64(resp.ReservedBalanceAnchorChan) + stringToInt64(resp.LockedBalance)
+
+	return f, nil
 }

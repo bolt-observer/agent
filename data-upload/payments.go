@@ -10,13 +10,13 @@ import (
 	"github.com/golang/glog"
 )
 
-// GetRawData - signature for the function to get raw data
+// GetRawData - signature for the function to get raw data.
 type GetRawData func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error)
 
-// DefaultBatchSize is the default batch size
+// DefaultBatchSize is the default batch size.
 const DefaultBatchSize = 50
 
-// GetPaymentsChannel returns a channel with raw payments
+// GetPaymentsChannel returns a channel with raw payments.
 func GetPaymentsChannel(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
@@ -35,7 +35,7 @@ func GetPaymentsChannel(ctx context.Context, lightning entities.NewAPICall, from
 	return outchan
 }
 
-// GetInvoicesChannel returns a channel with raw invoices
+// GetInvoicesChannel returns a channel with raw invoices.
 func GetInvoicesChannel(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
@@ -54,7 +54,7 @@ func GetInvoicesChannel(ctx context.Context, lightning entities.NewAPICall, from
 	return outchan
 }
 
-// GetForwardsChannel returns a channel with raw forwards
+// GetForwardsChannel returns a channel with raw forwards.
 func GetForwardsChannel(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
@@ -93,7 +93,7 @@ func GetForwardsChannel(ctx context.Context, lightning entities.NewAPICall, from
 // GetFirstDay get first day of the month monthsAgo (0 is current month)
 // firstLastMonth := GetFirstDay(1)
 // beginOfThisMonth := GetFirstDay(0)
-// endOfThisMonth := GetFirstDay(-1).Add(-1 * time.Millisecond)
+// endOfThisMonth := GetFirstDay(-1).Add(-1 * time.Millisecond).
 func GetFirstDay(monthsAgo int) time.Time {
 	now := time.Now()
 

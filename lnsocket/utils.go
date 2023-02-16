@@ -6,12 +6,12 @@ import (
 	lnwire "github.com/lightningnetwork/lnd/lnwire"
 )
 
-// ParseMsgType parses the type of message
+// ParseMsgType parses the type of message.
 func ParseMsgType(bytes []byte) uint16 {
 	return uint16(bytes[0])<<8 | uint16(bytes[1])
 }
 
-// GetMandatoryFeatures gets mandatory features
+// GetMandatoryFeatures gets mandatory features.
 func GetMandatoryFeatures(init *lnwire.Init) map[lnwire.FeatureBit]struct{} {
 	result := make(map[lnwire.FeatureBit]struct{})
 
@@ -36,7 +36,7 @@ func GetMandatoryFeatures(init *lnwire.Init) map[lnwire.FeatureBit]struct{} {
 	return result
 }
 
-// ToRawFeatureVector gets a raw feature vector
+// ToRawFeatureVector gets a raw feature vector.
 func ToRawFeatureVector(features map[lnwire.FeatureBit]struct{}) *lnwire.RawFeatureVector {
 	all := make([]lnwire.FeatureBit, 0)
 
@@ -47,7 +47,7 @@ func ToRawFeatureVector(features map[lnwire.FeatureBit]struct{}) *lnwire.RawFeat
 	return lnwire.NewRawFeatureVector(all...)
 }
 
-// GenRandomBytes gets random bytes
+// GenRandomBytes gets random bytes.
 func GenRandomBytes(size int) (blk []byte, err error) {
 	blk = make([]byte, size)
 	_, err = rand.Read(blk)

@@ -8,25 +8,25 @@ import (
 	"github.com/bolt-observer/agent/filter"
 )
 
-// Interval represents the enum of possible intervals
+// Interval represents the enum of possible intervals.
 type Interval int
 
 const (
-	// ManualRequest means just do it once
+	// ManualRequest means just do it once.
 	ManualRequest Interval = iota
-	// Second means once per second (useful just for testing)
+	// Second means once per second (useful just for testing).
 	Second
-	// TenSeconds means once every ten seconds
+	// TenSeconds means once every ten seconds.
 	TenSeconds
-	// Minute means once every minute
+	// Minute means once every minute.
 	Minute
-	// TenMinutes means once every ten minutes
+	// TenMinutes means once every ten minutes.
 	TenMinutes
-	// Hour means once every hour
+	// Hour means once every hour.
 	Hour
 )
 
-// Duration converts the interval to a duration
+// Duration converts the interval to a duration.
 func (i Interval) Duration() time.Duration {
 	switch i {
 	case Second:
@@ -44,7 +44,7 @@ func (i Interval) Duration() time.Duration {
 	}
 }
 
-// MarshalJSON is used for JSON serialiazation of interval
+// MarshalJSON is used for JSON serialiazation of interval.
 func (i *Interval) MarshalJSON() ([]byte, error) {
 	str := ""
 	switch *i {
@@ -66,7 +66,7 @@ func (i *Interval) MarshalJSON() ([]byte, error) {
 	return []byte(str), nil
 }
 
-// UnmarshalJSON is used for JSON deserialiazation of interval
+// UnmarshalJSON is used for JSON deserialiazation of interval.
 func (i *Interval) UnmarshalJSON(s []byte) (err error) {
 	input := strings.ReplaceAll(strings.ToLower(string(s)), "\"", "")
 
@@ -90,7 +90,7 @@ func (i *Interval) UnmarshalJSON(s []byte) (err error) {
 	return nil
 }
 
-// ReportingSettings struct
+// ReportingSettings struct.
 type ReportingSettings struct {
 	// GraphPollInterval - intervl for graph polling
 	GraphPollInterval time.Duration `json:"-"`
@@ -106,12 +106,12 @@ type ReportingSettings struct {
 	AllowPrivateChannels bool `json:"allow_private_channels"` // default is false
 }
 
-// ClosedChannel struct
+// ClosedChannel struct.
 type ClosedChannel struct {
 	ChannelID uint64 `json:"channel_id"`
 }
 
-// ChannelBalance struct
+// ChannelBalance struct.
 type ChannelBalance struct {
 	// Active - is channel active
 	Active bool `json:"active"`

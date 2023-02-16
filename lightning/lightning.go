@@ -40,7 +40,6 @@ func extractHostname(endpoint string) string {
 		uri = fmt.Sprintf("http://%s", endpoint)
 	}
 	u, err := url.Parse(uri)
-
 	if err != nil {
 		glog.Warningf("Could not parse endpoint: %s %v", endpoint, err)
 		return endpoint
@@ -49,10 +48,10 @@ func extractHostname(endpoint string) string {
 	return u.Hostname()
 }
 
-// CertificateVerification enum
+// CertificateVerification enum.
 type CertificateVerification int
 
-// Verification types
+// Verification types.
 const (
 	PublicCAorCert CertificateVerification = iota
 	PublicCA
@@ -139,7 +138,6 @@ func getTLSConfig(certBytes []byte, hostname string, verification CertificateVer
 		if err != nil {
 			// TODO: this is to make it consistent with simple verification mode
 			glog.Warningf("verify hostname failed %v (%s)", err, host)
-			//return nil, fmt.Errorf("verify hostname failed %v", err)
 		}
 
 		customVerify := func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
@@ -161,14 +159,16 @@ func getTLSConfig(certBytes []byte, hostname string, verification CertificateVer
 			return nil
 		}
 
-		return &tls.Config{InsecureSkipVerify: true,
-			VerifyPeerCertificate: customVerify, MinVersion: minVersion}, nil
+		return &tls.Config{
+			InsecureSkipVerify:    true,
+			VerifyPeerCertificate: customVerify, MinVersion: minVersion,
+		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported certificate verification mode: %v", verification)
 	}
 }
 
-// GetConnection - returns a GRPC client connection
+// GetConnection - returns a GRPC client connection.
 func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
 	var (
 		creds    credentials.TransportCredentials
@@ -236,7 +236,7 @@ func GetConnection(getData GetDataCall) (*grpc.ClientConn, error) {
 	return conn, nil
 }
 
-// GetClient - get a lightning API client
+// GetClient - get a lightning API client.
 func GetClient(getData GetDataCall) (lnrpc.LightningClient, routerrpc.RouterClient, func(), error) {
 	conn, err := GetConnection(getData)
 	if err != nil {
@@ -249,7 +249,7 @@ func GetClient(getData GetDataCall) (lnrpc.LightningClient, routerrpc.RouterClie
 	return lnrpc.NewLightningClient(conn), routerrpc.NewRouterClient(conn), cleanUp, nil
 }
 
-// IsMacaroonValid - verify whether macaroon is valid
+// IsMacaroonValid - verify whether macaroon is valid.
 func IsMacaroonValid(mac *macaroon.Macaroon) (bool, time.Duration) {
 	minTime := time.Time{}
 

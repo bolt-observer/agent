@@ -18,19 +18,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/cenkalti/backoff/v4"
-	"github.com/golang/glog"
-	cli "github.com/urfave/cli"
-
 	raw "github.com/bolt-observer/agent/data-upload"
+	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/agent/nodedata"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
-
-	agent_entities "github.com/bolt-observer/agent/entities"
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/cenkalti/backoff/v4"
+	"github.com/golang/glog"
+	cli "github.com/urfave/cli"
 )
 
 const (
@@ -49,7 +47,7 @@ var (
 	defaultRPCHostPort  = "localhost:" + defaultRPCPort
 	apiKey              string
 	url                 string
-	// GitRevision is set with build
+	// GitRevision is set with build.
 	GitRevision = "unknownVersion"
 	private     bool
 	timeout     = 15 * time.Second

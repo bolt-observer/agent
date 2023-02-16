@@ -13,15 +13,12 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/golang/glog"
-
+	"github.com/lightningnetwork/lnd/brontide"
 	"github.com/lightningnetwork/lnd/keychain"
 	"github.com/lightningnetwork/lnd/lnwire"
-
-	"github.com/lightningnetwork/lnd/brontide"
 	"github.com/lightningnetwork/lnd/tor"
-
-	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 // LN struct - heavily borrowed from https://github.com/jb55/lnsocket/blob/master/go/lnsocket.go
@@ -32,7 +29,7 @@ type LN struct {
 	Timeout     time.Duration
 }
 
-// NewLN creates a new LN instance
+// NewLN creates a new LN instance.
 func NewLN(timeout time.Duration) *LN {
 	server := os.Getenv("SOCKS_PROXY")
 	if server == "" {
@@ -49,7 +46,7 @@ func NewLN(timeout time.Duration) *LN {
 	return &LN{Proxy: proxy, Timeout: timeout}
 }
 
-// Clone copies the given LN instance to new onne
+// Clone copies the given LN instance to new onne.
 func (ln *LN) Clone() *LN {
 	return &LN{
 		Conn:        nil,
@@ -58,7 +55,7 @@ func (ln *LN) Clone() *LN {
 	}
 }
 
-// Disconnect disconnect
+// Disconnect disconnect.
 func (ln *LN) Disconnect() {
 	if ln.Conn == nil {
 		return
@@ -67,13 +64,13 @@ func (ln *LN) Disconnect() {
 	ln.Conn.Close()
 }
 
-// GenKey generates a keypair
+// GenKey generates a keypair.
 func (ln *LN) GenKey() {
 	remotePriv, _ := btcec.NewPrivateKey()
 	ln.PrivKeyECDH = &keychain.PrivKeyECDH{PrivKey: remotePriv}
 }
 
-// SerializeKey serializes the private key to base64
+// SerializeKey serializes the private key to base64.
 func (ln *LN) SerializeKey() string {
 	if ln.PrivKeyECDH == nil {
 		return ""
@@ -82,7 +79,7 @@ func (ln *LN) SerializeKey() string {
 	return base64.StdEncoding.EncodeToString(ln.PrivKeyECDH.PrivKey.Serialize())
 }
 
-// DeserializeKey deserializes the private key from base64
+// DeserializeKey deserializes the private key from base64.
 func (ln *LN) DeserializeKey(key string) error {
 	arr, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
@@ -95,7 +92,7 @@ func (ln *LN) DeserializeKey(key string) error {
 	return nil
 }
 
-// Read reads from connection
+// Read reads from connection.
 func (ln *LN) Read() (uint16, []byte, error) {
 	if ln.Conn == nil {
 		return 0, nil, io.ErrClosedPipe
@@ -115,7 +112,7 @@ func (ln *LN) Read() (uint16, []byte, error) {
 	return msgtype, res[2:], nil
 }
 
-// Write writes to connection
+// Write writes to connection.
 func (ln *LN) Write(b []byte) (int, error) {
 	if ln.Conn == nil {
 		return 0, io.ErrClosedPipe
@@ -124,7 +121,7 @@ func (ln *LN) Write(b []byte) (int, error) {
 	return ln.Conn.Write(b)
 }
 
-// Handshake performs a handshake
+// Handshake performs a handshake.
 func (ln *LN) Handshake() error {
 	t, data, err := ln.Read()
 	typ := lnwire.MessageType(t)
@@ -168,7 +165,6 @@ func (ln *LN) Handshake() error {
 	_, err = lnwire.WriteMessage(&b, initReplyMsg, 0)
 	if err != nil {
 		return err
-
 	}
 
 	_, err = ln.Write(b.Bytes())
@@ -179,7 +175,7 @@ func (ln *LN) Handshake() error {
 	return nil
 }
 
-// Ping sends a ping message
+// Ping sends a ping message.
 func (ln *LN) Ping() error {
 	ping := lnwire.NewPing(16)
 	var b bytes.Buffer
@@ -276,7 +272,7 @@ func (ln *LN) parseURL(url string) (*lightningURL, error) {
 	return &ret, nil
 }
 
-// Connect connects to pubkey@host
+// Connect connects to pubkey@host.
 func (ln *LN) Connect(endpoint string) error {
 	if ln.PrivKeyECDH == nil {
 		ln.GenKey()

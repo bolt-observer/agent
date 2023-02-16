@@ -1,14 +1,14 @@
 package lightning
 
-// ClnSocketLightningAPI struct
+// ClnSocketLightningAPI struct.
 type ClnSocketLightningAPI struct {
 	ClnRawLightningAPI
 }
 
-// Compile time check for the interface
+// Compile time check for the interface.
 var _ LightingAPICalls = &ClnSocketLightningAPI{}
 
-// NewClnSocketLightningAPIRaw gets a new API - usage "unix", "/home/ubuntu/.lightning/bitcoin/lightning-rpc"
+// NewClnSocketLightningAPIRaw gets a new API - usage "unix", "/home/ubuntu/.lightning/bitcoin/lightning-rpc".
 func NewClnSocketLightningAPIRaw(socketType string, address string) LightingAPICalls {
 	api := &ClnSocketLightningAPI{}
 
@@ -22,7 +22,7 @@ func NewClnSocketLightningAPIRaw(socketType string, address string) LightingAPIC
 	return api
 }
 
-// NewClnSocketLightningAPI return a new lightning API
+// NewClnSocketLightningAPI return a new lightning API.
 func NewClnSocketLightningAPI(getData GetDataCall) LightingAPICalls {
 	if getData == nil {
 		return nil

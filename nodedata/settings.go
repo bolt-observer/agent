@@ -7,13 +7,13 @@ import (
 	entities "github.com/bolt-observer/agent/entities"
 )
 
-// PerNodeSettings struct
+// PerNodeSettings struct.
 type PerNodeSettings struct {
 	mutex sync.RWMutex
 	data  map[string]Settings
 }
 
-// NewPerNodeSettings creates PerNodeSettings
+// NewPerNodeSettings creates PerNodeSettings.
 func NewPerNodeSettings() *PerNodeSettings {
 	return &PerNodeSettings{
 		mutex: sync.RWMutex{},
@@ -21,7 +21,7 @@ func NewPerNodeSettings() *PerNodeSettings {
 	}
 }
 
-// GetKeys - get all keys
+// GetKeys - get all keys.
 func (s *PerNodeSettings) GetKeys() []string {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -33,28 +33,28 @@ func (s *PerNodeSettings) GetKeys() []string {
 	return keys
 }
 
-// Get - get settings for one key
+// Get - get settings for one key.
 func (s *PerNodeSettings) Get(key string) Settings {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.data[key]
 }
 
-// Set - set settings for one key
+// Set - set settings for one key.
 func (s *PerNodeSettings) Set(key string, value Settings) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.data[key] = value
 }
 
-// Delete - delete settings for one key
+// Delete - delete settings for one key.
 func (s *PerNodeSettings) Delete(key string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	delete(s.data, key)
 }
 
-// Settings struct
+// Settings struct.
 type Settings struct {
 	nodeDataCallback entities.NodeDataReportCallback
 	getAPI           entities.NewAPICall

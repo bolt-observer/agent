@@ -5,18 +5,23 @@ package boltz
 import (
 	"fmt"
 
+	plugins "github.com/bolt-observer/agent/plugins"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/tyler-smith/go-bip39"
-
 	bolt "go.etcd.io/bbolt"
 )
 
-// BitSize is a default
+// BoltPlugin struct.
+type BoltPlugin struct {
+	plugins.Plugin
+}
+
+// BitSize is a default.
 const BitSize = 128
 
-// Burek is delicious
+// Burek is delicious.
 func Burek() {
 	entropy, err := bip39.NewEntropy(BitSize)
 	if err != nil {
@@ -72,9 +77,9 @@ func Burek() {
 	*/
 }
 
-// Database is the experiment with bbolt
+// Database is the experiment with bbolt.
 func Database() error {
-	db, err := bolt.Open("/tmp/burek.db", 0666, nil)
+	db, err := bolt.Open("/tmp/burek.db", 0o666, nil)
 	if err != nil {
 		return err
 	}

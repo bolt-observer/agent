@@ -7,10 +7,10 @@ import (
 	entities "github.com/bolt-observer/go_common/entities"
 )
 
-// InfoCallback represents the info callback
+// InfoCallback represents the info callback.
 type InfoCallback func(ctx context.Context, report *InfoReport) bool
 
-// InfoReport struct
+// InfoReport struct.
 type InfoReport struct {
 	UniqueID  string            `json:"uniqueId,omitempty"` // optional unique identifier
 	Timestamp entities.JsonTime `json:"timestamp"`

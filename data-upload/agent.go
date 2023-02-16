@@ -13,13 +13,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Credentials implements PerRPCCredentials
+// Credentials implements PerRPCCredentials.
 type Credentials struct {
 	Pubkey    string
 	AuthToken string
 }
 
-// GetRequestMetadata implements PerRPCCredentials
+// GetRequestMetadata implements PerRPCCredentials.
 func (c *Credentials) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	resp := make(map[string]string, 0)
 	resp["pubkey"] = c.Pubkey
@@ -28,12 +28,12 @@ func (c *Credentials) GetRequestMetadata(ctx context.Context, uri ...string) (ma
 	return resp, nil
 }
 
-// RequireTransportSecurity implements PerRPCCredentials
+// RequireTransportSecurity implements PerRPCCredentials.
 func (c *Credentials) RequireTransportSecurity() bool {
 	return true
 }
 
-// MakeCredentials creates new Credentials
+// MakeCredentials creates new Credentials.
 func MakeCredentials(pubkey, authToken string) *Credentials {
 	return &Credentials{
 		Pubkey:    pubkey,
@@ -42,7 +42,6 @@ func MakeCredentials(pubkey, authToken string) *Credentials {
 }
 
 func getConnection(endpoint, pubkey, authToken string) (*grpc.ClientConn, error) {
-
 	const Insecure = false
 	var conf *tls.Config
 
@@ -60,7 +59,8 @@ func getConnection(endpoint, pubkey, authToken string) (*grpc.ClientConn, error)
 	opts = append(opts, grpc.WithPerRPCCredentials(MakeCredentials(pubkey, authToken)))
 
 	genericDialer := func(ctx context.Context,
-		endpoint string) (net.Conn, error) {
+		endpoint string,
+	) (net.Conn, error) {
 		d := net.Dialer{}
 		return d.DialContext(
 			ctx, "tcp", endpoint,
@@ -75,7 +75,6 @@ func getConnection(endpoint, pubkey, authToken string) (*grpc.ClientConn, error)
 	}
 
 	return conn, nil
-
 }
 
 func getAgentAPI(endpoint, pubKey, authToken string) (api.AgentAPIClient, error) {

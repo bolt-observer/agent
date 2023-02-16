@@ -11,10 +11,10 @@ import (
 	"github.com/golang/glog"
 )
 
-// Compile time check for the interface
+// Compile time check for the interface.
 var _ LightingAPICalls = &ClnRawLightningAPI{}
 
-// Method names
+// Method names.
 const (
 	LISTCHANNELS = "listchannels"
 	LISTNODES    = "listnodes"
@@ -23,21 +23,23 @@ const (
 	LISTFORWARDS = "listforwards"
 	LISTINVOICES = "listinvoices"
 	LISTPAYMENTS = "listsendpays"
+	CONNECT      = "connect"
+	NEWADDR      = "newaddr"
 )
 
-// ClnRawLightningAPI struct
+// ClnRawLightningAPI struct.
 type ClnRawLightningAPI struct {
 	API
 
 	connection ClnConnectionAPI
 }
 
-// Cleanup - clean up API
+// Cleanup - clean up API.
 func (l *ClnRawLightningAPI) Cleanup() {
 	l.connection.Cleanup()
 }
 
-// DescribeGraph - DescribeGraph API call
+// DescribeGraph - DescribeGraph API call.
 func (l *ClnRawLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
 	var reply ClnListNodeResp
 	err := l.connection.Call(ctx, LISTNODES, []interface{}{}, &reply)
@@ -89,7 +91,7 @@ func (l *ClnRawLightningAPI) DescribeGraph(ctx context.Context, unannounced bool
 	}, nil
 }
 
-// ConvertChannelInternal - convert CLN channel to internal format
+// ConvertChannelInternal - convert CLN channel to internal format.
 func ConvertChannelInternal(chans []ClnListChan, id uint64, chanpoint string) (*NodeChannelAPIExtended, error) {
 	ret := &NodeChannelAPIExtended{
 		NodeChannelAPI: NodeChannelAPI{
@@ -144,9 +146,8 @@ func ConvertChannelInternal(chans []ClnListChan, id uint64, chanpoint string) (*
 	return ret, nil
 }
 
-// GetChanInfo - GetChanInfo API call
+// GetChanInfo - GetChanInfo API call.
 func (l *ClnRawLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
-
 	var listChanReply ClnListChanResp
 	err := l.connection.Call(ctx, LISTCHANNELS, []string{FromLndChanID(chanID)}, &listChanReply)
 	if err != nil {
@@ -166,7 +167,7 @@ func (l *ClnRawLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*N
 	return &ret.NodeChannelAPI, nil
 }
 
-// GetChannels - GetChannels API call
+// GetChannels - GetChannels API call.
 func (l *ClnRawLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
 	var fundsReply ClnFundsChanResp
 	err := l.connection.Call(ctx, LISTFUNDS, []string{}, &fundsReply)
@@ -179,7 +180,6 @@ func (l *ClnRawLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, err
 	var listChanReply ClnListChanResp
 
 	for _, one := range fundsReply.Channels {
-
 		err = l.connection.Call(ctx, LISTCHANNELS, []string{one.ShortChannelID}, &listChanReply)
 		if err != nil {
 			return nil, err
@@ -209,7 +209,7 @@ func (l *ClnRawLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, err
 				RemoteBalance: remoteBalance,
 				LocalBalance:  one.OurAmount,
 
-				// TODO: No data avilable
+				// TODO: No data available
 				CommitFee:             0,
 				Initiator:             false,
 				PendingHtlcs:          nil,
@@ -237,7 +237,6 @@ func (l *ClnRawLightningAPI) getMyChannels(ctx context.Context) ([]NodeChannelAP
 	var listChanReply ClnListChanResp
 
 	for _, one := range fundsReply.Channels {
-
 		err = l.connection.Call(ctx, LISTCHANNELS, []string{one.ShortChannelID}, &listChanReply)
 		if err != nil {
 			return nil, err
@@ -264,7 +263,7 @@ func (l *ClnRawLightningAPI) getMyChannels(ctx context.Context) ([]NodeChannelAP
 	return channels, nil
 }
 
-// GetInfo - GetInfo API call
+// GetInfo - GetInfo API call.
 func (l *ClnRawLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	var reply ClnInfo
 	err := l.connection.Call(ctx, GETINFO, []string{}, &reply)
@@ -283,10 +282,11 @@ func (l *ClnRawLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 		Version:         fmt.Sprintf("corelightning-%s", reply.Version),
 		IsSyncedToGraph: syncedToGraph,
 		IsSyncedToChain: syncedToChain,
+		BlockHeight:     int(reply.Blockheight),
 	}, nil
 }
 
-// ConvertNodeInfo - convert CLN to internal node representation
+// ConvertNodeInfo - convert CLN to internal node representation.
 func ConvertNodeInfo(node ClnListNode) *DescribeGraphNodeAPI {
 	if node.LastUpdate == nil {
 		glog.Warningf("Gossip message for node %s was not received yet", node.PubKey)
@@ -312,7 +312,7 @@ func ConvertNodeInfo(node ClnListNode) *DescribeGraphNodeAPI {
 	}
 }
 
-// ConvertAddresses converts CLN addresses to interanl format
+// ConvertAddresses converts CLN addresses to interanl format.
 func ConvertAddresses(addr []ClnListNodeAddr) []NodeAddressAPI {
 	addresses := make([]NodeAddressAPI, 0)
 	for _, one := range addr {
@@ -328,7 +328,7 @@ func ConvertAddresses(addr []ClnListNodeAddr) []NodeAddressAPI {
 	return addresses
 }
 
-// GetNodeInfo - API call
+// GetNodeInfo - API call.
 func (l *ClnRawLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
 	var reply ClnListNodeResp
 	err := l.connection.Call(ctx, LISTNODES, []string{pubKey}, &reply)
@@ -381,10 +381,9 @@ func (l *ClnRawLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, cha
 	result.TotalCapacity = SumCapacitySimple(result.Channels)
 
 	return result, nil
-
 }
 
-// GetNodeInfoFull - API call
+// GetNodeInfoFull - API call.
 func (l *ClnRawLightningAPI) GetNodeInfoFull(ctx context.Context, channels bool, unannounced bool) (*NodeInfoAPIExtended, error) {
 	var reply ClnInfo
 	err := l.connection.Call(ctx, GETINFO, []string{}, &reply)
@@ -424,7 +423,7 @@ func (l *ClnRawLightningAPI) GetNodeInfoFull(ctx context.Context, channels bool,
 	return result, nil
 }
 
-// SubscribeForwards - API call
+// SubscribeForwards - API call.
 func (l *ClnRawLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	var reply ClnForwardEntries
 
@@ -437,7 +436,6 @@ func (l *ClnRawLightningAPI) SubscribeForwards(ctx context.Context, since time.T
 	outChan := make(chan []ForwardingEvent)
 
 	go func() {
-
 		batch := make([]ForwardingEvent, 0, batchSize)
 		minTime := since
 
@@ -565,7 +563,7 @@ func rawJSONIterator(ctx context.Context, reader io.Reader, name string, channel
 	return nil
 }
 
-func getRaw[T ClnRawTimeItf](ctx context.Context, l *ClnRawLightningAPI, gettime T, method string, jsonArray string, pagination *RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
+func getRaw[T ClnRawTimeItf](ctx context.Context, l *ClnRawLightningAPI, gettime T, method string, jsonArray string, pagination *RawPagination) ([]RawMessage, *ResponseRawPagination, error) { //nolint:all
 	respPagination := &ResponseRawPagination{UseTimestamp: true}
 
 	if pagination.BatchSize == 0 {
@@ -636,53 +634,46 @@ func getRaw[T ClnRawTimeItf](ctx context.Context, l *ClnRawLightningAPI, gettime
 			respPagination.LastTime = maxTime
 			return ret, respPagination, nil
 		}
-
 	}
 }
 
-// GetInvoicesRaw - API call
+// GetInvoicesRaw - API call.
 func (l *ClnRawLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
-	var (
-		gettime ClnRawInvoiceTime
-	)
+	var gettime ClnRawInvoiceTime
 
 	return getRaw(ctx, l, gettime, LISTINVOICES, "invoices", &pagination)
 }
 
-// GetPaymentsRaw - API call
+// GetPaymentsRaw - API call.
 func (l *ClnRawLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
-	var (
-		gettime ClnRawPayTime
-	)
+	var gettime ClnRawPayTime
 
 	return getRaw(ctx, l, gettime, LISTPAYMENTS, "payments", &pagination)
 }
 
-// GetForwardsRaw - API call
+// GetForwardsRaw - API call.
 func (l *ClnRawLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
-	var (
-		gettime ClnRawForwardsTime
-	)
+	var gettime ClnRawForwardsTime
 
 	return getRaw(ctx, l, gettime, LISTFORWARDS, "forwards", &pagination)
 }
 
-// GetInvoices - API call
+// GetInvoices - API call.
 func (l *ClnRawLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
 	panic("not implemented")
 }
 
-// GetPayments - API call
+// GetPayments - API call.
 func (l *ClnRawLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
 	panic("not implemented")
 }
 
-// GetAPIType - API call
+// GetAPIType - API call.
 func (l *ClnRawLightningAPI) GetAPIType() APIType {
 	return ClnSocket
 }
 
-// GetInternalChannels - internal method to get channels
+// GetInternalChannels - internal method to get channels.
 func (l *ClnRawLightningAPI) GetInternalChannels(ctx context.Context, pubKey string) (map[string][]ClnListChan, error) {
 	result := make(map[string][]ClnListChan, 0)
 
@@ -724,7 +715,7 @@ func (l *ClnRawLightningAPI) GetInternalChannels(ctx context.Context, pubKey str
 	return result, nil
 }
 
-// GetInternalChannelsAll - internal method to get all channels
+// GetInternalChannelsAll - internal method to get all channels.
 func (l *ClnRawLightningAPI) GetInternalChannelsAll(ctx context.Context) (map[string][]ClnListChan, error) {
 	result := make(map[string][]ClnListChan, 0)
 
@@ -747,4 +738,68 @@ func (l *ClnRawLightningAPI) GetInternalChannelsAll(ctx context.Context) (map[st
 	}
 
 	return result, nil
+}
+
+// ConnectPeer - API call.
+func (l *ClnRawLightningAPI) ConnectPeer(ctx context.Context, id string) error {
+	var resp ClnConnectResp
+	err := l.connection.Call(ctx, CONNECT, []string{id}, &resp)
+	if err != nil {
+		return err
+	}
+
+	if len(resp.ID) == 0 {
+		return fmt.Errorf("invalid response")
+	}
+
+	return nil
+}
+
+// GetOnChainAddress - API call.
+func (l *ClnRawLightningAPI) GetOnChainAddress(ctx context.Context) (string, error) {
+	var resp ClnNewAddrResp
+
+	err := l.connection.Call(ctx, NEWADDR, []interface{}{}, &resp)
+	if err != nil {
+		return "", err
+	}
+
+	if len(resp.Bech32) == 0 {
+		return "", fmt.Errorf("invalid response")
+	}
+
+	return resp.Bech32, nil
+}
+
+// GetOnChainFunds - API call.
+func (l *ClnRawLightningAPI) GetOnChainFunds(ctx context.Context) (*Funds, error) {
+	const (
+		CONFIRMED   = "confirmed"
+		UNCONFIRMED = "uncomfirmed"
+	)
+
+	var fundsReply ClnFundsChainResp
+	err := l.connection.Call(ctx, LISTFUNDS, []string{}, &fundsReply)
+	if err != nil {
+		return nil, err
+	}
+
+	f := &Funds{}
+	f.ConfirmedBalance = 0
+	f.TotalBalance = 0
+	f.LockedBalance = 0
+
+	for _, one := range fundsReply.Outputs {
+		amount := int64(ConvertAmount(one.AmountMsat))
+		if !one.Reserved && one.Status == CONFIRMED {
+			f.ConfirmedBalance += (amount * 1000)
+			f.TotalBalance += (amount * 1000)
+		} else if !one.Reserved && one.Status == UNCONFIRMED {
+			f.TotalBalance += (amount * 1000)
+		} else if one.Reserved && (one.Status == UNCONFIRMED || one.Status == CONFIRMED) {
+			f.LockedBalance += (amount * 1000)
+		}
+	}
+
+	return f, nil
 }

@@ -9,24 +9,24 @@ import (
 	"github.com/golang/glog"
 )
 
-// PREFIX is the prefix for all metrics
+// PREFIX is the prefix for all metrics.
 const PREFIX = "bolt.boltobserver"
 
-// Monitoring struct
+// Monitoring struct.
 type Monitoring struct {
 	graphite *graphite.Graphite
 	env      string
 	name     string
 }
 
-// NewNopNodeDataMonitoring constructs a new Monitoring that does nothing
+// NewNopNodeDataMonitoring constructs a new Monitoring that does nothing.
 func NewNopNodeDataMonitoring(name string) *Monitoring {
 	g := graphite.NewGraphiteNop("", 2003)
 	g.DisableLog = true
 	return &Monitoring{graphite: g, name: name}
 }
 
-// NewNodeDataMonitoring constructs a new Monitoring instance
+// NewNodeDataMonitoring constructs a new Monitoring instance.
 func NewNodeDataMonitoring(name, env, graphiteHost, graphitePort string) *Monitoring {
 	port, err := strconv.Atoi(graphitePort)
 	if err != nil {
@@ -40,7 +40,6 @@ func NewNodeDataMonitoring(name, env, graphiteHost, graphitePort string) *Monito
 	}
 
 	g, err := graphite.NewGraphiteUDP(graphiteHost, port)
-
 	if err != nil {
 		g = graphite.NewGraphiteNop(graphiteHost, port)
 		g.DisableLog = false
@@ -56,7 +55,7 @@ func NewNodeDataMonitoring(name, env, graphiteHost, graphitePort string) *Monito
 	return &Monitoring{graphite: g, env: env, name: name}
 }
 
-// MetricsTimer - is used to time function executions
+// MetricsTimer - is used to time function executions.
 func (c *Monitoring) MetricsTimer(name string, tags map[string]string) func() {
 	// A simple way to time function execution ala
 	// defer c.timer("checkall")()
@@ -79,7 +78,7 @@ func (c *Monitoring) MetricsTimer(name string, tags map[string]string) func() {
 	}
 }
 
-// MetricsReport - is used to report a metric
+// MetricsReport - is used to report a metric.
 func (c *Monitoring) MetricsReport(name, val string, tags map[string]string) {
 	g := c.graphite
 

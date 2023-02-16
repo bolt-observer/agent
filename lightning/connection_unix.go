@@ -13,17 +13,17 @@ import (
 	rpc "github.com/powerman/rpc-codec/jsonrpc2"
 )
 
-// ClnUnixConnection represents a UNIX domain socket
+// ClnUnixConnection represents a UNIX domain socket.
 type ClnUnixConnection struct {
 	Client *rpc.Client
 
 	ClnConnection
 }
 
-// Compile time check for the interface
+// Compile time check for the interface.
 var _ ClnConnectionAPI = &ClnUnixConnection{}
 
-// NewUnixConnection create a new CLN connection
+// NewUnixConnection create a new CLN connection.
 func NewUnixConnection(socketType string, address string) *ClnUnixConnection {
 	ret := &ClnUnixConnection{}
 
@@ -42,7 +42,7 @@ func NewUnixConnection(socketType string, address string) *ClnUnixConnection {
 	return ret
 }
 
-// Call calls serviceMethod with args and fills reply with response
+// Call calls serviceMethod with args and fills reply with response.
 func (l *ClnUnixConnection) Call(ctx context.Context, serviceMethod string, args any, reply any) error {
 	if l.Client == nil {
 		return fmt.Errorf("no client")
@@ -59,7 +59,7 @@ func (l *ClnUnixConnection) Call(ctx context.Context, serviceMethod string, args
 	}
 }
 
-// StreamResponse is meant for streaming responses it calls serviceMethod with args and returns an io.Reader
+// StreamResponse is meant for streaming responses it calls serviceMethod with args and returns an io.Reader.
 func (l *ClnUnixConnection) StreamResponse(ctx context.Context, serviceMethod string, args any) (io.Reader, error) {
 	if l.Client == nil {
 		return nil, fmt.Errorf("no client")
@@ -89,7 +89,7 @@ func (l *ClnUnixConnection) StreamResponse(ctx context.Context, serviceMethod st
 	}
 }
 
-// Cleanup does the cleanup
+// Cleanup does the cleanup.
 func (l *ClnUnixConnection) Cleanup() {
 	// Noop
 	return

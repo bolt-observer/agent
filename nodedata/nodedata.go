@@ -22,10 +22,10 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 )
 
-// SetOfChanIds is a set of channel IDs
+// SetOfChanIds is a set of channel IDs.
 type SetOfChanIds map[uint64]struct{}
 
-// NodeData struct
+// NodeData struct.
 type NodeData struct {
 	ctx               context.Context
 	perNodeSettings   *PerNodeSettings
@@ -42,12 +42,12 @@ type NodeData struct {
 	reentrancyBlock   *entities.ReentrancyBlock
 }
 
-// NewDefaultNodeData constructs a new NodeData
+// NewDefaultNodeData constructs a new NodeData.
 func NewDefaultNodeData(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *Monitoring) *NodeData {
 	return NewNodeData(ctx, NewInMemoryChannelCache(), keepAlive, smooth, checkGraph, monitoring)
 }
 
-// NewNodeData constructs a new NodeData
+// NewNodeData constructs a new NodeData.
 func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *Monitoring) *NodeData {
 	if ctx == nil {
 		ctx = getContext()
@@ -74,19 +74,19 @@ func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duratio
 	}
 }
 
-// IsSubscribed - check if we are subscribed for a certain public key
+// IsSubscribed - check if we are subscribed for a certain public key.
 func (c *NodeData) IsSubscribed(pubKey, uniqueID string) bool {
 	return utils.Contains(c.perNodeSettings.GetKeys(), pubKey+uniqueID)
 }
 
-// Subscribe - subscribe to notifications about node changes (if already subscribed this will force a callback, use IsSubscribed to check)
+// Subscribe - subscribe to notifications about node changes (if already subscribed this will force a callback, use IsSubscribed to check).
 func (c *NodeData) Subscribe(
 	nodeDataCallback entities.NodeDataReportCallback,
 	getAPI entities.NewAPICall,
 	pubKey string,
 	settings entities.ReportingSettings,
-	uniqueID string) error {
-
+	uniqueID string,
+) error {
 	if pubKey != "" && !utils.ValidatePubkey(pubKey) {
 		return errors.New("invalid pubkey")
 	}
@@ -108,7 +108,6 @@ func (c *NodeData) Subscribe(
 	}
 
 	info, err := api.GetInfo(c.ctx)
-
 	if err != nil {
 		return fmt.Errorf("failed to get info: %v", err)
 	}
@@ -135,20 +134,20 @@ func (c *NodeData) Subscribe(
 	return nil
 }
 
-// Unsubscribe - unsubscribe from a pubkey
+// Unsubscribe - unsubscribe from a pubkey.
 func (c *NodeData) Unsubscribe(pubkey, uniqueID string) error {
 	c.perNodeSettings.Delete(pubkey + uniqueID)
 	return nil
 }
 
-// GetState - get current state (settings.pollInterval is ignored)
+// GetState - get current state (settings.pollInterval is ignored).
 func (c *NodeData) GetState(
 	pubKey string,
 	uniqueID string,
 	getAPI entities.NewAPICall,
 	settings entities.ReportingSettings,
-	optCallback entities.NodeDataReportCallback) (*entities.NodeDataReport, error) {
-
+	optCallback entities.NodeDataReportCallback,
+) (*entities.NodeDataReport, error) {
 	if pubKey != "" && !utils.ValidatePubkey(pubKey) {
 		return nil, errors.New("invalid pubkey")
 	}
@@ -178,8 +177,8 @@ func (c *NodeData) getChannelList(
 	info *api.InfoAPI,
 	precisionBits int,
 	allowPrivateChans bool,
-	filter filter.FilteringInterface) ([]entities.ChannelBalance, SetOfChanIds, error) {
-
+	filter filter.FilteringInterface,
+) ([]entities.ChannelBalance, SetOfChanIds, error) {
 	defer c.monitoring.MetricsTimer("channellist", map[string]string{"pubkey": info.IdentityPubkey})()
 
 	resp := make([]entities.ChannelBalance, 0)
@@ -223,7 +222,6 @@ func (c *NodeData) getChannelList(
 		// but before it is "settled") and same thing in the opposite direction with localBalance.
 		// However we track only remoteBalance as an approximation for the balance of the channel.
 		if c.smooth {
-
 			// Smooth out htlcs
 			if channel.PendingHtlcs != nil {
 				for _, htlc := range channel.PendingHtlcs {
@@ -301,17 +299,17 @@ func getContext() context.Context {
 	return ctx
 }
 
-// OverrideLoopInterval - WARNING: this should not be used except for unit testing
+// OverrideLoopInterval - WARNING: this should not be used except for unit testing.
 func (c *NodeData) OverrideLoopInterval(duration time.Duration) {
 	c.eventLoopInterval = duration
 }
 
-// EventLoop - invoke the event loop
+// EventLoop - invoke the event loop.
 func (c *NodeData) EventLoop() {
 	// nosemgrep
 	ticker := time.NewTicker(c.eventLoopInterval)
 
-	// Imediately call checkAll()
+	// Immediately call checkAll()
 	if !c.checkAll() {
 		ticker.Stop()
 		return
@@ -337,7 +335,6 @@ func (c *NodeData) fetchGraph(
 	getAPI entities.NewAPICall,
 	settings entities.ReportingSettings,
 ) error {
-
 	api := getAPI()
 	if api == nil {
 		return fmt.Errorf("failed to get client")
@@ -410,7 +407,6 @@ func (c *NodeData) checkAll() bool {
 		}
 
 		if toBeCheckedBy.Before(now) {
-
 			// Subscribe will set lastCheck to min value and you expect update in such a case
 			ignoreCache := toBeCheckedBy.Year() <= 1
 			resp, hash, err := c.checkOne(s.identifier, s.getAPI, s.settings, s.hash, ignoreCache, reportAnyway, reportNodeAnyway)
@@ -489,7 +485,7 @@ func applyFilter(info *api.NodeInfoAPIExtended, filter filter.FilteringInterface
 	return ret
 }
 
-// checkOne checks one specific node
+// checkOne checks one specific node.
 func (c *NodeData) checkOne(
 	identifier entities.NodeIdentifier,
 	getAPI entities.NewAPICall,
@@ -497,8 +493,8 @@ func (c *NodeData) checkOne(
 	oldHash uint64,
 	ignoreCache bool,
 	reportAnyway bool,
-	reportNodeAnyway bool) (*entities.NodeDataReport, uint64, error) {
-
+	reportNodeAnyway bool,
+) (*entities.NodeDataReport, uint64, error) {
 	pubkey := identifier.GetID()
 	if pubkey == "" {
 		pubkey = "local"
@@ -605,12 +601,12 @@ func (c *NodeData) checkOne(
 	return nodeData, hash, nil
 }
 
-// filterList will return just the changed channels
+// filterList will return just the changed channels.
 func (c *NodeData) filterList(
 	identifier entities.NodeIdentifier,
 	list []entities.ChannelBalance,
-	noop bool) []entities.ChannelBalance {
-
+	noop bool,
+) []entities.ChannelBalance {
 	resp := make([]entities.ChannelBalance, 0)
 
 	c.channelCache.Lock()
@@ -625,7 +621,6 @@ func (c *NodeData) filterList(
 
 		current := fmt.Sprintf("%v-%d-%d-%d", one.Active, one.RemoteNominator, one.LocalNominator, one.Denominator)
 		if noop || !ok || val != current {
-
 			oldActive, oldRemoteNom, oldLocalNom, oldDenom, err := parseOldValLegacy(val)
 
 			if err != nil {
@@ -648,7 +643,6 @@ func (c *NodeData) filterList(
 
 			c.channelCache.DeferredSet(id, val, current)
 		}
-
 	}
 
 	return resp
@@ -682,7 +676,7 @@ func (c *NodeData) revertChanIDChanges() {
 	}
 }
 
-// Deprecated
+// Deprecated.
 func parseOldValLegacy(val string) (bool, uint64, uint64, uint64, error) {
 	parsed := strings.Split(val, "-")
 	if len(parsed) != 4 {

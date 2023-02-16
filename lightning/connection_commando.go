@@ -12,7 +12,7 @@ import (
 	"github.com/bolt-observer/agent/lnsocket"
 )
 
-// ClnCommandoConnection struct
+// ClnCommandoConnection struct.
 type ClnCommandoConnection struct {
 	ln   *lnsocket.LN
 	addr string
@@ -21,10 +21,10 @@ type ClnCommandoConnection struct {
 	ClnConnection
 }
 
-// Compile time check for the interface
+// Compile time check for the interface.
 var _ ClnConnectionAPI = &ClnCommandoConnection{}
 
-// NewCommandoConnection creates a new CLN connection
+// NewCommandoConnection creates a new CLN connection.
 func NewCommandoConnection(addr string, rune string, timeout time.Duration) *ClnCommandoConnection {
 	ret := &ClnCommandoConnection{}
 
@@ -35,7 +35,7 @@ func NewCommandoConnection(addr string, rune string, timeout time.Duration) *Cln
 	return ret
 }
 
-// Call calls serviceMethod with args and fills reply with response
+// Call calls serviceMethod with args and fills reply with response.
 func (l *ClnCommandoConnection) Call(ctx context.Context, serviceMethod string, args any, reply any) error {
 	err := l.initConnection()
 	if err != nil {
@@ -63,7 +63,7 @@ func (l *ClnCommandoConnection) Call(ctx context.Context, serviceMethod string, 
 	return nil
 }
 
-// StreamResponse is meant for streaming responses it calls serviceMethod with args and returns an io.Reader
+// StreamResponse is meant for streaming responses it calls serviceMethod with args and returns an io.Reader.
 func (l *ClnCommandoConnection) StreamResponse(ctx context.Context, serviceMethod string, args any) (io.Reader, error) {
 	err := l.initConnection()
 	if err != nil {
@@ -80,7 +80,7 @@ func (l *ClnCommandoConnection) StreamResponse(ctx context.Context, serviceMetho
 	return reader, nil
 }
 
-// Cleanup does the cleanup
+// Cleanup does the cleanup.
 func (l *ClnCommandoConnection) Cleanup() {
 	if l.ln != nil {
 		l.ln.Disconnect()

@@ -17,10 +17,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// ReportBatch is how often a log is printed to show progress
+// ReportBatch is how often a log is printed to show progress.
 const ReportBatch = 10
 
-// Sender struct
+// Sender struct.
 type Sender struct {
 	AuthToken    string
 	LightningAPI entities.NewAPICall
@@ -34,7 +34,7 @@ func toClientType(t api.APIType) int {
 	return int(t)
 }
 
-// MakeSender creates a new Sender
+// MakeSender creates a new Sender.
 func MakeSender(ctx context.Context, authToken string, endpoint string, l entities.NewAPICall) (*Sender, error) {
 	if l == nil {
 		return nil, fmt.Errorf("lightning API not specified")
@@ -92,9 +92,11 @@ func makePermanent(err error) error {
 	return err
 }
 
-type senderGetTime func(ctx context.Context, empty *agent.Empty, opts ...grpc.CallOption) (*agent.TimestampResponse, error)
-type senderGetChan func(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage
-type senderPushData func(ctx context.Context, data *agent.DataRequest, opts ...grpc.CallOption) (*agent.Empty, error)
+type (
+	senderGetTime  func(ctx context.Context, empty *agent.Empty, opts ...grpc.CallOption) (*agent.TimestampResponse, error)
+	senderGetChan  func(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage
+	senderPushData func(ctx context.Context, data *agent.DataRequest, opts ...grpc.CallOption) (*agent.Empty, error)
+)
 
 type senderMethod struct {
 	methodName string
@@ -108,8 +110,8 @@ func (f *Sender) send(
 	ctx context.Context,
 	method senderMethod,
 	shouldUpdateTimeToLatest bool,
-	from time.Time) {
-
+	from time.Time,
+) {
 	// TODO: fix this
 	ctx = metadata.AppendToOutgoingContext(ctx, "pubkey", f.PubKey, "clientType", fmt.Sprintf("%d", f.ClientType), "key", f.AuthToken)
 
@@ -117,7 +119,6 @@ func (f *Sender) send(
 
 	if shouldUpdateTimeToLatest {
 		ts, err := method.getTime(ctx, &agent.Empty{})
-
 		if err != nil {
 			glog.Warningf("Coud not get latest %s timestamps: %v", method.entityName, err)
 		}
@@ -160,7 +161,6 @@ func (f *Sender) send(
 					glog.Warningf("Could not send data to GRPC endpoint: %v", e)
 				}
 			})
-
 			if err != nil {
 				glog.Warningf("Fatal error in %s: %v", method.methodName, err)
 				return
@@ -174,7 +174,7 @@ func (f *Sender) send(
 	}
 }
 
-// SendInvoices will send invoices
+// SendInvoices will send invoices.
 func (f *Sender) SendInvoices(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
 	method := senderMethod{
 		methodName: "SendInvoices",
@@ -187,7 +187,7 @@ func (f *Sender) SendInvoices(ctx context.Context, shouldUpdateTimeToLatest bool
 	f.send(ctx, method, shouldUpdateTimeToLatest, from)
 }
 
-// SendForwards will send forwards
+// SendForwards will send forwards.
 func (f *Sender) SendForwards(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
 	method := senderMethod{
 		methodName: "SendForwards",
@@ -200,7 +200,7 @@ func (f *Sender) SendForwards(ctx context.Context, shouldUpdateTimeToLatest bool
 	f.send(ctx, method, shouldUpdateTimeToLatest, from)
 }
 
-// SendPayments will send payments
+// SendPayments will send payments.
 func (f *Sender) SendPayments(ctx context.Context, shouldUpdateTimeToLatest bool, from time.Time) {
 	method := senderMethod{
 		methodName: "SendPayments",

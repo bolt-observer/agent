@@ -15,17 +15,17 @@ import (
 	"github.com/golang/glog"
 )
 
-// Lock - acquire lock
+// Lock - acquire lock.
 func (c *RedisChannelCache) Lock() {
 	// noop
 }
 
-// Unlock - release lock
+// Unlock - release lock.
 func (c *RedisChannelCache) Unlock() {
 	// noop
 }
 
-// Get - get channel cache
+// Get - get channel cache.
 func (c *RedisChannelCache) Get(name string) (string, bool) {
 	id := fmt.Sprintf("%s_%s", c.env, name)
 	err := c.client.Exists(id).Err()
@@ -42,7 +42,7 @@ func (c *RedisChannelCache) Get(name string) (string, bool) {
 	return c.client.Get(id).Val(), true
 }
 
-// Set - set channel cache
+// Set - set channel cache.
 func (c *RedisChannelCache) Set(name string, value string) {
 	id := fmt.Sprintf("%s_%s", c.env, name)
 	status := c.client.Set(id, value, 0*time.Second)
@@ -51,7 +51,7 @@ func (c *RedisChannelCache) Set(name string, value string) {
 	}
 }
 
-// RedisChannelCache - ChannelCache implementation that stores data in redis
+// RedisChannelCache - ChannelCache implementation that stores data in redis.
 type RedisChannelCache struct {
 	client             *redis.Client
 	env                string
@@ -60,7 +60,7 @@ type RedisChannelCache struct {
 }
 
 func censorCredentials(in string) string {
-	var re = regexp.MustCompile(`(.*://)(.*)@(.*)`)
+	re := regexp.MustCompile(`(.*://)(.*)@(.*)`)
 	return re.ReplaceAllString(in, `$1[credentials]@$3`)
 }
 
@@ -73,7 +73,7 @@ func removeQueryParams(in string) string {
 	return u.String()
 }
 
-// NewRedisChannelCache - construct new RedisChannelCache
+// NewRedisChannelCache - construct new RedisChannelCache.
 func NewRedisChannelCache() *RedisChannelCache {
 	url := removeQueryParams(utils.GetEnvWithDefault("REDIS_URL", "redis://127.0.0.1:6379/1"))
 
@@ -118,7 +118,7 @@ func NewRedisChannelCache() *RedisChannelCache {
 	return resp
 }
 
-// DeferredSet - set channel cache but do not commit it yet
+// DeferredSet - set channel cache but do not commit it yet.
 func (c *RedisChannelCache) DeferredSet(name, old, new string) {
 	c.deferredCacheMutex.Lock()
 	defer c.deferredCacheMutex.Unlock()
@@ -128,7 +128,7 @@ func (c *RedisChannelCache) DeferredSet(name, old, new string) {
 	c.deferredCache[name] = OldNewVal{OldValue: old, NewValue: new}
 }
 
-// DeferredCommit - commit channel cache from DeferredSet
+// DeferredCommit - commit channel cache from DeferredSet.
 func (c *RedisChannelCache) DeferredCommit() bool {
 	c.Lock()
 	c.deferredCacheMutex.Lock()
@@ -152,7 +152,7 @@ func (c *RedisChannelCache) DeferredCommit() bool {
 	return true
 }
 
-// DeferredRevert - revert channel cache from DeferredSet
+// DeferredRevert - revert channel cache from DeferredSet.
 func (c *RedisChannelCache) DeferredRevert() bool {
 	c.Lock()
 	c.deferredCacheMutex.Lock()

@@ -6,10 +6,10 @@ import (
 	"github.com/bolt-observer/go_common/entities"
 )
 
-// NodeDataReportCallback represents the nodedata callback
+// NodeDataReportCallback represents the nodedata callback.
 type NodeDataReportCallback func(ctx context.Context, report *NodeDataReport) bool
 
-// NodeDataReport struct
+// NodeDataReport struct.
 type NodeDataReport struct {
 	ReportingSettings
 	// Chain - should be bitcoin (bitcoin, litecoin)
