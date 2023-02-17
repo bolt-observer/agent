@@ -10,6 +10,7 @@ umask 0022
 
 sudo=${sudo:-"sudo"}
 agent="bolt-agent"
+bin_dir=${bin_dir:-"/usr/local/bin"}
 
 tmpDir="$(mktemp -d -t boltobserver-unpack.XXXXXXXXXX || \
           oops "Can't create temporary directory")"
@@ -47,7 +48,7 @@ case "$(uname -s).$(uname -m)" in
    Darwin.arm64|Darwin.aarch64)
         name=${agent}-${latest}-darwin.zip
         ;;
-    *) oops "sorry, your platform is not yet supported";;
+   *) oops "sorry, your platform is not yet supported";;
 esac
 
 url="https://github.com/bolt-observer/agent/releases/download/${latest}/${name}"
@@ -62,19 +63,26 @@ fetch "$url" "$tmpDir/manifest.txt.asc" || oops "failed to download '$url'"
 url="https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/fiksn.asc"
 echo "downloading key from '$url' to '$tmpDir'..."
 fetch "$url" "$tmpDir/key" || oops "failed to download '$url'"
-cat "$tmpDir/key" | gpg --import
+cat "$tmpDir/key" | gpg --import || true
 
-url="https://raw.githubusercontent.com/bolt-observer/agent/main/${agent}.service"
-echo "downloading key from '$url' to '$tmpDir'..."
-fetch "$url" "$tmpDir/service" || oops "failed to download '$url'"
-if [ -f "/etc/system/system" ]; then
+restart="0"
+if [ -d "/etc/systemd/system" ]; then
+  url="https://raw.githubusercontent.com/bolt-observer/agent/main/${agent}.service"
+  echo "downloading key from '$url' to '$tmpDir'..."
+  fetch "$url" "$tmpDir/service" || oops "failed to download '$url'"
   if [ ! -f "/etc/systemd/system/${agent}" ]; then
-    cp ${agent}.service /etc/systemd/system/
-    systemctl daemon-reload
+    echo "Will use sudo to install systemd service, you will probably need to enter credentials"
+    ${sudo} cp -f "$tmpDir/service" /etc/systemd/system/${agent}.service
+    ${sudo} systemctl daemon-reload
+    echo "Update API key in /etc/systemd/system/${agent}.service and do \"systemctl daemon-reload ; systemctl enable ${agent}.service ; systemctl start ${agent}.service\""
+  else
+    echo "Will use sudo to restart systemd service, you will probably need to enter credentials"
+    ${sudo} systemctl daemon-reload
+    restart="1"
   fi
 fi
 
-cd $tmpDir 2>/dev/null
+cd $tmpDir >/dev/null
 
 # Checksum
 gpg --verify manifest.txt.asc manifest.txt || { echo "GPG signature incorrect"; exit 1; }
@@ -82,15 +90,22 @@ sum=$(openssl sha256 agent.zip | cut -d "=" -f 2 | tr -d " \n")
 grep -q $sum manifest.txt || { echo "Checksum invalid"; exit 1; }
 
 unzip agent.zip
-${sudo} mkdir -p /usr/local/bin
-${sudo} cp -f *-agent-* /usr/local/bin
+for i in *-agent-*; do
+  mv -f $i $(echo $i | cut -d "-" -f 1-2)
+done
 
-if [ -f "/etc/system/system" ]; then
+echo "Will use sudo to copy to ${bin_dir}, you will probably need to enter credentials"
+${sudo} mkdir -p ${bin_dir}
+${sudo} cp -f *-agent ${bin_dir}
+
+if [ -d "/etc/systemd/system" ] && [ "$restart" = "1" ]; then
+  echo "Restarting ${agent}.service"
+  ${sudo} systemctl enable ${agent}.service
   ${sudo} systemctl restart ${agent}.service
 fi
 
-cd - 2>/dev/null
+cd - >/dev/null
 
-echo "Agent ${latest} installed to /usr/local/bin"
+echo "Agent ${latest} installed to ${bin_dir}"
 
 } # end of wrapping

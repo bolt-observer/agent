@@ -637,8 +637,13 @@ func sender(ctx context.Context, cmdCtx *cli.Context, apiKey string) {
 }
 
 func senderWithRetries(ctx context.Context, cmdCtx *cli.Context, apiKey string) error {
+	var permanent *backoff.PermanentError
+
 	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), mkGetLndAPI(cmdCtx))
 	if err != nil {
+		if permanent.Is(err) {
+			return backoff.Permanent(fmt.Errorf("get GRPC fetcher failure %v", err))
+		}
 		return fmt.Errorf("get GRPC fetcher failure %v", err)
 	}
 
