@@ -26,6 +26,7 @@ func GetPaymentsChannel(ctx context.Context, lightning entities.NewAPICall, from
 			if itf == nil {
 				return nil, nil, fmt.Errorf("could not get lightning API")
 			}
+			defer itf.Cleanup()
 			return itf.GetPaymentsRaw(ctx, false, pagination)
 		}),
 		from,
@@ -45,6 +46,7 @@ func GetInvoicesChannel(ctx context.Context, lightning entities.NewAPICall, from
 			if itf == nil {
 				return nil, nil, fmt.Errorf("could not get lightning API")
 			}
+			defer itf.Cleanup()
 			return itf.GetInvoicesRaw(ctx, false, pagination)
 		}),
 		from,
@@ -62,6 +64,8 @@ func GetForwardsChannel(ctx context.Context, lightning entities.NewAPICall, from
 
 	if itf != nil {
 		// A hack to get failed forwards too
+		defer itf.Cleanup()
+
 		if itf.GetAPIType() == api.LndGrpc {
 			lndGrpc, ok := itf.(*api.LndGrpcLightningAPI)
 			if ok {
@@ -81,6 +85,7 @@ func GetForwardsChannel(ctx context.Context, lightning entities.NewAPICall, from
 			if itf == nil {
 				return nil, nil, fmt.Errorf("could not get lightning API")
 			}
+			defer itf.Cleanup()
 			return itf.GetForwardsRaw(ctx, pagination)
 		}),
 		from,
