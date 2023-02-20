@@ -834,3 +834,56 @@ func (l *LndGrpcLightningAPI) GetOnChainFunds(ctx context.Context) (*Funds, erro
 
 	return f, nil
 }
+
+// SendToOnChainAddress API.
+func (l *LndGrpcLightningAPI) SendToOnChainAddress(ctx context.Context, address string, sats int64, useUnconfirmed bool, urgency Urgency) (string, error) {
+	target := 1
+	switch urgency {
+	case Urgent:
+		target = 1
+	case Normal:
+		target = 4
+	case Low:
+		target = 100
+	}
+
+	resp, err := l.Client.SendCoins(ctx, &lnrpc.SendCoinsRequest{
+		Addr:             address,
+		Amount:           sats,
+		TargetConf:       int32(target),
+		SpendUnconfirmed: useUnconfirmed,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(resp.Txid) == 0 {
+		return "", fmt.Errorf("invalid transaction id")
+	}
+
+	return resp.Txid, nil
+}
+
+// PayInvoice API.
+func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) error {
+	req := &routerrpc.SendPaymentRequest{}
+	req.PaymentRequest = paymentRequest
+	if sats > 0 {
+		req.Amt = sats
+	}
+
+	if outgoingChanIds != nil {
+		req.OutgoingChanIds = make([]uint64, 0)
+		req.OutgoingChanIds = append(req.OutgoingChanIds, outgoingChanIds...)
+	}
+
+	// TODO: we currently ignore the response streaming
+	_, err := l.RouterClient.SendPaymentV2(ctx, req)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

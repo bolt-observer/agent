@@ -275,6 +275,14 @@ func (m *MockLightningAPI) GetOnChainFunds(ctx context.Context) (*Funds, error) 
 	panic("not implemented")
 }
 
+func (m *MockLightningAPI) SendToOnChainAddress(ctx context.Context, address string, sats int64, useUnconfirmed bool, urgency Urgency) (string, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) error {
+	panic("not implemented")
+}
+
 func TestNodeInfoFull(t *testing.T) {
 	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 100, true, true)

@@ -252,3 +252,20 @@ type ClnFundsOutput struct {
 	Status     string `json:"status,omitempty"`
 	Reserved   bool   `json:"reserved,omitempty"`
 }
+
+// ClnWithdrawResp struct.
+type ClnWithdrawResp struct {
+	TxId string `json:"txid,omitempty"`
+	ClnResp
+}
+
+type ClnPayResp struct {
+	PaymentPreimage string `json:"payment_preimage,omitempty"`
+	PaymentHash     string `json:"payment_hash,omitempty"`
+	AmountMsat      string `json:"amount_msat,omitempty"`
+	AmountSentMsat  string `json:"amount_sent_msat,omitempty"`
+	Status          string `json:"status,omitempty"`
+	Destination     string `json:"destination,omitempty"`
+
+	ClnResp
+}

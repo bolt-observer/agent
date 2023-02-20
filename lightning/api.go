@@ -362,6 +362,15 @@ type Funds struct {
 	LockedBalance    int64
 }
 
+// Urgency of the on-chain sending
+type Urgency int
+
+const (
+	Low Urgency = iota
+	Normal
+	Urgent
+)
+
 ////////////////////////////////////////////////////////////////
 
 // API - generic API settings.
@@ -509,6 +518,8 @@ type LightingAPICalls interface {
 	ConnectPeer(ctx context.Context, id string) error
 	GetOnChainAddress(ctx context.Context) (string, error)
 	GetOnChainFunds(ctx context.Context) (*Funds, error)
+	SendToOnChainAddress(ctx context.Context, address string, sats int64, useUnconfirmed bool, urgency Urgency) (string, error)
+	PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) error
 }
 
 // GetDataCall - signature of function for retrieving data.

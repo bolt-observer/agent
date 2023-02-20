@@ -334,3 +334,38 @@ type WalletBalanceResponseOverride struct {
 type AccountBalanceEntryOverride struct {
 	// ignore
 }
+
+// SendCoinsRequestOverride struct.
+type SendCoinsRequestOverride struct {
+	Amount      string `json:"amount,omitempty"`
+	SatPerVbyte string `json:"sat_per_vbyte,omitempty"`
+	// Deprecated
+	SatPerByte string `json:"sat_per_byte,omitempty"`
+	lnrpc.SendCoinsRequest
+}
+
+// SendPaymentRequestOverride struct.
+type SendPaymentRequestOverride struct {
+	Dest         string `json:"dest,omitempty"`
+	Amt          string `json:"amt,omitempty"`
+	AmtMsat      string `json:"amt_msat,omitempty"`
+	PaymentHash  string `json:"payment_hash,omitempty"`
+	PaymentAddr  string `json:"payment_addr,omitempty"`
+	FeeLimitSat  string `json:"fee_limit_sat,omitempty"`
+	FeeLimitMsat string `json:"fee_limit_msat,omitempty"`
+	// Deprecated: Do not use.
+	OutgoingChanId    string                         `json:"outgoing_chan_id,omitempty"`
+	OutgoingChanIds   []string                       `json:"outgoing_chan_ids,omitempty"`
+	LastHopPubkey     string                         `json:"last_hop_pubkey,omitempty"`
+	RouteHints        []RouteHintOverride            `json:"route_hints,omitempty"`
+	DestCustomRecords DestCustomRecordsEntryOverride `json:"dest_custom_records,omitempty"`
+	DestFeatures      []lnrpc.FeatureBit             `json:"dest_features,omitempty"`
+	MaxShardSizeMsat  string                         `json:"max_shard_size_msat,omitempty"`
+
+	routerrpc.SendPaymentRequest
+}
+
+// DestCustomRecordsEntryOverride struct.
+type DestCustomRecordsEntryOverride struct {
+	// ignore
+}

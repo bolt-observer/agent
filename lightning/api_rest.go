@@ -649,3 +649,56 @@ func (l *LndRestLightningAPI) GetOnChainFunds(ctx context.Context) (*Funds, erro
 
 	return f, nil
 }
+
+// SendToOnChainAddress API.
+func (l *LndRestLightningAPI) SendToOnChainAddress(ctx context.Context, address string, sats int64, useUnconfirmed bool, urgency Urgency) (string, error) {
+	target := 1
+	switch urgency {
+	case Urgent:
+		target = 1
+	case Normal:
+		target = 4
+	case Low:
+		target = 100
+	}
+
+	input := &SendCoinsRequestOverride{}
+	input.Addr = address
+	input.Amount = fmt.Sprintf("%d", sats)
+	input.TargetConf = int32(target)
+	input.SpendUnconfirmed = useUnconfirmed
+
+	resp, err := l.HTTPAPI.HTTPSendCoins(ctx, l.Request, input)
+	if err != nil {
+		return "", err
+	}
+
+	if len(resp.Txid) == 0 {
+		return "", fmt.Errorf("invalid transaction id")
+	}
+
+	return resp.Txid, nil
+}
+
+// PayInvoice API.
+func (l *LndRestLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) error {
+	req := &SendPaymentRequestOverride{}
+
+	req.PaymentRequest = paymentRequest
+	if sats > 0 {
+		req.Amt = fmt.Sprintf("%d", sats)
+	}
+
+	req.OutgoingChanIds = make([]string, 0)
+	for _, one := range outgoingChanIds {
+		req.OutgoingChanIds = append(req.OutgoingChanIds, fmt.Sprintf("%d", one))
+	}
+
+	// TODO: we ignore the response here
+	_, err := l.HTTPAPI.HTTPPayInvoice(ctx, l.Request, req)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
