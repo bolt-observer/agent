@@ -117,7 +117,18 @@ There is support for remote connections via commando plugin but you cannot use t
 We provide a standalone statically compiled binary. The targets are `linux` (amd64 build for GNU/Linux), `rasp` (aarch64 build for GNU/Linux) suitable for installation on your Raspberry PI and `darwin` (amd64 build for MacOS).
 If you need some different architecture that is no problem except that you will have to build the binaries yourself (so you will need to install Golang). You can also open an issue / pull request to extend the defaults (or provide better naming).
 
-Installation steps:
+### Script
+
+You can just run:
+```
+curl https://bolt.observer/agent | sh
+```
+
+to install the latest version of agent.
+
+The executed script is present [here](./install.sh) so you can first check what it does. Or you can also do a manual installation.
+
+### Manual installation steps
 
 * fetch latest revision from https://github.com/bolt-observer/agent/releases
 
