@@ -3,87 +3,77 @@
 package boltz
 
 import (
+	"context"
 	"fmt"
 
+	boltz "github.com/BoltzExchange/boltz-lnd/boltz"
+	"github.com/bolt-observer/agent/entities"
 	plugins "github.com/bolt-observer/agent/plugins"
-	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/tyler-smith/go-bip39"
-	bolt "go.etcd.io/bbolt"
 )
 
-// BoltPlugin struct.
-type BoltPlugin struct {
+const (
+	Symbol   = "BTC"
+	BoltzUrl = "https://boltz.exchange/api"
+)
+
+// BoltzPlugin struct.
+type BoltzPlugin struct {
+	BoltzAPI *boltz.Boltz
 	plugins.Plugin
 }
 
-// BitSize is a default.
-const BitSize = 128
-
-// Burek is delicious.
-func Burek() {
-	entropy, err := bip39.NewEntropy(BitSize)
-	if err != nil {
-		return
+func NewBoltzPlugin(lightning entities.NewAPICall) *BoltzPlugin {
+	resp := &BoltzPlugin{
+		BoltzAPI: &boltz.Boltz{
+			URL: BoltzUrl,
+		},
 	}
-	mnemonic, err := bip39.NewMnemonic(entropy)
-	if err != nil {
-		return
+	if lightning == nil {
+		return nil
 	}
 
-	// func EntropyFromMnemonic(mnemonic string) ([]byte, error) {
-
-	privKey, pubKey := btcec.PrivKeyFromBytes(entropy)
-
-	addr, err := btcutil.NewAddressWitnessPubKeyHash(
-		btcutil.Hash160(pubKey.SerializeCompressed()),
-		&chaincfg.MainNetParams,
-	)
-	if err != nil {
-		return
-	}
-
-	fmt.Printf("%s %+v %s\n", mnemonic, privKey, addr.EncodeAddress())
-
-	addr2, err := btcutil.NewAddressPubKeyHash(
-		btcutil.Hash160(pubKey.SerializeCompressed()),
-		&chaincfg.MainNetParams,
-	)
-	if err != nil {
-		return
-	}
-
-	fmt.Printf("%s\n", addr2.EncodeAddress())
-	return
-	/*
-		//&chaincfg.MainNetParams
-		// Decode the hex-encoded private key.
-		pkBytes, err := hex.DecodeString("a11b0a4e1a132305652ee7a8eb7848f6ad" +
-			"5ea381e3ce20a2c086a2e388230811")
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), pkBytes)
-
-		witnessProg := btcutil.Hash160(pubkey.SerializeCompressed())
-		addressWitnessPubKeyHash, err := btcutil.NewAddressWitnessPubKeyHash(witnessProg, chainParams)
-		if err != nil {
-			panic(err)
-		}
-		address := addressWitnessPubKeyHash.EncodeAddress()
-	*/
+	resp.Lightning = lightning
+	return resp
 }
 
-// Database is the experiment with bbolt.
-func Database() error {
-	db, err := bolt.Open("/tmp/burek.db", 0o666, nil)
+func (b *BoltzPlugin) EnsureConnected(ctx context.Context) error {
+	nodes, err := b.BoltzAPI.GetNodes()
 	if err != nil {
 		return err
 	}
-	defer db.Close()
 
-	return nil
+	lapi := b.Lightning()
+	if lapi == nil {
+		return fmt.Errorf("could not get lightning api")
+	}
+	defer lapi.Cleanup()
+
+	node, hasNode := nodes.Nodes[Symbol]
+
+	if !hasNode {
+		return fmt.Errorf("could not find Boltz LND node for symbol %s", Symbol)
+	}
+
+	if len(node.URIs) == 0 {
+		return fmt.Errorf("could not find URIs for Boltz LND node for symbol %s", Symbol)
+	}
+
+	success := false
+	last := ""
+
+	for _, url := range node.URIs {
+		err = lapi.ConnectPeer(ctx, url)
+		if err == nil {
+			success = true
+			break
+		} else {
+			last = err.Error()
+		}
+	}
+
+	if success {
+		return nil
+	}
+
+	return fmt.Errorf("could not connect to Boltz LND node - %s", last)
 }

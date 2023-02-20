@@ -2,6 +2,7 @@ package lightning
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -886,4 +887,31 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 	}
 
 	return nil
+}
+
+// CreateInvoice API.
+func (l *LndGrpcLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (string, error) {
+	var err error
+	req := &lnrpc.Invoice{}
+	req.Memo = memo
+	if preimage != "" {
+		req.RPreimage, err = hex.DecodeString(preimage)
+		if err != nil {
+			return "", err
+		}
+	}
+	if sats > 0 {
+		req.Value = sats
+	}
+
+	resp, err := l.Client.AddInvoice(ctx, req)
+
+	if err != nil {
+		return "", err
+	}
+	if resp.PaymentRequest == "" {
+		return "", fmt.Errorf("no payment request received")
+	}
+
+	return resp.PaymentRequest, nil
 }

@@ -27,6 +27,7 @@ const (
 	NewAddr      = "newaddr"
 	Withdraw     = "withdraw"
 	Pay          = "pay"
+	InvoiceCmd   = "invoice"
 )
 
 // ClnRawLightningAPI struct.
@@ -915,4 +916,39 @@ func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest stri
 	}
 
 	return nil
+}
+
+// CreateInvoice - API call.
+func (l *ClnRawLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (string, error) {
+	var (
+		err   error
+		reply ClnInvoiceResp
+	)
+
+	// TODO: add duration to call
+	const TwoWeeks = 604800
+
+	if sats > 0 {
+		if preimage != "" {
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{sats * 1000, "", memo, TwoWeeks, nil, preimage}, &reply)
+		} else {
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{sats * 1000, "", memo, TwoWeeks, nil, nil}, &reply)
+		}
+	} else {
+		if preimage != "" {
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{"any", "", memo, TwoWeeks, nil, preimage}, &reply)
+		} else {
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{"any", "", memo, TwoWeeks, nil, nil}, &reply)
+		}
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	if reply.Bolt11 == "" {
+		return "", fmt.Errorf("missing bolt11")
+	}
+
+	return reply.Bolt11, nil
 }

@@ -259,6 +259,7 @@ type ClnWithdrawResp struct {
 	ClnResp
 }
 
+// ClnPayResp struct.
 type ClnPayResp struct {
 	PaymentPreimage string `json:"payment_preimage,omitempty"`
 	PaymentHash     string `json:"payment_hash,omitempty"`
@@ -267,5 +268,12 @@ type ClnPayResp struct {
 	Status          string `json:"status,omitempty"`
 	Destination     string `json:"destination,omitempty"`
 
+	ClnResp
+}
+
+// ClnInvoiceResp struct.
+type ClnInvoiceResp struct {
+	Bolt11 string `json:"bolt11,omitempty"`
+	// omitted stuff
 	ClnResp
 }

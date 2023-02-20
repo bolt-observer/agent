@@ -369,3 +369,12 @@ type SendPaymentRequestOverride struct {
 type DestCustomRecordsEntryOverride struct {
 	// ignore
 }
+
+// AddInvoiceResponseOverride struct.
+type AddInvoiceResponseOverride struct {
+	RHash       string `json:"r_hash,omitempty"`
+	AddIndex    string `json:"add_index,omitempty"`
+	PaymentAddr string `json:"payment_addr,omitempty"`
+
+	lnrpc.AddInvoiceResponse
+}

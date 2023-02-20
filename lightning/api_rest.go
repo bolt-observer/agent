@@ -2,6 +2,8 @@ package lightning
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -701,4 +703,34 @@ func (l *LndRestLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 	}
 
 	return nil
+}
+
+// CreateInvoice API.
+func (l *LndRestLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (string, error) {
+	req := &InvoiceOverride{}
+
+	req.Memo = memo
+	if preimage != "" {
+		val, err := hex.DecodeString(preimage)
+		if err != nil {
+			return "", err
+		}
+
+		req.RPreimage = base64.StdEncoding.EncodeToString(val)
+	}
+
+	if sats > 0 {
+		req.Value = fmt.Sprintf("%d", sats)
+	}
+
+	resp, err := l.HTTPAPI.HTTPAddInvoice(ctx, l.Request, req)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.PaymentRequest == "" {
+		return "", fmt.Errorf("no payment request received")
+	}
+
+	return resp.PaymentRequest, nil
 }
