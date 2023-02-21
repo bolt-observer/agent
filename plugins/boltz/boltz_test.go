@@ -61,7 +61,7 @@ func getAPI(t *testing.T, name string, typ api.APIType) agent_entities.NewAPICal
 }
 
 func TestEnsureConnected(t *testing.T) {
-	b := NewBoltzPlugin(getAPI(t, "fixture.secret", api.ClnCommando))
+	b := NewBoltzPlugin(getAPI(t, "fixture.secret", api.LndRest))
 	if b == nil {
 		if FailNoCredsBoltz {
 			t.Fatalf("no credentials")
@@ -71,4 +71,8 @@ func TestEnsureConnected(t *testing.T) {
 
 	err := b.EnsureConnected(context.Background())
 	assert.NoError(t, err)
+
+	b.Check("ITTpbl")
+	b.Swap()
+	t.Fail()
 }

@@ -48,7 +48,7 @@ func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
 }
 
 // Not used.
-func debugOutput(resp *lnrpc.ChannelEdge) {
+func debugOutput(resp *lnrpc.ConnectPeerResponse) {
 	bodyData, _ := json.Marshal(resp)
 	f, _ := os.OpenFile("dummy.json", os.O_WRONLY|os.O_CREATE, 0o644)
 	f.Truncate(0)
@@ -795,11 +795,12 @@ func (l *LndGrpcLightningAPI) ConnectPeer(ctx context.Context, id string) error 
 		return fmt.Errorf("invalid id")
 	}
 
-	_, err := l.Client.ConnectPeer(ctx, &lnrpc.ConnectPeerRequest{
+	resp, err := l.Client.ConnectPeer(ctx, &lnrpc.ConnectPeerRequest{
 		Addr:    &lnrpc.LightningAddress{Host: split[1], Pubkey: split[0]},
 		Perm:    false,
 		Timeout: 10,
 	})
+	debugOutput(resp)
 	if err != nil {
 		if strings.Contains(err.Error(), "already connected to peer") {
 			err = nil
@@ -968,10 +969,11 @@ func (l *LndGrpcLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash 
 }
 
 // CreateInvoice API.
-func (l *LndGrpcLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (*InvoiceResp, error) {
+func (l *LndGrpcLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string, expiry time.Duration) (*InvoiceResp, error) {
 	var err error
 	req := &lnrpc.Invoice{}
 	req.Memo = memo
+	req.Expiry = int64(expiry.Seconds())
 
 	if preimage != "" {
 		req.RPreimage, err = hex.DecodeString(preimage)

@@ -743,7 +743,7 @@ func (l *LndRestLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash 
 }
 
 // CreateInvoice API.
-func (l *LndRestLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (*InvoiceResp, error) {
+func (l *LndRestLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string, expiry time.Duration) (*InvoiceResp, error) {
 	req := &InvoiceOverride{}
 
 	req.Memo = memo
@@ -755,6 +755,8 @@ func (l *LndRestLightningAPI) CreateInvoice(ctx context.Context, sats int64, pre
 
 		req.RPreimage = base64.StdEncoding.EncodeToString(val)
 	}
+
+	req.Expiry = fmt.Sprintf("%d", int(expiry.Seconds()))
 
 	if sats > 0 {
 		req.Value = fmt.Sprintf("%d", sats)

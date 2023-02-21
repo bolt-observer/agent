@@ -1,6 +1,7 @@
 package boltz
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -12,7 +13,7 @@ import (
 )
 
 // BitSize is a default.
-const BitSize = 128
+const BitSize = 256
 
 // Burek is delicious.
 func Burek() {
@@ -28,6 +29,11 @@ func Burek() {
 	// func EntropyFromMnemonic(mnemonic string) ([]byte, error) {
 
 	privKey, pubKey := btcec.PrivKeyFromBytes(entropy)
+
+	fmt.Printf("%s vs %s\n", hex.EncodeToString(pubKey.SerializeCompressed()), hex.EncodeToString(privKey.PubKey().SerializeCompressed()))
+
+	fmt.Printf("Deterministic pubkey #1 %s\n", hex.EncodeToString(DeterministicPrivateKey("burek2", privKey).PubKey().SerializeCompressed()))
+	fmt.Printf("Deterministic pubkey #2 %s\n", hex.EncodeToString(DeterministicPublicKey("burek2", pubKey).SerializeCompressed()))
 
 	addr, err := btcutil.NewAddressWitnessPubKeyHash(
 		btcutil.Hash160(pubKey.SerializeCompressed()),
@@ -48,6 +54,8 @@ func Burek() {
 	}
 
 	fmt.Printf("%s\n", addr2.EncodeAddress())
+
+
 	return
 	/*
 		//&chaincfg.MainNetParams

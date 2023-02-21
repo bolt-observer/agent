@@ -972,26 +972,25 @@ func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash s
 }
 
 // CreateInvoice - API call.
-func (l *ClnRawLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (*InvoiceResp, error) {
+func (l *ClnRawLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string, expiry time.Duration) (*InvoiceResp, error) {
 	var (
 		err   error
 		reply ClnInvoiceResp
 	)
 
-	// TODO: add duration to call
-	const TwoWeeks = 604800
+	duration := int(expiry.Seconds())
 
 	if sats > 0 {
 		if preimage != "" {
-			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{sats * 1000, "", memo, TwoWeeks, nil, preimage}, &reply)
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{sats * 1000, "", memo, duration, nil, preimage}, &reply)
 		} else {
-			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{sats * 1000, "", memo, TwoWeeks, nil, nil}, &reply)
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{sats * 1000, "", memo, duration, nil, nil}, &reply)
 		}
 	} else {
 		if preimage != "" {
-			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{"any", "", memo, TwoWeeks, nil, preimage}, &reply)
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{"any", "", memo, duration, nil, preimage}, &reply)
 		} else {
-			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{"any", "", memo, TwoWeeks, nil, nil}, &reply)
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{"any", "", memo, duration, nil, nil}, &reply)
 		}
 	}
 

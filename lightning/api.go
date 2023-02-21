@@ -543,7 +543,7 @@ type LightingAPICalls interface {
 	SendToOnChainAddress(ctx context.Context, address string, sats int64, useUnconfirmed bool, urgency Urgency) (string, error)
 	PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error)
 	GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error)
-	CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (*InvoiceResp, error)
+	CreateInvoice(ctx context.Context, sats int64, preimage string, memo string, expiry time.Duration) (*InvoiceResp, error)
 }
 
 // GetDataCall - signature of function for retrieving data.

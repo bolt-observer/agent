@@ -14,6 +14,7 @@ import (
 
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 const FixtureDir = "./fixtures"
@@ -375,4 +376,28 @@ func TestGetChanInfo(t *testing.T) {
 	if result.ChannelID != chanid || result.ChanPoint != "72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2" || (result.Node1Pub != pubKey && result.Node2Pub != pubKey) {
 		t.Fatalf("GetChanInfo got wrong response: %v", result)
 	}
+}
+
+func TestConnectPeer(t *testing.T) {
+	_, d, api := common(t, "getinfo")
+	pubkey := "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a"
+	host := "161.97.184.185:9735"
+
+	r := io.NopCloser(bytes.NewReader([]byte{}))
+	// Mock
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
+		if !strings.Contains(req.URL.Path, "v1/peers") {
+			t.Fatalf("URL should contain v1/peers")
+		}
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	err := api.ConnectPeer(context.Background(), fmt.Sprintf("%s@%s", pubkey, host))
+	assert.NoError(t, err)
+	err = api.ConnectPeer(context.Background(), fmt.Sprintf("%s%s", pubkey, host))
+	assert.Error(t, err)
+
 }

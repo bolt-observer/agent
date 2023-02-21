@@ -14,6 +14,7 @@ import (
 	utils "github.com/bolt-observer/go_common/utils"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/stretchr/testify/assert"
 
 	mocks "github.com/bolt-observer/agent/lightning/mocks"
 )
@@ -71,14 +72,20 @@ func TestObtainDataGrpc(t *testing.T) {
 	//api.GetChanInfo(context.Background(), uint64(810130063083110402))
 	//api.GetForwardingHistory(context.Background(), Pagination{})
 
-	ret, err := api.GetInvoices(context.Background(), false, Pagination{BatchSize: 500})
-	if err != nil {
-		t.Fatalf("Error %v", err)
-	}
+	/*
+		ret, err := api.GetInvoices(context.Background(), false, Pagination{BatchSize: 500})
+		if err != nil {
+			t.Fatalf("Error %v", err)
+		}
 
-	for _, v := range ret.Invoices {
-		fmt.Printf("%v\n", v)
-	}
+		for _, v := range ret.Invoices {
+			fmt.Printf("%v\n", v)
+		}
+	*/
+
+	//api.ConnectPeer(context.Background(), "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a@161.97.184.185:9735")
+	//GetOnChainAddress(ctx context.Context) (string, error)
+	//GetOnChainFunds(ctx context.Context) (*Funds, error)
 
 	t.Fail()
 }
@@ -165,7 +172,7 @@ func TestGetInfoGrpc(t *testing.T) {
 		return
 	}
 
-	t.Fail()
+	//t.Fail()
 }
 
 func TestGetChannelsGrpc(t *testing.T) {
@@ -315,4 +322,52 @@ func TestGetChanInfoGrpc(t *testing.T) {
 	if resp.ChannelID != chanid || resp.ChanPoint != "72003042c278217521ce91dd11ac96ee1ece398c304b514aa3bff9e05329b126:2" || (resp.Node1Pub != pubKey && resp.Node2Pub != pubKey) {
 		t.Fatalf("GetChanInfo got wrong response: %v", resp)
 	}
+}
+
+func TestConnectPeerGrpc(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockLightningClient(ctrl)
+	data, api := commonGrpc(t, "getinfo", m)
+
+	var info *lnrpc.GetInfoResponse
+	err := json.Unmarshal(data, &info)
+	assert.NoError(t, err)
+
+	pubkey := "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a"
+	host := "161.97.184.185:9735"
+
+	m.
+		EXPECT().
+		ConnectPeer(gomock.Any(), gomock.Eq(&lnrpc.ConnectPeerRequest{
+			Addr:    &lnrpc.LightningAddress{Host: host, Pubkey: pubkey},
+			Perm:    false,
+			Timeout: 10})).
+		Return(&lnrpc.ConnectPeerResponse{}, nil)
+
+	err = api.ConnectPeer(context.Background(), fmt.Sprintf("%s@%s", pubkey, host))
+	assert.NoError(t, err)
+
+	m.
+		EXPECT().
+		ConnectPeer(gomock.Any(), gomock.Eq(&lnrpc.ConnectPeerRequest{
+			Addr:    &lnrpc.LightningAddress{Host: host, Pubkey: pubkey},
+			Perm:    false,
+			Timeout: 10})).
+		Return(&lnrpc.ConnectPeerResponse{}, fmt.Errorf("already connected to peer"))
+
+	err = api.ConnectPeer(context.Background(), fmt.Sprintf("%s@%s", pubkey, host))
+	assert.NoError(t, err)
+
+	m.
+		EXPECT().
+		ConnectPeer(gomock.Any(), gomock.Eq(&lnrpc.ConnectPeerRequest{
+			Addr:    &lnrpc.LightningAddress{Host: host, Pubkey: pubkey},
+			Perm:    false,
+			Timeout: 10})).
+		Return(&lnrpc.ConnectPeerResponse{}, fmt.Errorf("other error"))
+
+	err = api.ConnectPeer(context.Background(), fmt.Sprintf("%s@%s", pubkey, host))
+	assert.Error(t, err)
 }

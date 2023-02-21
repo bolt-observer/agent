@@ -312,7 +312,15 @@ func (h *HTTPAPI) HTTPPeers(ctx context.Context, req *http.Request, input *Conne
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	alreadyConnected := false
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(string(body), "already connected to peer") {
+		alreadyConnected = true
+	}
+	if resp.StatusCode != http.StatusOK && !alreadyConnected {
 		return fmt.Errorf("http got error %d", resp.StatusCode)
 	}
 
