@@ -41,7 +41,7 @@ func TestSender(t *testing.T) {
 
 	f, err := MakeSender(context.Background(), token, os.Getenv("AGENT_API_URL"), func() api.LightingAPICalls {
 		return itf
-	})
+	}, false)
 
 	if err != nil {
 		t.Fatalf("failed to make Sender: %v", err)

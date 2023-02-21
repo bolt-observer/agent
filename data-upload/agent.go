@@ -41,33 +41,26 @@ func MakeCredentials(pubkey, authToken string) *Credentials {
 	}
 }
 
-func getConnection(endpoint, pubkey, authToken string) (*grpc.ClientConn, error) {
+func getConnection(endpoint, pubkey, authToken string, isInsecure bool) (*grpc.ClientConn, error) {
+	opts := []grpc.DialOption{
+		grpc.WithPerRPCCredentials(MakeCredentials(pubkey, authToken)),
+		grpc.WithContextDialer(func(ctx context.Context,
+			endpoint string) (net.Conn, error) {
+			d := net.Dialer{}
+			return d.DialContext(
+				ctx, "tcp", endpoint,
+			)
+		}),
+	}
 
-	const Insecure = false
-	var conf *tls.Config
-
-	opts := []grpc.DialOption{}
-
-	if Insecure {
+	if isInsecure {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
 		cp, _ := x509.SystemCertPool()
 		minVersion := uint16(tls.VersionTLS11)
-		conf = &tls.Config{RootCAs: cp, MinVersion: minVersion}
+		conf := &tls.Config{RootCAs: cp, MinVersion: minVersion}
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(conf)))
 	}
-
-	opts = append(opts, grpc.WithPerRPCCredentials(MakeCredentials(pubkey, authToken)))
-
-	genericDialer := func(ctx context.Context,
-		endpoint string) (net.Conn, error) {
-		d := net.Dialer{}
-		return d.DialContext(
-			ctx, "tcp", endpoint,
-		)
-	}
-
-	opts = append(opts, grpc.WithContextDialer(genericDialer))
 
 	conn, err := grpc.Dial(endpoint, opts...)
 	if err != nil {
@@ -78,8 +71,8 @@ func getConnection(endpoint, pubkey, authToken string) (*grpc.ClientConn, error)
 
 }
 
-func getAgentAPI(endpoint, pubKey, authToken string) (api.AgentAPIClient, error) {
-	itf, err := getConnection(endpoint, pubKey, authToken)
+func getAgentAPI(endpoint, pubKey, authToken string, isInsecure bool) (api.AgentAPIClient, error) {
+	itf, err := getConnection(endpoint, pubKey, authToken, isInsecure)
 	if err != nil {
 		return nil, err
 	}

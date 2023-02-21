@@ -22,11 +22,14 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/golang/glog"
 	cli "github.com/urfave/cli"
+	"golang.org/x/sync/errgroup"
 
+	"github.com/bolt-observer/agent/actions"
 	raw "github.com/bolt-observer/agent/data-upload"
 	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/agent/nodedata"
+	"github.com/bolt-observer/agent/plugins"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 
@@ -330,6 +333,19 @@ func getApp() *cli.App {
 			Value:  0,
 			Hidden: true,
 		},
+		&cli.BoolFlag{
+			Name:  "actions",
+			Usage: "Allow execution of actions defined in the bolt app (beta feature)",
+		},
+		&cli.BoolFlag{
+			Name:  "dry-run",
+			Usage: "Allow execution of actions in dry drun mode (no actions will actually be executed)",
+		},
+		&cli.BoolFlag{
+			Name:   "insecure",
+			Usage:  "Allow insecure connections to the bolt.observer api. Use this for debugging in localhost only.",
+			Hidden: true,
+		},
 	}
 
 	app.Flags = append(app.Flags, glogFlags...)
@@ -514,13 +530,12 @@ func signalHandler(ctx context.Context, f filter.FilteringInterface) {
 	os.Exit(code)
 }
 
-func nodeDataChecker(cmdCtx *cli.Context) error {
+func runAgent(cmdCtx *cli.Context) error {
 	apiKey = utils.GetEnvWithDefault("API_KEY", "")
 	if apiKey == "" {
 		apiKey = cmdCtx.String("apikey")
 	}
-
-	if apiKey == "" && cmdCtx.String("url") != "" {
+	if apiKey == "" {
 		// We don't return error here since we don't want glog to handle it
 		fmt.Fprintf(os.Stderr, "missing API key (use --apikey or set API_KEY environment variable)\n")
 		os.Exit(1)
@@ -558,24 +573,22 @@ func nodeDataChecker(cmdCtx *cli.Context) error {
 
 	url = cmdCtx.String("url")
 	private = cmdCtx.Bool("private") || cmdCtx.String(whitelist) != ""
+	preferipv4 = cmdCtx.Bool("preferipv4")
 
 	interval, err := getInterval(cmdCtx, "interval")
 	if err != nil {
 		return err
 	}
 
-	preferipv4 = cmdCtx.Bool("preferipv4")
-
 	if interval == agent_entities.Second {
 		// Second is just for testing purposes
 		interval = agent_entities.TenSeconds
 	}
 
+	g, gctx := errgroup.WithContext(ct)
+
 	nodeDataChecker := nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedata checker"))
-
 	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
-
-	sender(ct, cmdCtx, apiKey)
 
 	if settings.PollInterval == agent_entities.ManualRequest {
 		nodeDataChecker.GetState("", cmdCtx.String("uniqueid"), mkGetLndAPI(cmdCtx), settings, nodeDataCallback)
@@ -593,7 +606,43 @@ func nodeDataChecker(cmdCtx *cli.Context) error {
 		}
 
 		glog.Info("Waiting for events...")
-		utils.WaitAll(nodeDataChecker)
+
+		g.Go(func() error {
+			nodeDataChecker.EventLoop()
+			return nil
+		})
+	}
+
+	if cmdCtx.Int64("fetch-invoices") != 0 || cmdCtx.Int64("fetch-payments") != 0 || cmdCtx.Int64("fetch-transactions") != 0 {
+		g.Go(func() error {
+			return sender(gctx, cmdCtx, apiKey)
+		})
+	}
+
+	if cmdCtx.Bool("actions") {
+		fn := mkGetLndAPI(cmdCtx)
+		g.Go(func() error {
+			ac := &actions.Connector{
+				Address:    url,
+				APIKey:     cmdCtx.String("apikey"),
+				Plugins:    plugins.Plugins,
+				LnAPI:      fn,
+				IsInsecure: cmdCtx.Bool("insecure"),
+				IsDryRun:   cmdCtx.Bool("dryrun"),
+			}
+			// exponential backoff is used to reconnect if api is down
+			b := backoff.NewExponentialBackOff()
+			b.MaxElapsedTime = 0
+			backoff.RetryNotify(func() error {
+				return ac.Run(gctx)
+			}, b, func(err error, d time.Duration) {
+				glog.Error("Could not connect to actions gRPC: ", err)
+			})
+			return ac.Run(gctx)
+		})
+	}
+	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		glog.Error("Error while running agent: ", err)
 	}
 
 	return nil
@@ -620,28 +669,28 @@ func convertTimeSetting(fetchSettingsValue int64) fetchSettings {
 	}
 }
 
-func sender(ctx context.Context, cmdCtx *cli.Context, apiKey string) {
-	if cmdCtx.String("datastore-url") != "" && apiKey != "" {
-		glog.Infof("Datastore server URL: %s", cmdCtx.String("datastore-url"))
+func sender(ctx context.Context, cmdCtx *cli.Context, apiKey string) error {
+	glog.Infof("Datastore server URL: %s", cmdCtx.String("datastore-url"))
 
-		b := backoff.NewExponentialBackOff()
-		b.MaxElapsedTime = 0
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 0
 
-		err := backoff.RetryNotify(func() error {
-			return senderWithRetries(ctx, cmdCtx, apiKey)
-		}, b, func(e error, d time.Duration) {
-			glog.Warningf("Could not init GRPC sending %v\n", e)
-		})
-		if err != nil {
-			glog.Warningf("Fatal error with GRPC sending init %v\n", err)
-		}
+	err := backoff.RetryNotify(func() error {
+		return senderWithRetries(ctx, cmdCtx, apiKey)
+	}, b, func(e error, d time.Duration) {
+		glog.Warningf("Could not init GRPC sending %v\n", e)
+	})
+	if err != nil {
+		glog.Warningf("Fatal error with GRPC sending init %v\n", err)
+		return err
 	}
+	return nil
 }
 
 func senderWithRetries(ctx context.Context, cmdCtx *cli.Context, apiKey string) error {
 	var permanent *backoff.PermanentError
 
-	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), mkGetLndAPI(cmdCtx))
+	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), mkGetLndAPI(cmdCtx), cmdCtx.Bool("insecure"))
 	if err != nil {
 		if permanent.Is(err) {
 			return backoff.Permanent(fmt.Errorf("get GRPC fetcher failure %v", err))
@@ -676,7 +725,7 @@ func main() {
 	app.Usage = "Utility to monitor and manage lightning node"
 	app.Action = func(cmdCtx *cli.Context) error {
 		glogShim(cmdCtx)
-		if err := nodeDataChecker(cmdCtx); err != nil {
+		if err := runAgent(cmdCtx); err != nil {
 			return err
 		}
 
