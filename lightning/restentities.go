@@ -378,3 +378,9 @@ type AddInvoiceResponseOverride struct {
 
 	lnrpc.AddInvoiceResponse
 }
+
+// TrackPaymentRequestOverride struct.
+type TrackPaymentRequestOverride struct {
+	PaymentHash string `json:"payment_hash,omitempty"`
+	routerrpc.TrackPaymentRequest
+}

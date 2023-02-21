@@ -4,11 +4,14 @@ package boltz
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
 
 	boltz "github.com/BoltzExchange/boltz-lnd/boltz"
 	"github.com/bolt-observer/agent/entities"
 	plugins "github.com/bolt-observer/agent/plugins"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 const (
@@ -76,4 +79,29 @@ func (b *BoltzPlugin) EnsureConnected(ctx context.Context) error {
 	}
 
 	return fmt.Errorf("could not connect to Boltz LND node - %s", last)
+}
+
+func newKeys() (*btcec.PrivateKey, *btcec.PublicKey, error) {
+	privateKey, err := btcec.NewPrivateKey()
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	publicKey := privateKey.PubKey()
+
+	return privateKey, publicKey, err
+}
+
+func newPreimage() ([]byte, []byte, error) {
+	preimage := make([]byte, 32)
+	_, err := rand.Read(preimage)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	preimageHash := sha256.Sum256(preimage)
+
+	return preimage, preimageHash[:], nil
 }

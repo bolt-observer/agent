@@ -867,7 +867,7 @@ func (l *LndGrpcLightningAPI) SendToOnChainAddress(ctx context.Context, address 
 }
 
 // PayInvoice API.
-func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) error {
+func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error) {
 	req := &routerrpc.SendPaymentRequest{}
 	req.PaymentRequest = paymentRequest
 	if sats > 0 {
@@ -879,25 +879,104 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 		req.OutgoingChanIds = append(req.OutgoingChanIds, outgoingChanIds...)
 	}
 
-	// TODO: we currently ignore the response streaming
-	_, err := l.RouterClient.SendPaymentV2(ctx, req)
+	resp, err := l.RouterClient.SendPaymentV2(ctx, req)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	for {
+		event, err := resp.Recv()
+
+		if err != nil {
+			return nil, err
+		}
+
+		switch event.Status {
+		case lnrpc.Payment_SUCCEEDED:
+			return &PaymentResp{
+				Preimage: event.PaymentPreimage,
+				Hash:     event.PaymentHash,
+				Status:   Success,
+			}, nil
+
+		case lnrpc.Payment_IN_FLIGHT:
+			var htlcSum int64
+
+			for _, htlc := range event.Htlcs {
+				htlcSum += htlc.Route.TotalAmtMsat - htlc.Route.TotalFeesMsat
+			}
+
+			if event.ValueMsat == htlcSum {
+				return &PaymentResp{
+					Preimage: "",
+					Hash:     event.PaymentHash,
+					Status:   Pending,
+				}, nil
+			}
+
+		case lnrpc.Payment_FAILED:
+			return nil, fmt.Errorf("failed payment")
+		}
+	}
+}
+
+// GetPaymentStatus API.
+func (l *LndGrpcLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
+	var err error
+	req := &routerrpc.TrackPaymentRequest{}
+	req.PaymentHash, err = hex.DecodeString(paymentHash)
+	if err != nil {
+		return nil, err
+	}
+	req.NoInflightUpdates = true
+
+	resp, err := l.RouterClient.TrackPaymentV2(ctx, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		event, err := resp.Recv()
+
+		if err != nil {
+			return nil, err
+		}
+
+		switch event.Status {
+		case lnrpc.Payment_SUCCEEDED:
+			return &PaymentResp{
+				Preimage: event.PaymentPreimage,
+				Hash:     event.PaymentHash,
+				Status:   Success,
+			}, nil
+		case lnrpc.Payment_FAILED:
+			return &PaymentResp{
+				Preimage: "",
+				Hash:     event.PaymentHash,
+				Status:   Failed,
+			}, nil
+		default:
+			return &PaymentResp{
+				Preimage: "",
+				Hash:     event.PaymentHash,
+				Status:   Pending,
+			}, nil
+		}
+	}
 }
 
 // CreateInvoice API.
-func (l *LndGrpcLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (string, error) {
+func (l *LndGrpcLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (*InvoiceResp, error) {
 	var err error
 	req := &lnrpc.Invoice{}
 	req.Memo = memo
+
 	if preimage != "" {
 		req.RPreimage, err = hex.DecodeString(preimage)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 	if sats > 0 {
@@ -907,11 +986,14 @@ func (l *LndGrpcLightningAPI) CreateInvoice(ctx context.Context, sats int64, pre
 	resp, err := l.Client.AddInvoice(ctx, req)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if resp.PaymentRequest == "" {
-		return "", fmt.Errorf("no payment request received")
+		return nil, fmt.Errorf("no payment request received")
 	}
 
-	return resp.PaymentRequest, nil
+	return &InvoiceResp{
+		PaymentRequest: resp.PaymentRequest,
+		Hash:           hex.EncodeToString(resp.RHash),
+	}, nil
 }

@@ -894,7 +894,7 @@ func (l *ClnRawLightningAPI) calculateExclusion(ctx context.Context, outgoingCha
 }
 
 // PayInvoice - API call.
-func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) error {
+func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error) {
 	var (
 		err   error
 		reply ClnPayResp
@@ -902,7 +902,7 @@ func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest stri
 
 	exclusions, err := l.calculateExclusion(ctx, outgoingChanIds)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if sats > 0 {
@@ -912,14 +912,67 @@ func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest stri
 	}
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	r := &PaymentResp{}
+	if reply.Status == "success" {
+		r.Preimage = reply.PaymentPreimage
+		r.Hash = reply.PaymentHash
+		r.Status = Success
+	} else if reply.Status == "pending" {
+		r.Hash = reply.PaymentHash
+		r.Preimage = ""
+		r.Status = Pending
+	} else {
+		return nil, fmt.Errorf("payment failed")
+	}
+
+	return r, nil
+}
+
+// GetPaymentStatus - API call.
+func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
+	var reply ClnPaymentEntries
+	err := l.connection.Call(ctx, ListPayments, []interface{}{paymentHash}, &reply)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(reply.Entries) != 1 {
+		return nil, fmt.Errorf("invalid response")
+	}
+
+	hash := reply.Entries[0].PaymentHash
+
+	if hash != paymentHash {
+		return nil, fmt.Errorf("invalid response")
+	}
+
+	switch reply.Entries[0].Status {
+	case "failed":
+		return &PaymentResp{
+			Status:   Failed,
+			Preimage: "",
+			Hash:     hash,
+		}, nil
+	case "complete":
+		return &PaymentResp{
+			Status:   Success,
+			Preimage: reply.Entries[0].PaymentPreimage,
+			Hash:     hash,
+		}, nil
+	default:
+		return &PaymentResp{
+			Status:   Pending,
+			Preimage: "",
+			Hash:     hash,
+		}, nil
+	}
 }
 
 // CreateInvoice - API call.
-func (l *ClnRawLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (string, error) {
+func (l *ClnRawLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (*InvoiceResp, error) {
 	var (
 		err   error
 		reply ClnInvoiceResp
@@ -943,12 +996,15 @@ func (l *ClnRawLightningAPI) CreateInvoice(ctx context.Context, sats int64, prei
 	}
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if reply.Bolt11 == "" {
-		return "", fmt.Errorf("missing bolt11")
+		return nil, fmt.Errorf("missing bolt11")
 	}
 
-	return reply.Bolt11, nil
+	return &InvoiceResp{
+		PaymentRequest: reply.Bolt11,
+		Hash:           reply.PaymentHash,
+	}, nil
 }

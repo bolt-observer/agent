@@ -683,7 +683,7 @@ func (l *LndRestLightningAPI) SendToOnChainAddress(ctx context.Context, address 
 }
 
 // PayInvoice API.
-func (l *LndRestLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) error {
+func (l *LndRestLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error) {
 	req := &SendPaymentRequestOverride{}
 
 	req.PaymentRequest = paymentRequest
@@ -696,24 +696,61 @@ func (l *LndRestLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 		req.OutgoingChanIds = append(req.OutgoingChanIds, fmt.Sprintf("%d", one))
 	}
 
-	// TODO: we ignore the response here
-	_, err := l.HTTPAPI.HTTPPayInvoice(ctx, l.Request, req)
+	resp, err := l.HTTPAPI.HTTPPayInvoice(ctx, l.Request, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	// TODO: fix me
+	return &PaymentResp{
+		Preimage: resp.PaymentPreimage,
+		Hash:     resp.PaymentHash,
+		Status:   Pending,
+	}, nil
+}
+
+// GetPaymentStatus API.
+func (l *LndRestLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
+	req := &TrackPaymentRequestOverride{}
+	req.PaymentHash = paymentHash
+	req.NoInflightUpdates = true
+
+	resp, err := l.HTTPAPI.HTTPTrackPayment(ctx, l.Request, req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch strings.ToLower(resp.Status) {
+	case "succeeded":
+		return &PaymentResp{
+			Preimage: resp.PaymentPreimage,
+			Hash:     paymentHash,
+			Status:   Success,
+		}, nil
+	case "failed":
+		return &PaymentResp{
+			Preimage: "",
+			Hash:     paymentHash,
+			Status:   Failed,
+		}, nil
+	default:
+		return &PaymentResp{
+			Preimage: "",
+			Hash:     paymentHash,
+			Status:   Pending,
+		}, nil
+	}
 }
 
 // CreateInvoice API.
-func (l *LndRestLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (string, error) {
+func (l *LndRestLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (*InvoiceResp, error) {
 	req := &InvoiceOverride{}
 
 	req.Memo = memo
 	if preimage != "" {
 		val, err := hex.DecodeString(preimage)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		req.RPreimage = base64.StdEncoding.EncodeToString(val)
@@ -725,12 +762,20 @@ func (l *LndRestLightningAPI) CreateInvoice(ctx context.Context, sats int64, pre
 
 	resp, err := l.HTTPAPI.HTTPAddInvoice(ctx, l.Request, req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if resp.PaymentRequest == "" {
-		return "", fmt.Errorf("no payment request received")
+		return nil, fmt.Errorf("no payment request received")
 	}
 
-	return resp.PaymentRequest, nil
+	b, err := base64.StdEncoding.DecodeString(resp.RHash)
+	if err != nil {
+		return nil, err
+	}
+
+	return &InvoiceResp{
+		PaymentRequest: resp.PaymentRequest,
+		Hash:           hex.EncodeToString(b),
+	}, nil
 }

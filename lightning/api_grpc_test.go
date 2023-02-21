@@ -85,14 +85,14 @@ func TestObtainDataGrpc(t *testing.T) {
 
 func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte, LightingAPICalls) {
 	pubKey := "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256"
-	cert := utils.ObtainCert("bolt.observer:443")
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
 
+	ignore := 4
 	data := entities.Data{
-		PubKey:            pubKey,
-		MacaroonHex:       dummyMac,
-		CertificateBase64: cert,
-		Endpoint:          "bolt.observer:443",
+		PubKey:               pubKey,
+		MacaroonHex:          dummyMac,
+		Endpoint:             "bolt.observer:443",
+		CertVerificationType: &ignore,
 	}
 
 	// Prepare mock data
@@ -164,6 +164,8 @@ func TestGetInfoGrpc(t *testing.T) {
 		t.Fatalf("GetInfo got wrong response: %v", resp)
 		return
 	}
+
+	t.Fail()
 }
 
 func TestGetChannelsGrpc(t *testing.T) {

@@ -362,6 +362,28 @@ type Funds struct {
 	LockedBalance    int64
 }
 
+// PaymentStatusEnum basic enum
+type PaymentStatusEnum int
+
+const (
+	Failed PaymentStatusEnum = iota
+	Pending
+	Success
+)
+
+// PaymentResp struct.
+type PaymentResp struct {
+	Hash     string
+	Preimage string
+	Status   PaymentStatusEnum
+}
+
+// InvoiceResp struct.
+type InvoiceResp struct {
+	Hash           string
+	PaymentRequest string
+}
+
 // Urgency of the on-chain sending
 type Urgency int
 
@@ -519,9 +541,9 @@ type LightingAPICalls interface {
 	GetOnChainAddress(ctx context.Context) (string, error)
 	GetOnChainFunds(ctx context.Context) (*Funds, error)
 	SendToOnChainAddress(ctx context.Context, address string, sats int64, useUnconfirmed bool, urgency Urgency) (string, error)
-	PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) error
-	// preimage is hex encoded 32 bytes, 0 sats = any
-	CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (string, error)
+	PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error)
+	GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error)
+	CreateInvoice(ctx context.Context, sats int64, preimage string, memo string) (*InvoiceResp, error)
 }
 
 // GetDataCall - signature of function for retrieving data.

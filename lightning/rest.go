@@ -509,6 +509,45 @@ func (h *HTTPAPI) HTTPPayInvoice(ctx context.Context, req *http.Request, input *
 	return &reply, nil
 }
 
+// HTTPPayInvoice - invokes PayInvoice method.
+func (h *HTTPAPI) HTTPTrackPayment(ctx context.Context, req *http.Request, input *TrackPaymentRequestOverride) (*PaymentOverride, error) {
+	var reply PaymentOverride
+
+	req = req.WithContext(ctx)
+	req.Method = http.MethodPost
+
+	u, err := url.Parse(fmt.Sprintf("%s/v2/router/track/%s?no_inflight_updates=%v", req.URL, input.PaymentHash, strconv.FormatBool(input.NoInflightUpdates)))
+	if err != nil {
+		return nil, fmt.Errorf("invalid url %s", err)
+	}
+
+	s, _ := json.Marshal(input)
+	b := bytes.NewBuffer(s)
+
+	req.URL = u
+	req.Body = io.NopCloser(b)
+
+	resp, err := h.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http request failed %s", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http got error %d", resp.StatusCode)
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+
+	err = decoder.Decode(&reply)
+	if err != nil {
+		return nil, fmt.Errorf("got error %v", err)
+	}
+
+	return &reply, nil
+}
+
 // HTTPAddInvoice - invokes AddInvoice method.
 func (h *HTTPAPI) HTTPAddInvoice(ctx context.Context, req *http.Request, input *InvoiceOverride) (*AddInvoiceResponseOverride, error) {
 	var reply AddInvoiceResponseOverride
