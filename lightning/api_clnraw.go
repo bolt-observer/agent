@@ -796,12 +796,12 @@ func (l *ClnRawLightningAPI) GetOnChainFunds(ctx context.Context) (*Funds, error
 	for _, one := range fundsReply.Outputs {
 		amount := int64(ConvertAmount(one.AmountMsat))
 		if !one.Reserved && one.Status == Confirmed {
-			f.ConfirmedBalance += (amount * Mili)
-			f.TotalBalance += (amount * Mili)
+			f.ConfirmedBalance += (amount / Mili)
+			f.TotalBalance += (amount / Mili)
 		} else if !one.Reserved && one.Status == Unconfirmed {
-			f.TotalBalance += (amount * Mili)
+			f.TotalBalance += (amount / Mili)
 		} else if one.Reserved && (one.Status == Unconfirmed || one.Status == Confirmed) {
-			f.LockedBalance += (amount * Mili)
+			f.LockedBalance += (amount / Mili)
 		}
 	}
 

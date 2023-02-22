@@ -413,6 +413,42 @@ func TestClnGetOnChainAddress(t *testing.T) {
 	assert.NotEqual(t, 0, len(resp))
 }
 
+func TestClnGetOnChainFunds(t *testing.T) {
+	data := clnData(t, "cln_funds")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
+		if err != nil {
+			t.Fatalf("Decode error: %v", err)
+		}
+
+		if strings.Contains(req.Method, "listfunds") {
+			reply := fmt.Sprintf(string(data), req.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetOnChainFunds(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(85996736), resp.TotalBalance)
+	assert.Equal(t, int64(85996736), resp.ConfirmedBalance)
+	assert.Equal(t, int64(0), resp.LockedBalance)
+}
+
 func TestClnSendToOnChainAddress(t *testing.T) {
 	data := clnData(t, "cln_withdraw")
 
@@ -551,15 +587,15 @@ func TestClnCreateInvoice(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestIsInvoicePaidPending(t *testing.T) {
-	IsInvoicePaid(t, "cln_invoicepending", false)
+func TestClnIsInvoicePaidPending(t *testing.T) {
+	ClnIsInvoicePaid(t, "cln_invoicepending", false)
 }
 
-func TestIsInvoicePaidComplete(t *testing.T) {
-	IsInvoicePaid(t, "cln_invoicepaid", true)
+func TestClnIsInvoicePaidComplete(t *testing.T) {
+	ClnIsInvoicePaid(t, "cln_invoicepaid", true)
 }
 
-func IsInvoicePaid(t *testing.T, name string, paid bool) {
+func ClnIsInvoicePaid(t *testing.T, name string, paid bool) {
 	data := clnData(t, name)
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
@@ -608,7 +644,7 @@ func TestCall(t *testing.T) {
 	}
 	defer api.Cleanup()
 
-	resp, err := api.IsInvoicePaid(context.TODO(), "c246e952658ef14d1c71516e8ba66c7f2d16203acac0d8a6795dd97728e85dab")
+	resp, err := api.GetOnChainFunds(context.Background())
 	assert.NoError(t, err)
 	fmt.Printf("%+v\n", resp)
 
