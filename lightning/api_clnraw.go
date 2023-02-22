@@ -75,6 +75,10 @@ func (l *ClnRawLightningAPI) DescribeGraph(ctx context.Context, unannounced bool
 			glog.Warningf("Could not convert %v", k)
 			continue
 		}
+		if ret == nil {
+			glog.Warningf("Could not convert %v - no channel found", k)
+			continue
+		}
 
 		if !unannounced && ret.Private {
 			continue
@@ -91,6 +95,10 @@ func (l *ClnRawLightningAPI) DescribeGraph(ctx context.Context, unannounced bool
 
 // ConvertChannelInternal - convert CLN channel to internal format
 func ConvertChannelInternal(chans []ClnListChan, id uint64, chanpoint string) (*NodeChannelAPIExtended, error) {
+	if len(chans) == 0 {
+		return nil, nil
+	}
+
 	ret := &NodeChannelAPIExtended{
 		NodeChannelAPI: NodeChannelAPI{
 			ChannelID: id,
@@ -161,6 +169,9 @@ func (l *ClnRawLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*N
 	ret, err := ConvertChannelInternal(listChanReply.Channels, chanID, "none")
 	if err != nil {
 		return nil, err
+	}
+	if ret == nil {
+		return nil, fmt.Errorf("no channel found")
 	}
 
 	return &ret.NodeChannelAPI, nil
@@ -256,6 +267,10 @@ func (l *ClnRawLightningAPI) getMyChannels(ctx context.Context) ([]NodeChannelAP
 		ret, err := ConvertChannelInternal(listChanReply.Channels, lnd, fmt.Sprintf("%s:%d", one.FundingTxID, one.FundingOutput))
 		if err != nil {
 			return nil, err
+		}
+		if ret == nil {
+			glog.Warningf("Could not convert %v - no channel", lnd)
+			continue
 		}
 
 		channels = append(channels, *ret)
@@ -371,6 +386,10 @@ func (l *ClnRawLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, cha
 		ret, err := ConvertChannelInternal(v, lnd, "none")
 		if err != nil {
 			glog.Warningf("Could not convert %v", k)
+			continue
+		}
+		if ret == nil {
+			glog.Warningf("Could not convert %v - no channel", k)
 			continue
 		}
 
