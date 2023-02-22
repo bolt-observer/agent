@@ -75,7 +75,7 @@ func (c *Connector) communicate(ctx context.Context, stream actionStreamer) erro
 				glog.Info("Server requested graceful shutdown")
 				return nil
 			case err != nil:
-				glog.Error("Error while receiving message: ", err)
+				glog.Errorf("Error while receiving message: %v", err)
 				return err
 			case msg.Sequence == api.Sequenece_CONNECT:
 				// first request is validation of the connection and credentials
@@ -110,7 +110,7 @@ func (c *Connector) communicate(ctx context.Context, stream actionStreamer) erro
 					})
 				}
 			default:
-				glog.Error("Ignoring received message: ", msg)
+				glog.Errorf("Ignoring received message: %v", msg)
 			}
 		}
 	}
@@ -135,7 +135,7 @@ func (c *Connector) ForwardJobMessages(msg entities.PluginMessage) error {
 		Message:  msg.Message,
 		Data:     msg.Data,
 	}); err != nil {
-		glog.Error("Error while sending message: ", err)
+		glog.Errorf("Error while sending message: %v", err)
 		return err
 	}
 
