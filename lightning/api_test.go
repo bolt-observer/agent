@@ -287,6 +287,10 @@ func (m *MockLightningAPI) CreateInvoice(ctx context.Context, sats int64, preima
 	panic("not implemented")
 }
 
+func (m *MockLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error) {
+	panic("not implemented")
+}
+
 func TestNodeInfoFull(t *testing.T) {
 	mock := &MockLightningAPI{}
 	resp, err := getNodeInfoFullTemplate(context.Background(), mock, 100, true, true)

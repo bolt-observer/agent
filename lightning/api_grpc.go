@@ -999,3 +999,16 @@ func (l *LndGrpcLightningAPI) CreateInvoice(ctx context.Context, sats int64, pre
 		Hash:           hex.EncodeToString(resp.RHash),
 	}, nil
 }
+
+// IsInvoicePaid API.
+func (l *LndGrpcLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error) {
+	b, err := hex.DecodeString(paymentHash)
+	if err != nil {
+		return false, err
+	}
+	resp, err := l.Client.LookupInvoice(ctx, &lnrpc.PaymentHash{
+		RHash: b,
+	})
+
+	return resp.State == lnrpc.Invoice_SETTLED, nil
+}

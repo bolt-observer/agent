@@ -544,6 +544,7 @@ type LightingAPICalls interface {
 	PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error)
 	GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error)
 	CreateInvoice(ctx context.Context, sats int64, preimage string, memo string, expiry time.Duration) (*InvoiceResp, error)
+	IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error)
 }
 
 // GetDataCall - signature of function for retrieving data.

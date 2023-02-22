@@ -143,14 +143,24 @@ type ClnForwardEntries struct {
 
 // ClnPaymentEntries struct.
 type ClnPaymentEntries struct {
-	Entries []ClnPaymentEntry `json:"pays,omitempty"`
+	Entries []ClnPaymentEntry `json:"payments,omitempty"`
+}
+
+type ClnInvoiceEntries struct {
+	Entries []ClnInvoiceEntry `json:"invoices,omitempty"`
 }
 
 // ClnPaymentEntry struct.
 type ClnPaymentEntry struct {
 	PaymentHash     string `json:"payment_hash,omitempty"`
 	Status          string `json:"status"` // (one of "pending", "failed", "complete")
-	PaymentPreimage string `json:"preimage,omitempty"`
+	PaymentPreimage string `json:"payment_preimage,omitempty"`
+}
+
+// ClnInvoiceEntry struct.
+type ClnInvoiceEntry struct {
+	Status      string `json:"status"` //  (one of "unpaid", "paid", "expired")
+	PaymentHash string `json:"payment_hash,omitempty"`
 }
 
 // ClnRawMessageItf interface.

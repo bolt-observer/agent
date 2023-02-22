@@ -916,7 +916,7 @@ func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest stri
 	}
 
 	r := &PaymentResp{}
-	if reply.Status == "success" {
+	if reply.Status == "complete" {
 		r.Preimage = reply.PaymentPreimage
 		r.Hash = reply.PaymentHash
 		r.Status = Success
@@ -934,7 +934,7 @@ func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest stri
 // GetPaymentStatus - API call.
 func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
 	var reply ClnPaymentEntries
-	err := l.connection.Call(ctx, ListPayments, []interface{}{paymentHash}, &reply)
+	err := l.connection.Call(ctx, ListPayments, []interface{}{nil, paymentHash}, &reply)
 	if err != nil {
 		return nil, err
 	}
@@ -1006,4 +1006,23 @@ func (l *ClnRawLightningAPI) CreateInvoice(ctx context.Context, sats int64, prei
 		PaymentRequest: reply.Bolt11,
 		Hash:           reply.PaymentHash,
 	}, nil
+}
+
+// IsInvoicePaid - API call.
+func (l *ClnRawLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error) {
+	var reply ClnInvoiceEntries
+	err := l.connection.Call(ctx, ListInvoices, []interface{}{nil, nil, paymentHash}, &reply)
+	if err != nil {
+		return false, err
+	}
+
+	if len(reply.Entries) != 1 {
+		return false, fmt.Errorf("invalid response")
+	}
+
+	if reply.Entries[0].PaymentHash != paymentHash {
+		return false, fmt.Errorf("invalid payment hash")
+	}
+
+	return reply.Entries[0].Status == "paid", nil
 }

@@ -321,7 +321,7 @@ func (h *HTTPAPI) HTTPPeers(ctx context.Context, req *http.Request, input *Conne
 		alreadyConnected = true
 	}
 	if resp.StatusCode != http.StatusOK && !alreadyConnected {
-		return fmt.Errorf("http got error %d", resp.StatusCode)
+		return fmt.Errorf("http got error %d %s", resp.StatusCode, body)
 	}
 
 	return nil
@@ -590,6 +590,28 @@ func (h *HTTPAPI) HTTPAddInvoice(ctx context.Context, req *http.Request, input *
 	err = decoder.Decode(&reply)
 	if err != nil {
 		return nil, fmt.Errorf("got error %v", err)
+	}
+
+	return &reply, nil
+}
+
+// HTTPLookupInvoice - invokes LookupInvoice method.
+func (h *HTTPAPI) HTTPLookupInvoice(ctx context.Context, req *http.Request, paymentHash string) (*InvoiceOverride, error) {
+	var reply InvoiceOverride
+
+	req = req.WithContext(ctx)
+
+	u, err := url.Parse(fmt.Sprintf("%s/v1/invoice/%s", req.URL, paymentHash))
+	if err != nil {
+		return nil, fmt.Errorf("invalid url %s", err)
+	}
+
+	req.URL = u
+	req.Method = http.MethodGet
+
+	err = h.doRequest(req, &reply)
+	if err != nil {
+		return nil, err
 	}
 
 	return &reply, nil

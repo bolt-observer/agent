@@ -781,3 +781,13 @@ func (l *LndRestLightningAPI) CreateInvoice(ctx context.Context, sats int64, pre
 		Hash:           hex.EncodeToString(b),
 	}, nil
 }
+
+// IsInvoicePaid API.
+func (l *LndRestLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error) {
+	resp, err := l.HTTPAPI.HTTPLookupInvoice(ctx, l.Request, paymentHash)
+	if err != nil {
+		return false, err
+	}
+
+	return resp.State == "settled", nil
+}

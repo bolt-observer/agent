@@ -14,6 +14,7 @@ import (
 	"github.com/bolt-observer/agent/entities"
 	plugins "github.com/bolt-observer/agent/plugins"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/chaincfg"
 )
 
 const (
@@ -23,7 +24,8 @@ const (
 
 // BoltzPlugin struct.
 type BoltzPlugin struct {
-	BoltzAPI *boltz.Boltz
+	BoltzAPI    *boltz.Boltz
+	ChainParams *chaincfg.Params
 	plugins.Plugin
 }
 
@@ -38,8 +40,21 @@ const (
 	Abandoned
 )
 
-func NewBoltzPlugin(lightning entities.NewAPICall) *BoltzPlugin {
+func NewBoltzPlugin(lightning entities.NewAPICall, network string) *BoltzPlugin {
+	params := chaincfg.MainNetParams
+	switch network {
+	case "mainnet":
+		params = chaincfg.MainNetParams
+	case "testnet":
+		params = chaincfg.TestNet3Params
+	case "regtest":
+		params = chaincfg.RegressionNetParams
+	case "simnet":
+		params = chaincfg.SimNetParams
+	}
+
 	resp := &BoltzPlugin{
+		ChainParams: &params,
 		BoltzAPI: &boltz.Boltz{
 			URL: BoltzUrl,
 		},
@@ -152,6 +167,7 @@ outer:
 }
 
 func (b *BoltzPlugin) Swap() {
+	const BlockEps = 10
 
 	_, preimageHash, err := newPreimage()
 	if err != nil {
@@ -191,6 +207,24 @@ func (b *BoltzPlugin) Swap() {
 	err = boltz.CheckSwapScript(redeemScript, preimageHash, priv, response.TimeoutBlockHeight)
 	if err != nil {
 		fmt.Printf("Error checking swap script %v\n", err)
+		return
+	}
+
+	err = boltz.CheckSwapAddress(b.ChainParams, response.Address, redeemScript, true)
+	if err != nil {
+		fmt.Printf("Error checking swap address %v\n", err)
+		return
+	}
+
+	l := b.Lightning()
+	if l == nil {
+		fmt.Printf("Error checking lightning\n")
+		return
+	}
+	defer l.Cleanup()
+	resp, err := l.GetInfo(context.Background())
+	if err != nil || resp.BlockHeight+BlockEps < int(response.TimeoutBlockHeight) {
+		fmt.Printf("Error checking blockheight\n")
 		return
 	}
 
