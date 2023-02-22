@@ -399,5 +399,26 @@ func TestConnectPeer(t *testing.T) {
 	assert.NoError(t, err)
 	err = api.ConnectPeer(context.Background(), fmt.Sprintf("%s%s", pubkey, host))
 	assert.Error(t, err)
+}
+
+func TestGetOnChainAddress(t *testing.T) {
+	data, d, api := common(t, "newaddress")
+
+	r := io.NopCloser(bytes.NewReader(data))
+	// Mock
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
+		if !strings.Contains(req.URL.Path, "v1/newaddress") {
+			t.Fatalf("URL should contain v1/newaddress")
+		}
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	resp, err := api.GetOnChainAddress(context.Background())
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, 0, len(resp))
 
 }

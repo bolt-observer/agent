@@ -34,3 +34,22 @@ func TestCrypto(t *testing.T) {
 		assert.Equal(t, fromPriv, fromPub)
 	}
 }
+
+func TestHmac(t *testing.T) {
+	entropy := make([]byte, 32)
+	_, err := rand.Read(entropy)
+	assert.NoError(t, err)
+
+	const Max = 100
+
+	m := make(map[string]struct{}, Max)
+	for i := 0; i < Max; i++ {
+		id := randSeq(10)
+		b := DeterministicPreimage(id, entropy)
+		assert.Equal(t, 32, len(b))
+		result := string(b)
+		_, exists := m[result]
+		assert.NotEqual(t, true, exists)
+		m[result] = struct{}{}
+	}
+}

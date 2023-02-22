@@ -340,3 +340,74 @@ func TestClnGetPaymentsRaw(t *testing.T) {
 		}),
 	)
 }
+
+func TestClnConnectPeer(t *testing.T) {
+	data := clnData(t, "cln_connect")
+
+	pubkey := "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a"
+	host := "161.97.184.185:9735"
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
+		if err != nil {
+			t.Fatalf("Decode error: %v", err)
+		}
+
+		if strings.Contains(req.Method, "connect") {
+			reply := fmt.Sprintf(string(data), req.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	err := api.ConnectPeer(ctx, fmt.Sprintf("%s@%s", pubkey, host))
+	assert.NoError(t, err)
+}
+
+func TestClnGetOnChainAddress(t *testing.T) {
+	data := clnData(t, "cln_newaddr")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
+		if err != nil {
+			t.Fatalf("Decode error: %v", err)
+		}
+
+		if strings.Contains(req.Method, "newaddr") {
+			reply := fmt.Sprintf(string(data), req.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetOnChainAddress(ctx)
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, 0, len(resp))
+}

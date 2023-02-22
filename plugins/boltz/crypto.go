@@ -1,6 +1,7 @@
 package boltz
 
 import (
+	"crypto/hmac"
 	"crypto/sha256"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -34,4 +35,11 @@ func DeterministicPublicKey(id string, orig *secp256k1.PublicKey) *secp256k1.Pub
 	fy.SetByteSlice(y2.Bytes())
 
 	return secp256k1.NewPublicKey(&fx, &fy)
+}
+
+func DeterministicPreimage(id string, key []byte) []byte {
+	h := hmac.New(sha256.New, key)
+	h.Write([]byte(id))
+	r := h.Sum(nil)
+	return r
 }

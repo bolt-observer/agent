@@ -84,7 +84,7 @@ func TestObtainDataGrpc(t *testing.T) {
 	*/
 
 	//api.ConnectPeer(context.Background(), "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a@161.97.184.185:9735")
-	//GetOnChainAddress(ctx context.Context) (string, error)
+	//api.GetOnChainAddress(context.Background())
 	//GetOnChainFunds(ctx context.Context) (*Funds, error)
 
 	t.Fail()
@@ -370,4 +370,29 @@ func TestConnectPeerGrpc(t *testing.T) {
 
 	err = api.ConnectPeer(context.Background(), fmt.Sprintf("%s@%s", pubkey, host))
 	assert.Error(t, err)
+}
+
+func TestGetOnChainAddressGrpc(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockLightningClient(ctrl)
+	data, api := commonGrpc(t, "newaddress", m)
+
+	var info *lnrpc.NewAddressResponse
+	err := json.Unmarshal(data, &info)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal info: %v", err)
+		return
+	}
+
+	m.
+		EXPECT().
+		NewAddress(gomock.Any(), gomock.Any()).
+		Return(info, nil)
+
+	resp, err := api.GetOnChainAddress(context.Background())
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, 0, len(resp))
 }

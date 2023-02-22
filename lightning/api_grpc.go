@@ -48,7 +48,7 @@ func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
 }
 
 // Not used.
-func debugOutput(resp *lnrpc.ConnectPeerResponse) {
+func debugOutput[T any](resp T) {
 	bodyData, _ := json.Marshal(resp)
 	f, _ := os.OpenFile("dummy.json", os.O_WRONLY|os.O_CREATE, 0o644)
 	f.Truncate(0)
@@ -795,12 +795,11 @@ func (l *LndGrpcLightningAPI) ConnectPeer(ctx context.Context, id string) error 
 		return fmt.Errorf("invalid id")
 	}
 
-	resp, err := l.Client.ConnectPeer(ctx, &lnrpc.ConnectPeerRequest{
+	_, err := l.Client.ConnectPeer(ctx, &lnrpc.ConnectPeerRequest{
 		Addr:    &lnrpc.LightningAddress{Host: split[1], Pubkey: split[0]},
 		Perm:    false,
 		Timeout: 10,
 	})
-	debugOutput(resp)
 	if err != nil {
 		if strings.Contains(err.Error(), "already connected to peer") {
 			err = nil
@@ -815,6 +814,7 @@ func (l *LndGrpcLightningAPI) ConnectPeer(ctx context.Context, id string) error 
 // GetOnChainAddress API.
 func (l *LndGrpcLightningAPI) GetOnChainAddress(ctx context.Context) (string, error) {
 	resp, err := l.Client.NewAddress(ctx, &lnrpc.NewAddressRequest{Type: lnrpc.AddressType_WITNESS_PUBKEY_HASH})
+
 	if err != nil {
 		return "", err
 	}
