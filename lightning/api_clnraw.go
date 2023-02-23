@@ -901,6 +901,7 @@ func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest stri
 	)
 
 	exclusions, err := l.calculateExclusion(ctx, outgoingChanIds)
+	fmt.Printf("%+v\n", exclusions)
 	if err != nil {
 		return nil, err
 	}

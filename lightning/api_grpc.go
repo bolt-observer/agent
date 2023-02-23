@@ -880,13 +880,27 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 		req.OutgoingChanIds = append(req.OutgoingChanIds, outgoingChanIds...)
 	}
 
+	// TODO: this is mandatory field but timeout could be configurable
+	req.TimeoutSeconds = 10
+
 	resp, err := l.RouterClient.SendPaymentV2(ctx, req)
 
 	if err != nil {
+		if strings.Contains(err.Error(), "invoice is already paid") {
+			// TODO: we don't know the hash here, else we could return l.GetPaymentStatus()
+			return nil, nil
+		}
 		return nil, err
 	}
 
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("timeout")
+		default:
+			// Do nothing
+		}
+
 		event, err := resp.Recv()
 
 		if err != nil {
@@ -910,7 +924,7 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 
 			if event.ValueMsat == htlcSum {
 				return &PaymentResp{
-					Preimage: "",
+					Preimage: event.PaymentPreimage,
 					Hash:     event.PaymentHash,
 					Status:   Pending,
 				}, nil
@@ -1009,6 +1023,9 @@ func (l *LndGrpcLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash str
 	resp, err := l.Client.LookupInvoice(ctx, &lnrpc.PaymentHash{
 		RHash: b,
 	})
+	if err != nil {
+		return false, err
+	}
 
 	return resp.State == lnrpc.Invoice_SETTLED, nil
 }

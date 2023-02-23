@@ -85,12 +85,16 @@ func TestObtainDataGrpc(t *testing.T) {
 
 	//api.ConnectPeer(context.Background(), "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a@161.97.184.185:9735")
 	//api.GetOnChainAddress(context.Background())
-	//GetOnChainFunds(ctx context.Context) (*Funds, error)
+	//resp, err := api.GetOnChainFunds(context.Background())
+
+	resp, err := api.PayInvoice(context.Background(), "lnbcrt13370n1p3lwhhnpp5zfvpdpwp77wmgpyawatm550uv9cvx0hv9hgukxd6u0pqqdhcdymsdqqcqzpgxqyz5vqsp5xsum9s4cpkvw27f6smk4daxqkpjgmah8xxhs8ty34fm4srmwfvjs9qyyssqlx5zk7j8lfeelzmpsk0mmwp3583tl52j8us2q9nt05vrmtp3sasxzc8wyjchrum67sllzr52gjz26rcrye6y4vrlpr6pyv9jhhlrp2cq52rxf5", 0, []uint64{128642860515328})
+	assert.NoError(t, err)
+	fmt.Printf("%+v\n", resp)
 
 	t.Fail()
 }
 
-func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte, LightingAPICalls) {
+func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient, mr *mocks.MockRouterClient) ([]byte, LightingAPICalls) {
 	pubKey := "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256"
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
 
@@ -132,6 +136,7 @@ func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient) ([]byte
 	}
 
 	d.Client = m
+	d.RouterClient = mr
 
 	return contents, api
 }
@@ -143,7 +148,7 @@ func TestGetInfoGrpc(t *testing.T) {
 	defer ctrl.Finish()
 
 	m := mocks.NewMockLightningClient(ctrl)
-	data, api := commonGrpc(t, "getinfo", m)
+	data, api := commonGrpc(t, "getinfo", m, nil)
 
 	var info *lnrpc.GetInfoResponse
 	err := json.Unmarshal(data, &info)
@@ -180,7 +185,7 @@ func TestGetChannelsGrpc(t *testing.T) {
 	defer ctrl.Finish()
 
 	m := mocks.NewMockLightningClient(ctrl)
-	data, api := commonGrpc(t, "channels", m)
+	data, api := commonGrpc(t, "channels", m, nil)
 
 	var channels *lnrpc.ListChannelsResponse
 	err := json.Unmarshal(data, &channels)
@@ -220,7 +225,7 @@ func TestDescribeGraphGrpc(t *testing.T) {
 	defer ctrl.Finish()
 
 	m := mocks.NewMockLightningClient(ctrl)
-	data, api := commonGrpc(t, "graph", m)
+	data, api := commonGrpc(t, "graph", m, nil)
 
 	var graph *lnrpc.ChannelGraph
 	err := json.Unmarshal(data, &graph)
@@ -252,7 +257,7 @@ func TestGetNodeInfoGrpc(t *testing.T) {
 	defer ctrl.Finish()
 
 	m := mocks.NewMockLightningClient(ctrl)
-	data, api := commonGrpc(t, "graph_node", m)
+	data, api := commonGrpc(t, "graph_node", m, nil)
 
 	var info *lnrpc.NodeInfo
 	err := json.Unmarshal(data, &info)
@@ -295,7 +300,7 @@ func TestGetChanInfoGrpc(t *testing.T) {
 	defer ctrl.Finish()
 
 	m := mocks.NewMockLightningClient(ctrl)
-	data, api := commonGrpc(t, "graph_edge", m)
+	data, api := commonGrpc(t, "graph_edge", m, nil)
 
 	var channel *lnrpc.ChannelEdge
 	err := json.Unmarshal(data, &channel)
@@ -329,7 +334,7 @@ func TestConnectPeerGrpc(t *testing.T) {
 	defer ctrl.Finish()
 
 	m := mocks.NewMockLightningClient(ctrl)
-	data, api := commonGrpc(t, "getinfo", m)
+	data, api := commonGrpc(t, "getinfo", m, nil)
 
 	var info *lnrpc.GetInfoResponse
 	err := json.Unmarshal(data, &info)
@@ -377,7 +382,7 @@ func TestGetOnChainAddressGrpc(t *testing.T) {
 	defer ctrl.Finish()
 
 	m := mocks.NewMockLightningClient(ctrl)
-	data, api := commonGrpc(t, "newaddress", m)
+	data, api := commonGrpc(t, "newaddress", m, nil)
 
 	var info *lnrpc.NewAddressResponse
 	err := json.Unmarshal(data, &info)
@@ -395,4 +400,125 @@ func TestGetOnChainAddressGrpc(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NotEqual(t, 0, len(resp))
+}
+
+func TestGetOnChainFundsGrpc(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockLightningClient(ctrl)
+	data, api := commonGrpc(t, "balance", m, nil)
+
+	var info *lnrpc.WalletBalanceResponse
+	err := json.Unmarshal(data, &info)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal info: %v", err)
+		return
+	}
+
+	m.
+		EXPECT().
+		WalletBalance(gomock.Any(), gomock.Any()).
+		Return(info, nil)
+
+	resp, err := api.GetOnChainFunds(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, int64(89476363), resp.TotalBalance)
+	assert.Equal(t, int64(89476363), resp.ConfirmedBalance)
+}
+
+func TestSendToOnChainAddressGrpc(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockLightningClient(ctrl)
+	data, api := commonGrpc(t, "sendcoins", m, nil)
+
+	var info *lnrpc.SendCoinsResponse
+	err := json.Unmarshal(data, &info)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal info: %v", err)
+		return
+	}
+	addr := "bcrt1q852e4etsvdg9nsets630dr06m5lvswz2ad7shq"
+
+	target := &lnrpc.SendCoinsRequest{
+		Addr:             addr,
+		Amount:           10000,
+		TargetConf:       int32(1),
+		SpendUnconfirmed: false,
+	}
+
+	m.
+		EXPECT().
+		SendCoins(gomock.Any(), gomock.Eq(target)).
+		Return(info, nil)
+
+	resp, err := api.SendToOnChainAddress(context.Background(), addr, 10000, false, Urgent)
+	assert.NoError(t, err)
+	assert.Equal(t, "dafd01e2ed745676160087f5db6ba36addd576d42d3ee608375ff5d9bca4ca19", resp)
+}
+
+type Pair[T, U any] struct {
+	First  T
+	Second U
+}
+
+type PayInvoiceRespFunc func(resp *PaymentResp, err error)
+
+func TestPayInvoiceGrpc(t *testing.T) {
+	for _, one := range []Pair[string, PayInvoiceRespFunc]{
+		{First: "payinvoice_noroute", Second: func(resp *PaymentResp, err error) {
+			assert.Error(t, err)
+		}},
+		{First: "payinvoice_inflight", Second: func(resp *PaymentResp, err error) {
+			assert.NoError(t, err)
+			assert.Equal(t, Pending, resp.Status)
+		}},
+		{First: "payinvoice_ok", Second: func(resp *PaymentResp, err error) {
+			assert.NoError(t, err)
+			assert.Equal(t, Success, resp.Status)
+			assert.Equal(t, "629b553a37c1c274633019dc772466250080ac2b419670a3537099eef06995ca", resp.Preimage)
+		}},
+	} {
+		ctrl := gomock.NewController(t)
+		m := mocks.NewMockLightningClient(ctrl)
+		mr := mocks.NewMockRouterClient(ctrl)
+		data, api := commonGrpc(t, one.First, m, mr)
+
+		var payment *lnrpc.Payment
+
+		err := json.Unmarshal(data, &payment)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal info: %v", err)
+			return
+		}
+
+		c := mocks.NewMockRouter_SendPaymentV2Client(ctrl)
+		c.EXPECT().
+			Recv().
+			Return(payment, nil)
+
+		mr.
+			EXPECT().
+			SendPaymentV2(gomock.Any(), gomock.Any()).
+			Return(c, nil)
+
+		resp, err := api.PayInvoice(context.Background(), "lnbcrt13370n1p3lwhhnpp5zfvpdpwp77wmgpyawatm550uv9cvx0hv9hgukxd6u0pqqdhcdymsdqqcqzpgxqyz5vqsp5xsum9s4cpkvw27f6smk4daxqkpjgmah8xxhs8ty34fm4srmwfvjs9qyyssqlx5zk7j8lfeelzmpsk0mmwp3583tl52j8us2q9nt05vrmtp3sasxzc8wyjchrum67sllzr52gjz26rcrye6y4vrlpr6pyv9jhhlrp2cq52rxf5", 0, []uint64{128642860515328})
+		ctrl.Finish()
+
+		one.Second(resp, err)
+	}
+}
+
+func TestGetPaymentStatusGrpc(t *testing.T) {
+}
+
+func TestCreateInvoiceGrpc(t *testing.T) {
+}
+
+func TestIsInvoicePaidPendingGrpc(t *testing.T) {
+}
+
+func TestIsInvoicePaidCompleteGrpc(t *testing.T) {
 }

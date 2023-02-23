@@ -644,7 +644,10 @@ func TestCall(t *testing.T) {
 	}
 	defer api.Cleanup()
 
-	resp, err := api.GetOnChainFunds(context.Background())
+	chanid, err := ToLndChanID("132x1x0")
+	assert.NoError(t, err)
+	resp, err := api.PayInvoice(context.Background(), "lnbcrt20u1p3lwsavpp5j7838vtkm43f2ushkwdfflcs67k7p7y6tzqnsxc8esywlrmh096sdqqcqzpgxqyz5vqsp55ryxkmjdz5wvf9nrnmn0j2ace5vu965pye0jufslsuun6cuw6auq9qyyssqpyt5495wg4xywp608etrjc4w6vwa5vmz36kqmefaqkqs2snsukmqsn7j3y0rec3fm3vemu56aa4vdxldpd3046zddt5jwe49u35vwwgpnzt97y",
+		0, []uint64{chanid})
 	assert.NoError(t, err)
 	fmt.Printf("%+v\n", resp)
 
