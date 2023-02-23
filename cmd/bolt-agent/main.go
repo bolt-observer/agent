@@ -338,12 +338,12 @@ func getApp() *cli.App {
 			Usage: "Allow execution of actions defined in the bolt app (beta feature)",
 		},
 		&cli.BoolFlag{
-			Name:  "dry-run",
+			Name:  "dryrun",
 			Usage: "Allow execution of actions in dry drun mode (no actions will actually be executed)",
 		},
 		&cli.BoolFlag{
 			Name:   "insecure",
-			Usage:  "Allow insecure connections to the bolt.observer api. Use this for debugging in localhost only.",
+			Usage:  "Allow insecure connections to the api. Can be usefull for debugging purposes.",
 			Hidden: true,
 		},
 	}
