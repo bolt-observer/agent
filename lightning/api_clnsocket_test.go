@@ -340,3 +340,316 @@ func TestClnGetPaymentsRaw(t *testing.T) {
 		}),
 	)
 }
+
+func TestClnConnectPeer(t *testing.T) {
+	data := clnData(t, "cln_connect")
+
+	pubkey := "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a"
+	host := "161.97.184.185:9735"
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
+		if err != nil {
+			t.Fatalf("Decode error: %v", err)
+		}
+
+		if strings.Contains(req.Method, "connect") {
+			reply := fmt.Sprintf(string(data), req.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	err := api.ConnectPeer(ctx, fmt.Sprintf("%s@%s", pubkey, host))
+	assert.NoError(t, err)
+}
+
+func TestClnGetOnChainAddress(t *testing.T) {
+	data := clnData(t, "cln_newaddr")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
+		if err != nil {
+			t.Fatalf("Decode error: %v", err)
+		}
+
+		if strings.Contains(req.Method, "newaddr") {
+			reply := fmt.Sprintf(string(data), req.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetOnChainAddress(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, "bcrt1qxkt36rvxtjlkkxqv6msna7srlg85gx8fa5dd2f", resp)
+
+	assert.NotEqual(t, 0, len(resp))
+}
+
+func TestClnGetOnChainFunds(t *testing.T) {
+	data := clnData(t, "cln_funds")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
+		if err != nil {
+			t.Fatalf("Decode error: %v", err)
+		}
+
+		if strings.Contains(req.Method, "listfunds") {
+			reply := fmt.Sprintf(string(data), req.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetOnChainFunds(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(85996736), resp.TotalBalance)
+	assert.Equal(t, int64(85996736), resp.ConfirmedBalance)
+	assert.Equal(t, int64(0), resp.LockedBalance)
+}
+
+func TestClnSendToOnChainAddress(t *testing.T) {
+	data := clnData(t, "cln_withdraw")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
+		if err != nil {
+			t.Fatalf("Decode error: %v", err)
+		}
+
+		if strings.Contains(req.Method, "withdraw") {
+			reply := fmt.Sprintf(string(data), req.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	txid, err := api.SendToOnChainAddress(ctx, "bcrt1qu00529sy2n6ke3qe5q48t5e47u6wjdyc39s56g", 1337, false, Urgent)
+	assert.NoError(t, err)
+	assert.Equal(t, "69ae714ef8286742b902524eb9817cbf25cac72e7e5ab29db788a5d02ff923b9", txid)
+}
+
+func TestClnPayInvoice(t *testing.T) {
+	data := clnData(t, "cln_pay")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
+		if err != nil {
+			t.Fatalf("Decode error: %v", err)
+		}
+
+		if strings.Contains(req.Method, "pay") {
+			reply := fmt.Sprintf(string(data), req.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	payreq := "lnbcrt1p3lvffzpp56jm4cq97e7ea2zucu2t287857kg27gynlh0cwrqp45hpnj8p8x2qdqqcqzpgxqyz5vqsp5ffzl54an7sq8crhft3e5l8h0ph2ye3qwewkes4n4xy2en8p6ctss9qyyssquq66ryhudp2vh032eyggur0wauasr6g86ezapwwwylk6ed5e5rpn92j5k0w674zu72nv3nstc39yv6j7e7ejmr8thzyd8ejly87zz8spzzex77"
+	_, err := api.PayInvoice(ctx, payreq, 1337, nil)
+	assert.NoError(t, err)
+}
+
+func TestClnGetPaymentStatus(t *testing.T) {
+	data := clnData(t, "cln_listpay")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
+		if err != nil {
+			t.Fatalf("Decode error: %v", err)
+		}
+
+		if strings.Contains(req.Method, "listsendpay") {
+			reply := fmt.Sprintf(string(data), req.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetPaymentStatus(ctx, "d4b75c00becfb3d50b98e296a3f8f4f590af2093fddf870c01ad2e19c8e13994")
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, resp.Preimage)
+
+	_, err = api.GetPaymentStatus(ctx, "d4b75c00becfb3d50b98e296a3f8f4f590af2093fddf870c01ad2e19c8e13995")
+	assert.Error(t, err)
+}
+
+func TestClnCreateInvoice(t *testing.T) {
+	data := clnData(t, "cln_invoice")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
+		if err != nil {
+			t.Fatalf("Decode error: %v", err)
+		}
+
+		if strings.Contains(req.Method, "invoice") {
+			reply := fmt.Sprintf(string(data), req.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	_, err := api.CreateInvoice(ctx, 10000, "d4b75c00becfb3d50b98e296a3f8f4f590af2093fddf870c01ad2e19c8e13995", "test1", 5*time.Hour)
+	assert.NoError(t, err)
+}
+
+func TestClnIsInvoicePaidPending(t *testing.T) {
+	ClnIsInvoicePaid(t, "cln_invoicepending", false)
+}
+
+func TestClnIsInvoicePaidComplete(t *testing.T) {
+	ClnIsInvoicePaid(t, "cln_invoicepaid", true)
+}
+
+func ClnIsInvoicePaid(t *testing.T, name string, paid bool) {
+	data := clnData(t, name)
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		req := RequestExtractor{}
+		err := json.NewDecoder(c).Decode(&req)
+		if err != nil {
+			t.Fatalf("Decode error: %v", err)
+		}
+
+		if strings.Contains(req.Method, "listinvoices") {
+			reply := fmt.Sprintf(string(data), req.ID)
+			_, err = c.Write(([]byte)(reply))
+
+			if err != nil {
+				t.Fatalf("Could not write to socket: %v", err)
+			}
+		}
+
+		err = c.Close()
+		if err != nil {
+			t.Fatalf("Could not close socket: %v", err)
+		}
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.IsInvoicePaid(ctx, "c246e952658ef14d1c71516e8ba66c7f2d16203acac0d8a6795dd97728e85dab")
+	assert.NoError(t, err)
+	assert.Equal(t, paid, resp)
+}
+
+func TestCall(t *testing.T) {
+	// socat -t100 -x -v UNIX-LISTEN:/tmp/cln-socket,mode=777,reuseaddr,fork UNIX-CONNECT:/tmp/lnregtest-data/dev_network/lnnodes/B/regtest/lightning-rpc
+	// bitcoin-cli -datadir=/tmp/lnregtest-data/dev_network/bitcoin -generate 10
+
+	fileName := "/tmp/cln-socket"
+	if _, err := os.Stat(fileName); err != nil {
+		return
+	}
+
+	api := NewClnSocketLightningAPIRaw("unix", fileName)
+	if api == nil {
+		t.Fatalf("API should not be nil")
+	}
+	defer api.Cleanup()
+
+	chanid, err := ToLndChanID("132x1x0")
+	assert.NoError(t, err)
+	resp, err := api.PayInvoice(context.Background(), "lnbcrt20u1p3lwsavpp5j7838vtkm43f2ushkwdfflcs67k7p7y6tzqnsxc8esywlrmh096sdqqcqzpgxqyz5vqsp55ryxkmjdz5wvf9nrnmn0j2ace5vu965pye0jufslsuun6cuw6auq9qyyssqpyt5495wg4xywp608etrjc4w6vwa5vmz36kqmefaqkqs2snsukmqsn7j3y0rec3fm3vemu56aa4vdxldpd3046zddt5jwe49u35vwwgpnzt97y",
+		0, []uint64{chanid})
+	assert.NoError(t, err)
+	fmt.Printf("%+v\n", resp)
+
+	t.Fail()
+}

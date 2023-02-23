@@ -5,11 +5,10 @@ import (
 	"io"
 )
 
-// ClnConnection struct
-type ClnConnection struct {
-}
+// ClnConnection struct.
+type ClnConnection struct{}
 
-// ClnConnectionAPI interface
+// ClnConnectionAPI interface.
 type ClnConnectionAPI interface {
 	// Call calls serviceMethod with args and fills reply with response
 	Call(ctx context.Context, serviceMethod string, args any, reply any) error
