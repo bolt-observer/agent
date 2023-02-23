@@ -953,6 +953,12 @@ func (l *LndGrpcLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash 
 	}
 
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("timeout")
+		default:
+			// Do nothing
+		}
 		event, err := resp.Recv()
 
 		if err != nil {
@@ -1023,6 +1029,7 @@ func (l *LndGrpcLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash str
 	resp, err := l.Client.LookupInvoice(ctx, &lnrpc.PaymentHash{
 		RHash: b,
 	})
+
 	if err != nil {
 		return false, err
 	}
