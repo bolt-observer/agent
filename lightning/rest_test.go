@@ -30,7 +30,7 @@ func TestDoRequest(t *testing.T) {
 			Body:       r,
 		}, nil
 	}
-	h.doRequest(nil, &data)
+	h.doGetRequest(nil, &data)
 
 	assert.Equal(t, "foostring", data.Foo)
 	assert.Equal(t, 1, data.Bar)
@@ -43,6 +43,6 @@ func TestDoRequest(t *testing.T) {
 			Body:       r,
 		}, nil
 	}
-	h.doRequest(nil, &data2)
+	h.doGetRequest(nil, &data2)
 	assert.Equal(t, FooBar{}, data2)
 }

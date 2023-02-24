@@ -9,19 +9,18 @@ import (
 )
 
 var (
-	// ErrNoNode means node was not found
+	// ErrNoNode means node was not found.
 	ErrNoNode = errors.New("node not found")
-	// ErrNoChan means channel was not found
+	// ErrNoChan means channel was not found.
 	ErrNoChan = errors.New("channel not found")
-	// ErrInvalidResponse indicates invaid response
+	// ErrInvalidResponse indicates invaid response.
 	ErrInvalidResponse = errors.New("invalid response")
 )
 
-// ClnResp struct is the base type for all responses
-type ClnResp struct {
-}
+// ClnResp struct is the base type for all responses.
+type ClnResp struct{}
 
-// ClnInfo struct
+// ClnInfo struct.
 type ClnInfo struct {
 	PubKey                string            `json:"id"`
 	Alias                 string            `json:"alias"`
@@ -30,11 +29,12 @@ type ClnInfo struct {
 	Addresses             []ClnListNodeAddr `json:"address,omitempty"`
 	Features              ClnFeatures       `json:"our_features"`
 	Version               string            `json:"version"`
+	Blockheight           uint32            `json:"blockheight"`
 	WarningBitcoindSync   string            `json:"warning_bitcoind_sync,omitempty"`
 	WarningLightningdSync string            `json:"warning_lightningd_sync,omitempty"`
 }
 
-// ClnFeatures struct
+// ClnFeatures struct.
 type ClnFeatures struct {
 	Init    string `json:"init"`
 	Node    string `json:"node"`
@@ -42,7 +42,7 @@ type ClnFeatures struct {
 	Invoice string `json:"invoice"`
 }
 
-// ClnSetChan struct
+// ClnSetChan struct.
 type ClnSetChan struct {
 	PeerID         string `json:"peer_id"`
 	LongChanID     string `json:"channel_id"`
@@ -53,13 +53,13 @@ type ClnSetChan struct {
 	ShortChannelID string `json:"short_channel_id,omitempty"`
 }
 
-// ClnSetChanResp struct
+// ClnSetChanResp struct.
 type ClnSetChanResp struct {
 	Settings []ClnSetChan `json:"channels,omitempty"`
 	ClnResp
 }
 
-// ClnListChan struct
+// ClnListChan struct.
 type ClnListChan struct {
 	Source         string            `json:"source"`
 	Destination    string            `json:"destination"`
@@ -75,13 +75,13 @@ type ClnListChan struct {
 	Delay          uint64            `json:"delay"`
 }
 
-// ClnListChanResp struct
+// ClnListChanResp struct.
 type ClnListChanResp struct {
 	Channels []ClnListChan `json:"channels,omitempty"`
 	ClnResp
 }
 
-// ClnFundsChan struct
+// ClnFundsChan struct.
 type ClnFundsChan struct {
 	PeerID         string `json:"peer_id"`
 	Connected      bool   `json:"connected,omitempty"`
@@ -93,20 +93,20 @@ type ClnFundsChan struct {
 	FundingOutput  int    `json:"funding_output"`
 }
 
-// ClnFundsChanResp struct
+// ClnFundsChanResp struct.
 type ClnFundsChanResp struct {
 	Channels []ClnFundsChan `json:"channels,omitempty"`
 	ClnResp
 }
 
-// ClnListNodeAddr struct
+// ClnListNodeAddr struct.
 type ClnListNodeAddr struct {
 	Type    string `json:"type"`
 	Address string `json:"address"`
 	Port    int    `json:"port"`
 }
 
-// ClnListNode struct
+// ClnListNode struct.
 type ClnListNode struct {
 	PubKey     string             `json:"nodeid"`
 	Alias      string             `json:"alias,omitempty"`
@@ -116,13 +116,13 @@ type ClnListNode struct {
 	LastUpdate *entities.JsonTime `json:"last_update,omitempty"`
 }
 
-// ClnListNodeResp struct
+// ClnListNodeResp struct.
 type ClnListNodeResp struct {
 	Nodes []ClnListNode `json:"nodes,omitempty"`
 	ClnResp
 }
 
-// ClnForwardEntry struct
+// ClnForwardEntry struct.
 type ClnForwardEntry struct {
 	InChannel    string            `json:"in_channel"`
 	InMsat       string            `json:"in_msat"`
@@ -136,82 +136,105 @@ type ClnForwardEntry struct {
 	FailReason string `json:"fail_reason,omitempty"`
 }
 
-// ClnForwardEntries struct
+// ClnForwardEntries struct.
 type ClnForwardEntries struct {
 	Entries []ClnForwardEntry `json:"forwards,omitempty"`
 }
 
-// ClnRawMessageItf interface
+// ClnPaymentEntries struct.
+type ClnPaymentEntries struct {
+	Entries []ClnPaymentEntry `json:"payments,omitempty"`
+}
+
+// ClnInvoiceEntries struct.
+type ClnInvoiceEntries struct {
+	Entries []ClnInvoiceEntry `json:"invoices,omitempty"`
+}
+
+// ClnPaymentEntry struct.
+type ClnPaymentEntry struct {
+	PaymentHash     string `json:"payment_hash,omitempty"`
+	Status          string `json:"status"` // (one of "pending", "failed", "complete")
+	PaymentPreimage string `json:"payment_preimage,omitempty"`
+}
+
+// ClnInvoiceEntry struct.
+type ClnInvoiceEntry struct {
+	Status      string `json:"status"` //  (one of "unpaid", "paid", "expired")
+	PaymentHash string `json:"payment_hash,omitempty"`
+}
+
+// ClnRawMessageItf interface.
 type ClnRawMessageItf interface {
 	GetEntries() []json.RawMessage
 }
 
-// ClnRawTimeItf interface
+// ClnRawTimeItf interface.
 type ClnRawTimeItf interface {
 	GetUnixTimeMs() uint64
 }
 
-// ClnRawForwardEntries struct
+// ClnRawForwardEntries struct.
 type ClnRawForwardEntries struct {
 	Entries []json.RawMessage `json:"forwards,omitempty"`
 }
 
-// GetEntries to comply with ClnRawMessageItf
+// GetEntries to comply with ClnRawMessageItf.
 func (r ClnRawForwardEntries) GetEntries() []json.RawMessage {
 	return r.Entries
 }
 
-// ClnRawInvoices struct
+// ClnRawInvoices struct.
 type ClnRawInvoices struct {
 	Entries []json.RawMessage `json:"invoices,omitempty"`
 }
 
-// GetEntries to comply with ClnRawMessageItf
+// GetEntries to comply with ClnRawMessageItf.
 func (r ClnRawInvoices) GetEntries() []json.RawMessage {
 	return r.Entries
 }
 
-// ClnRawPayments struct
+// ClnRawPayments struct.
 type ClnRawPayments struct {
 	Entries []json.RawMessage `json:"payments,omitempty"`
 }
 
-// GetEntries to comply with ClnRawMessageItf
+// GetEntries to comply with ClnRawMessageItf.
 func (r ClnRawPayments) GetEntries() []json.RawMessage {
 	return r.Entries
 }
 
-// ClnRawPayTime struct
+// ClnRawPayTime struct.
 type ClnRawPayTime struct {
 	Time uint64 `json:"created_at,omitempty"`
 }
 
-// GetUnixTimeMs to comply with ClnRawTimeItf
+// GetUnixTimeMs to comply with ClnRawTimeItf.
 func (r ClnRawPayTime) GetUnixTimeMs() uint64 {
 	return r.Time * 1000
 }
 
-// ClnRawInvoiceTime struct
+// ClnRawInvoiceTime struct.
 type ClnRawInvoiceTime struct {
 	Time uint64 `json:"expires_at,omitempty"`
 }
 
-// GetUnixTimeMs to comply with ClnRawTimeItf
+// GetUnixTimeMs to comply with ClnRawTimeItf.
 func (r ClnRawInvoiceTime) GetUnixTimeMs() uint64 {
 	return r.Time * 1000
 }
 
-// ClnRawForwardsTime struct
+// ClnRawForwardsTime struct.
 type ClnRawForwardsTime struct {
 	Time float64 `json:"received_time,omitempty"`
 }
 
-// GetUnixTimeMs to comply with ClnRawTimeItf
+// GetUnixTimeMs to comply with ClnRawTimeItf.
 func (r ClnRawForwardsTime) GetUnixTimeMs() uint64 {
 	return uint64(math.Round(r.Time * 1000))
 }
 
-// ClnErrorResp struct
+// ClnErrorResp struct.
 type ClnErrorResp struct {
 	ClnResp
 
@@ -221,9 +244,60 @@ type ClnErrorResp struct {
 	} `json:"error"`
 }
 
-// ClnSuccessResp struct
+// ClnSuccessResp struct.
 type ClnSuccessResp struct {
 	ClnResp
 
 	Result json.RawMessage `json:"result,omitempty"`
+}
+
+// ClnConnectResp struct.
+type ClnConnectResp struct {
+	ID string `json:"id"`
+	ClnResp
+}
+
+// ClnNewAddrResp struct.
+type ClnNewAddrResp struct {
+	Bech32 string `json:"bech32,omitempty"`
+	ClnResp
+}
+
+// ClnFundsChainResp struct.
+type ClnFundsChainResp struct {
+	Outputs []ClnFundsOutput `json:"outputs,omitempty"`
+	ClnResp
+}
+
+// ClnFundsOutput struct.
+type ClnFundsOutput struct {
+	AmountMsat string `json:"amount_msat,omitempty"`
+	Status     string `json:"status,omitempty"`
+	Reserved   bool   `json:"reserved,omitempty"`
+}
+
+// ClnWithdrawResp struct.
+type ClnWithdrawResp struct {
+	TxID string `json:"txid,omitempty"`
+	ClnResp
+}
+
+// ClnPayResp struct.
+type ClnPayResp struct {
+	PaymentPreimage string `json:"payment_preimage,omitempty"`
+	PaymentHash     string `json:"payment_hash,omitempty"`
+	AmountMsat      string `json:"amount_msat,omitempty"`
+	AmountSentMsat  string `json:"amount_sent_msat,omitempty"`
+	Status          string `json:"status,omitempty"`
+	Destination     string `json:"destination,omitempty"`
+
+	ClnResp
+}
+
+// ClnInvoiceResp struct.
+type ClnInvoiceResp struct {
+	Bolt11      string `json:"bolt11,omitempty"`
+	PaymentHash string `json:"payment_hash,omitempty"`
+	// omitted stuff
+	ClnResp
 }

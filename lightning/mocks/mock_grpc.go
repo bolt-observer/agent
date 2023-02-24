@@ -2,7 +2,7 @@
 // Source: lightning_grpc.pb.go
 
 // Package mock_lnrpc is a generated GoMock package.
-package mock_lnrpc
+package mock_rpc
 
 import (
 	context "context"

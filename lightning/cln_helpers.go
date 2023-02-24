@@ -9,7 +9,7 @@ import (
 	"github.com/golang/glog"
 )
 
-// ToLndChanID - converts from CLN to LND channel id
+// ToLndChanID - converts from CLN to LND channel id.
 func ToLndChanID(id string) (uint64, error) {
 	split := strings.Split(strings.ToLower(id), "x")
 	if len(split) != 3 {
@@ -36,7 +36,7 @@ func ToLndChanID(id string) (uint64, error) {
 	return result, nil
 }
 
-// FromLndChanID - converts from LND to CLN channel id
+// FromLndChanID - converts from LND to CLN channel id.
 func FromLndChanID(chanID uint64) string {
 	blockID := int64((chanID & 0xffffff0000000000) >> 40)
 	txIdx := int((chanID & 0x000000ffffff0000) >> 16)
@@ -45,7 +45,7 @@ func FromLndChanID(chanID uint64) string {
 	return fmt.Sprintf("%dx%dx%d", blockID, txIdx, outputIdx)
 }
 
-// ConvertAmount - converts string amount to satoshis
+// ConvertAmount - converts string amount to satoshis.
 func ConvertAmount(s string) uint64 {
 	x := strings.ReplaceAll(s, "msat", "")
 	if x == "" {
@@ -60,7 +60,7 @@ func ConvertAmount(s string) uint64 {
 	return ret
 }
 
-// ConvertFeatures - convert bitmask to LND like feature map
+// ConvertFeatures - convert bitmask to LND like feature map.
 func ConvertFeatures(features string) map[string]NodeFeatureAPI {
 	n := new(big.Int)
 
@@ -97,7 +97,7 @@ func ConvertFeatures(features string) map[string]NodeFeatureAPI {
 	return result
 }
 
-// SumCapacitySimple - get sum of channel capacity
+// SumCapacitySimple - get sum of channel capacity.
 func SumCapacitySimple(channels []NodeChannelAPI) uint64 {
 	sum := uint64(0)
 	for _, channel := range channels {
@@ -107,7 +107,7 @@ func SumCapacitySimple(channels []NodeChannelAPI) uint64 {
 	return sum
 }
 
-// SumCapacityExtended - get sum of channel capacity
+// SumCapacityExtended - get sum of channel capacity.
 func SumCapacityExtended(channels []NodeChannelAPIExtended) uint64 {
 	sum := uint64(0)
 	for _, channel := range channels {

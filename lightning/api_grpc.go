@@ -2,10 +2,12 @@ package lightning
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/bolt-observer/go_common/entities"
@@ -14,7 +16,7 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 )
 
-// LndGrpcLightningAPI struct
+// LndGrpcLightningAPI struct.
 type LndGrpcLightningAPI struct {
 	Client       lnrpc.LightningClient
 	RouterClient routerrpc.RouterClient
@@ -23,10 +25,10 @@ type LndGrpcLightningAPI struct {
 	API
 }
 
-// Compile time check for the interface
+// Compile time check for the interface.
 var _ LightingAPICalls = &LndGrpcLightningAPI{}
 
-// NewLndGrpcLightningAPI - creates new lightning API
+// NewLndGrpcLightningAPI - creates new lightning API.
 func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
 	client, routerClient, cleanup, err := GetClient(getData)
 	if err != nil {
@@ -45,17 +47,17 @@ func NewLndGrpcLightningAPI(getData GetDataCall) LightingAPICalls {
 	return ret
 }
 
-// Not used
-func debugOutput(resp *lnrpc.ChannelEdge) {
+// Not used.
+func debugOutput[T any](resp T) {
 	bodyData, _ := json.Marshal(resp)
-	f, _ := os.OpenFile("dummy.json", os.O_WRONLY|os.O_CREATE, 0644)
+	f, _ := os.OpenFile("dummy.json", os.O_WRONLY|os.O_CREATE, 0o644)
 	f.Truncate(0)
 	defer f.Close()
 	json.Unmarshal(bodyData, &resp)
 	fmt.Fprintf(f, "%s\n", string(bodyData))
 }
 
-// GetInfo API
+// GetInfo API.
 func (l *LndGrpcLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	resp, err := l.Client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
@@ -70,27 +72,26 @@ func (l *LndGrpcLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 		Version:         fmt.Sprintf("lnd-%s", resp.Version),
 		IsSyncedToGraph: resp.SyncedToGraph,
 		IsSyncedToChain: resp.SyncedToChain,
+		BlockHeight:     int(resp.GetBlockHeight()),
 	}
 
 	return ret, err
 }
 
-// Cleanup API
+// Cleanup API.
 func (l *LndGrpcLightningAPI) Cleanup() {
 	l.CleanupFunc()
 }
 
-// GetChannels API
+// GetChannels API.
 func (l *LndGrpcLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
 	resp, err := l.Client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
-
 	if err != nil {
 		return nil, err
 	}
 
 	chans := make([]ChannelAPI, 0)
 	for _, channel := range resp.Channels {
-
 		htlcs := make([]HtlcAPI, 0)
 		for _, h := range channel.PendingHtlcs {
 			htlcs = append(htlcs, HtlcAPI{
@@ -141,10 +142,9 @@ func toPolicy(policy *lnrpc.RoutingPolicy) *RoutingPolicyAPI {
 	}
 }
 
-// DescribeGraph API
+// DescribeGraph API.
 func (l *LndGrpcLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
 	resp, err := l.Client.DescribeGraph(ctx, &lnrpc.ChannelGraphRequest{IncludeUnannounced: unannounced})
-
 	if err != nil {
 		return nil, err
 	}
@@ -180,8 +180,10 @@ func (l *LndGrpcLightningAPI) convertNode(node *lnrpc.LightningNode) DescribeGra
 		features[fmt.Sprintf("%d", id)] = NodeFeatureAPI{Name: feat.Name, IsRequired: feat.IsRequired, IsKnown: feat.IsKnown}
 	}
 
-	return DescribeGraphNodeAPI{PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Addresses: addresses, Features: features,
-		LastUpdate: entities.JsonTime(time.Unix(int64(node.LastUpdate), 0))}
+	return DescribeGraphNodeAPI{
+		PubKey: node.PubKey, Alias: node.Alias, Color: node.Color, Addresses: addresses, Features: features,
+		LastUpdate: entities.JsonTime(time.Unix(int64(node.LastUpdate), 0)),
+	}
 }
 
 func (l *LndGrpcLightningAPI) convertChan(edge *lnrpc.ChannelEdge) NodeChannelAPI {
@@ -197,10 +199,9 @@ func (l *LndGrpcLightningAPI) convertChan(edge *lnrpc.ChannelEdge) NodeChannelAP
 	}
 }
 
-// GetNodeInfo API
+// GetNodeInfo API.
 func (l *LndGrpcLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
 	resp, err := l.Client.GetNodeInfo(ctx, &lnrpc.NodeInfoRequest{PubKey: pubKey, IncludeChannels: channels})
-
 	if err != nil {
 		return nil, err
 	}
@@ -215,10 +216,9 @@ func (l *LndGrpcLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, ch
 	return ret, nil
 }
 
-// GetChanInfo API
+// GetChanInfo API.
 func (l *LndGrpcLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
 	resp, err := l.Client.GetChanInfo(ctx, &lnrpc.ChanInfoRequest{ChanId: chanID})
-
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,8 @@ func (l *LndGrpcLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*
 }
 
 func (l *LndGrpcLightningAPI) forwarding(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16, sleepTime time.Duration,
-	errorChan chan ErrorData, outChan chan []ForwardingEvent, errors *int) {
+	errorChan chan ErrorData, outChan chan []ForwardingEvent, errors *int,
+) {
 	req := &lnrpc.ForwardingHistoryRequest{
 		NumMaxEvents: uint32(batchSize),
 		IndexOffset:  uint32(0),
@@ -236,15 +237,11 @@ func (l *LndGrpcLightningAPI) forwarding(ctx context.Context, since time.Time, b
 	}
 
 	for {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return
-		default:
-			// Do nothing
 		}
 
 		resp, err := l.Client.ForwardingHistory(ctx, req)
-
 		if err != nil {
 			if *errors >= int(maxErrors) {
 				errorChan <- ErrorData{Error: err, IsStillRunning: false}
@@ -282,14 +279,11 @@ func (l *LndGrpcLightningAPI) forwarding(ctx context.Context, since time.Time, b
 }
 
 func (l *LndGrpcLightningAPI) handleHTLC(ctx context.Context, maxErrors uint16, sleepTime time.Duration,
-	subscribeClient routerrpc.Router_SubscribeHtlcEventsClient, errorChan chan ErrorData, outChan chan []ForwardingEvent, errors *int) {
-
+	subscribeClient routerrpc.Router_SubscribeHtlcEventsClient, errorChan chan ErrorData, outChan chan []ForwardingEvent, errors *int,
+) {
 	for {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return
-		default:
-			// Do nothing
 		}
 
 		event, err := subscribeClient.Recv()
@@ -326,7 +320,6 @@ func (l *LndGrpcLightningAPI) handleHTLC(ctx context.Context, maxErrors uint16, 
 		if event.GetForwardEvent() != nil {
 			in = event.GetForwardEvent().GetInfo().IncomingAmtMsat
 			out = event.GetForwardEvent().GetInfo().OutgoingAmtMsat
-
 		} else if event.GetLinkFailEvent() != nil {
 			in = event.GetLinkFailEvent().GetInfo().IncomingAmtMsat
 			out = event.GetLinkFailEvent().GetInfo().OutgoingAmtMsat
@@ -359,11 +352,8 @@ func (l *LndGrpcLightningAPI) handleHTLC(ctx context.Context, maxErrors uint16, 
 
 func (l *LndGrpcLightningAPI) getSubscribeClient(ctx context.Context, maxErrors uint16, sleepTime time.Duration, errorChan chan ErrorData, errors *int) (*routerrpc.Router_SubscribeHtlcEventsClient, error) {
 	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("abort")
-		default:
-			// Do nothing
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
 
 		subscribeClient, err := l.RouterClient.SubscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
@@ -385,7 +375,7 @@ func (l *LndGrpcLightningAPI) getSubscribeClient(ctx context.Context, maxErrors 
 	}
 }
 
-// SubscribeForwards API
+// SubscribeForwards API.
 func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
 	// We will first try obtaining ForwadingHistory and then move to SubscribeHtlc
 	sleepTime := 5 * time.Second
@@ -412,7 +402,7 @@ func (l *LndGrpcLightningAPI) SubscribeForwards(ctx context.Context, since time.
 	return outChan, errorChan
 }
 
-// GetForwardsRaw API
+// GetForwardsRaw API.
 func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	req := &lnrpc.ForwardingHistoryRequest{
 		NumMaxEvents: uint32(pagination.BatchSize),
@@ -430,7 +420,6 @@ func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination Raw
 	respPagination := &ResponseRawPagination{UseTimestamp: false}
 
 	resp, err := l.Client.ForwardingHistory(ctx, req)
-
 	if err != nil {
 		return nil, respPagination, err
 	}
@@ -471,7 +460,7 @@ func (l *LndGrpcLightningAPI) GetForwardsRaw(ctx context.Context, pagination Raw
 	return ret, respPagination, nil
 }
 
-// GetInvoices API
+// GetInvoices API.
 func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
 	req := &lnrpc.ListInvoiceRequest{
 		NumMaxInvoices: pagination.BatchSize,
@@ -498,7 +487,6 @@ func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 	}
 
 	resp, err := l.Client.ListInvoices(ctx, req)
-
 	if err != nil {
 		return nil, err
 	}
@@ -534,7 +522,7 @@ func (l *LndGrpcLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool,
 	return ret, nil
 }
 
-// GetInvoicesRaw API
+// GetInvoicesRaw API.
 func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	req := &lnrpc.ListInvoiceRequest{
 		NumMaxInvoices: pagination.BatchSize,
@@ -561,7 +549,6 @@ func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 	}
 
 	resp, err := l.Client.ListInvoices(ctx, req)
-
 	if err != nil {
 		return nil, respPagination, err
 	}
@@ -601,7 +588,7 @@ func (l *LndGrpcLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bo
 	return ret, respPagination, nil
 }
 
-// GetPayments API
+// GetPayments API.
 func (l *LndGrpcLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
 	req := &lnrpc.ListPaymentsRequest{
 		IncludeIncomplete: includeIncomplete,
@@ -627,7 +614,6 @@ func (l *LndGrpcLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 	}
 
 	resp, err := l.Client.ListPayments(ctx, req)
-
 	if err != nil {
 		return nil, err
 	}
@@ -640,7 +626,6 @@ func (l *LndGrpcLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 	ret.FirstOffsetIndex = resp.FirstIndexOffset
 
 	for _, payment := range resp.Payments {
-
 		pay := Payment{
 			PaymentHash:     payment.PaymentHash,
 			ValueMsat:       payment.ValueMsat,
@@ -671,7 +656,7 @@ func (l *LndGrpcLightningAPI) GetPayments(ctx context.Context, includeIncomplete
 	return ret, nil
 }
 
-// GetPaymentsRaw API
+// GetPaymentsRaw API.
 func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	req := &lnrpc.ListPaymentsRequest{
 		IncludeIncomplete: includeIncomplete,
@@ -698,7 +683,6 @@ func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 	}
 
 	resp, err := l.Client.ListPayments(ctx, req)
-
 	if err != nil {
 		return nil, respPagination, err
 	}
@@ -738,7 +722,7 @@ func (l *LndGrpcLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncompl
 	return ret, respPagination, nil
 }
 
-// SubscribeFailedForwards is used to subscribe to failed forwards
+// SubscribeFailedForwards is used to subscribe to failed forwards.
 func (l *LndGrpcLightningAPI) SubscribeFailedForwards(ctx context.Context, outchan chan RawMessage) error {
 	subscribeClient, err := l.RouterClient.SubscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
 	if err != nil {
@@ -747,11 +731,8 @@ func (l *LndGrpcLightningAPI) SubscribeFailedForwards(ctx context.Context, outch
 
 	go func() {
 		for {
-			select {
-			case <-ctx.Done():
+			if ctx.Err() != nil {
 				return
-			default:
-				// Do nothing
 			}
 
 			event, err := subscribeClient.Recv()
@@ -790,7 +771,244 @@ func (l *LndGrpcLightningAPI) SubscribeFailedForwards(ctx context.Context, outch
 	return nil
 }
 
-// GetAPIType API
+// GetAPIType API.
 func (l *LndGrpcLightningAPI) GetAPIType() APIType {
 	return LndGrpc
+}
+
+// ConnectPeer API.
+func (l *LndGrpcLightningAPI) ConnectPeer(ctx context.Context, id string) error {
+	split := strings.Split(id, "@")
+	if len(split) != 2 {
+		return fmt.Errorf("invalid id")
+	}
+
+	_, err := l.Client.ConnectPeer(ctx, &lnrpc.ConnectPeerRequest{
+		Addr:    &lnrpc.LightningAddress{Host: split[1], Pubkey: split[0]},
+		Perm:    false,
+		Timeout: 10,
+	})
+	if err != nil && !strings.Contains(err.Error(), "already connected to peer") {
+		return err
+	}
+
+	return nil
+}
+
+// GetOnChainAddress API.
+func (l *LndGrpcLightningAPI) GetOnChainAddress(ctx context.Context) (string, error) {
+	resp, err := l.Client.NewAddress(ctx, &lnrpc.NewAddressRequest{Type: lnrpc.AddressType_WITNESS_PUBKEY_HASH})
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Address, nil
+}
+
+// GetOnChainFunds API.
+func (l *LndGrpcLightningAPI) GetOnChainFunds(ctx context.Context) (*Funds, error) {
+	resp, err := l.Client.WalletBalance(ctx, &lnrpc.WalletBalanceRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	return &Funds{
+		ConfirmedBalance: resp.ConfirmedBalance,
+		TotalBalance:     resp.TotalBalance,
+		LockedBalance:    resp.ReservedBalanceAnchorChan + resp.LockedBalance,
+	}, nil
+}
+
+// SendToOnChainAddress API.
+func (l *LndGrpcLightningAPI) SendToOnChainAddress(ctx context.Context, address string, sats int64, useUnconfirmed bool, urgency Urgency) (string, error) {
+	target := 1
+	switch urgency {
+	case Urgent:
+		target = 1
+	case Normal:
+		target = 4
+	case Low:
+		target = 100
+	}
+
+	resp, err := l.Client.SendCoins(ctx, &lnrpc.SendCoinsRequest{
+		Addr:             address,
+		Amount:           sats,
+		TargetConf:       int32(target),
+		SpendUnconfirmed: useUnconfirmed,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(resp.Txid) == 0 {
+		return "", fmt.Errorf("invalid transaction id")
+	}
+
+	return resp.Txid, nil
+}
+
+// PayInvoice API.
+func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error) {
+	req := &routerrpc.SendPaymentRequest{}
+	req.PaymentRequest = paymentRequest
+	if sats > 0 {
+		req.Amt = sats
+	}
+
+	if outgoingChanIds != nil {
+		req.OutgoingChanIds = make([]uint64, 0)
+		req.OutgoingChanIds = append(req.OutgoingChanIds, outgoingChanIds...)
+	}
+
+	// TODO: this is mandatory field but timeout could be configurable
+	req.TimeoutSeconds = 10
+
+	resp, err := l.RouterClient.SendPaymentV2(ctx, req)
+
+	if err != nil {
+		if strings.Contains(err.Error(), "invoice is already paid") {
+			// TODO: we don't know the hash here, else we could return l.GetPaymentStatus()
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	for {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		event, err := resp.Recv()
+
+		if err != nil {
+			return nil, err
+		}
+
+		switch event.Status {
+		case lnrpc.Payment_SUCCEEDED:
+			return &PaymentResp{
+				Preimage: event.PaymentPreimage,
+				Hash:     event.PaymentHash,
+				Status:   Success,
+			}, nil
+
+		case lnrpc.Payment_IN_FLIGHT:
+			var htlcSum int64
+
+			for _, htlc := range event.Htlcs {
+				htlcSum += htlc.Route.TotalAmtMsat - htlc.Route.TotalFeesMsat
+			}
+
+			if event.ValueMsat == htlcSum {
+				return &PaymentResp{
+					Preimage: event.PaymentPreimage,
+					Hash:     event.PaymentHash,
+					Status:   Pending,
+				}, nil
+			}
+
+		case lnrpc.Payment_FAILED:
+			return nil, fmt.Errorf("failed payment")
+		}
+	}
+}
+
+// GetPaymentStatus API.
+func (l *LndGrpcLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
+	var err error
+	req := &routerrpc.TrackPaymentRequest{}
+	req.PaymentHash, err = hex.DecodeString(paymentHash)
+	if err != nil {
+		return nil, err
+	}
+	req.NoInflightUpdates = true
+
+	resp, err := l.RouterClient.TrackPaymentV2(ctx, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+
+		event, err := resp.Recv()
+
+		if err != nil {
+			return nil, err
+		}
+
+		switch event.Status {
+		case lnrpc.Payment_SUCCEEDED:
+			return &PaymentResp{
+				Preimage: event.PaymentPreimage,
+				Hash:     event.PaymentHash,
+				Status:   Success,
+			}, nil
+		case lnrpc.Payment_FAILED:
+			return &PaymentResp{
+				Preimage: "",
+				Hash:     event.PaymentHash,
+				Status:   Failed,
+			}, nil
+		default:
+			return &PaymentResp{
+				Preimage: "",
+				Hash:     event.PaymentHash,
+				Status:   Pending,
+			}, nil
+		}
+	}
+}
+
+// CreateInvoice API.
+func (l *LndGrpcLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string, expiry time.Duration) (*InvoiceResp, error) {
+	var err error
+	req := &lnrpc.Invoice{
+		Memo:   memo,
+		Expiry: int64(expiry.Seconds()),
+	}
+
+	if preimage != "" {
+		req.RPreimage, err = hex.DecodeString(preimage)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if sats > 0 {
+		req.Value = sats
+	}
+
+	resp, err := l.Client.AddInvoice(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.PaymentRequest == "" {
+		return nil, fmt.Errorf("no payment request received")
+	}
+
+	return &InvoiceResp{
+		PaymentRequest: resp.PaymentRequest,
+		Hash:           hex.EncodeToString(resp.RHash),
+	}, nil
+}
+
+// IsInvoicePaid API.
+func (l *LndGrpcLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error) {
+	b, err := hex.DecodeString(paymentHash)
+	if err != nil {
+		return false, err
+	}
+	resp, err := l.Client.LookupInvoice(ctx, &lnrpc.PaymentHash{
+		RHash: b,
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	return resp.State == lnrpc.Invoice_SETTLED, nil
 }

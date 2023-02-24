@@ -70,7 +70,7 @@ func TestCommunicate(t *testing.T) {
 
 		go c.communicate(ctx, &bs)
 
-		time.Sleep(10 * time.Microsecond)
+		time.Sleep(10 * time.Millisecond)
 		cancel()
 
 		assert.Equal(t, &api.AgentReply{

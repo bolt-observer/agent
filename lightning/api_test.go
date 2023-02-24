@@ -12,20 +12,19 @@ import (
 	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
-	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestApiSelection(t *testing.T) {
-
-	cert := utils.ObtainCert("bolt.observer:443")
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
 
+	ignore := 4
 	data := entities.Data{
-		PubKey:            "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
-		MacaroonHex:       dummyMac,
-		CertificateBase64: cert,
-		Endpoint:          "bolt.observer:443",
+		PubKey:               "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
+		MacaroonHex:          dummyMac,
+		Endpoint:             "bolt.observer:443",
+		CertVerificationType: &ignore,
 	}
 
 	// ApiType in NewApi() is a preference that can be overriden through data
@@ -139,14 +138,13 @@ func TestApiSelection(t *testing.T) {
 }
 
 func TestGrpcDoesNotOpenConnection(t *testing.T) {
-	cert := utils.ObtainCert("bolt.observer:443")
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
-
+	ignore := 4
 	data := entities.Data{
-		PubKey:            "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
-		MacaroonHex:       dummyMac,
-		CertificateBase64: cert,
-		Endpoint:          "bolt.observer:443",
+		PubKey:               "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
+		MacaroonHex:          dummyMac,
+		Endpoint:             "bolt.observer:443",
+		CertVerificationType: &ignore,
 	}
 
 	api := NewAPI(LndGrpc, func() (*entities.Data, error) {
@@ -168,14 +166,13 @@ func TestGrpcDoesNotOpenConnection(t *testing.T) {
 }
 
 func TestRestDoesNotOpenConnection(t *testing.T) {
-	cert := utils.ObtainCert("bolt.observer:443")
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
-
+	ignore := 4
 	data := entities.Data{
-		PubKey:            "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
-		MacaroonHex:       dummyMac,
-		CertificateBase64: cert,
-		Endpoint:          "bolt.observer:443",
+		PubKey:               "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
+		MacaroonHex:          dummyMac,
+		Endpoint:             "bolt.observer:443",
+		CertVerificationType: &ignore,
 	}
 
 	api := NewAPI(LndRest, func() (*entities.Data, error) {
@@ -260,6 +257,38 @@ func (m *MockLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPag
 }
 
 func (m *MockLightningAPI) GetAPIType() APIType {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) ConnectPeer(ctx context.Context, id string) error {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetOnChainAddress(ctx context.Context) (string, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetOnChainFunds(ctx context.Context) (*Funds, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) SendToOnChainAddress(ctx context.Context, address string, sats int64, useUnconfirmed bool, urgency Urgency) (string, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string, expiry time.Duration) (*InvoiceResp, error) {
+	panic("not implemented")
+}
+
+func (m *MockLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error) {
 	panic("not implemented")
 }
 
@@ -414,14 +443,35 @@ func TestRawMessageSerialization(t *testing.T) {
 			t.Fatalf("Message marshal error: %v\n", err)
 		}
 
-		msg, err := json.Marshal(raw)
+		_, err := json.Marshal(raw)
 		if err != nil {
 			t.Fatalf("Wrapped message marshal error: %v\n", err)
 		}
-
-		fmt.Printf("JSON |%s|\n", msg)
 	}
 
 	//t.Fail()
 
+}
+
+func TestCtxError(t *testing.T) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(8*time.Second))
+
+	done := false
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			if ctx.Err() != nil {
+				//fmt.Printf("Error: %v\n", ctx.Err())
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		done = true
+	}()
+
+	cancel()
+	time.Sleep(200 * time.Millisecond)
+	assert.Equal(t, true, done)
+
+	//t.Fail()
 }
