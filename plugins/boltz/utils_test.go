@@ -68,7 +68,7 @@ func getMockCliCtx() *cli.Context {
 }
 
 func TestEnsureConnected(t *testing.T) {
-	b := NewBoltzPlugin(getAPI(t, "fixture.secret", api.LndRest), getMockCliCtx())
+	b := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), getMockCliCtx())
 	if b == nil {
 		if FailNoCredsBoltz {
 			t.Fatalf("no credentials")

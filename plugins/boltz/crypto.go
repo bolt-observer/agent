@@ -17,7 +17,7 @@ func DeterministicPrivateKey(id string, orig *secp256k1.PrivateKey) *secp256k1.P
 	return secp256k1.NewPrivateKey(orig.Key.Add(scalar))
 }
 
-// DeterministicPublicKey from public key A generate A + hash(id)*G
+// DeterministicPublicKey - from public key A generate A + hash(id)*G
 func DeterministicPublicKey(id string, orig *secp256k1.PublicKey) *secp256k1.PublicKey {
 	curve := secp256k1.S256()
 
@@ -39,7 +39,7 @@ func DeterministicPublicKey(id string, orig *secp256k1.PublicKey) *secp256k1.Pub
 	return secp256k1.NewPublicKey(&fx, &fy)
 }
 
-// DeterministicPreimage from key generate a hmac derivation with id
+// DeterministicPreimage - from key generate a hmac derivation with id
 func DeterministicPreimage(id string, key []byte) []byte {
 	h := hmac.New(sha256.New, key)
 	h.Write([]byte(id))

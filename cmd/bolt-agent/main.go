@@ -34,6 +34,9 @@ import (
 	utils "github.com/bolt-observer/go_common/utils"
 
 	agent_entities "github.com/bolt-observer/agent/entities"
+
+	// we need this so init() is called
+	_ "github.com/bolt-observer/agent/plugins/boltz"
 )
 
 const (
@@ -349,7 +352,7 @@ func getApp() *cli.App {
 	}
 
 	app.Flags = append(app.Flags, glogFlags...)
-	app.Flags = append(app.Flags, plugins.PluginFlags...)
+	app.Flags = append(app.Flags, plugins.AllPluginFlags...)
 
 	return app
 }

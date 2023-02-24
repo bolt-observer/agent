@@ -4,30 +4,42 @@ import (
 	"fmt"
 
 	agent_entities "github.com/bolt-observer/agent/entities"
-	"github.com/bolt-observer/agent/plugins/boltz"
 	"github.com/urfave/cli"
 )
 
+// Note plugins depend on us, not vice versa (we have no idea about them)
+
 var (
-	// Plugins is global map which holds registred plugins
+	// Plugins is global map which holds registered plugins
 	Plugins map[string]agent_entities.Plugin
-	// PluginFlags hold the extra flags for plugins
-	PluginFlags []cli.Flag
+
+	// Both of those are filled during init
+
+	// AllPluginFlags hold the extra flags for plugins
+	AllPluginFlags []cli.Flag
+	// RegisteredPlugins
+	RegisteredPlugins []PluginData
 )
+
+// InitPluginFn signature of init plugin function
+type InitPluginFn func(lnAPI agent_entities.NewAPICall, cmdCtx *cli.Context) agent_entities.Plugin
+
+// PluginData structure
+type PluginData struct {
+	Name string
+	Init InitPluginFn
+}
 
 func InitPlugins(lnAPI agent_entities.NewAPICall, cmdCtx *cli.Context) error {
 	Plugins = make(map[string]agent_entities.Plugin)
 
-	plugin := boltz.NewBoltzPlugin(lnAPI, cmdCtx)
-	if plugin == nil {
-		return fmt.Errorf("boltz plugin failed to initialize")
+	for _, p := range RegisteredPlugins {
+		plugin := p.Init(lnAPI, cmdCtx)
+		if plugin == nil {
+			return fmt.Errorf("%s plugin failed to initialize", p.Name)
+		}
+		Plugins[p.Name] = plugin
 	}
 
-	Plugins["boltz"] = plugin
-
 	return nil
-}
-
-func init() {
-	PluginFlags = append(PluginFlags, boltz.PluginFlags...)
 }
