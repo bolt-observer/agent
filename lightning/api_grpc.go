@@ -967,9 +967,10 @@ func (l *LndGrpcLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash 
 // CreateInvoice API.
 func (l *LndGrpcLightningAPI) CreateInvoice(ctx context.Context, sats int64, preimage string, memo string, expiry time.Duration) (*InvoiceResp, error) {
 	var err error
-	req := &lnrpc.Invoice{}
-	req.Memo = memo
-	req.Expiry = int64(expiry.Seconds())
+	req := &lnrpc.Invoice{
+		Memo:   memo,
+		Expiry: int64(expiry.Seconds()),
+	}
 
 	if preimage != "" {
 		req.RPreimage, err = hex.DecodeString(preimage)
@@ -982,7 +983,6 @@ func (l *LndGrpcLightningAPI) CreateInvoice(ctx context.Context, sats int64, pre
 	}
 
 	resp, err := l.Client.AddInvoice(ctx, req)
-
 	if err != nil {
 		return nil, err
 	}

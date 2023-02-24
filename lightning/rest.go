@@ -57,9 +57,8 @@ func (h *HTTPAPI) HTTPGetInfo(ctx context.Context, req *http.Request) (*GetInfoR
 	}
 
 	req.URL = u
-	req.Method = http.MethodGet
 
-	err = h.doRequest(req, &info)
+	err = h.doGetRequest(req, &info)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +80,7 @@ func (h *HTTPAPI) HTTPGetChannels(ctx context.Context, req *http.Request) (*Chan
 	req.URL = u
 	req.Method = http.MethodGet
 
-	err = h.doRequest(req, &channels)
+	err = h.doGetRequest(req, &channels)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +102,7 @@ func (h *HTTPAPI) HTTPGetGraph(ctx context.Context, req *http.Request, unannounc
 	req.URL = u
 	req.Method = http.MethodGet
 
-	err = h.doRequest(req, &graph)
+	err = h.doGetRequest(req, &graph)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +124,7 @@ func (h *HTTPAPI) HTTPGetNodeInfo(ctx context.Context, req *http.Request, pubKey
 	req.URL = u
 	req.Method = http.MethodGet
 
-	err = h.doRequest(req, &nodeinfo)
+	err = h.doGetRequest(req, &nodeinfo)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +146,7 @@ func (h *HTTPAPI) HTTPGetChanInfo(ctx context.Context, req *http.Request, chanID
 	req.URL = u
 	req.Method = http.MethodGet
 
-	err = h.doRequest(req, &chaninfo)
+	err = h.doGetRequest(req, &chaninfo)
 	if err != nil {
 		return nil, err
 	}
@@ -227,11 +226,8 @@ func (h *HTTPAPI) HTTPSubscribeHtlcEvents(ctx context.Context, req *http.Request
 		defer resp.Body.Close()
 		decoder := json.NewDecoder(resp.Body)
 		for {
-			select {
-			case <-ctx.Done():
+			if ctx.Err() != nil {
 				return
-			default:
-				// Do nothing
 			}
 
 			err := decoder.Decode(&data)
@@ -259,9 +255,8 @@ func (h *HTTPAPI) HTTPListInvoices(ctx context.Context, req *http.Request, input
 	}
 
 	req.URL = u
-	req.Method = http.MethodGet
 
-	err = h.doRequest(req, &data)
+	err = h.doGetRequest(req, &data)
 	if err != nil {
 		return nil, err
 	}
@@ -282,9 +277,8 @@ func (h *HTTPAPI) HTTPListPayments(ctx context.Context, req *http.Request, input
 	}
 
 	req.URL = u
-	req.Method = http.MethodGet
 
-	err = h.doRequest(req, &data)
+	err = h.doGetRequest(req, &data)
 	if err != nil {
 		return nil, err
 	}
@@ -318,14 +312,12 @@ func (h *HTTPAPI) HTTPPeers(ctx context.Context, req *http.Request, input *Conne
 
 	defer resp.Body.Close()
 
-	alreadyConnected := false
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	if strings.Contains(string(body), "already connected to peer") {
-		alreadyConnected = true
-	}
+
+	alreadyConnected := strings.Contains(string(body), "already connected to peer")
 	if resp.StatusCode != http.StatusOK && !alreadyConnected {
 		return fmt.Errorf("http got error %d %s", resp.StatusCode, body)
 	}
@@ -377,7 +369,8 @@ func (h *HTTPAPI) GetHTTPRequest(getData GetDataCall) (*http.Request, *http.Tran
 	return req, trans, nil
 }
 
-func (h *HTTPAPI) doRequest(req *http.Request, data any) error {
+func (h *HTTPAPI) doGetRequest(req *http.Request, data any) error {
+	req.Method = http.MethodGet
 	resp, err := h.Do(req)
 	if err != nil {
 		return fmt.Errorf("http request failed %s", err)
@@ -413,9 +406,8 @@ func (h *HTTPAPI) HTTPNewAddress(ctx context.Context, req *http.Request, input *
 	}
 
 	req.URL = u
-	req.Method = http.MethodGet
 
-	err = h.doRequest(req, &resp)
+	err = h.doGetRequest(req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -435,9 +427,8 @@ func (h *HTTPAPI) HTTPBalance(ctx context.Context, req *http.Request) (*WalletBa
 	}
 
 	req.URL = u
-	req.Method = http.MethodGet
 
-	err = h.doRequest(req, &resp)
+	err = h.doGetRequest(req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -445,14 +436,13 @@ func (h *HTTPAPI) HTTPBalance(ctx context.Context, req *http.Request) (*WalletBa
 	return &resp, nil
 }
 
-// HTTPSendCoins - invokes SendCoins method.
-func (h *HTTPAPI) HTTPSendCoins(ctx context.Context, req *http.Request, input *SendCoinsRequestOverride) (*lnrpc.SendCoinsResponse, error) {
-	var reply lnrpc.SendCoinsResponse
+func doPostRequest[U, V any](ctx context.Context, h *HTTPAPI, req *http.Request, uri string, input *U) (*V, error) {
+	var reply V
 
 	req = req.WithContext(ctx)
 	req.Method = http.MethodPost
 
-	u, err := url.Parse(fmt.Sprintf("%s/v1/transactions", req.URL))
+	u, err := url.Parse(uri)
 	if err != nil {
 		return nil, fmt.Errorf("invalid url %s", err)
 	}
@@ -487,46 +477,14 @@ func (h *HTTPAPI) HTTPSendCoins(ctx context.Context, req *http.Request, input *S
 	return &reply, nil
 }
 
+// HTTPSendCoins - invokes SendCoins method.
+func (h *HTTPAPI) HTTPSendCoins(ctx context.Context, req *http.Request, input *SendCoinsRequestOverride) (*lnrpc.SendCoinsResponse, error) {
+	return doPostRequest[SendCoinsRequestOverride, lnrpc.SendCoinsResponse](ctx, h, req, fmt.Sprintf("%s/v1/transactions", req.URL), input)
+}
+
 // HTTPPayInvoice - invokes PayInvoice method.
 func (h *HTTPAPI) HTTPPayInvoice(ctx context.Context, req *http.Request, input *SendPaymentRequestOverride) (*PaymentOverride, error) {
-	var reply PaymentOverride
-
-	req = req.WithContext(ctx)
-	req.Method = http.MethodPost
-
-	u, err := url.Parse(fmt.Sprintf("%s/v2/router/send", req.URL))
-	if err != nil {
-		return nil, fmt.Errorf("invalid url %s", err)
-	}
-
-	s, err := json.Marshal(input)
-	if err != nil {
-		return nil, err
-	}
-	b := bytes.NewBuffer(s)
-
-	req.URL = u
-	req.Body = io.NopCloser(b)
-
-	resp, err := h.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("http request failed %s", err)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("http got error %d", resp.StatusCode)
-	}
-
-	decoder := json.NewDecoder(resp.Body)
-
-	err = decoder.Decode(&reply)
-	if err != nil {
-		return nil, fmt.Errorf("got error %v", err)
-	}
-
-	return &reply, nil
+	return doPostRequest[SendPaymentRequestOverride, PaymentOverride](ctx, h, req, fmt.Sprintf("%s/v2/router/send", req.URL), input)
 }
 
 // HTTPTrackPayment - invokes TrackPayment method.
@@ -541,14 +499,7 @@ func (h *HTTPAPI) HTTPTrackPayment(ctx context.Context, req *http.Request, input
 		return nil, fmt.Errorf("invalid url %s", err)
 	}
 
-	s, err := json.Marshal(input)
-	if err != nil {
-		return nil, err
-	}
-	b := bytes.NewBuffer(s)
-
 	req.URL = u
-	req.Body = io.NopCloser(b)
 
 	resp, err := h.Do(req)
 	if err != nil {
@@ -573,44 +524,7 @@ func (h *HTTPAPI) HTTPTrackPayment(ctx context.Context, req *http.Request, input
 
 // HTTPAddInvoice - invokes AddInvoice method.
 func (h *HTTPAPI) HTTPAddInvoice(ctx context.Context, req *http.Request, input *InvoiceOverride) (*AddInvoiceResponseOverride, error) {
-	var reply AddInvoiceResponseOverride
-
-	req = req.WithContext(ctx)
-	req.Method = http.MethodPost
-
-	u, err := url.Parse(fmt.Sprintf("%s/v1/invoices", req.URL))
-	if err != nil {
-		return nil, fmt.Errorf("invalid url %s", err)
-	}
-
-	s, err := json.Marshal(input)
-	if err != nil {
-		return nil, err
-	}
-	b := bytes.NewBuffer(s)
-
-	req.URL = u
-	req.Body = io.NopCloser(b)
-
-	resp, err := h.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("http request failed %s", err)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("http got error %d", resp.StatusCode)
-	}
-
-	decoder := json.NewDecoder(resp.Body)
-
-	err = decoder.Decode(&reply)
-	if err != nil {
-		return nil, fmt.Errorf("got error %v", err)
-	}
-
-	return &reply, nil
+	return doPostRequest[InvoiceOverride, AddInvoiceResponseOverride](ctx, h, req, fmt.Sprintf("%s/v1/invoices", req.URL), input)
 }
 
 // HTTPLookupInvoice - invokes LookupInvoice method.
@@ -625,9 +539,8 @@ func (h *HTTPAPI) HTTPLookupInvoice(ctx context.Context, req *http.Request, paym
 	}
 
 	req.URL = u
-	req.Method = http.MethodGet
 
-	err = h.doRequest(req, &reply)
+	err = h.doGetRequest(req, &reply)
 	if err != nil {
 		return nil, err
 	}

@@ -467,7 +467,7 @@ type Pair[T, U any] struct {
 type PayInvoiceRespFunc func(resp *PaymentResp, err error)
 
 func TestPayInvoiceGrpc(t *testing.T) {
-	for _, one := range []Pair[string, PayInvoiceRespFunc]{
+	for _, currentCase := range []Pair[string, PayInvoiceRespFunc]{
 		{First: "payinvoice_noroute", Second: func(resp *PaymentResp, err error) {
 			assert.Error(t, err)
 		}},
@@ -484,7 +484,7 @@ func TestPayInvoiceGrpc(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		m := mocks.NewMockLightningClient(ctrl)
 		mr := mocks.NewMockRouterClient(ctrl)
-		data, api := commonGrpc(t, one.First, m, mr)
+		data, api := commonGrpc(t, currentCase.First, m, mr)
 
 		var payment *lnrpc.Payment
 
@@ -507,7 +507,7 @@ func TestPayInvoiceGrpc(t *testing.T) {
 		resp, err := api.PayInvoice(context.Background(), "lnbcrt13370n1p3lwhhnpp5zfvpdpwp77wmgpyawatm550uv9cvx0hv9hgukxd6u0pqqdhcdymsdqqcqzpgxqyz5vqsp5xsum9s4cpkvw27f6smk4daxqkpjgmah8xxhs8ty34fm4srmwfvjs9qyyssqlx5zk7j8lfeelzmpsk0mmwp3583tl52j8us2q9nt05vrmtp3sasxzc8wyjchrum67sllzr52gjz26rcrye6y4vrlpr6pyv9jhhlrp2cq52rxf5", 0, []uint64{128642860515328})
 		ctrl.Finish()
 
-		one.Second(resp, err)
+		currentCase.Second(resp, err)
 	}
 }
 
@@ -571,7 +571,7 @@ func TestCreateInvoiceGrpc(t *testing.T) {
 type IsInvoicePaidFunc func(resp bool, err error)
 
 func TestIsInvoicePaidGrpc(t *testing.T) {
-	for _, one := range []Pair[string, IsInvoicePaidFunc]{
+	for _, currentCase := range []Pair[string, IsInvoicePaidFunc]{
 		{First: "invoice_notpaid", Second: func(resp bool, err error) {
 			assert.NoError(t, err)
 			assert.Equal(t, false, resp)
@@ -583,7 +583,7 @@ func TestIsInvoicePaidGrpc(t *testing.T) {
 	} {
 		ctrl := gomock.NewController(t)
 		m := mocks.NewMockLightningClient(ctrl)
-		data, api := commonGrpc(t, one.First, m, nil)
+		data, api := commonGrpc(t, currentCase.First, m, nil)
 
 		var invoice *lnrpc.Invoice
 
@@ -602,6 +602,6 @@ func TestIsInvoicePaidGrpc(t *testing.T) {
 
 		ctrl.Finish()
 
-		one.Second(resp, err)
+		currentCase.Second(resp, err)
 	}
 }
