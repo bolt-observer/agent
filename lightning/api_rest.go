@@ -561,11 +561,8 @@ func (l *LndRestLightningAPI) SubscribeFailedForwards(ctx context.Context, outch
 		}
 
 		for {
-			select {
-			case <-ctx.Done():
+			if ctx.Err() != nil {
 				return
-			default:
-				// Do nothing
 			}
 
 			event := <-resp

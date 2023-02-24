@@ -443,11 +443,8 @@ func (l *ClnRawLightningAPI) SubscribeForwards(ctx context.Context, since time.T
 		minTime := since
 
 		for {
-			select {
-			case <-ctx.Done():
+			if ctx.Err() != nil {
 				return
-			default:
-				// Do nothing
 			}
 
 			err := l.connection.Call(ctx, ListForwards, []interface{}{}, &reply)
@@ -462,11 +459,8 @@ func (l *ClnRawLightningAPI) SubscribeForwards(ctx context.Context, since time.T
 			}
 
 			for _, one := range reply.Entries {
-				select {
-				case <-ctx.Done():
+				if ctx.Err() != nil {
 					return
-				default:
-					// Do nothing
 				}
 
 				if time.Time(one.ReceivedTime).Before(minTime) {
@@ -546,11 +540,8 @@ func rawJSONIterator(ctx context.Context, reader io.Reader, name string, channel
 			// elements of array
 			var m json.RawMessage
 
-			select {
-			case <-ctx.Done():
+			if ctx.Err() != nil {
 				return
-			default:
-				// Do nothing
 			}
 			err := dec.Decode(&m)
 			if err != nil {
@@ -566,7 +557,7 @@ func rawJSONIterator(ctx context.Context, reader io.Reader, name string, channel
 	return nil
 }
 
-	func getRaw[T ClnRawTimeItf](ctx context.Context, l *ClnRawLightningAPI, gettime T, method string, jsonArray string, pagination *RawPagination) ([]RawMessage, *ResponseRawPagination, error) { //nolint:all
+func getRaw[T ClnRawTimeItf](ctx context.Context, l *ClnRawLightningAPI, gettime T, method string, jsonArray string, pagination *RawPagination) ([]RawMessage, *ResponseRawPagination, error) { //nolint:all
 	respPagination := &ResponseRawPagination{UseTimestamp: true}
 
 	if pagination.BatchSize == 0 {
@@ -839,60 +830,6 @@ func (l *ClnRawLightningAPI) SendToOnChainAddress(ctx context.Context, address s
 	return reply.TxID, nil
 }
 
-// calculateExclusion is used since CLN can just exclude channels, so we tell it which channels we want and method calculates the "inverse" of it
-func (l *ClnRawLightningAPI) calculateExclusion(ctx context.Context, outgoingChanIds []uint64) ([]string, error) {
-	result := make([]string, 0)
-
-	if outgoingChanIds == nil || len(outgoingChanIds) == 0 {
-		return nil, nil
-	}
-
-	var info ClnInfo
-	err := l.connection.Call(ctx, GetInfo, []string{}, &info)
-	if err != nil {
-		return nil, err
-	}
-
-	chans, err := l.getMyChannels(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	m := make(map[uint64]struct{})
-	for _, one := range outgoingChanIds {
-		m[one] = struct{}{}
-	}
-
-	for _, one := range chans {
-		_, ok := m[one.ChannelID]
-		if !ok {
-			// not an outgoing channel, create exclusion
-
-			id := FromLndChanID(one.ChannelID)
-
-			peer := ""
-			if one.Node1Pub == info.PubKey {
-				peer = one.Node2Pub
-			} else if one.Node2Pub == info.PubKey {
-				peer = one.Node1Pub
-			} else {
-				glog.Warningf("Channel %d is not mine?", one.ChannelID)
-				continue
-			}
-
-			// direction (u32): 0 if this channel is traversed from lesser to greater id, otherwise 1
-			direction := 0
-			if info.PubKey > peer {
-				direction = 1
-			}
-
-			result = append(result, fmt.Sprintf("%s/%d", id, direction))
-		}
-	}
-
-	return result, nil
-}
-
 // PayInvoice - API call.
 func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error) {
 	var (
@@ -900,8 +837,7 @@ func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest stri
 		reply ClnPayResp
 	)
 
-	exclusions, err := l.calculateExclusion(ctx, outgoingChanIds)
-	fmt.Printf("%+v\n", exclusions)
+	exclusions, err := l.calculateExclusions(ctx, outgoingChanIds)
 	if err != nil {
 		return nil, err
 	}
@@ -930,6 +866,62 @@ func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest stri
 	}
 
 	return r, nil
+}
+
+// calculateExclusions is used since CLN can just exclude channels, so we tell it which channels we want and method calculates the "inverse" of it
+func (l *ClnRawLightningAPI) calculateExclusions(ctx context.Context, outgoingChanIds []uint64) ([]string, error) {
+	result := make([]string, 0)
+
+	if outgoingChanIds == nil || len(outgoingChanIds) == 0 {
+		return nil, nil
+	}
+
+	var info ClnInfo
+	err := l.connection.Call(ctx, GetInfo, []string{}, &info)
+	if err != nil {
+		return nil, err
+	}
+
+	chans, err := l.getMyChannels(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[uint64]struct{})
+	for _, id := range outgoingChanIds {
+		m[id] = struct{}{}
+	}
+
+	for _, one := range chans {
+		_, ok := m[one.ChannelID]
+		if ok {
+			continue
+		}
+
+		// not an outgoing channel, create exclusion
+
+		id := FromLndChanID(one.ChannelID)
+
+		peer := ""
+		if one.Node1Pub == info.PubKey {
+			peer = one.Node2Pub
+		} else if one.Node2Pub == info.PubKey {
+			peer = one.Node1Pub
+		} else {
+			glog.Warningf("Channel %d is not mine?", one.ChannelID)
+			continue
+		}
+
+		// direction (u32): 0 if this channel is traversed from lesser to greater id, otherwise 1
+		direction := 0
+		if info.PubKey > peer {
+			direction = 1
+		}
+
+		result = append(result, fmt.Sprintf("%s/%d", id, direction))
+	}
+
+	return result, nil
 }
 
 // GetPaymentStatus - API call.

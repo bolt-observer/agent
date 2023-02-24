@@ -136,6 +136,23 @@ func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningAPI, LightingA
 	return d, api, closeFunc
 }
 
+func clnCannedResponse(t *testing.T, c net.Conn, method string, data []byte) {
+	req := RequestExtractor{}
+	err := json.NewDecoder(c).Decode(&req)
+	if err != nil {
+		t.Fatalf("Decode error: %v", err)
+	}
+
+	if strings.Contains(req.Method, method) {
+		reply := fmt.Sprintf(string(data), req.ID)
+		_, err = c.Write(([]byte)(reply))
+		assert.NoError(t, err)
+	}
+
+	err = c.Close()
+	assert.NoError(t, err)
+}
+
 type RequestExtractor struct {
 	ID     int    `json:"id"`
 	Method string `json:"method"`
@@ -145,25 +162,7 @@ func TestClnGetInfo(t *testing.T) {
 	data := clnData(t, "cln_info")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "getinfo") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "getinfo", data)
 	})
 	defer closer()
 
@@ -171,9 +170,7 @@ func TestClnGetInfo(t *testing.T) {
 	defer cancel()
 
 	resp, err := api.GetInfo(ctx)
-	if err != nil {
-		t.Fatalf("GetInfo call failed: %v", err)
-	}
+	assert.NoError(t, err)
 
 	if resp.IdentityPubkey != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" || resp.Alias != "cln1" || resp.Chain != "mainnet" || resp.Network != "bitcoin" {
 		t.Fatal("Wrong response")
@@ -189,25 +186,7 @@ func TestClnGetChanInfo(t *testing.T) {
 	data := clnData(t, "cln_listchans")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "listchannels") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "listchannels", data)
 	})
 	defer closer()
 
@@ -219,9 +198,7 @@ func TestClnGetChanInfo(t *testing.T) {
 	defer cancel()
 
 	resp, err := api.GetChanInfo(ctx, id)
-	if err != nil {
-		t.Fatalf("GetInfo call failed: %v", err)
-	}
+	assert.NoError(t, err)
 
 	if resp.ChannelID != 839247329907769344 || resp.Node1Pub != "020f63ca0fd5cbb11012727c035b7c087c2d014a26ed8ed5ed2115c783945a3fc7" || resp.Node2Pub != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" {
 		t.Fatal("Wrong response")
@@ -348,25 +325,7 @@ func TestClnConnectPeer(t *testing.T) {
 	host := "161.97.184.185:9735"
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "connect") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "connect", data)
 	})
 	defer closer()
 
@@ -381,25 +340,7 @@ func TestClnGetOnChainAddress(t *testing.T) {
 	data := clnData(t, "cln_newaddr")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "newaddr") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "newaddr", data)
 	})
 	defer closer()
 
@@ -417,25 +358,7 @@ func TestClnGetOnChainFunds(t *testing.T) {
 	data := clnData(t, "cln_funds")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "listfunds") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "listfunds", data)
 	})
 	defer closer()
 
@@ -453,25 +376,7 @@ func TestClnSendToOnChainAddress(t *testing.T) {
 	data := clnData(t, "cln_withdraw")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "withdraw") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "withdraw", data)
 	})
 	defer closer()
 
@@ -487,25 +392,7 @@ func TestClnPayInvoice(t *testing.T) {
 	data := clnData(t, "cln_pay")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "pay") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "pay", data)
 	})
 	defer closer()
 
@@ -521,25 +408,7 @@ func TestClnGetPaymentStatus(t *testing.T) {
 	data := clnData(t, "cln_listpay")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "listsendpay") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "listsendpay", data)
 	})
 	defer closer()
 
@@ -558,25 +427,7 @@ func TestClnCreateInvoice(t *testing.T) {
 	data := clnData(t, "cln_invoice")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "invoice") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "invoice", data)
 	})
 	defer closer()
 
@@ -599,25 +450,7 @@ func ClnIsInvoicePaid(t *testing.T, name string, paid bool) {
 	data := clnData(t, name)
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "listinvoices") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "listinvoices", data)
 	})
 	defer closer()
 

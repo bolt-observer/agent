@@ -167,7 +167,10 @@ func (h *HTTPAPI) HTTPForwardEvents(ctx context.Context, req *http.Request, inpu
 		return nil, fmt.Errorf("invalid url %s", err)
 	}
 
-	s, _ := json.Marshal(input)
+	s, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
 	b := bytes.NewBuffer(s)
 
 	req.URL = u
@@ -299,7 +302,10 @@ func (h *HTTPAPI) HTTPPeers(ctx context.Context, req *http.Request, input *Conne
 		return fmt.Errorf("invalid url %s", err)
 	}
 
-	s, _ := json.Marshal(input)
+	s, err := json.Marshal(input)
+	if err != nil {
+		return err
+	}
 	b := bytes.NewBuffer(s)
 
 	req.URL = u
@@ -451,7 +457,10 @@ func (h *HTTPAPI) HTTPSendCoins(ctx context.Context, req *http.Request, input *S
 		return nil, fmt.Errorf("invalid url %s", err)
 	}
 
-	s, _ := json.Marshal(input)
+	s, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
 	b := bytes.NewBuffer(s)
 
 	req.URL = u
@@ -490,7 +499,10 @@ func (h *HTTPAPI) HTTPPayInvoice(ctx context.Context, req *http.Request, input *
 		return nil, fmt.Errorf("invalid url %s", err)
 	}
 
-	s, _ := json.Marshal(input)
+	s, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
 	b := bytes.NewBuffer(s)
 
 	req.URL = u
@@ -529,7 +541,10 @@ func (h *HTTPAPI) HTTPTrackPayment(ctx context.Context, req *http.Request, input
 		return nil, fmt.Errorf("invalid url %s", err)
 	}
 
-	s, _ := json.Marshal(input)
+	s, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
 	b := bytes.NewBuffer(s)
 
 	req.URL = u
@@ -568,7 +583,10 @@ func (h *HTTPAPI) HTTPAddInvoice(ctx context.Context, req *http.Request, input *
 		return nil, fmt.Errorf("invalid url %s", err)
 	}
 
-	s, _ := json.Marshal(input)
+	s, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
 	b := bytes.NewBuffer(s)
 
 	req.URL = u

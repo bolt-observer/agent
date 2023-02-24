@@ -237,11 +237,8 @@ func (l *LndGrpcLightningAPI) forwarding(ctx context.Context, since time.Time, b
 	}
 
 	for {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return
-		default:
-			// Do nothing
 		}
 
 		resp, err := l.Client.ForwardingHistory(ctx, req)
@@ -285,11 +282,8 @@ func (l *LndGrpcLightningAPI) handleHTLC(ctx context.Context, maxErrors uint16, 
 	subscribeClient routerrpc.Router_SubscribeHtlcEventsClient, errorChan chan ErrorData, outChan chan []ForwardingEvent, errors *int,
 ) {
 	for {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return
-		default:
-			// Do nothing
 		}
 
 		event, err := subscribeClient.Recv()
@@ -358,11 +352,8 @@ func (l *LndGrpcLightningAPI) handleHTLC(ctx context.Context, maxErrors uint16, 
 
 func (l *LndGrpcLightningAPI) getSubscribeClient(ctx context.Context, maxErrors uint16, sleepTime time.Duration, errorChan chan ErrorData, errors *int) (*routerrpc.Router_SubscribeHtlcEventsClient, error) {
 	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("abort")
-		default:
-			// Do nothing
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
 
 		subscribeClient, err := l.RouterClient.SubscribeHtlcEvents(ctx, &routerrpc.SubscribeHtlcEventsRequest{})
@@ -740,11 +731,8 @@ func (l *LndGrpcLightningAPI) SubscribeFailedForwards(ctx context.Context, outch
 
 	go func() {
 		for {
-			select {
-			case <-ctx.Done():
+			if ctx.Err() != nil {
 				return
-			default:
-				// Do nothing
 			}
 
 			event, err := subscribeClient.Recv()
@@ -800,11 +788,7 @@ func (l *LndGrpcLightningAPI) ConnectPeer(ctx context.Context, id string) error 
 		Perm:    false,
 		Timeout: 10,
 	})
-	if err != nil {
-		if strings.Contains(err.Error(), "already connected to peer") {
-			err = nil
-			return err
-		}
+	if err != nil && !strings.Contains(err.Error(), "already connected to peer") {
 		return err
 	}
 
@@ -814,7 +798,6 @@ func (l *LndGrpcLightningAPI) ConnectPeer(ctx context.Context, id string) error 
 // GetOnChainAddress API.
 func (l *LndGrpcLightningAPI) GetOnChainAddress(ctx context.Context) (string, error) {
 	resp, err := l.Client.NewAddress(ctx, &lnrpc.NewAddressRequest{Type: lnrpc.AddressType_WITNESS_PUBKEY_HASH})
-
 	if err != nil {
 		return "", err
 	}
@@ -829,12 +812,11 @@ func (l *LndGrpcLightningAPI) GetOnChainFunds(ctx context.Context) (*Funds, erro
 		return nil, err
 	}
 
-	f := &Funds{}
-	f.ConfirmedBalance = resp.ConfirmedBalance
-	f.TotalBalance = resp.TotalBalance
-	f.LockedBalance = resp.ReservedBalanceAnchorChan + resp.LockedBalance
-
-	return f, nil
+	return &Funds{
+		ConfirmedBalance: resp.ConfirmedBalance,
+		TotalBalance:     resp.TotalBalance,
+		LockedBalance:    resp.ReservedBalanceAnchorChan + resp.LockedBalance,
+	}, nil
 }
 
 // SendToOnChainAddress API.
@@ -894,13 +876,9 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 	}
 
 	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("timeout")
-		default:
-			// Do nothing
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
-
 		event, err := resp.Recv()
 
 		if err != nil {
@@ -953,12 +931,10 @@ func (l *LndGrpcLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash 
 	}
 
 	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("timeout")
-		default:
-			// Do nothing
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
+
 		event, err := resp.Recv()
 
 		if err != nil {
