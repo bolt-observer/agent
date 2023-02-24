@@ -370,7 +370,9 @@ func (h *HTTPAPI) GetHTTPRequest(getData GetDataCall) (*http.Request, *http.Tran
 }
 
 func (h *HTTPAPI) doGetRequest(req *http.Request, data any) error {
-	req.Method = http.MethodGet
+	if req != nil {
+		req.Method = http.MethodGet
+	}
 	resp, err := h.Do(req)
 	if err != nil {
 		return fmt.Errorf("http request failed %s", err)

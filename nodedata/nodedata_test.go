@@ -1220,7 +1220,6 @@ func TestBaseFeePolicyChange(t *testing.T) {
 		}, nil
 	}
 
-	fmt.Println(step)
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 	defer cancel()
 
@@ -1230,9 +1229,7 @@ func TestBaseFeePolicyChange(t *testing.T) {
 		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 			switch step {
 			case 0:
-				fmt.Println(step)
 				if len(report.ChangedChannels) == 2 {
-					fmt.Println(report.ChangedChannels)
 					step++
 				} else {
 					cancel()

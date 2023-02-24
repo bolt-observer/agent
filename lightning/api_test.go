@@ -443,12 +443,10 @@ func TestRawMessageSerialization(t *testing.T) {
 			t.Fatalf("Message marshal error: %v\n", err)
 		}
 
-		msg, err := json.Marshal(raw)
+		_, err := json.Marshal(raw)
 		if err != nil {
 			t.Fatalf("Wrapped message marshal error: %v\n", err)
 		}
-
-		fmt.Printf("JSON |%s|\n", msg)
 	}
 
 	//t.Fail()
@@ -463,7 +461,7 @@ func TestCtxError(t *testing.T) {
 	go func() {
 		for i := 0; i < 100; i++ {
 			if ctx.Err() != nil {
-				fmt.Printf("Error: %v\n", ctx.Err())
+				//fmt.Printf("Error: %v\n", ctx.Err())
 				break
 			}
 			time.Sleep(100 * time.Millisecond)
