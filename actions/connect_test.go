@@ -70,7 +70,7 @@ func TestCommunicate(t *testing.T) {
 			msg: &api.Action{
 				JobId:    5,
 				Action:   "unknown",
-				Sequence: api.Sequenece_EXECUTE,
+				Sequence: api.Sequence_EXECUTE,
 			},
 			sent: []*api.AgentReply{},
 		}
@@ -82,7 +82,7 @@ func TestCommunicate(t *testing.T) {
 
 		assert.Equal(t, &api.AgentReply{
 			JobId:    5,
-			Sequence: api.Sequenece_EXECUTE,
+			Sequence: api.Sequence_EXECUTE,
 			Type:     api.ReplyType_ERROR,
 			Message:  "Plugin unknown not found on agent",
 		}, bs.sent[0])
@@ -94,7 +94,7 @@ func TestCommunicate(t *testing.T) {
 			msg: &api.Action{
 				JobId:    5,
 				Action:   "test",
-				Sequence: api.Sequenece_EXECUTE,
+				Sequence: api.Sequence_EXECUTE,
 			},
 			sent: []*api.AgentReply{},
 		}
@@ -106,7 +106,7 @@ func TestCommunicate(t *testing.T) {
 
 		assert.Equal(t, &api.AgentReply{
 			JobId:    5,
-			Sequence: api.Sequenece_EXECUTE,
+			Sequence: api.Sequence_EXECUTE,
 			Type:     api.ReplyType_SUCCESS,
 		}, bs.sent[0])
 	})
@@ -117,7 +117,7 @@ func TestCommunicate(t *testing.T) {
 			msg: &api.Action{
 				JobId:    5,
 				Action:   "fail",
-				Sequence: api.Sequenece_EXECUTE,
+				Sequence: api.Sequence_EXECUTE,
 			},
 			sent: []*api.AgentReply{},
 		}
@@ -129,7 +129,7 @@ func TestCommunicate(t *testing.T) {
 
 		assert.Equal(t, &api.AgentReply{
 			JobId:    5,
-			Sequence: api.Sequenece_EXECUTE,
+			Sequence: api.Sequence_EXECUTE,
 			Type:     api.ReplyType_ERROR,
 			Message:  "Could not execute",
 		}, bs.sent[0])
@@ -140,7 +140,7 @@ func TestCommunicate(t *testing.T) {
 			msg: &api.Action{
 				JobId:    5,
 				Action:   "test",
-				Sequence: api.Sequenece_EXECUTE,
+				Sequence: api.Sequence_EXECUTE,
 			},
 			sent: []*api.AgentReply{},
 		}
@@ -160,7 +160,7 @@ func TestCommunicate(t *testing.T) {
 
 		assert.Equal(t, &api.AgentReply{
 			JobId:    5,
-			Sequence: api.Sequenece_EXECUTE,
+			Sequence: api.Sequence_EXECUTE,
 			Type:     api.ReplyType_SUCCESS,
 			Message:  `Agent received action "test" in dry-run mode. No action really taken`,
 		}, bs.sent[0])

@@ -79,23 +79,23 @@ func (c *Connector) communicate(ctx context.Context, stream actionStreamer) erro
 			case err != nil:
 				glog.Errorf("Error while receiving message: %v", err)
 				return err
-			case msg.Sequence == api.Sequenece_CONNECT:
+			case msg.Sequence == api.Sequence_CONNECT:
 				// first request is validation of the connection and credentials
 				glog.Info("Successfully connected to the server")
 				break
-			case msg.Sequence == api.Sequenece_EXECUTE:
+			case msg.Sequence == api.Sequence_EXECUTE:
 				plugin, ok := c.Plugins[msg.Action]
 				if !ok {
 					err = stream.Send(&api.AgentReply{
 						JobId:    msg.JobId,
-						Sequence: api.Sequenece_EXECUTE,
+						Sequence: api.Sequence_EXECUTE,
 						Type:     api.ReplyType_ERROR,
 						Message:  fmt.Sprintf("Plugin %s not found on agent", msg.Action),
 					})
 				} else if c.IsDryRun {
 					err = stream.Send(&api.AgentReply{
 						JobId:    msg.JobId,
-						Sequence: api.Sequenece_EXECUTE,
+						Sequence: api.Sequence_EXECUTE,
 						Type:     api.ReplyType_SUCCESS,
 						Message:  fmt.Sprintf(`Agent received action "%s" in dry-run mode. No action really taken`, msg.Action),
 					})
@@ -103,14 +103,14 @@ func (c *Connector) communicate(ctx context.Context, stream actionStreamer) erro
 					glog.Errorf("Could not execute action: %v", err)
 					err = stream.Send(&api.AgentReply{
 						JobId:    msg.JobId,
-						Sequence: api.Sequenece_EXECUTE,
+						Sequence: api.Sequence_EXECUTE,
 						Type:     api.ReplyType_ERROR,
 						Message:  err.Error(),
 					})
 				} else { // ack
 					err = stream.Send(&api.AgentReply{
 						JobId:    msg.JobId,
-						Sequence: api.Sequenece_EXECUTE,
+						Sequence: api.Sequence_EXECUTE,
 						Type:     api.ReplyType_SUCCESS,
 					})
 				}
@@ -132,9 +132,9 @@ func (c *Connector) ForwardJobMessages(msg entities.PluginMessage) error {
 		replyType = api.ReplyType_ERROR
 	}
 
-	sequence := api.Sequenece_LOG
+	sequence := api.Sequence_LOG
 	if msg.IsFinished {
-		sequence = api.Sequenece_FINISHED
+		sequence = api.Sequence_FINISHED
 	}
 
 	if err := c.client.SendMsg(&api.AgentReply{
