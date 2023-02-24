@@ -19,7 +19,7 @@ type testPlugin struct {
 	shouldFail bool
 }
 
-func (tp *testPlugin) Execute(jobID int32, data []byte, msg func(entities.PluginMessage) error) error {
+func (tp *testPlugin) Execute(jobID int32, data []byte, msg entities.MessageCallback) error {
 	if tp.shouldFail {
 		return errors.New("Could not execute")
 	}
