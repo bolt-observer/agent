@@ -13,7 +13,7 @@ type Plugin struct {
 }
 
 // Execute is currently just mocked
-func (b *Plugin) Execute(jobID int32, data []byte, msgCallback func(agent_entities.PluginMessage) error, isDryRun bool) error {
+func (b *Plugin) Execute(jobID int32, data []byte, msgCallback func(agent_entities.PluginMessage) error) error {
 	go func() {
 		// LOG
 		<-time.After(2 * time.Second)

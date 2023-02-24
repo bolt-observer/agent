@@ -4,7 +4,7 @@ package entities
 type Plugin interface {
 	// Execute can be called multiple times for the same job
 	// It's plugin responsibility to check if the job is already running and ignore such requests
-	Execute(jobID int32, data []byte, msgCallback func(PluginMessage) error, isDryRyn bool) error
+	Execute(jobID int32, data []byte, msgCallback func(PluginMessage) error) error
 }
 
 // PluginMessage is structure of message sent from plugin to connector
