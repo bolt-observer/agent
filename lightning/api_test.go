@@ -13,6 +13,7 @@ import (
 
 	entities "github.com/bolt-observer/go_common/entities"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestApiSelection(t *testing.T) {
@@ -452,4 +453,27 @@ func TestRawMessageSerialization(t *testing.T) {
 
 	//t.Fail()
 
+}
+
+func TestCtxError(t *testing.T) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(8*time.Second))
+
+	done := false
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			if ctx.Err() != nil {
+				fmt.Printf("Error: %v\n", ctx.Err())
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		done = true
+	}()
+
+	cancel()
+	time.Sleep(200 * time.Millisecond)
+	assert.Equal(t, true, done)
+
+	//t.Fail()
 }
