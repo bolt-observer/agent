@@ -343,12 +343,13 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:   "insecure",
-			Usage:  "Allow insecure connections to the api. Can be usefull for debugging purposes.",
+			Usage:  "Allow insecure connections to the api. Can be usefull for debugging purposes",
 			Hidden: true,
 		},
 	}
 
 	app.Flags = append(app.Flags, glogFlags...)
+	app.Flags = append(app.Flags, plugins.PluginFlags...)
 
 	return app
 }
@@ -621,6 +622,7 @@ func runAgent(cmdCtx *cli.Context) error {
 
 	if cmdCtx.Bool("actions") {
 		fn := mkGetLndAPI(cmdCtx)
+		plugins.InitPlugins(fn, cmdCtx)
 		g.Go(func() error {
 			ac := &actions.Connector{
 				Address:    url,

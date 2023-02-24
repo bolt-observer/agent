@@ -35,9 +35,7 @@ func (b *Plugin) EnsureConnected(ctx context.Context) error {
 	last := ""
 
 	for _, url := range node.URIs {
-		// TODO
-		fmt.Printf("%s\n", url)
-		//err = lapi.ConnectPeer(ctx, url)
+		err = lapi.ConnectPeer(ctx, url)
 		if err == nil {
 			success = true
 			break

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	api "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	"github.com/stretchr/testify/assert"
+	"github.com/urfave/cli"
 )
 
 const FailNoCredsBoltz = false
@@ -58,8 +60,15 @@ func getAPI(t *testing.T, name string, typ api.APIType) agent_entities.NewAPICal
 	}
 }
 
+func getMockCliCtx() *cli.Context {
+	fs := &flag.FlagSet{}
+	fs.String("boltzurl", DefaultBoltzUrl, "")
+	fs.String("network", "regtest", "")
+	return cli.NewContext(nil, fs, nil)
+}
+
 func TestEnsureConnected(t *testing.T) {
-	b := NewBoltzPlugin(getAPI(t, "fixture.secret", api.LndRest), "mainnet", "")
+	b := NewBoltzPlugin(getAPI(t, "fixture.secret", api.LndRest), getMockCliCtx())
 	if b == nil {
 		if FailNoCredsBoltz {
 			t.Fatalf("no credentials")
@@ -69,8 +78,4 @@ func TestEnsureConnected(t *testing.T) {
 
 	err := b.EnsureConnected(context.Background())
 	assert.NoError(t, err)
-
-	//b.Check("ITTpbl")
-	//b.Swap()
-	t.Fail()
 }

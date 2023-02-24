@@ -8,11 +8,18 @@ import (
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/golang/glog"
+	"github.com/urfave/cli"
 )
 
 const (
 	DefaultBoltzUrl = "https://boltz.exchange/api"
 )
+
+var PluginFlags = []cli.Flag{
+	cli.StringFlag{
+		Name: "boltzurl", Value: DefaultBoltzUrl, Usage: "url of boltz api", Hidden: false,
+	},
+}
 
 // Plugin can save its data here
 type Plugin struct {
@@ -24,7 +31,9 @@ type Plugin struct {
 }
 
 // NewBoltzPlugin creates new instance
-func NewBoltzPlugin(lnAPI entities.NewAPICall, network string, boltzUrl string) *Plugin {
+func NewBoltzPlugin(lnAPI agent_entities.NewAPICall, cmdCtx *cli.Context) *Plugin {
+	network := cmdCtx.String("network")
+
 	params := chaincfg.MainNetParams
 	switch network {
 	case "mainnet":
@@ -37,14 +46,10 @@ func NewBoltzPlugin(lnAPI entities.NewAPICall, network string, boltzUrl string) 
 		params = chaincfg.SimNetParams
 	}
 
-	if boltzUrl == "" {
-		boltzUrl = params.DefaultPort
-	}
-
 	resp := &Plugin{
 		ChainParams: &params,
 		BoltzAPI: &boltz.Boltz{
-			URL: boltzUrl,
+			URL: cmdCtx.String("boltzurl"),
 		},
 	}
 	if lnAPI == nil {
