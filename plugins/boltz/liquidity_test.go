@@ -1,7 +1,7 @@
 package boltz
 
 import (
-	"fmt"
+	"context"
 	"testing"
 
 	"github.com/bolt-observer/agent/filter"
@@ -13,17 +13,9 @@ func TestGetNodeLiquidity(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	b := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
-	if b == nil {
-		if FailNoCredsBoltz {
-			t.Fatalf("no credentials")
-		}
-		return
-	}
-
-	resp, err := b.GetNodeLiquidity()
+	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
 	assert.NoError(t, err)
 
-	fmt.Printf("%+v\n", resp)
-	t.Fail()
+	_, err = b.GetNodeLiquidity(context.Background())
+	assert.NoError(t, err)
 }

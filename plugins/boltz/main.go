@@ -37,9 +37,9 @@ func init() {
 	plugins.AllPluginFlags = append(plugins.AllPluginFlags, PluginFlags...)
 	plugins.RegisteredPlugins = append(plugins.RegisteredPlugins, plugins.PluginData{
 		Name: "boltz",
-		Init: func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) agent_entities.Plugin {
-			r := NewPlugin(lnAPI, filter, cmdCtx)
-			return agent_entities.Plugin(r)
+		Init: func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) (agent_entities.Plugin, error) {
+			r, err := NewPlugin(lnAPI, filter, cmdCtx)
+			return agent_entities.Plugin(r), err
 		},
 	})
 }
@@ -56,7 +56,7 @@ type Plugin struct {
 }
 
 // NewPlugin creates new instance
-func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) *Plugin {
+func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) (*Plugin, error) {
 	network := cmdCtx.String("network")
 
 	params := chaincfg.MainNetParams
@@ -81,12 +81,12 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	if mnemonic != "" {
 		entropy, err = bip39.MnemonicToByteArray(mnemonic, true)
 		if err != nil {
-			glog.Fatalf("Invalid mnemonic: %v", err)
+			return nil, err
 		}
 	} else {
 		entropy, err = bip39.NewEntropy(SecretBitSize)
 		if err != nil {
-			glog.Fatalf("Bad entropy: %v", err)
+			return nil, err
 		}
 	}
 
@@ -97,9 +97,6 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		},
 		MasterSecret: entropy,
 	}
-	if lnAPI == nil {
-		return nil
-	}
 
 	if cmdCtx.Bool("dumpmnemonic") {
 		fmt.Printf("Your secret is %s\n", resp.DumpMnemonic())
@@ -107,7 +104,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 
 	resp.Filter = filter
 	resp.LnAPI = lnAPI
-	return resp
+	return resp, nil
 }
 
 // Execute is currently just mocked

@@ -23,7 +23,7 @@ var (
 )
 
 // InitPluginFn signature of init plugin function
-type InitPluginFn func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) agent_entities.Plugin
+type InitPluginFn func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) (agent_entities.Plugin, error)
 
 // PluginData structure
 type PluginData struct {
@@ -35,7 +35,10 @@ func InitPlugins(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterfa
 	Plugins = make(map[string]agent_entities.Plugin)
 
 	for _, p := range RegisteredPlugins {
-		plugin := p.Init(lnAPI, filter, cmdCtx)
+		plugin, err := p.Init(lnAPI, filter, cmdCtx)
+		if err != nil {
+			return err
+		}
 		if plugin == nil {
 			return fmt.Errorf("%s plugin failed to initialize", p.Name)
 		}

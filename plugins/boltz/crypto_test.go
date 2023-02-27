@@ -61,14 +61,8 @@ func TestGetKeys(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	b := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
-	if b == nil {
-		if FailNoCredsBoltz {
-			t.Fatalf("no credentials")
-		}
-		return
-	}
-
+	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
+	assert.NoError(t, err)
 	_, err = b.GetKeys("aa")
 	assert.NoError(t, err)
 }

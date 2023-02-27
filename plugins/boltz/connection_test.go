@@ -72,14 +72,8 @@ func TestEnsureConnected(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	b := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
-	if b == nil {
-		if FailNoCredsBoltz {
-			t.Fatalf("no credentials")
-		}
-		return
-	}
-
+	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
+	assert.NoError(t, err)
 	err = b.EnsureConnected(context.Background())
 	assert.NoError(t, err)
 }

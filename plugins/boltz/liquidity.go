@@ -15,7 +15,7 @@ type Liquidity struct {
 }
 
 // GetNodeLiquidity - gets current node liquidity
-func (b *Plugin) GetNodeLiquidity() (*Liquidity, error) {
+func (b *Plugin) GetNodeLiquidity(ctx context.Context) (*Liquidity, error) {
 	lnAPI, err := b.LnAPI()
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func (b *Plugin) GetNodeLiquidity() (*Liquidity, error) {
 	}
 	defer lnAPI.Cleanup()
 
-	resp, err := lnAPI.GetChannels(context.Background())
+	resp, err := lnAPI.GetChannels(ctx)
 	if err != nil {
 		return nil, err
 	}
