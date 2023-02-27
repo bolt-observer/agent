@@ -217,7 +217,9 @@ func (ln *LN) connectWith(netAddr *lnwire.NetAddress) error {
 		conn, err = brontide.Dial(ln.PrivKeyECDH, netAddr, ln.Timeout, ln.Proxy.Dial)
 	}
 
-	ln.Conn = conn
+	if err == nil {
+		ln.Conn = conn
+	}
 
 	return err
 }
