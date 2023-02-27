@@ -33,7 +33,7 @@ func TestApiSelection(t *testing.T) {
 	api, err := NewAPI(APIType(500), func() (*entities.Data, error) {
 		return &data, nil
 	})
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	if api != nil {
 		t.Fatalf("API should be nil")
 	}

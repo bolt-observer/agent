@@ -74,6 +74,12 @@ func TestEnsureConnected(t *testing.T) {
 
 	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
 	assert.NoError(t, err)
+	if b == nil {
+		if FailNoCredsBoltz {
+			t.Fail()
+		}
+		return
+	}
 	err = b.EnsureConnected(context.Background())
 	assert.NoError(t, err)
 }

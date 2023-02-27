@@ -63,6 +63,13 @@ func TestGetKeys(t *testing.T) {
 
 	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
 	assert.NoError(t, err)
+	if b == nil {
+		if FailNoCredsBoltz {
+			t.Fail()
+		}
+		return
+	}
+
 	_, err = b.GetKeys("aa")
 	assert.NoError(t, err)
 }
