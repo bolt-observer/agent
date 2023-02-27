@@ -7,6 +7,7 @@ import (
 	"github.com/BoltzExchange/boltz-lnd/boltz"
 	"github.com/bolt-observer/agent/entities"
 	agent_entities "github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/filter"
 	"github.com/bolt-observer/agent/plugins"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/golang/glog"
@@ -36,8 +37,8 @@ func init() {
 	plugins.AllPluginFlags = append(plugins.AllPluginFlags, PluginFlags...)
 	plugins.RegisteredPlugins = append(plugins.RegisteredPlugins, plugins.PluginData{
 		Name: "boltz",
-		Init: func(lnAPI agent_entities.NewAPICall, cmdCtx *cli.Context) agent_entities.Plugin {
-			r := NewPlugin(lnAPI, cmdCtx)
+		Init: func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) agent_entities.Plugin {
+			r := NewPlugin(lnAPI, filter, cmdCtx)
 			return agent_entities.Plugin(r)
 		},
 	})
@@ -48,13 +49,14 @@ type Plugin struct {
 	BoltzAPI     *boltz.Boltz
 	ChainParams  *chaincfg.Params
 	LnAPI        entities.NewAPICall
+	Filter       filter.FilteringInterface
 	MasterSecret []byte
 
 	agent_entities.Plugin
 }
 
 // NewPlugin creates new instance
-func NewPlugin(lnAPI agent_entities.NewAPICall, cmdCtx *cli.Context) *Plugin {
+func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) *Plugin {
 	network := cmdCtx.String("network")
 
 	params := chaincfg.MainNetParams

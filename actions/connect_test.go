@@ -35,7 +35,7 @@ func (b *blockingStream) Send(r *api.AgentReply) error {
 }
 
 func mkGetLndAPI(cmdCtx *cli.Context) entities.NewAPICall {
-	return func() lnapi.LightingAPICalls {
+	return func() (lnapi.LightingAPICalls, error) {
 		return lnapi.NewAPI(lnapi.LndGrpc, func() (*common_entities.Data, error) {
 			return &common_entities.Data{
 				PubKey: "test-pubkey",

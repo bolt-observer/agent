@@ -20,11 +20,14 @@ func (b *Plugin) EnsureConnected(ctx context.Context) error {
 		return err
 	}
 
-	lapi := b.LnAPI()
-	if lapi == nil {
+	lnAPI, err := b.LnAPI()
+	if err != nil {
+		return err
+	}
+	if lnAPI == nil {
 		return fmt.Errorf("could not get lightning api")
 	}
-	defer lapi.Cleanup()
+	defer lnAPI.Cleanup()
 
 	node, hasNode := nodes.Nodes[Symbol]
 
@@ -40,7 +43,7 @@ func (b *Plugin) EnsureConnected(ctx context.Context) error {
 	last := ""
 
 	for _, url := range node.URIs {
-		err = lapi.ConnectPeer(ctx, url)
+		err = lnAPI.ConnectPeer(ctx, url)
 		if err == nil {
 			success = true
 			break

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	agent_entities "github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/filter"
 	"github.com/bolt-observer/agent/lightning"
 	api "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
@@ -51,12 +52,12 @@ func getAPI(t *testing.T, name string, typ api.APIType) agent_entities.NewAPICal
 		}
 	}
 
-	return func() lightning.LightingAPICalls {
-		api := api.NewAPI(typ, func() (*common_entities.Data, error) {
+	return func() (lightning.LightingAPICalls, error) {
+		api, err := api.NewAPI(typ, func() (*common_entities.Data, error) {
 			return &data, nil
 		})
 
-		return api
+		return api, err
 	}
 }
 
@@ -68,7 +69,10 @@ func getMockCliCtx() *cli.Context {
 }
 
 func TestEnsureConnected(t *testing.T) {
-	b := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), getMockCliCtx())
+	f, err := filter.NewAllowAllFilter()
+	assert.NoError(t, err)
+
+	b := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
 	if b == nil {
 		if FailNoCredsBoltz {
 			t.Fatalf("no credentials")
@@ -76,6 +80,6 @@ func TestEnsureConnected(t *testing.T) {
 		return
 	}
 
-	err := b.EnsureConnected(context.Background())
+	err = b.EnsureConnected(context.Background())
 	assert.NoError(t, err)
 }

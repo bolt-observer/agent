@@ -19,6 +19,7 @@ import (
 	"github.com/bolt-observer/go_common/entities"
 	"github.com/bolt-observer/go_common/utils"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/stretchr/testify/assert"
 )
 
 func getInfoJSON(pubkey string) string {
@@ -167,9 +168,10 @@ func initTest(t *testing.T) (string, lightning_api.LightingAPICalls, *lightning_
 		Endpoint:          "bolt.observer:443",
 	}
 
-	api := lightning_api.NewAPI(lightning_api.LndRest, func() (*entities.Data, error) {
+	api, err := lightning_api.NewAPI(lightning_api.LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -232,7 +234,7 @@ func TestBasicFlow(t *testing.T) {
 			cancel()
 			return true
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -294,7 +296,7 @@ func TestContextCanBeNil(t *testing.T) {
 			}
 			return true
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -344,7 +346,7 @@ func TestGetState(t *testing.T) {
 
 	resp, err := c.GetState(
 		pubKey, "random_id",
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
 			PollInterval:         agent_entities.Second,
@@ -397,7 +399,7 @@ func TestGetStateCallback(t *testing.T) {
 
 	resp, err := c.GetState(
 		pubKey, "random_id",
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
 			PollInterval:         agent_entities.Second,
@@ -471,7 +473,7 @@ func TestSubscription(t *testing.T) {
 
 	err := c.Subscribe(
 		nil,
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -488,7 +490,7 @@ func TestSubscription(t *testing.T) {
 	// Second subscribe works without errors
 	err = c.Subscribe(
 		nil,
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -557,7 +559,7 @@ func TestPrivateChannelsExcluded(t *testing.T) {
 			cancel()
 			return true
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -646,7 +648,7 @@ func TestInactiveFlow(t *testing.T) {
 			return true
 
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -735,7 +737,7 @@ func TestChange(t *testing.T) {
 			return true
 
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -780,7 +782,7 @@ func TestPubkeyWrong(t *testing.T) {
 
 	err := c.Subscribe(
 		nil,
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -861,7 +863,7 @@ func TestKeepAliveIsSent(t *testing.T) {
 			return true
 
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -939,7 +941,7 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 			return true
 
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -1033,7 +1035,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 			return true
 
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -1096,7 +1098,7 @@ func TestGraphIsRequested(t *testing.T) {
 		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 			return true
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -1168,7 +1170,7 @@ func TestBasicFlowRedis(t *testing.T) {
 			cancel()
 			return true
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -1248,7 +1250,7 @@ func TestBaseFeePolicyChange(t *testing.T) {
 			return true
 
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -1318,7 +1320,7 @@ func TestBasicFlowFilterOne(t *testing.T) {
 			cancel()
 			return true
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,
@@ -1383,7 +1385,7 @@ func TestBasicFlowFilterTwo(t *testing.T) {
 			cancel()
 			return true
 		},
-		func() lightning_api.LightingAPICalls { return api },
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
 		pubKey,
 		agent_entities.ReportingSettings{
 			AllowedEntropy:       64,

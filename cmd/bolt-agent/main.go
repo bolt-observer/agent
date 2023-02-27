@@ -479,7 +479,7 @@ func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport
 }
 
 func mkGetLndAPI(cmdCtx *cli.Context) agent_entities.NewAPICall {
-	return func() api.LightingAPICalls {
+	return func() (api.LightingAPICalls, error) {
 		return api.NewAPI(api.LndGrpc, func() (*entities.Data, error) {
 			return getData(cmdCtx)
 		})
@@ -625,7 +625,7 @@ func runAgent(cmdCtx *cli.Context) error {
 
 	if cmdCtx.Bool("actions") {
 		fn := mkGetLndAPI(cmdCtx)
-		plugins.InitPlugins(fn, cmdCtx)
+		plugins.InitPlugins(fn, f, cmdCtx)
 		g.Go(func() error {
 			ac := &actions.Connector{
 				Address:    url,

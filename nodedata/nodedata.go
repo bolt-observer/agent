@@ -91,7 +91,10 @@ func (c *NodeData) Subscribe(
 		return errors.New("invalid pubkey")
 	}
 
-	api := getAPI()
+	api, err := getAPI()
+	if err != nil {
+		return err
+	}
 	if api == nil {
 		return fmt.Errorf("failed to get client")
 	}
@@ -338,7 +341,11 @@ func (c *NodeData) fetchGraph(
 	settings entities.ReportingSettings,
 ) error {
 
-	api := getAPI()
+	api, err := getAPI()
+	if err != nil {
+		return err
+	}
+
 	if api == nil {
 		return fmt.Errorf("failed to get client")
 	}
@@ -511,7 +518,10 @@ func (c *NodeData) checkOne(
 		return nil, 0, fmt.Errorf("failed to get client - getAPI was nil")
 	}
 
-	api := getAPI()
+	api, err := getAPI()
+	if err != nil {
+		return nil, 0, err
+	}
 	if api == nil {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, 0, fmt.Errorf("failed to get client - getAPI returned nil")

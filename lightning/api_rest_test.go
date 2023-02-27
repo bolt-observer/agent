@@ -50,9 +50,10 @@ func TestObtainData(t *testing.T) {
 		return
 	}
 
-	api := NewAPI(LndRest, func() (*entities.Data, error) {
+	api, err := NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -198,9 +199,10 @@ func common(t *testing.T, name string) ([]byte, *LndRestLightningAPI, LightingAP
 		return nil, nil, nil
 	}
 
-	api := NewAPI(LndRest, func() (*entities.Data, error) {
+	api, err := NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")

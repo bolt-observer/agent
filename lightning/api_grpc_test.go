@@ -51,9 +51,10 @@ func TestObtainDataGrpc(t *testing.T) {
 		return
 	}
 
-	api := NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err := NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -120,10 +121,12 @@ func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient, mr *moc
 		return nil, nil
 	}
 
-	api := NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err := NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
-
+	if err != nil {
+		return nil, nil
+	}
 	if api == nil {
 		t.Fatalf("API should not be nil")
 		return nil, nil

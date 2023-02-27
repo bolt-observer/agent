@@ -51,12 +51,15 @@ func (b *Plugin) Swap(id string) error {
 		return err
 	}
 
-	l := b.LnAPI()
-	if l == nil {
+	lnAPI, err := b.LnAPI()
+	if err != nil {
+		return err
+	}
+	if lnAPI == nil {
 		return fmt.Errorf("error checkig lightning")
 	}
-	defer l.Cleanup()
-	resp, err := l.GetInfo(context.Background())
+	defer lnAPI.Cleanup()
+	resp, err := lnAPI.GetInfo(context.Background())
 	if err != nil || resp.BlockHeight+BlockEps < int(response.TimeoutBlockHeight) {
 		return fmt.Errorf("error checking blockheight")
 	}

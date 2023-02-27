@@ -553,16 +553,16 @@ type LightingAPICalls interface {
 type GetDataCall func() (*entities.Data, error)
 
 // NewAPI - gets new lightning API.
-func NewAPI(apiType APIType, getData GetDataCall) LightingAPICalls {
+func NewAPI(apiType APIType, getData GetDataCall) (LightingAPICalls, error) {
 	if getData == nil {
 		sentry.CaptureMessage("getData was nil")
-		return nil
+		return nil, fmt.Errorf("getData error")
 	}
 
 	data, err := getData()
 	if err != nil {
 		sentry.CaptureException(err)
-		return nil
+		return nil, err
 	}
 
 	t := LndGrpc
@@ -580,15 +580,15 @@ func NewAPI(apiType APIType, getData GetDataCall) LightingAPICalls {
 
 	switch t {
 	case LndGrpc:
-		return NewLndGrpcLightningAPI(getData)
+		return NewLndGrpcLightningAPI(getData), nil
 	case LndRest:
-		return NewLndRestLightningAPI(getData)
+		return NewLndRestLightningAPI(getData), nil
 	case ClnSocket:
-		return NewClnSocketLightningAPI(getData)
+		return NewClnSocketLightningAPI(getData), nil
 	case ClnCommando:
-		return NewClnCommandoLightningAPI(getData)
+		return NewClnCommandoLightningAPI(getData), nil
 	}
 
 	sentry.CaptureMessage("Invalid api type")
-	return nil
+	return nil, fmt.Errorf("invalid API type")
 }
