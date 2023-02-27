@@ -2,30 +2,27 @@ package boltz
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
-	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 // Swap - does the submarine swap - PoC
 func (b *Plugin) Swap(id string) error {
 	const BlockEps = 10
 
-	preimage := DeterministicPreimage(id, b.MasterSecret)
-	hash := sha256.Sum256(preimage)
-	preimageHash := hash[:]
-	origPriv, _ := btcec.PrivKeyFromBytes(b.MasterSecret)
-	priv := DeterministicPrivateKey(id, origPriv)
+	keys, err := b.GetKeys(id)
+	if err != nil {
+		return err
+	}
 
 	response, err := b.BoltzAPI.CreateSwap(boltz.CreateSwapRequest{
 		Type:            "submarine",
 		PairId:          "BTC/BTC",
 		OrderSide:       "buy",
-		PreimageHash:    hex.EncodeToString(preimageHash),
-		RefundPublicKey: hex.EncodeToString(priv.PubKey().SerializeCompressed()),
+		PreimageHash:    hex.EncodeToString(keys.Preimage.Hash),
+		RefundPublicKey: hex.EncodeToString(keys.Keys.PublicKey.SerializeCompressed()),
 	})
 
 	if err != nil {
@@ -41,7 +38,7 @@ func (b *Plugin) Swap(id string) error {
 
 	fmt.Printf("Timeout %v\n", response.TimeoutBlockHeight)
 
-	err = boltz.CheckSwapScript(redeemScript, preimageHash, priv, response.TimeoutBlockHeight)
+	err = boltz.CheckSwapScript(redeemScript, keys.Preimage.Hash, keys.Keys.PrivateKey, response.TimeoutBlockHeight)
 	if err != nil {
 		return err
 	}
@@ -56,7 +53,7 @@ func (b *Plugin) Swap(id string) error {
 		return err
 	}
 	if lnAPI == nil {
-		return fmt.Errorf("error checkig lightning")
+		return fmt.Errorf("error checking lightning")
 	}
 	defer lnAPI.Cleanup()
 	resp, err := lnAPI.GetInfo(context.Background())

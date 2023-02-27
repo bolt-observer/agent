@@ -4,7 +4,11 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/golang/glog"
+	bip32 "github.com/tyler-smith/go-bip32"
+	bip39 "github.com/tyler-smith/go-bip39"
 )
 
 // DeterministicPrivateKey - from private key x generated x + hash(id)
@@ -45,4 +49,73 @@ func DeterministicPreimage(id string, key []byte) []byte {
 	h.Write([]byte(id))
 	r := h.Sum(nil)
 	return r
+}
+
+// Preimage struct.
+type Preimage struct {
+	Raw  []byte
+	Hash []byte
+}
+
+type AsymmetricKeys struct {
+	PrivateKey *secp256k1.PrivateKey
+	PublicKey  *secp256k1.PublicKey
+}
+
+// Keys struct.
+type Keys struct {
+	Preimage Preimage
+	Keys     AsymmetricKeys
+}
+
+// GetKeys
+func (b *Plugin) GetKeys(id string) (*Keys, error) {
+	mnemonic, err := bip39.NewMnemonic(b.MasterSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	seed := bip39.NewSeed(mnemonic, "")
+	master, err := bip32.NewMasterKey(seed)
+	if err != nil {
+		return nil, err
+	}
+
+	preimage_seed, err := master.NewChildKey(1)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &Keys{}
+	result.Preimage = Preimage{}
+
+	preimage := DeterministicPreimage(id, preimage_seed.Key)
+	hash := sha256.Sum256(preimage)
+	preimageHash := hash[:]
+	result.Preimage.Raw = preimage
+	result.Preimage.Hash = preimageHash
+
+	key_seed, err := master.NewChildKey(2)
+	if err != nil {
+		return nil, err
+	}
+
+	origPriv, _ := btcec.PrivKeyFromBytes(key_seed.Key)
+	priv := DeterministicPrivateKey(id, origPriv)
+
+	result.Keys = AsymmetricKeys{}
+	result.Keys.PrivateKey = priv
+	result.Keys.PublicKey = priv.PubKey()
+
+	return result, nil
+}
+
+func (b *Plugin) DumpMnemonic() string {
+	mnemonic, err := bip39.NewMnemonic(b.MasterSecret)
+	if err != nil {
+		glog.Warningf("DumpMnemonic failed %v", err)
+		return ""
+	}
+
+	return mnemonic
 }

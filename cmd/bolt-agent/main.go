@@ -571,8 +571,12 @@ func runAgent(cmdCtx *cli.Context) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		if !cmdCtx.Bool("private") {
+			x := f.(*filter.AllowAllFilter)
+			x.Options = filter.AllowAllPublic
+		}
 	}
-
 	go signalHandler(ct, f)
 
 	url = cmdCtx.String("url")

@@ -79,7 +79,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	mnemonic := cmdCtx.String("setmnemonic")
 	// TODO: save this to db
 	if mnemonic != "" {
-		entropy, err = bip39.MnemonicToByteArray(mnemonic)
+		entropy, err = bip39.MnemonicToByteArray(mnemonic, true)
 		if err != nil {
 			glog.Fatalf("Invalid mnemonic: %v", err)
 		}
@@ -105,6 +105,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		fmt.Printf("Your secret is %s\n", resp.DumpMnemonic())
 	}
 
+	resp.Filter = filter
 	resp.LnAPI = lnAPI
 	return resp
 }

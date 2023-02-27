@@ -5,8 +5,11 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/bolt-observer/agent/filter"
+	api "github.com/bolt-observer/agent/lightning"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/tyler-smith/go-bip39"
 )
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -52,4 +55,35 @@ func TestHmac(t *testing.T) {
 		assert.NotEqual(t, true, exists)
 		m[result] = struct{}{}
 	}
+}
+
+func TestGetKeys(t *testing.T) {
+	f, err := filter.NewAllowAllFilter()
+	assert.NoError(t, err)
+
+	b := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
+	if b == nil {
+		if FailNoCredsBoltz {
+			t.Fatalf("no credentials")
+		}
+		return
+	}
+
+	_, err = b.GetKeys("aa")
+	assert.NoError(t, err)
+}
+
+func TestMnemonic(t *testing.T) {
+	entropy, err := bip39.NewEntropy(SecretBitSize)
+	assert.NoError(t, err)
+	mnemonic, err := bip39.NewMnemonic(entropy)
+	assert.NoError(t, err)
+
+	a, err := bip39.MnemonicToByteArray(mnemonic, true)
+	assert.NoError(t, err)
+	assert.Equal(t, hex.EncodeToString(entropy), hex.EncodeToString(a))
+	mnemonic2, err := bip39.NewMnemonic(a)
+	assert.NoError(t, err)
+
+	assert.Equal(t, mnemonic, mnemonic2)
 }
