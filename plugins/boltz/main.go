@@ -1,17 +1,18 @@
 package boltz
 
 import (
+	"encoding/json"
 	"fmt"
-	"time"
+	"sync"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
 	"github.com/bolt-observer/agent/entities"
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
 	"github.com/bolt-observer/agent/plugins"
+	"github.com/bolt-observer/agent/plugins/types"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/golang/glog"
 	"github.com/tyler-smith/go-bip39"
 	"github.com/urfave/cli"
 )
@@ -26,7 +27,7 @@ var PluginFlags = []cli.Flag{
 		Name: "boltzurl", Value: DefaultBoltzUrl, Usage: "url of boltz api", Hidden: false,
 	},
 	cli.StringFlag{
-		Name: "boltzdatabase", Value: btcutil.AppDataDir("bolt", false) + "/boltz.db", Usage: "full path to the database file", Hidden: false,
+		Name: "boltzdatabase", Value: btcutil.AppDataDir("bolt", false) + "/boltz.db", Usage: "full writtable path to the database file", Hidden: false,
 	},
 	cli.BoolFlag{
 		Name: "dumpmnemonic", Usage: "should we print master secret as mnemonic phrase (dangerous)", Hidden: false,
@@ -55,12 +56,23 @@ type Plugin struct {
 	LnAPI        entities.NewAPICall
 	Filter       filter.FilteringInterface
 	MasterSecret []byte
-
+	db           DB
+	jobs         map[int32]interface{}
+	mutex        sync.Mutex
 	agent_entities.Plugin
+}
+
+type JobModel struct {
+	ID   int32 `boltholdUnique:"UniqueID"`
+	Data []byte
 }
 
 // NewPlugin creates new instance
 func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) (*Plugin, error) {
+	if lnAPI == nil {
+		return nil, types.ErrInvalidArguments
+	}
+
 	network := cmdCtx.String("network")
 
 	params := chaincfg.MainNetParams
@@ -75,15 +87,14 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		params = chaincfg.SimNetParams
 	}
 
-	var (
-		entropy []byte
-		err     error
-	)
-
+	db := &BoltzDB{}
 	dbFile := agent_entities.CleanAndExpandPath(cmdCtx.String("boltzdatabase"))
-	if dbFile != "" {
-		// TODO: handle db opening
+	err := db.Connect(dbFile)
+	if err != nil {
+		return nil, err
 	}
+
+	var entropy []byte
 
 	mnemonic := cmdCtx.String("setmnemonic")
 	// TODO: save this to db
@@ -105,46 +116,47 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 			URL: cmdCtx.String("boltzurl"),
 		},
 		MasterSecret: entropy,
+		Filter:       filter,
+		LnAPI:        lnAPI,
+		db:           db,
 	}
 
 	if cmdCtx.Bool("dumpmnemonic") {
 		fmt.Printf("Your secret is %s\n", resp.DumpMnemonic())
 	}
 
-	resp.Filter = filter
-	resp.LnAPI = lnAPI
 	return resp, nil
 }
 
 // Execute is currently just mocked
-func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.MessageCallback) error {
-	go func() {
-		// LOG
-		<-time.After(2 * time.Second)
-		glog.Infof("Swap executed, sending to api")
-		msgCallback(agent_entities.PluginMessage{
-			JobID:      jobID,
-			Message:    "Swap executed, waiting for confirmation",
-			Data:       []byte(`{"fee": "123124"}`),
-			IsError:    false,
-			IsFinished: false,
-		})
 
-		// FINISHED
-		<-time.After(4 * time.Second)
-		glog.Infof("Swap finished, sending to api")
-		msgCallback(agent_entities.PluginMessage{
-			JobID:      jobID,
-			Message:    "Swap finished successfully",
-			Data:       []byte(`{"swap_id": "123124"}`),
-			IsError:    false,
-			IsFinished: true,
-		})
-	}()
+func (b *Plugin) Execute(jobID int32, data []byte, msgCallback entities.MessageCallback) error {
+	jd := &types.JobData{}
+	err := json.Unmarshal(data, &jd)
+	if err != nil {
+		return types.ErrCouldNotParseJobData
+	}
 
-	// TODO
-	// check in memory if job is already running
-	// check DB if job is already running -> load to memory
-	// create new job
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	// job already exists and is running already
+	if _, ok := b.jobs[jobID]; ok {
+		return nil
+	} else {
+		var jm types.JobData
+		if err = b.db.Get(jobID, &jm); err != nil {
+			b.db.Insert(jobID, jd)
+		}
+		b.jobs[jobID] = struct{}{}
+
+		go b.runJob(jobID, jd, msgCallback)
+	}
+
 	return nil
+}
+
+// start or continue running job
+func (b *Plugin) runJob(jobID int32, jd *types.JobData, msgCallback entities.MessageCallback) {
+	// switch jd.Target and do appropriate swaps
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/bolt-observer/agent/lightning"
 	api "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
 )
 
@@ -71,16 +71,16 @@ func getMockCliCtx() *cli.Context {
 
 func TestEnsureConnected(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
-	if b.LnAPI == nil {
+	if b == nil || b.LnAPI == nil {
 		if FailNoCredsBoltz {
 			t.Fail()
 		}
 		return
 	}
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = b.EnsureConnected(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
