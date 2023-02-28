@@ -39,8 +39,14 @@ func TestGetByDescendingOutboundLiqudity(t *testing.T) {
 	}
 	assert.NoError(t, err)
 
-	_, err = b.GetByDescendingOutboundLiqudity(context.Background(), 4523220)
+	const Limit = uint64(3523220)
+	resp, err := b.GetByDescendingOutboundLiqudity(context.Background(), Limit)
 	assert.NoError(t, err)
 
-	t.Fail()
+	total := uint64(0)
+	for _, one := range resp {
+		total += one.Capacity
+	}
+
+	assert.GreaterOrEqual(t, total, Limit)
 }

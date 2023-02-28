@@ -64,7 +64,7 @@ func (b *Plugin) GetNodeLiquidity(ctx context.Context) (*Liquidity, error) {
 	return ret, nil
 }
 
-// GetByDescendingOutboundLiqudity - get channel in descreasing outbound capacity
+// GetByDescendingOutboundLiqudity - get channels in descreasing outbound liqudity so that sum >= limit satoshis
 func (b *Plugin) GetByDescendingOutboundLiqudity(ctx context.Context, limit uint64) ([]ChanCapacity, error) {
 	lnAPI, err := b.LnAPI()
 	if err != nil {
@@ -86,11 +86,11 @@ func (b *Plugin) GetByDescendingOutboundLiqudity(ctx context.Context, limit uint
 		if !b.Filter.AllowChanID(channel.ChanID) && !b.Filter.AllowPubKey(channel.RemotePubkey) && !b.Filter.AllowSpecial(channel.Private) {
 			continue
 		}
-		// Capacity is outbound here -> LocalBalance
+		// Capacity is outbound liquidity here -> LocalBalance
 		ret = append(ret, ChanCapacity{Capacity: channel.LocalBalance, Channel: channel})
 	}
 
-	// Sort by desceding capacity
+	// Sort by descending capacity
 	sort.Slice(ret, func(i, j int) bool {
 		return ret[i].Capacity > ret[j].Capacity
 	})
@@ -100,6 +100,7 @@ func (b *Plugin) GetByDescendingOutboundLiqudity(ctx context.Context, limit uint
 	for _, one := range ret {
 		total += one.Capacity
 		if total >= limit {
+			idx++
 			break
 		}
 
