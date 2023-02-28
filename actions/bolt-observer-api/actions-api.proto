@@ -11,14 +11,14 @@ service ActionAPI {
 
 message Action {
   int32 jobId = 1;
-  Sequenece sequence = 2;
+  Sequence sequence = 2;
   string action = 3;
   bytes data = 4;
 }
 
 message AgentReply {
   int32 jobId = 1;
-  Sequenece sequence = 2;
+  Sequence sequence = 2;
   ReplyType type = 3;
   string message = 4;
   bytes data = 5;
@@ -29,7 +29,7 @@ enum ReplyType {
   ERROR = 1;
 }
 
-enum Sequenece {
+enum Sequence {
   CONNECT = 0;
   EXECUTE = 1;
   LOG = 2;

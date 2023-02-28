@@ -616,7 +616,7 @@ func runAgent(cmdCtx *cli.Context) error {
 			b := backoff.NewExponentialBackOff()
 			b.MaxElapsedTime = 0
 			return backoff.RetryNotify(func() error {
-				return ac.Run(gctx)
+				return ac.Run(gctx, b.Reset)
 			}, b, func(err error, d time.Duration) {
 				glog.Errorf("Could not connect to actions gRPC: %v", err)
 			})

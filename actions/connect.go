@@ -27,7 +27,7 @@ type Connector struct {
 
 // Run connects to the server and start communication.
 // It is blocking and should be run in a goroutine
-func (c *Connector) Run(ctx context.Context) error {
+func (c *Connector) Run(ctx context.Context, resetBackOffFn func()) error {
 	lnAPI, err := c.LnAPI()
 	if err != nil {
 		return err
@@ -57,6 +57,8 @@ func (c *Connector) Run(ctx context.Context) error {
 	}
 	c.client = stream
 
+	resetBackOffFn()
+
 	return c.communicate(ctx, stream)
 }
 
@@ -80,38 +82,45 @@ func (c *Connector) communicate(ctx context.Context, stream actionStreamer) erro
 			case err != nil:
 				glog.Errorf("Error while receiving message: %v", err)
 				return err
-			case msg.Sequence == api.Sequenece_CONNECT:
+			case msg.Sequence == api.Sequence_CONNECT:
 				// first request is validation of the connection and credentials
 				glog.Info("Successfully connected to the server")
 				break
-			case msg.Sequence == api.Sequenece_EXECUTE:
+			case msg.Sequence == api.Sequence_EXECUTE:
 				plugin, ok := c.Plugins[msg.Action]
 				if !ok {
-					stream.Send(&api.AgentReply{
+					err = stream.Send(&api.AgentReply{
 						JobId:    msg.JobId,
-						Sequence: api.Sequenece_EXECUTE,
+						Sequence: api.Sequence_EXECUTE,
 						Type:     api.ReplyType_ERROR,
 						Message:  fmt.Sprintf("Plugin %s not found on agent", msg.Action),
 					})
-					break
-				}
-
-				if err = plugin.Execute(msg.JobId, msg.Data, c.ForwardJobMessages, c.IsDryRun); err != nil {
-					stream.Send(&api.AgentReply{
+				} else if c.IsDryRun {
+					err = stream.Send(&api.AgentReply{
 						JobId:    msg.JobId,
-						Sequence: api.Sequenece_EXECUTE,
+						Sequence: api.Sequence_EXECUTE,
+						Type:     api.ReplyType_SUCCESS,
+						Message:  fmt.Sprintf(`Agent received action "%s" in dry-run mode. No action really taken`, msg.Action),
+					})
+				} else if err = plugin.Execute(msg.JobId, msg.Data, c.ForwardJobMessages); err != nil {
+					glog.Errorf("Could not execute action: %v", err)
+					err = stream.Send(&api.AgentReply{
+						JobId:    msg.JobId,
+						Sequence: api.Sequence_EXECUTE,
 						Type:     api.ReplyType_ERROR,
 						Message:  err.Error(),
 					})
-					break
-				} else {
-					// ack
-					stream.Send(&api.AgentReply{
+				} else { // ack
+					err = stream.Send(&api.AgentReply{
 						JobId:    msg.JobId,
-						Sequence: api.Sequenece_EXECUTE,
+						Sequence: api.Sequence_EXECUTE,
 						Type:     api.ReplyType_SUCCESS,
 					})
 				}
+				if err != nil {
+					glog.Errorf("Error while sending message: %v", err)
+				}
+				break
 			default:
 				glog.Errorf("Ignoring received message: %v", msg)
 			}
@@ -126,9 +135,9 @@ func (c *Connector) ForwardJobMessages(msg entities.PluginMessage) error {
 		replyType = api.ReplyType_ERROR
 	}
 
-	sequence := api.Sequenece_LOG
+	sequence := api.Sequence_LOG
 	if msg.IsFinished {
-		sequence = api.Sequenece_FINISHED
+		sequence = api.Sequence_FINISHED
 	}
 
 	if err := c.client.SendMsg(&api.AgentReply{

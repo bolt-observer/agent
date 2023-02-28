@@ -117,7 +117,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 }
 
 // Execute is currently just mocked
-func (b *Plugin) Execute(jobID int32, data []byte, msgCallback func(agent_entities.PluginMessage) error, isDryRun bool) error {
+func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.MessageCallback) error {
 	go func() {
 		// LOG
 		<-time.After(2 * time.Second)
