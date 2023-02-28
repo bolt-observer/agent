@@ -109,6 +109,7 @@ func (c *Connector) communicate(ctx context.Context, stream actionStreamer) erro
 						Sequence: api.Sequence_EXECUTE,
 						Type:     api.ReplyType_ERROR,
 						Message:  err.Error(),
+						Data:     msg.Data,
 					})
 				} else { // ack
 					err = stream.Send(&api.AgentReply{
