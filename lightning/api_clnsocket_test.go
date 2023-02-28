@@ -408,7 +408,7 @@ func TestClnGetPaymentStatus(t *testing.T) {
 	data := clnData(t, "cln_listpay")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		clnCannedResponse(t, c, "listsendpay", data)
+		clnCannedResponse(t, c, "listpay", data)
 	})
 	defer closer()
 

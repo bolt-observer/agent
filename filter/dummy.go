@@ -7,22 +7,28 @@ type AllowAllFilter struct {
 
 // NewAllowAllFilter - creates a filter that allow everything
 func NewAllowAllFilter() (FilteringInterface, error) {
-	return &AllowAllFilter{}, nil
+	r := &AllowAllFilter{}
+	r.Filter.Options = AllowAllPrivate | AllowAllPublic
+	return r, nil
 }
 
 // AllowPubKey returns true if pubkey should be allowed
 func (f *AllowAllFilter) AllowPubKey(id string) bool {
-	return true
+	return false
 }
 
 // AllowChanID returns true if short channel ID should be allowed
 func (f *AllowAllFilter) AllowChanID(id uint64) bool {
-	return true
+	return false
 }
 
 // AllowSpecial checks against bitmask and can allow all private or public channels
 func (f *AllowAllFilter) AllowSpecial(private bool) bool {
-	return true
+	if private {
+		return f.Options&AllowAllPrivate == AllowAllPrivate
+	} else {
+		return f.Options&AllowAllPublic == AllowAllPublic
+	}
 }
 
 // UnitTestFilter struct

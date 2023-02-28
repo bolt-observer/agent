@@ -53,7 +53,7 @@ func getAPI(t *testing.T, name string, typ api.APIType) api.LightingAPICalls {
 		}
 	}
 
-	api := api.NewAPI(typ, func() (*entities.Data, error) {
+	api, _ := api.NewAPI(typ, func() (*entities.Data, error) {
 		return &data, nil
 	})
 
@@ -96,8 +96,8 @@ func TestGetInvoices(t *testing.T) {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
 		defer cancel()
 
-		channel := GetInvoicesChannel(ctx, func() api.LightingAPICalls {
-			return itf
+		channel := GetInvoicesChannel(ctx, func() (api.LightingAPICalls, error) {
+			return itf, nil
 		}, from)
 		num := 0
 		for i := 0; i < Limit; i++ {
@@ -129,8 +129,8 @@ func TestGetForwards(t *testing.T) {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
 		defer cancel()
 
-		channel := GetForwardsChannel(ctx, func() api.LightingAPICalls {
-			return itf
+		channel := GetForwardsChannel(ctx, func() (api.LightingAPICalls, error) {
+			return itf, nil
 		}, from)
 		num := 0
 		for i := 0; i < Limit; i++ {
@@ -162,8 +162,8 @@ func TestGetPayments(t *testing.T) {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(30*time.Minute))
 		defer cancel()
 
-		channel := GetPaymentsChannel(ctx, func() api.LightingAPICalls {
-			return itf
+		channel := GetPaymentsChannel(ctx, func() (api.LightingAPICalls, error) {
+			return itf, nil
 		}, from)
 		num := 0
 		for i := 0; i < Limit; i++ {

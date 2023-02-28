@@ -44,7 +44,10 @@ func MakeSender(ctx context.Context, authToken string, endpoint string, l entiti
 		LightningAPI: l,
 	}
 
-	api := l()
+	api, err := l()
+	if err != nil {
+		return nil, err
+	}
 	if api == nil {
 		return nil, backoff.Permanent(fmt.Errorf("lightning API not obtained"))
 	}

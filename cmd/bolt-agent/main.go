@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -34,6 +33,9 @@ import (
 	utils "github.com/bolt-observer/go_common/utils"
 
 	agent_entities "github.com/bolt-observer/agent/entities"
+
+	// we need this so init() is called
+	_ "github.com/bolt-observer/agent/plugins/boltz"
 )
 
 const (
@@ -125,32 +127,6 @@ func getData(cmdCtx *cli.Context) (*entities.Data, error) {
 	return resp, nil
 }
 
-// cleanAndExpandPath expands environment variables and leading ~ in the
-// passed path, cleans the result, and returns it.
-// This function is taken from https://github.com/btcsuite/btcd
-func cleanAndExpandPath(path string) string {
-	if path == "" {
-		return ""
-	}
-
-	// Expand initial ~ to OS specific home directory.
-	if strings.HasPrefix(path, "~") {
-		var homeDir string
-		user, err := user.Current()
-		if err == nil {
-			homeDir = user.HomeDir
-		} else {
-			homeDir = os.Getenv("HOME")
-		}
-
-		path = strings.Replace(path, "~", homeDir, 1)
-	}
-
-	// NOTE: The os.ExpandEnv doesn't work with Windows-style %VARIABLE%,
-	// but the variables can still be expanded via POSIX-style $VARIABLE.
-	return filepath.Clean(os.ExpandEnv(path))
-}
-
 func extractPathArgs(ctx *cli.Context) (string, string, error) {
 	// We'll start off by parsing the active chain and network. These are
 	// needed to determine the correct path to the macaroon when not
@@ -173,13 +149,13 @@ func extractPathArgs(ctx *cli.Context) (string, string, error) {
 	// properly read the macaroons (if needed) and also the cert. This will
 	// either be the default, or will have been overwritten by the end
 	// user.
-	lndDir := cleanAndExpandPath(ctx.String("lnddir"))
+	lndDir := agent_entities.CleanAndExpandPath(ctx.String("lnddir"))
 
 	// If the macaroon path as been manually provided, then we'll only
 	// target the specified file.
 	var macPath string
 	if ctx.String("macaroonpath") != "" {
-		macPath = cleanAndExpandPath(ctx.String("macaroonpath"))
+		macPath = agent_entities.CleanAndExpandPath(ctx.String("macaroonpath"))
 	} else {
 		// Otherwise, we'll go into the path:
 		// lnddir/data/chain/<chain>/<network> in order to fetch the
@@ -190,7 +166,7 @@ func extractPathArgs(ctx *cli.Context) (string, string, error) {
 		)
 	}
 
-	tlsCertPath := cleanAndExpandPath(ctx.String("tlscertpath"))
+	tlsCertPath := agent_entities.CleanAndExpandPath(ctx.String("tlscertpath"))
 
 	// If a custom lnd directory was set, we'll also check if custom paths
 	// for the TLS cert and macaroon file were set as well. If not, we'll
@@ -343,12 +319,13 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:   "insecure",
-			Usage:  "Allow insecure connections to the api. Can be usefull for debugging purposes.",
+			Usage:  "Allow insecure connections to the api. Can be usefull for debugging purposes",
 			Hidden: true,
 		},
 	}
 
 	app.Flags = append(app.Flags, glogFlags...)
+	app.Flags = append(app.Flags, plugins.AllPluginFlags...)
 
 	return app
 }
@@ -475,7 +452,7 @@ func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport
 }
 
 func mkGetLndAPI(cmdCtx *cli.Context) agent_entities.NewAPICall {
-	return func() api.LightingAPICalls {
+	return func() (api.LightingAPICalls, error) {
 		return api.NewAPI(api.LndGrpc, func() (*entities.Data, error) {
 			return getData(cmdCtx)
 		})
@@ -567,8 +544,12 @@ func runAgent(cmdCtx *cli.Context) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		if !cmdCtx.Bool("private") {
+			x := f.(*filter.AllowAllFilter)
+			x.Options = filter.AllowAllPublic
+		}
 	}
-
 	go signalHandler(ct, f)
 
 	url = cmdCtx.String("url")
@@ -621,6 +602,7 @@ func runAgent(cmdCtx *cli.Context) error {
 
 	if cmdCtx.Bool("actions") {
 		fn := mkGetLndAPI(cmdCtx)
+		plugins.InitPlugins(fn, f, cmdCtx)
 		g.Go(func() error {
 			ac := &actions.Connector{
 				Address:    url,

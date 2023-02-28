@@ -22,7 +22,8 @@ const (
 	GetInfo      = "getinfo"
 	ListForwards = "listforwards"
 	ListInvoices = "listinvoices"
-	ListPayments = "listsendpays"
+	ListSendPays = "listsendpays"
+	ListPays     = "listpays"
 	Connect      = "connect"
 	NewAddr      = "newaddr"
 	Withdraw     = "withdraw"
@@ -642,7 +643,7 @@ func (l *ClnRawLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly boo
 func (l *ClnRawLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
 	var gettime ClnRawPayTime
 
-	return getRaw(ctx, l, gettime, ListPayments, "payments", &pagination)
+	return getRaw(ctx, l, gettime, ListSendPays, "payments", &pagination)
 }
 
 // GetForwardsRaw - API call.
@@ -842,10 +843,11 @@ func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest stri
 		return nil, err
 	}
 
+	timeoutSeconds := 10
 	if sats > 0 {
-		err = l.connection.Call(ctx, Pay, []interface{}{paymentRequest, sats * 1000, nil, nil, nil, nil, nil, nil, nil, exclusions}, &reply)
+		err = l.connection.Call(ctx, Pay, []interface{}{paymentRequest, sats * 1000, nil, nil, nil, timeoutSeconds, nil, nil, nil, exclusions}, &reply)
 	} else {
-		err = l.connection.Call(ctx, Pay, []interface{}{paymentRequest, nil, nil, nil, nil, nil, nil, nil, nil, exclusions}, &reply)
+		err = l.connection.Call(ctx, Pay, []interface{}{paymentRequest, nil, nil, nil, nil, nil, nil, timeoutSeconds, nil, exclusions}, &reply)
 	}
 
 	if err != nil {
@@ -927,7 +929,7 @@ func (l *ClnRawLightningAPI) calculateExclusions(ctx context.Context, outgoingCh
 // GetPaymentStatus - API call.
 func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
 	var reply ClnPaymentEntries
-	err := l.connection.Call(ctx, ListPayments, []interface{}{nil, paymentHash}, &reply)
+	err := l.connection.Call(ctx, ListPays, []interface{}{nil, paymentHash}, &reply)
 	if err != nil {
 		return nil, err
 	}

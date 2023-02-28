@@ -30,10 +30,10 @@ func TestApiSelection(t *testing.T) {
 	// ApiType in NewApi() is a preference that can be overriden through data
 
 	// Invalid API type
-	api := NewAPI(APIType(500), func() (*entities.Data, error) {
+	api, err := NewAPI(APIType(500), func() (*entities.Data, error) {
 		return &data, nil
 	})
-
+	assert.Error(t, err)
 	if api != nil {
 		t.Fatalf("API should be nil")
 	}
@@ -44,9 +44,10 @@ func TestApiSelection(t *testing.T) {
 
 	temp := data.Endpoint
 	data.Endpoint = name
-	api = NewAPI(ClnSocket, func() (*entities.Data, error) {
+	api, err = NewAPI(ClnSocket, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 	data.Endpoint = temp
 
 	if api == nil {
@@ -59,9 +60,10 @@ func TestApiSelection(t *testing.T) {
 	}
 
 	// Use gRPC
-	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -73,9 +75,10 @@ func TestApiSelection(t *testing.T) {
 	}
 
 	// Use REST
-	api = NewAPI(LndRest, func() (*entities.Data, error) {
+	api, err = NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -89,9 +92,10 @@ func TestApiSelection(t *testing.T) {
 	v := int(LndGrpc)
 	data.ApiType = &v
 
-	api = NewAPI(LndRest, func() (*entities.Data, error) {
+	api, err = NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -105,9 +109,10 @@ func TestApiSelection(t *testing.T) {
 	v = int(LndRest)
 	data.ApiType = &v
 
-	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -122,9 +127,10 @@ func TestApiSelection(t *testing.T) {
 	v = 500
 	data.ApiType = &v
 
-	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -147,18 +153,20 @@ func TestGrpcDoesNotOpenConnection(t *testing.T) {
 		CertVerificationType: &ignore,
 	}
 
-	api := NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err := NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
 	}
 
 	data.Endpoint = "burek:444"
-	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -175,18 +183,20 @@ func TestRestDoesNotOpenConnection(t *testing.T) {
 		CertVerificationType: &ignore,
 	}
 
-	api := NewAPI(LndRest, func() (*entities.Data, error) {
+	api, err := NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
 	}
 
 	data.Endpoint = "burek:444"
-	api = NewAPI(LndRest, func() (*entities.Data, error) {
+	api, err = NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
