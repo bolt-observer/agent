@@ -64,6 +64,7 @@ func getAPI(t *testing.T, name string, typ api.APIType) agent_entities.NewAPICal
 func getMockCliCtx() *cli.Context {
 	fs := &flag.FlagSet{}
 	fs.String("boltzurl", DefaultBoltzUrl, "")
+	fs.String("boltzdatabase", "/tmp/boltz.db", "")
 	fs.String("network", "regtest", "")
 	return cli.NewContext(nil, fs, nil)
 }
@@ -73,13 +74,13 @@ func TestEnsureConnected(t *testing.T) {
 	assert.NoError(t, err)
 
 	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
-	assert.NoError(t, err)
-	if b == nil {
+	if b.LnAPI == nil {
 		if FailNoCredsBoltz {
 			t.Fail()
 		}
 		return
 	}
+	assert.NoError(t, err)
 	err = b.EnsureConnected(context.Background())
 	assert.NoError(t, err)
 }

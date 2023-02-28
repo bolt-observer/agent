@@ -9,6 +9,7 @@ import (
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
 	"github.com/bolt-observer/agent/plugins"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/golang/glog"
 	"github.com/tyler-smith/go-bip39"
@@ -23,6 +24,9 @@ const (
 var PluginFlags = []cli.Flag{
 	cli.StringFlag{
 		Name: "boltzurl", Value: DefaultBoltzUrl, Usage: "url of boltz api", Hidden: false,
+	},
+	cli.StringFlag{
+		Name: "boltzdatabase", Value: btcutil.AppDataDir("bolt", false) + "/boltz.db", Usage: "full path to the database file", Hidden: false,
 	},
 	cli.BoolFlag{
 		Name: "dumpmnemonic", Usage: "should we print master secret as mnemonic phrase (dangerous)", Hidden: false,
@@ -75,6 +79,11 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		entropy []byte
 		err     error
 	)
+
+	dbFile := agent_entities.CleanAndExpandPath(cmdCtx.String("boltzdatabase"))
+	if dbFile != "" {
+		// TODO: handle db opening
+	}
 
 	mnemonic := cmdCtx.String("setmnemonic")
 	// TODO: save this to db
