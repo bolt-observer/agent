@@ -39,11 +39,12 @@ import (
 )
 
 const (
-	defaultDataDir          = "data"
-	defaultChainSubDir      = "chain"
-	defaultTLSCertFilename  = "tls.cert"
-	defaultMacaroonFilename = "readonly.macaroon"
-	whitelist               = "channel-whitelist"
+	defaultDataDir               = "data"
+	defaultChainSubDir           = "chain"
+	defaultTLSCertFilename       = "tls.cert"
+	defaultReadMacaroonFilename  = "readonly.macaroon"
+	defaultAdminMacaroonFilename = "admin.macaroon"
+	whitelist                    = "channel-whitelist"
 )
 
 var (
@@ -160,9 +161,15 @@ func extractPathArgs(ctx *cli.Context) (string, string, error) {
 		// Otherwise, we'll go into the path:
 		// lnddir/data/chain/<chain>/<network> in order to fetch the
 		// macaroon that we need.
+
+		name := defaultReadMacaroonFilename
+		if ctx.Bool("actions") {
+			name = defaultAdminMacaroonFilename
+		}
+
 		macPath = filepath.Join(
 			lndDir, defaultDataDir, defaultChainSubDir, chain,
-			network, defaultMacaroonFilename,
+			network, name,
 		)
 	}
 
