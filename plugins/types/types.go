@@ -10,6 +10,7 @@ type SwapData struct {
 	JobID             int32
 	Attempt           int
 	BoltzID           string
+	Type              Type
 	State             State
 	TimoutBlockHeight uint32
 
@@ -19,26 +20,30 @@ type SwapData struct {
 	OnChainFundsSent    bool
 
 	// Reverse swap
-	ReverseInvoice string
+	ReverseInvoice      string
 	ReverseMinerInvoice string
-
 }
 
 type State int
 
 const (
 	Initial State = iota
+
+	SwapFailed
+	SwapSuccess
+
 	OnChainFundsSent
+	RedeemLockedFunds
+	RedeemingLockedFunds
+	VerifyFundsReceived
 
-
-	Successful
-	ServerError
-	ClientError
-	// Client refunded locked coins after the HTLC timed out
-	Refunded
-	// Client noticed that the HTLC timed out but didn't find any outputs to refund
-	Abandoned
+	ReverseSwapCreated
+	ClaimReverseFunds
 )
+
+func (s State) isFinal() bool {
+	return s == SwapFailed || s == SwapSuccess
+}
 
 type Type int
 
