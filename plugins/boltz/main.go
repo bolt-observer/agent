@@ -20,6 +20,7 @@ import (
 const (
 	DefaultBoltzUrl = "https://boltz.exchange/api"
 	SecretBitSize   = 256
+	SecretDbKey     = "secret"
 )
 
 var PluginFlags = []cli.Flag{
@@ -34,6 +35,9 @@ var PluginFlags = []cli.Flag{
 	},
 	cli.StringFlag{
 		Name: "setmnemonic", Value: "", Usage: "update saved secret with this key material (dangerous)", Hidden: false,
+	},
+	cli.Float64Flag{
+		Name: "maxfeepercentage", Value: 5.0, Usage: "maximum fee that is still acceptable", Hidden: false,
 	},
 }
 
@@ -69,6 +73,8 @@ type JobModel struct {
 
 // NewPlugin creates new instance
 func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) (*Plugin, error) {
+	fmt.Printf("New plugin\n")
+
 	if lnAPI == nil {
 		return nil, types.ErrInvalidArguments
 	}
@@ -88,25 +94,32 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	}
 
 	db := &BoltzDB{}
-	dbFile := agent_entities.CleanAndExpandPath(cmdCtx.String("boltzdatabase"))
-	err := db.Connect(dbFile)
+	//dbFile := agent_entities.CleanAndExpandPath(cmdCtx.String("boltzdatabase"))
+	err := db.Connect("/tmp/boltz.db")
 	if err != nil {
+		fmt.Printf("Fail %v\n", err)
 		return nil, err
 	}
 
 	var entropy []byte
 
 	mnemonic := cmdCtx.String("setmnemonic")
-	// TODO: save this to db
 	if mnemonic != "" {
 		entropy, err = bip39.MnemonicToByteArray(mnemonic, true)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		entropy, err = bip39.NewEntropy(SecretBitSize)
+		err = db.Get(SecretDbKey, entropy)
+		fmt.Printf("Got entropy: %v\n", entropy)
+
 		if err != nil {
-			return nil, err
+			entropy, err = bip39.NewEntropy(SecretBitSize)
+			if err != nil {
+				return nil, err
+			}
+			fmt.Printf("Set secret")
+			db.Insert(SecretDbKey, entropy)
 		}
 	}
 
@@ -127,8 +140,6 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 
 	return resp, nil
 }
-
-// Execute is currently just mocked
 
 func (b *Plugin) Execute(jobID int32, data []byte, msgCallback entities.MessageCallback) error {
 	jd := &types.JobData{}

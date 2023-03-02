@@ -4,10 +4,26 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
 )
+
+func (b *Plugin) GetStatus(boltzID string, reverse bool) {
+
+	b.BoltzAPI.SwapStatus(boltzID)
+
+	/*
+			transaction.confirmed: that transaction was included in a block
+		invoice.set: when the invoice of the Submarine Swap was set
+		once the said transaction is included in a block (or found in the mempool in case of 0-confirmation) Boltz will try to pay the invoice provided by the user in order to claim the onchain coins
+		invoice.paid: if paying the invoice was successful
+		invoice.failedToPay: if paying the invoice failed. In which case the locked up onchain coins should be refunded
+		transaction.claimed
+	*/
+
+}
 
 // CalcFundsToReceive calculates how much funds you would receive
 func (b *Plugin) CalcFundsToReceive(ctx context.Context, reverse bool, sats uint64) (uint64, int64, error) {
@@ -62,9 +78,18 @@ func (b *Plugin) CalcFundsToReceive(ctx context.Context, reverse bool, sats uint
 		return 0, int64(res.Limits.Maximal - sats), fmt.Errorf("above maximum amount")
 	}
 
-	// 1 - res.Fees.Percentage
+	amt := float64(0)
+	if !reverse {
+		// normal swap - first pay mines (- fees) then apply percentage cut
+		fees := float64(res.Fees.MinerFees.BaseAsset.Normal)
+		amt = math.Round(float64(sats)-fees) * (1 - float64(res.Fees.Percentage))
+	} else {
+		// reverse swap
+		fees := float64(res.Fees.MinerFees.BaseAsset.Reverse.Lockup)
+		amt = math.Round(float64(sats)*(1-float64(res.Fees.Percentage))) - fees
+	}
 
-	return 0, 0, nil
+	return uint64(amt), 0, nil
 }
 
 // Swap - does the submarine swap - PoC

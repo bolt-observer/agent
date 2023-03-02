@@ -45,6 +45,8 @@ const (
 	defaultReadMacaroonFilename  = "readonly.macaroon"
 	defaultAdminMacaroonFilename = "admin.macaroon"
 	whitelist                    = "channel-whitelist"
+
+	periodicSend = false
 )
 
 var (
@@ -575,30 +577,32 @@ func runAgent(cmdCtx *cli.Context) error {
 
 	g, gctx := errgroup.WithContext(ct)
 
-	nodeDataChecker := nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedata checker"))
-	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
+	if periodicSend {
+		nodeDataChecker := nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedata checker"))
+		settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
-	if settings.PollInterval == agent_entities.ManualRequest {
-		nodeDataChecker.GetState("", cmdCtx.String("uniqueid"), mkGetLndAPI(cmdCtx), settings, nodeDataCallback)
-	} else {
-		err = nodeDataChecker.Subscribe(
-			nodeDataCallback,
-			mkGetLndAPI(cmdCtx),
-			"",
-			settings,
-			cmdCtx.String("uniqueid"),
-		)
+		if settings.PollInterval == agent_entities.ManualRequest {
+			nodeDataChecker.GetState("", cmdCtx.String("uniqueid"), mkGetLndAPI(cmdCtx), settings, nodeDataCallback)
+		} else {
+			err = nodeDataChecker.Subscribe(
+				nodeDataCallback,
+				mkGetLndAPI(cmdCtx),
+				"",
+				settings,
+				cmdCtx.String("uniqueid"),
+			)
 
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
+
+			glog.Info("Waiting for events...")
+
+			g.Go(func() error {
+				nodeDataChecker.EventLoop()
+				return nil
+			})
 		}
-
-		glog.Info("Waiting for events...")
-
-		g.Go(func() error {
-			nodeDataChecker.EventLoop()
-			return nil
-		})
 	}
 
 	if cmdCtx.Int64("fetch-invoices") != 0 || cmdCtx.Int64("fetch-payments") != 0 || cmdCtx.Int64("fetch-transactions") != 0 {
@@ -612,7 +616,7 @@ func runAgent(cmdCtx *cli.Context) error {
 		plugins.InitPlugins(fn, f, cmdCtx)
 		g.Go(func() error {
 			ac := &actions.Connector{
-				Address:    url,
+				Address:    cmdCtx.String("datastore-url"),
 				APIKey:     cmdCtx.String("apikey"),
 				Plugins:    plugins.Plugins,
 				LnAPI:      fn,

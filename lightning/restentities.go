@@ -320,20 +320,22 @@ type LightningAddressOverride struct {
 
 // WalletBalanceResponseOverride struct.
 type WalletBalanceResponseOverride struct {
-	TotalBalance              string                        `json:"total_balance,omitempty"`
-	ConfirmedBalance          string                        `json:"confirmed_balance,omitempty"`
-	UnconfirmedBalance        string                        `json:"unconfirmed_balance,omitempty"`
-	LockedBalance             string                        `json:"locked_balance,omitempty"`
-	ReservedBalanceAnchorChan string                        `json:"reserved_balance_anchor_chan,omitempty"`
-	AccountBalance            []AccountBalanceEntryOverride `json:"account_balance,omitempty"`
+	TotalBalance              string          `json:"total_balance,omitempty"`
+	ConfirmedBalance          string          `json:"confirmed_balance,omitempty"`
+	UnconfirmedBalance        string          `json:"unconfirmed_balance,omitempty"`
+	LockedBalance             string          `json:"locked_balance,omitempty"`
+	ReservedBalanceAnchorChan string          `json:"reserved_balance_anchor_chan,omitempty"`
+	AccountBalance            json.RawMessage `json:"account_balance,omitempty"`
 
 	lnrpc.WalletBalanceResponse
 }
 
+/*
 // AccountBalanceEntryOverride struct.
 type AccountBalanceEntryOverride struct {
 	// ignore
 }
+*/
 
 // SendCoinsRequestOverride struct.
 type SendCoinsRequestOverride struct {
