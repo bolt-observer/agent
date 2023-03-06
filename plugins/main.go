@@ -5,6 +5,7 @@ import (
 
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
+	"github.com/golang/glog"
 	"github.com/urfave/cli"
 )
 
@@ -37,6 +38,7 @@ func InitPlugins(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterfa
 	for _, p := range RegisteredPlugins {
 		plugin, err := p.Init(lnAPI, filter, cmdCtx)
 		if err != nil {
+			glog.Warningf("Plugin %s had an error %v\n", p.Name, err)
 			return err
 		}
 		if plugin == nil {

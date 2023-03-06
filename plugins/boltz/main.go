@@ -1,8 +1,10 @@
 package boltz
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
+	"path"
 	"sync"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
@@ -10,7 +12,6 @@ import (
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
 	"github.com/bolt-observer/agent/plugins"
-	"github.com/bolt-observer/agent/plugins/types"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/tyler-smith/go-bip39"
@@ -21,6 +22,8 @@ const (
 	DefaultBoltzUrl = "https://boltz.exchange/api"
 	SecretBitSize   = 256
 	SecretDbKey     = "secret"
+
+	ErrInvalidArguments = Error("invalid arguments")
 )
 
 var PluginFlags = []cli.Flag{
@@ -71,12 +74,14 @@ type JobModel struct {
 	Data []byte
 }
 
+type Entropy struct {
+	Data []byte
+}
+
 // NewPlugin creates new instance
 func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) (*Plugin, error) {
-	fmt.Printf("New plugin\n")
-
 	if lnAPI == nil {
-		return nil, types.ErrInvalidArguments
+		return nil, ErrInvalidArguments
 	}
 
 	network := cmdCtx.String("network")
@@ -94,10 +99,15 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	}
 
 	db := &BoltzDB{}
-	//dbFile := agent_entities.CleanAndExpandPath(cmdCtx.String("boltzdatabase"))
-	err := db.Connect("/tmp/boltz.db")
+	dbFile := agent_entities.CleanAndExpandPath(cmdCtx.String("boltzdatabase"))
+	dir := path.Dir(dbFile)
+	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+		// ignore error on purpose
+		os.Mkdir(dir, 0o640)
+	}
+
+	err := db.Connect(dbFile)
 	if err != nil {
-		fmt.Printf("Fail %v\n", err)
 		return nil, err
 	}
 
@@ -107,19 +117,28 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	if mnemonic != "" {
 		entropy, err = bip39.MnemonicToByteArray(mnemonic, true)
 		if err != nil {
+			fmt.Printf("Mnemonic fail %v\n", err)
+			return nil, err
+		}
+		err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
+		if err != nil {
+			fmt.Printf("Mnemonic save fail %v\n", err)
 			return nil, err
 		}
 	} else {
-		err = db.Get(SecretDbKey, entropy)
-		fmt.Printf("Got entropy: %v\n", entropy)
+		var e Entropy
+		err = db.Get(SecretDbKey, &e)
+		entropy = e.Data
 
 		if err != nil {
 			entropy, err = bip39.NewEntropy(SecretBitSize)
 			if err != nil {
 				return nil, err
 			}
-			fmt.Printf("Set secret")
-			db.Insert(SecretDbKey, entropy)
+			err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -142,32 +161,37 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 }
 
 func (b *Plugin) Execute(jobID int32, data []byte, msgCallback entities.MessageCallback) error {
-	jd := &types.JobData{}
-	err := json.Unmarshal(data, &jd)
-	if err != nil {
-		return types.ErrCouldNotParseJobData
-	}
 
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-
-	// job already exists and is running already
-	if _, ok := b.jobs[jobID]; ok {
-		return nil
-	} else {
-		var jm types.JobData
-		if err = b.db.Get(jobID, &jm); err != nil {
-			b.db.Insert(jobID, jd)
+	/*
+		jd := &types.JobData{}
+		err := json.Unmarshal(data, &jd)
+		if err != nil {
+			return types.ErrCouldNotParseJobData
 		}
-		b.jobs[jobID] = struct{}{}
 
-		go b.runJob(jobID, jd, msgCallback)
-	}
+		b.mutex.Lock()
+		defer b.mutex.Unlock()
+
+		// job already exists and is running already
+		if _, ok := b.jobs[jobID]; ok {
+			return nil
+		} else {
+			var jm types.SwapData
+			if err = b.db.Get(jobID, &jm); err != nil {
+				b.db.Insert(jobID, jd)
+			}
+			b.jobs[jobID] = struct{}{}
+
+			go b.runJob(jobID, jd, msgCallback)
+		}
+	*/
 
 	return nil
 }
 
+/*
 // start or continue running job
 func (b *Plugin) runJob(jobID int32, jd *types.JobData, msgCallback entities.MessageCallback) {
 	// switch jd.Target and do appropriate swaps
 }
+*/

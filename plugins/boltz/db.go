@@ -1,9 +1,7 @@
 package boltz
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/timshannon/bolthold"
@@ -23,12 +21,6 @@ type BoltzDB struct {
 }
 
 func (b *BoltzDB) Connect(dbPath string) error {
-	if _, err := os.Stat(dbPath); errors.Is(err, os.ErrNotExist) {
-		_, err := os.Create(dbPath)
-		if err != nil {
-			return err
-		}
-	}
 	db, err := bolthold.Open(dbPath, 0666, &bolthold.Options{
 		Options: &bolt.Options{Timeout: 3 * time.Second},
 	})

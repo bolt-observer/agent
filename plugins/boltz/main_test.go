@@ -10,7 +10,6 @@ import (
 	"github.com/bolt-observer/agent/entities"
 	agent_entities "github.com/bolt-observer/agent/entities"
 	lnapi "github.com/bolt-observer/agent/lightning"
-	"github.com/bolt-observer/agent/plugins/types"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/assert"
@@ -71,7 +70,7 @@ func TestExecute(t *testing.T) {
 	t.Run("Error on invalid data", func(t *testing.T) {
 		cs := &CallbackStore{}
 		err := p.Execute(123, []byte("invalid data"), cs.Callback)
-		require.ErrorIs(t, types.ErrCouldNotParseJobData, err)
+		require.ErrorIs(t, ErrCouldNotParseJobData, err)
 		assert.Equal(t, 0, len(cs.messages))
 	})
 
