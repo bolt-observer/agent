@@ -58,14 +58,15 @@ func init() {
 
 // Plugin can save its data here
 type Plugin struct {
-	BoltzAPI     *boltz.Boltz
-	ChainParams  *chaincfg.Params
-	LnAPI        entities.NewAPICall
-	Filter       filter.FilteringInterface
-	MasterSecret []byte
-	db           DB
-	jobs         map[int32]interface{}
-	mutex        sync.Mutex
+	BoltzAPI         *boltz.Boltz
+	ChainParams      *chaincfg.Params
+	LnAPI            entities.NewAPICall
+	Filter           filter.FilteringInterface
+	MaxFeePercentage float64
+	MasterSecret     []byte
+	db               DB
+	jobs             map[int32]interface{}
+	mutex            sync.Mutex
 	agent_entities.Plugin
 }
 
@@ -157,11 +158,14 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		fmt.Printf("Your secret is %s\n", resp.DumpMnemonic())
 	}
 
+	resp.MaxFeePercentage = cmdCtx.Float64("maxfeepercentage")
+
 	return resp, nil
 }
 
 func (b *Plugin) Execute(jobID int32, data []byte, msgCallback entities.MessageCallback) error {
 
+	// Mutex is not good here
 	/*
 		jd := &types.JobData{}
 		err := json.Unmarshal(data, &jd)

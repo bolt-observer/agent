@@ -104,21 +104,29 @@ func (fsm Fsm[I, O, S]) FsmWrap(f func(data I) O) func(data I) O {
 			return out
 		}
 		if realOut.NextState != None {
-			realIn.SwapData.State = realOut.NextState
-			err := realIn.BoltzPlugin.db.Insert(realIn.SwapData, realIn.SwapData.JobID)
+			err := changeState(realIn, realOut.NextState)
 			if err != nil {
 				realOut.NextState = SwapFailed
-				realIn.MsgCallback(entities.PluginMessage{
-					JobID:      realIn.GetJobID(),
-					Message:    fmt.Sprintf("Could not change state to %v %v", realOut.NextState, err),
-					IsError:    true,
-					IsFinished: true,
-				})
 			}
+
 		}
 
 		return out
 	}
+}
+
+func changeState(in FsmIn, state State) error {
+	in.SwapData.State = state
+	err := in.BoltzPlugin.db.Insert(in.SwapData, in.SwapData.JobID)
+	if err != nil {
+		in.MsgCallback(entities.PluginMessage{
+			JobID:      in.GetJobID(),
+			Message:    fmt.Sprintf("Could not change state to %v %v", state, err),
+			IsError:    true,
+			IsFinished: true,
+		})
+	}
+	return err
 }
 
 func (fsm Fsm[I, O, S]) FsmEval(

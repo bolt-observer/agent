@@ -21,8 +21,6 @@ func TestDoSwap(t *testing.T) {
 		}
 		return
 	}
-
-	//b.Swap("1337")
 	_, _, err = b.CalcFundsToReceive(context.Background(), false, 100000)
 	assert.NoError(t, err)
 	t.Fail()

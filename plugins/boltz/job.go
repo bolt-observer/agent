@@ -29,12 +29,16 @@ type JobData struct {
 }
 
 type SwapData struct {
-	JobID             int32
-	Attempt           int
-	BoltzID           string
-	Type              Type
-	State             State
-	TimoutBlockHeight uint32
+	JobID               int32
+	Attempt             int
+	BoltzID             string
+	Type                Type
+	State               State
+	TimoutBlockHeight   uint32
+	Script              string
+	Sats                uint64
+	Address             string
+	RedeemTransactionId string
 
 	// Normal swap
 	Invoice             string
@@ -44,6 +48,7 @@ type SwapData struct {
 	// Reverse swap
 	ReverseInvoice      string
 	ReverseMinerInvoice string
+	ChanIdsToUse        []uint64
 }
 
 type Type int

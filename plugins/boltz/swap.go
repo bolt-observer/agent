@@ -2,12 +2,8 @@ package boltz
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math"
-	"time"
-
-	"github.com/BoltzExchange/boltz-lnd/boltz"
 )
 
 // CalcFundsToReceive calculates how much funds you would receive
@@ -75,81 +71,4 @@ func (b *Plugin) CalcFundsToReceive(ctx context.Context, reverse bool, sats uint
 	}
 
 	return uint64(amt), 0, nil
-}
-
-// Swap - does the submarine swap - PoC
-func (b *Plugin) Swap(id string) error {
-	const BlockEps = 10
-
-	keys, err := b.GetKeys(id)
-	if err != nil {
-		return err
-	}
-
-	lnAPI, err := b.LnAPI()
-	if err != nil {
-		return err
-	}
-	if lnAPI == nil {
-		return fmt.Errorf("error checking lightning")
-	}
-	defer lnAPI.Cleanup()
-
-	ctx := context.Background()
-	info, err := lnAPI.GetInfo(ctx)
-	if err != nil {
-		fmt.Printf("Info error: %v", err)
-		return err
-	}
-
-	fmt.Printf("Doing swap from %s\n", info.Alias)
-
-	invoice, err := lnAPI.CreateInvoice(ctx, 40000, hex.EncodeToString(keys.Preimage.Hash), "", 24*time.Hour)
-	if err != nil {
-		fmt.Printf("Invoice error: %v", err)
-		return err
-	}
-
-	fmt.Printf("Invoice %s %s\n", invoice.Hash, invoice.PaymentRequest)
-
-	response, err := b.BoltzAPI.CreateSwap(boltz.CreateSwapRequest{
-		Type:            "submarine",
-		PairId:          "BTC/BTC",
-		OrderSide:       "buy",
-		PreimageHash:    hex.EncodeToString(keys.Preimage.Hash),
-		RefundPublicKey: hex.EncodeToString(keys.Keys.PublicKey.SerializeCompressed()),
-		Invoice:         invoice.PaymentRequest,
-	})
-
-	if err != nil {
-		fmt.Printf("Error creating swap: %v", err)
-		return err
-	}
-
-	fmt.Printf("Response: %+v\n", response)
-
-	redeemScript, err := hex.DecodeString(response.RedeemScript)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Timeout %v\n", response.TimeoutBlockHeight)
-
-	err = boltz.CheckSwapScript(redeemScript, keys.Preimage.Hash, keys.Keys.PrivateKey, response.TimeoutBlockHeight)
-	if err != nil {
-		return err
-	}
-
-	err = boltz.CheckSwapAddress(b.ChainParams, response.Address, redeemScript, true)
-	if err != nil {
-		return err
-	}
-
-	if info.BlockHeight+BlockEps < int(response.TimeoutBlockHeight) {
-		return fmt.Errorf("error checking blockheight")
-	}
-
-	fmt.Printf("ID %v\n", response.Id)
-
-	return nil
 }
