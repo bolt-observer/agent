@@ -15,33 +15,12 @@ const (
 
 type State int
 
-const (
-	None State = iota
-
-	InitialNormal
-	InitialReverse
-
-	SwapFailed
-	SwapSuccess
-
-	OnChainFundsSent
-	RedeemLockedFunds
-	RedeemingLockedFunds
-	VerifyFundsReceived
-
-	ReverseSwapCreated
-	ClaimReverseFunds
-)
-
-func (s *State) isFinal() bool {
-	return *s == SwapFailed || *s == SwapSuccess
-}
-
 type FsmIn struct {
 	SwapData    SwapData
 	MsgCallback entities.MessageCallback
 }
 
+// To satisfy interface
 func (i FsmIn) GetSwapData() SwapData {
 	return i.SwapData
 }
@@ -108,12 +87,15 @@ func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
 func (s *SwapMachine) RedeemerCallback(data FsmIn, success bool) {
 	sd := data.GetSwapData()
 	if sd.State == RedeemingLockedFunds {
-		if !success {
+		// even when this succeeds state is still screwed up
+		if success {
 			s.Eval(data, SwapFailed)
 		}
 	} else if sd.State == ClaimReverseFunds {
 		if success {
 			s.Eval(data, SwapSuccess)
+		} else {
+			s.Eval(data, SwapFailed)
 		}
 	}
 }
@@ -151,6 +133,29 @@ func FsmWrap[I FsmInGetter, O FsmOutGetter](f func(data I) O, b *Plugin) func(da
 	}
 }
 
+const (
+	None State = iota
+
+	InitialNormal
+	InitialReverse
+
+	SwapFailed
+	SwapSuccess
+
+	OnChainFundsSent
+	RedeemLockedFunds
+	RedeemingLockedFunds
+	VerifyFundsReceived
+
+	ReverseSwapCreated
+	ClaimReverseFunds
+)
+
+func (s *State) isFinal() bool {
+	return *s == SwapFailed || *s == SwapSuccess
+}
+
+// Swapmachine is a finite state machine used for swaps.
 type SwapMachine struct {
 	Machine     *Fsm[FsmIn, FsmOut, State]
 	BoltzPlugin *Plugin

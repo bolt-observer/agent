@@ -18,6 +18,7 @@ import (
 
 // Redeemer is an abstraction that periodically gathers "stuck" UTXOs and spends them to a new lightning node address.
 // It can combine failed normal submarine transactions (RedeemNormal) and/or the outputs that need to be claimed for reverse submarine transactions (RedeemReverse)
+// Redeemer is supposed to work with any type that wraps SwapData (implements SwapDataGetter interface)
 
 type JobID int32
 
@@ -53,6 +54,11 @@ type RedeemedCallback[T SwapDataGetter] func(data T, success bool)
 
 func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainParams *chaincfg.Params, boltzAPI *boltz.Boltz, lnAPI entities.NewAPICall,
 	interval time.Duration, cryptoAPI *CryptoAPI, callback RedeemedCallback[T]) *Redeemer[T] {
+
+	if t == 0 {
+		glog.Warningf("Invalid nil redeemer does not make sense")
+		return nil
+	}
 
 	r := &Redeemer[T]{
 		Ctx:         ctx,
