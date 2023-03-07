@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
-	"github.com/bolt-observer/agent/entities"
 	agent_entities "github.com/bolt-observer/agent/entities"
 	lnapi "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
@@ -117,7 +116,7 @@ func TestExecute(t *testing.T) {
 
 }
 
-func mkGetLndAPI(cmdCtx *cli.Context) entities.NewAPICall {
+func mkGetLndAPI(cmdCtx *cli.Context) agent_entities.NewAPICall {
 	return func() (lnapi.LightingAPICalls, error) {
 		return lnapi.NewAPI(lnapi.LndGrpc, func() (*common_entities.Data, error) {
 			return &common_entities.Data{

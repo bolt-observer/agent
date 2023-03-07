@@ -9,7 +9,11 @@ import (
 	"github.com/BoltzExchange/boltz-lnd/boltz"
 	"github.com/bolt-observer/agent/lightning"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/golang/glog"
+)
+
+const (
+	BtcPair = "BTC/BTC"
+	Btc     = "BTC"
 )
 
 // Normal (submarine) swap finite state machine
@@ -19,7 +23,7 @@ func FsmInitialNormal(in FsmIn) FsmOut {
 
 	sats := in.SwapData.Sats
 
-	keys, err := in.BoltzPlugin.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
+	keys, err := in.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -29,7 +33,7 @@ func FsmInitialNormal(in FsmIn) FsmOut {
 		return FsmOut{Error: err}
 	}
 
-	res, ok := pairs.Pairs["BTC/BTC"]
+	res, ok := pairs.Pairs[BtcPair]
 	if !ok {
 		return FsmOut{Error: fmt.Errorf("pairs are not available")}
 	}
@@ -85,11 +89,14 @@ func FsmInitialNormal(in FsmIn) FsmOut {
 		return FsmOut{Error: fmt.Errorf("we have %v sats on-chain but need %v", funds.ConfirmedBalance, response.ExpectedAmount+minerFees)}
 	}
 
+	in.BoltzPlugin.EnsureConnected(ctx)
+
 	in.SwapData.BoltzID = response.Id
 	in.SwapData.Script = response.RedeemScript
 	in.SwapData.Address = response.Address
 	in.SwapData.TimoutBlockHeight = response.TimeoutBlockHeight
 
+	// Explicitly first change state (in case we crash before sending)
 	changeState(in, OnChainFundsSent)
 
 	tx, err := lnAPI.SendToOnChainAddress(ctx, response.Address, int64(response.ExpectedAmount), false, lightning.Normal)
@@ -101,12 +108,164 @@ func FsmInitialNormal(in FsmIn) FsmOut {
 	return FsmOut{NextState: OnChainFundsSent}
 }
 
+func FsmOnChainFundsSent(in FsmIn) FsmOut {
+	ctx := context.Background()
+
+	SleepTime := GetSleepTime(in)
+
+	if in.SwapData.BoltzID == "" {
+		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
+	}
+
+	for {
+		lnAPI, err := in.BoltzPlugin.LnAPI()
+		if err != nil {
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
+			time.Sleep(SleepTime)
+			continue
+		}
+		if lnAPI == nil {
+			log(in, "error getting LNAPI")
+			time.Sleep(SleepTime)
+			continue
+		}
+
+		s, err := in.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
+		if err != nil {
+			log(in, fmt.Sprintf("error communicating with BoltzAPI: %v", err))
+			time.Sleep(SleepTime)
+			continue
+		}
+		status := boltz.ParseEvent(s.Status)
+
+		if in.SwapData.LockupTransactionId == "" {
+			if status == boltz.TransactionMempool || status == boltz.TransactionConfirmed {
+				in.SwapData.LockupTransactionId = s.Transaction.Id
+			}
+		}
+
+		if status.IsFailedStatus() {
+			return FsmOut{NextState: RedeemLockedFunds}
+		}
+
+		if status.IsCompletedStatus() || status == boltz.ChannelCreated {
+			return FsmOut{NextState: VerifyFundsReceived}
+		}
+
+		info, err := lnAPI.GetInfo(ctx)
+		if err != nil {
+			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err))
+			time.Sleep(SleepTime)
+			continue
+		}
+
+		if uint32(info.BlockHeight) > in.SwapData.TimoutBlockHeight {
+			return FsmOut{NextState: RedeemLockedFunds}
+		}
+
+		lnAPI.Cleanup()
+		time.Sleep(SleepTime)
+	}
+}
+
+func FsmRedeemLockedFunds(in FsmIn) FsmOut {
+	ctx := context.Background()
+
+	if in.SwapData.BoltzID == "" {
+		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
+	}
+
+	if in.SwapData.LockupTransactionId == "" {
+		return FsmOut{Error: fmt.Errorf("invalid state txid not set")}
+	}
+
+	SleepTime := GetSleepTime(in)
+
+	// Wait for expiry
+	for {
+		lnAPI, err := in.BoltzPlugin.LnAPI()
+		if err != nil {
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
+			time.Sleep(SleepTime)
+			continue
+		}
+		if lnAPI == nil {
+			log(in, "error getting LNAPI")
+			time.Sleep(SleepTime)
+			continue
+		}
+
+		info, err := lnAPI.GetInfo(ctx)
+		if err != nil {
+			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err))
+			time.Sleep(SleepTime)
+			continue
+		}
+
+		if uint32(info.BlockHeight) > in.SwapData.TimoutBlockHeight {
+			break
+		}
+
+		log(in, fmt.Sprintf("Waiting for expiry %d < %d", info.BlockHeight, in.SwapData.TimoutBlockHeight))
+
+		lnAPI.Cleanup()
+		time.Sleep(SleepTime)
+	}
+
+	return FsmOut{NextState: RedeemingLockedFunds}
+}
+
+func FsmRedeemingLockedFunds(in FsmIn) FsmOut {
+	// For state machine this is final state
+	return FsmOut{}
+}
+
+func FsmVerifyFundsReceived(in FsmIn) FsmOut {
+	ctx := context.Background()
+
+	SleepTime := GetSleepTime(in)
+
+	for {
+		lnAPI, err := in.BoltzPlugin.LnAPI()
+		if err != nil {
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
+			time.Sleep(SleepTime)
+			continue
+		}
+		if lnAPI == nil {
+			log(in, "error getting LNAPI")
+			time.Sleep(SleepTime)
+			continue
+		}
+
+		keys, err := in.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
+		if err != nil {
+			log(in, "error getting keys")
+			time.Sleep(SleepTime)
+			continue
+		}
+
+		paid, err := lnAPI.IsInvoicePaid(ctx, hex.EncodeToString(keys.Preimage.Hash))
+		if err != nil {
+			log(in, "error getting keys")
+			time.Sleep(SleepTime)
+			continue
+		}
+
+		if paid {
+			return FsmOut{NextState: SwapSuccess}
+		} else {
+			return FsmOut{NextState: SwapFailed}
+		}
+	}
+}
+
 func CreateSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, invoice *lightning.InvoiceResp, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateSwapResponse, error) {
 	const BlockEps = 10
 
 	response, err := api.CreateSwap(boltz.CreateSwapRequest{
 		Type:            "submarine",
-		PairId:          "BTC/BTC",
+		PairId:          BtcPair,
 		OrderSide:       "buy",
 		PreimageHash:    hex.EncodeToString(keys.Preimage.Hash),
 		RefundPublicKey: hex.EncodeToString(keys.Keys.PublicKey.SerializeCompressed()),
@@ -139,71 +298,9 @@ func CreateSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, invoice *lightning.
 	return response, nil
 }
 
-func FsmOnChainFundsSent(in FsmIn) FsmOut {
-	ctx := context.Background()
-	const SleepTime = 5 * time.Minute
-
-	if in.SwapData.BoltzID == "" {
-		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
+func GetSleepTime(in FsmIn) time.Duration {
+	if in.BoltzPlugin.ChainParams.Name == "mainnet" {
+		return 1 * time.Minute
 	}
-
-	for {
-		lnAPI, err := in.BoltzPlugin.LnAPI()
-		if err != nil {
-			glog.Warningf("error gettings LNAPI: %v", err)
-			time.Sleep(SleepTime)
-			continue
-		}
-		if lnAPI == nil {
-			glog.Warning("error getting LNAPI")
-			time.Sleep(SleepTime)
-			continue
-		}
-
-		status, err := in.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
-		if err != nil {
-			glog.Warningf("error communicating with BoltzAPI: %v", err)
-			time.Sleep(SleepTime)
-			continue
-		}
-
-		if in.SwapData.LockupTransactionId == "" {
-			if status.Status == "transaction.mempool" || status.Status == "transaction.confirmed" {
-				in.SwapData.LockupTransactionId = status.Transaction.Id
-			}
-		}
-
-		if status.Status == "swap.expired" || status.Status == "invoice.failedToPay" {
-			return FsmOut{NextState: RedeemLockedFunds}
-		}
-
-		if status.Status == "transaction.claimed" || status.Status == "channel.created" || status.Status == "invoice.paid" {
-			return FsmOut{NextState: VerifyFundsReceived}
-		}
-
-		info, err := lnAPI.GetInfo(ctx)
-		if err != nil {
-			glog.Warningf("error communicating with LNAPI: %v", err)
-			time.Sleep(SleepTime)
-		}
-
-		if uint32(info.BlockHeight) > in.SwapData.TimoutBlockHeight {
-			return FsmOut{NextState: RedeemLockedFunds}
-		}
-
-		lnAPI.Cleanup()
-		time.Sleep(SleepTime)
-	}
-}
-
-func FsmRedeemLockedFunds(in FsmIn) FsmOut {
-	return FsmOut{NextState: InitialNormal}
-}
-
-func FsmRedeemingLockedFunds(in FsmIn) FsmOut {
-	return FsmOut{NextState: InitialNormal}
-}
-
-func FsmVerifyFundsReceived(in FsmIn) FsmOut {
-	return FsmOut{NextState: InitialNormal}
+	return 5 * time.Second
 }

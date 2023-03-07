@@ -5,8 +5,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/bolt-observer/agent/filter"
-	api "github.com/bolt-observer/agent/lightning"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/tyler-smith/go-bip39"
@@ -58,18 +56,11 @@ func TestHmac(t *testing.T) {
 }
 
 func TestGetKeys(t *testing.T) {
-	f, err := filter.NewAllowAllFilter()
-	assert.NoError(t, err)
+	entropy, err := bip39.NewEntropy(SecretBitSize)
+	c := NewCryptoAPI(entropy)
 
-	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
-	if b == nil || b.LnAPI == nil {
-		if FailNoCredsBoltz {
-			t.Fail()
-		}
-		return
-	}
 	assert.NoError(t, err)
-	_, err = b.GetKeys("aa")
+	_, err = c.GetKeys("aa")
 	assert.NoError(t, err)
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/bolt-observer/agent/entities"
+	"github.com/golang/glog"
 )
 
 type State int
@@ -65,7 +66,7 @@ func (f FsmIn) Get() FsmIn {
 	return f
 }
 
-func (f FsmIn) GetJobID() int32 {
+func (f FsmIn) GetJobID() JobID {
 	return f.SwapData.JobID
 }
 
@@ -92,7 +93,7 @@ func (fsm Fsm[I, O, S]) FsmWrap(f func(data I) O) func(data I) O {
 		if realOut.Error != nil {
 			realOut.NextState = SwapFailed
 			realIn.MsgCallback(entities.PluginMessage{
-				JobID:      realIn.GetJobID(),
+				JobID:      int32(realIn.GetJobID()),
 				Message:    fmt.Sprintf("Error %v happened", realOut.Error),
 				IsError:    true,
 				IsFinished: true,
@@ -120,13 +121,23 @@ func changeState(in FsmIn, state State) error {
 	err := in.BoltzPlugin.db.Insert(in.SwapData, in.SwapData.JobID)
 	if err != nil {
 		in.MsgCallback(entities.PluginMessage{
-			JobID:      in.GetJobID(),
+			JobID:      int32(in.GetJobID()),
 			Message:    fmt.Sprintf("Could not change state to %v %v", state, err),
 			IsError:    true,
 			IsFinished: true,
 		})
 	}
 	return err
+}
+
+func log(in FsmIn, msg string) {
+	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), msg)
+	in.MsgCallback(entities.PluginMessage{
+		JobID:      int32(in.GetJobID()),
+		Message:    msg,
+		IsError:    false,
+		IsFinished: false,
+	})
 }
 
 func (fsm Fsm[I, O, S]) FsmEval(
@@ -173,7 +184,7 @@ func FsmNone(in FsmIn) FsmOut {
 
 func FsmSwapFailed(in FsmIn) FsmOut {
 	in.MsgCallback(entities.PluginMessage{
-		JobID:      in.GetJobID(),
+		JobID:      int32(in.GetJobID()),
 		Message:    fmt.Sprintf("Swap %d failed\n", in.GetJobID()),
 		IsError:    true,
 		IsFinished: true,
@@ -183,7 +194,7 @@ func FsmSwapFailed(in FsmIn) FsmOut {
 
 func FsmSwapSuccess(in FsmIn) FsmOut {
 	in.MsgCallback(entities.PluginMessage{
-		JobID:      in.GetJobID(),
+		JobID:      int32(in.GetJobID()),
 		Message:    fmt.Sprintf("Swap %d succeeded\n", in.GetJobID()),
 		IsError:    false,
 		IsFinished: true,

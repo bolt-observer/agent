@@ -1,6 +1,8 @@
 package boltz
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -14,6 +16,7 @@ import (
 	"github.com/bolt-observer/agent/plugins"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/golang/glog"
 	"github.com/tyler-smith/go-bip39"
 	"github.com/urfave/cli"
 )
@@ -63,7 +66,7 @@ type Plugin struct {
 	LnAPI            entities.NewAPICall
 	Filter           filter.FilteringInterface
 	MaxFeePercentage float64
-	MasterSecret     []byte
+	CryptoAPI        *CryptoAPI
 	db               DB
 	jobs             map[int32]interface{}
 	mutex            sync.Mutex
@@ -118,12 +121,10 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	if mnemonic != "" {
 		entropy, err = bip39.MnemonicToByteArray(mnemonic, true)
 		if err != nil {
-			fmt.Printf("Mnemonic fail %v\n", err)
 			return nil, err
 		}
 		err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
 		if err != nil {
-			fmt.Printf("Mnemonic save fail %v\n", err)
 			return nil, err
 		}
 	} else {
@@ -148,14 +149,14 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		BoltzAPI: &boltz.Boltz{
 			URL: cmdCtx.String("boltzurl"),
 		},
-		MasterSecret: entropy,
-		Filter:       filter,
-		LnAPI:        lnAPI,
-		db:           db,
+		CryptoAPI: NewCryptoAPI(entropy),
+		Filter:    filter,
+		LnAPI:     lnAPI,
+		db:        db,
 	}
 
 	if cmdCtx.Bool("dumpmnemonic") {
-		fmt.Printf("Your secret is %s\n", resp.DumpMnemonic())
+		fmt.Printf("Your secret is %s\n", resp.CryptoAPI.DumpMnemonic())
 	}
 
 	resp.MaxFeePercentage = cmdCtx.Float64("maxfeepercentage")
@@ -163,39 +164,59 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	return resp, nil
 }
 
-func (b *Plugin) Execute(jobID int32, data []byte, msgCallback entities.MessageCallback) error {
+func (b *Plugin) jobDataToSwapData(jobData *JobData) *SwapData {
+	if jobData == nil {
+		return nil
+	}
 
-	// Mutex is not good here
-	/*
-		jd := &types.JobData{}
-		err := json.Unmarshal(data, &jd)
+	switch jobData.Target {
+	case OutboundLiqudityNodeTarget:
+		liqudity, err := b.GetNodeLiquidity(context.Background())
+
+		// TODO: calculate amount needed
+		fmt.Printf("Your liquidity is %v\n", liqudity)
 		if err != nil {
-			return types.ErrCouldNotParseJobData
-		}
-
-		b.mutex.Lock()
-		defer b.mutex.Unlock()
-
-		// job already exists and is running already
-		if _, ok := b.jobs[jobID]; ok {
+			glog.Warningf("Could not get node liquidity %v", err)
 			return nil
-		} else {
-			var jm types.SwapData
-			if err = b.db.Get(jobID, &jm); err != nil {
-				b.db.Insert(jobID, jd)
-			}
-			b.jobs[jobID] = struct{}{}
-
-			go b.runJob(jobID, jd, msgCallback)
 		}
-	*/
+		return &SwapData{
+			JobID: JobID(jobData.ID),
+			Sats:  100000,
+			State: InitialNormal,
+		}
+	default:
+		// Not supported yet
+		return nil
+	}
+}
+
+func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.MessageCallback) error {
+	jd := &JobData{}
+	err := json.Unmarshal(data, &jd)
+	if err != nil {
+		return ErrCouldNotParseJobData
+	}
+
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	// job already exists and is running already
+	if _, ok := b.jobs[jobID]; ok {
+		return nil
+	} else {
+		var sd SwapData
+		if err = b.db.Get(jobID, &sd); err != nil {
+			b.db.Insert(jobID, sd)
+		}
+		b.jobs[jobID] = b.jobDataToSwapData(jd)
+
+		//go b.runJob(jobID, jd, msgCallback)
+	}
 
 	return nil
 }
 
-/*
 // start or continue running job
-func (b *Plugin) runJob(jobID int32, jd *types.JobData, msgCallback entities.MessageCallback) {
+func (b *Plugin) runJob(jobID int32, jd *SwapData, msgCallback entities.MessageCallback) {
 	// switch jd.Target and do appropriate swaps
 }
-*/

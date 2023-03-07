@@ -29,16 +29,14 @@ type JobData struct {
 }
 
 type SwapData struct {
-	JobID               int32
-	Attempt             int
-	BoltzID             string
-	Type                Type
-	State               State
-	TimoutBlockHeight   uint32
-	Script              string
-	Sats                uint64
-	Address             string
-	RedeemTransactionId string
+	JobID             JobID
+	Attempt           int // Not used yet
+	BoltzID           string
+	State             State
+	TimoutBlockHeight uint32
+	Script            string
+	Sats              uint64
+	Address           string
 
 	// Normal swap
 	Invoice             string
@@ -50,13 +48,6 @@ type SwapData struct {
 	ReverseMinerInvoice string
 	ChanIdsToUse        []uint64
 }
-
-type Type int
-
-const (
-	Normal Type = iota
-	Reverse
-)
 
 func ParseJobData(id int32, bytes []byte) (*JobData, error) {
 	var jd JobData
