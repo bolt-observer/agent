@@ -46,8 +46,7 @@ const (
 	defaultAdminMacaroonFilename = "admin.macaroon"
 	whitelist                    = "channel-whitelist"
 
-	// TODO: only for debugging
-	periodicSend = false
+	periodicSend = true
 )
 
 var (
