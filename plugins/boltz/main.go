@@ -166,6 +166,7 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 
 		if err = b.db.Get(jobID, &sd); err != nil {
 			// job found in database
+			b.db.Insert(jobID, sd)
 			b.jobs[jobID] = sd
 		} else {
 			// create new job
@@ -183,8 +184,8 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 
 			sd = *data
 
-			b.jobs[jobID] = sd
 			b.db.Insert(jobID, sd)
+			b.jobs[jobID] = sd
 		}
 
 		go b.runJob(jobID, &sd, msgCallback)
@@ -201,7 +202,9 @@ func (b *Plugin) runJob(jobID int32, jd *SwapData, msgCallback agent_entities.Me
 	}
 
 	// Running the job just means going through the state machine starting with jd.State
-	b.SwapMachine.Eval(in, jd.State)
+	if b.SwapMachine != nil {
+		b.SwapMachine.Eval(in, jd.State)
+	}
 }
 
 func getChainParams(cmdCtx *cli.Context) *chaincfg.Params {

@@ -195,7 +195,10 @@ func NewSwapMachine(plugin *Plugin) *SwapMachine {
 }
 
 func (s *SwapMachine) Eval(in FsmIn, initial State) FsmOut {
-	initF := s.Machine.States[initial]
+	initF, ok := s.Machine.States[initial]
+	if !ok {
+		return FsmOut{Error: fmt.Errorf("invalid initial state: %v", initial)}
+	}
 	fail := s.FsmNone
 	return s.Machine.FsmEval(in, initF, fail)
 }

@@ -97,6 +97,7 @@ func TestExecute(t *testing.T) {
 		_, ok := p.jobs[123]
 		assert.True(t, ok)
 
+		fmt.Printf("%+v\n", p.db.(*TestDB).data)
 		_, ok = p.db.(*TestDB).data[int32(123)]
 		assert.True(t, ok)
 	})
@@ -129,63 +130,69 @@ func mkGetLndAPI(cmdCtx *cli.Context) agent_entities.NewAPICall {
 func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 	p := &Plugin{}
 
-	jd := &JobData{
-		Target:     OutboundLiquidityNodePercent,
-		Percentage: 100,
-		ID:         1337,
-	}
+	t.Run("Everything on inbound side want everyting outbound", func(t *testing.T) {
+		jd := &JobData{
+			Target:     OutboundLiquidityNodePercent,
+			Percentage: 100,
+			ID:         1337,
+		}
 
-	liquidity := &Liquidity{
-		InboundSats:        200000,
-		OutboundSats:       0,
-		Capacity:           200000,
-		InboundPercentage:  100,
-		OutboundPercentage: 0,
-	}
+		liquidity := &Liquidity{
+			InboundSats:        200000,
+			OutboundSats:       0,
+			Capacity:           200000,
+			InboundPercentage:  100,
+			OutboundPercentage: 0,
+		}
 
-	result := p.convertOutBoundLiqudityNodePercent(jd, liquidity, nil)
+		result := p.convertOutBoundLiqudityNodePercent(jd, liquidity, nil)
 
-	assert.Equal(t, JobID(1337), result.JobID)
-	assert.Equal(t, InitialForward, result.State)
-	assert.Equal(t, 200000, int(result.Sats))
+		assert.Equal(t, JobID(1337), result.JobID)
+		assert.Equal(t, InitialForward, result.State)
+		assert.Equal(t, 200000, int(result.Sats))
+	})
 
-	jd = &JobData{
-		Target:     OutboundLiquidityNodePercent,
-		Percentage: 50,
-		ID:         1338,
-	}
+	t.Run("Everything on inbound side want half outbound", func(t *testing.T) {
+		jd := &JobData{
+			Target:     OutboundLiquidityNodePercent,
+			Percentage: 50,
+			ID:         1338,
+		}
 
-	liquidity = &Liquidity{
-		InboundSats:        200000,
-		OutboundSats:       0,
-		Capacity:           200000,
-		InboundPercentage:  100,
-		OutboundPercentage: 0,
-	}
+		liquidity := &Liquidity{
+			InboundSats:        200000,
+			OutboundSats:       0,
+			Capacity:           200000,
+			InboundPercentage:  100,
+			OutboundPercentage: 0,
+		}
 
-	result = p.convertOutBoundLiqudityNodePercent(jd, liquidity, nil)
+		result := p.convertOutBoundLiqudityNodePercent(jd, liquidity, nil)
 
-	assert.Equal(t, JobID(1338), result.JobID)
-	assert.Equal(t, InitialForward, result.State)
-	assert.Equal(t, 100000, int(result.Sats))
+		assert.Equal(t, JobID(1338), result.JobID)
+		assert.Equal(t, InitialForward, result.State)
+		assert.Equal(t, 100000, int(result.Sats))
+	})
 
-	jd = &JobData{
-		Target:     OutboundLiquidityNodePercent,
-		Percentage: 50,
-		ID:         1339,
-	}
+	t.Run("Empty node", func(t *testing.T) {
+		jd := &JobData{
+			Target:     OutboundLiquidityNodePercent,
+			Percentage: 50,
+			ID:         1339,
+		}
 
-	liquidity = &Liquidity{
-		InboundSats:        0,
-		OutboundSats:       0,
-		Capacity:           0,
-		InboundPercentage:  0,
-		OutboundPercentage: 0,
-	}
+		liquidity := &Liquidity{
+			InboundSats:        0,
+			OutboundSats:       0,
+			Capacity:           0,
+			InboundPercentage:  0,
+			OutboundPercentage: 0,
+		}
 
-	result = p.convertOutBoundLiqudityNodePercent(jd, liquidity, nil)
+		result := p.convertOutBoundLiqudityNodePercent(jd, liquidity, nil)
 
-	assert.Equal(t, JobID(1339), result.JobID)
-	assert.Equal(t, InitialForward, result.State)
-	assert.Equal(t, 100000, int(result.Sats))
+		assert.Equal(t, JobID(1339), result.JobID)
+		assert.Equal(t, InitialForward, result.State)
+		assert.Equal(t, 100000, int(result.Sats))
+	})
 }
