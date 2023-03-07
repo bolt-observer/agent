@@ -23,6 +23,7 @@ import (
 )
 
 const (
+	Name            = "boltz"
 	DefaultBoltzUrl = "https://boltz.exchange/api"
 	SecretBitSize   = 256
 	SecretDbKey     = "secret"
@@ -55,7 +56,7 @@ func init() {
 	// Register ourselves with plugins
 	plugins.AllPluginFlags = append(plugins.AllPluginFlags, PluginFlags...)
 	plugins.RegisteredPlugins = append(plugins.RegisteredPlugins, plugins.PluginData{
-		Name: "boltz",
+		Name: Name,
 		Init: func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) (agent_entities.Plugin, error) {
 			r, err := NewPlugin(lnAPI, filter, cmdCtx)
 			return agent_entities.Plugin(r), err
@@ -122,33 +123,9 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		return nil, err
 	}
 
-	var entropy []byte
-
-	mnemonic := cmdCtx.String("setmnemonic")
-	if mnemonic != "" {
-		entropy, err = bip39.MnemonicToByteArray(mnemonic, true)
-		if err != nil {
-			return nil, err
-		}
-		err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		var e Entropy
-		err = db.Get(SecretDbKey, &e)
-		entropy = e.Data
-
-		if err != nil {
-			entropy, err = bip39.NewEntropy(SecretBitSize)
-			if err != nil {
-				return nil, err
-			}
-			err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
-			if err != nil {
-				return nil, err
-			}
-		}
+	entropy, err := setMnemonic(cmdCtx, db)
+	if err != nil {
+		return nil, err
 	}
 
 	resp := &Plugin{
@@ -168,9 +145,10 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	}
 
 	resp.SwapMachine = NewSwapMachine(resp)
+
 	// Currently there is just one redeemer instance (perhaps split it)
-	resp.Redeemer = NewRedeemer(context.Background(), (RedeemNormal | RedeemReverse), resp.ChainParams, resp.BoltzAPI, resp.LnAPI, interval, resp.CryptoAPI, resp.SwapMachine.RedeemerCallback)
-	resp.ReverseRedeemer = resp.Redeemer
+	resp.Redeemer = NewRedeemer(context.Background(), (RedeemNormal | RedeemReverse), resp.ChainParams, resp.BoltzAPI, resp.LnAPI, interval, resp.CryptoAPI, resp.SwapMachine.RedeemedCallback)
+	resp.ReverseRedeemer = resp.Redeemer // use reference to same instance
 
 	if cmdCtx.Bool("dumpmnemonic") {
 		fmt.Printf("Your secret is %s\n", resp.CryptoAPI.DumpMnemonic())
@@ -181,13 +159,45 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	return resp, nil
 }
 
+func setMnemonic(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
+	var entropy []byte
+
+	mnemonic := cmdCtx.String("setmnemonic")
+	if mnemonic != "" {
+		entropy, err := bip39.MnemonicToByteArray(mnemonic, true)
+		if err != nil {
+			return entropy, err
+		}
+		err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
+		if err != nil {
+			return entropy, err
+		}
+	} else {
+		var e Entropy
+		err := db.Get(SecretDbKey, &e)
+		entropy = e.Data
+
+		if err != nil {
+			entropy, err = bip39.NewEntropy(SecretBitSize)
+			if err != nil {
+				return entropy, err
+			}
+			err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
+			if err != nil {
+				return entropy, err
+			}
+		}
+	}
+	return entropy, nil
+}
+
 func (b *Plugin) jobDataToSwapData(jobData *JobData, msgCallback agent_entities.MessageCallback) *SwapData {
 	if jobData == nil {
 		return nil
 	}
 
 	switch jobData.Target {
-	case OutboundLiqudityNodeTarget:
+	case OutboundLiqudityNodePercent:
 		return b.convertOutBoundLiqudityNodeTarget(jobData, msgCallback)
 	default:
 		// Not supported yet
@@ -232,7 +242,7 @@ func (b *Plugin) convertOutBoundLiqudityNodeTarget(jobData *JobData, msgCallback
 	return &SwapData{
 		JobID: JobID(jobData.ID),
 		Sats:  uint64(math.Round(sats)),
-		State: InitialNormal,
+		State: InitialForward,
 	}
 }
 

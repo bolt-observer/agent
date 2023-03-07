@@ -16,9 +16,9 @@ const (
 type TargetType string
 
 const (
-	OutboundLiqudityNodeTarget   TargetType = "OutboundLiqudityNodeTarget"
-	InboundLiqudityNodeTarget    TargetType = "InboundLiqudityNodeTarget"
-	InboundLiqudityChannelTarget TargetType = "InboundLiqudityChannelTarget"
+	OutboundLiqudityNodePercent   TargetType = "OutboundLiqudityNodePercent"
+	InboundLiqudityNodePercent    TargetType = "InboundLiqudityNodePercent"
+	InboundLiqudityChannelPercent TargetType = "InboundLiqudityChannelPercent"
 )
 
 type JobData struct {
@@ -59,14 +59,14 @@ func ParseJobData(id int32, bytes []byte) (*JobData, error) {
 
 	jd.ID = id
 	switch jd.Target {
-	case OutboundLiqudityNodeTarget:
+	case OutboundLiqudityNodePercent:
 		fallthrough
-	case InboundLiqudityNodeTarget:
+	case InboundLiqudityNodePercent:
 		if jd.Percentage <= 0 || jd.Percentage >= 100 {
 			return nil, ErrCouldNotParseJobData
 		}
 		return &jd, nil
-	case InboundLiqudityChannelTarget:
+	case InboundLiqudityChannelPercent:
 		if jd.Percentage <= 0 || jd.Percentage >= 100 {
 			return nil, ErrCouldNotParseJobData
 		}

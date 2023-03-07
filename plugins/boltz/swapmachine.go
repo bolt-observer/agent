@@ -84,7 +84,7 @@ func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
 	return FsmOut{}
 }
 
-func (s *SwapMachine) RedeemerCallback(data FsmIn, success bool) {
+func (s *SwapMachine) RedeemedCallback(data FsmIn, success bool) {
 	sd := data.GetSwapData()
 	if sd.State == RedeemingLockedFunds {
 		// even when this succeeds state is still screwed up
@@ -136,7 +136,7 @@ func FsmWrap[I FsmInGetter, O FsmOutGetter](f func(data I) O, b *Plugin) func(da
 const (
 	None State = iota
 
-	InitialNormal
+	InitialForward
 	InitialReverse
 
 	SwapFailed
@@ -170,7 +170,7 @@ func NewSwapMachine(plugin *Plugin) *SwapMachine {
 	s.Machine.States[SwapFailed] = FsmWrap(s.FsmSwapFailed, plugin)
 	s.Machine.States[SwapSuccess] = FsmWrap(s.FsmSwapSuccess, plugin)
 
-	s.Machine.States[InitialNormal] = FsmWrap(s.FsmInitialNormal, plugin)
+	s.Machine.States[InitialForward] = FsmWrap(s.FsmInitialForward, plugin)
 	s.Machine.States[OnChainFundsSent] = FsmWrap(s.FsmOnChainFundsSent, plugin)
 	s.Machine.States[RedeemLockedFunds] = FsmWrap(s.FsmRedeemLockedFunds, plugin)
 	s.Machine.States[RedeemingLockedFunds] = FsmWrap(s.FsmRedeemingLockedFunds, plugin)

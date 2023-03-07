@@ -11,9 +11,9 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 )
 
-// Normal (submarine) swap finite state machine
+// (submarine) swap finite state machine
 
-func (s *SwapMachine) FsmInitialNormal(in FsmIn) FsmOut {
+func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	ctx := context.Background()
 
 	sats := in.SwapData.Sats
