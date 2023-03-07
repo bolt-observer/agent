@@ -200,7 +200,7 @@ func (b *Plugin) jobDataToSwapData(jobData *JobData, msgCallback agent_entities.
 	}
 
 	switch jobData.Target {
-	case OutboundLiqudityNodePercent:
+	case OutboundLiquidityNodePercent:
 		liquidity, err := b.GetNodeLiquidity(context.Background(), nil)
 
 		if err != nil {

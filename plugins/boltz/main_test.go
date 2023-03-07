@@ -130,7 +130,7 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 	p := &Plugin{}
 
 	jd := &JobData{
-		Target:     OutboundLiqudityNodePercent,
+		Target:     OutboundLiquidityNodePercent,
 		Percentage: 100,
 		ID:         1337,
 	}
@@ -150,7 +150,7 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 	assert.Equal(t, 200000, int(result.Sats))
 
 	jd = &JobData{
-		Target:     OutboundLiqudityNodePercent,
+		Target:     OutboundLiquidityNodePercent,
 		Percentage: 50,
 		ID:         1338,
 	}
