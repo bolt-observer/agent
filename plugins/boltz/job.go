@@ -21,6 +21,7 @@ const (
 	InboundLiquidityChannelPercent TargetType = "InboundLiquidityChannelPercent"
 )
 
+// JobData struct comes from the request.
 type JobData struct {
 	ID         int32      `json:"id,omitempty"`
 	Target     TargetType `json:"target"`
@@ -28,6 +29,7 @@ type JobData struct {
 	ChannelId  uint64     `json:"channel_id,omitempty"`
 }
 
+// SwapData struct.
 type SwapData struct {
 	JobID             JobID
 	Attempt           int // Not used yet
@@ -50,6 +52,7 @@ type SwapData struct {
 	ExpectedSats uint64
 }
 
+// ParseJobData gets a new JobData from bytes
 func ParseJobData(id int32, bytes []byte) (*JobData, error) {
 	var jd JobData
 	err := json.Unmarshal(bytes, &jd)

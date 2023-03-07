@@ -168,4 +168,24 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 	assert.Equal(t, JobID(1338), result.JobID)
 	assert.Equal(t, InitialForward, result.State)
 	assert.Equal(t, 100000, int(result.Sats))
+
+	jd = &JobData{
+		Target:     OutboundLiquidityNodePercent,
+		Percentage: 50,
+		ID:         1339,
+	}
+
+	liquidity = &Liquidity{
+		InboundSats:        0,
+		OutboundSats:       0,
+		Capacity:           0,
+		InboundPercentage:  0,
+		OutboundPercentage: 0,
+	}
+
+	result = p.convertOutBoundLiqudityNodePercent(jd, liquidity, nil)
+
+	assert.Equal(t, JobID(1339), result.JobID)
+	assert.Equal(t, InitialForward, result.State)
+	assert.Equal(t, 100000, int(result.Sats))
 }

@@ -28,7 +28,7 @@ const (
 	SecretBitSize   = 256
 	SecretDbKey     = "secret"
 
-	DefaultSwap = 1000000
+	DefaultSwap = 100000
 	MinSwap     = 50001
 
 	ErrInvalidArguments = Error("invalid arguments")
@@ -48,7 +48,7 @@ var PluginFlags = []cli.Flag{
 		Name: "setmnemonic", Value: "", Usage: "update saved secret with this key material (dangerous)", Hidden: false,
 	},
 	cli.Float64Flag{
-		Name: "maxfeepercentage", Value: 5.0, Usage: "maximum fee that is still acceptable", Hidden: false,
+		Name: "maxfeepercentage", Value: 5.0, Usage: "maximum fee in percentage that is still acceptable", Hidden: false,
 	},
 }
 
@@ -131,6 +131,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		interval = 1 * time.Minute
 	}
 
+	// Swap machine is the finite state machine for doing the swap
 	resp.SwapMachine = NewSwapMachine(resp)
 
 	// Currently there is just one redeemer instance (perhaps split it)
@@ -262,28 +263,36 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
-	// job already exists and is running already
 	if _, ok := b.jobs[jobID]; ok {
+		// job already exists and is running already
 		return nil
 	} else {
 		var sd SwapData
+
 		if err = b.db.Get(jobID, &sd); err != nil {
+			// job found in database
+			b.jobs[jobID] = sd
+		} else {
+			// create new job
+			data := b.jobDataToSwapData(jd, msgCallback)
+			if data == nil {
+				glog.Infof("[Boltz] [%v] Not supported job", jobID)
+				msgCallback(agent_entities.PluginMessage{
+					JobID:      int32(jobID),
+					Message:    "Not supported job",
+					IsError:    true,
+					IsFinished: true,
+				})
+				return nil
+			}
+
+			sd = *data
+
+			b.jobs[jobID] = sd
 			b.db.Insert(jobID, sd)
 		}
-		data := b.jobDataToSwapData(jd, msgCallback)
-		if data == nil {
-			glog.Infof("[Boltz] [%v] Not supported job", jobID)
-			msgCallback(agent_entities.PluginMessage{
-				JobID:      int32(jobID),
-				Message:    "Non supported job",
-				IsError:    true,
-				IsFinished: true,
-			})
-			return nil
-		}
 
-		b.jobs[jobID] = *data
-		go b.runJob(jobID, data, msgCallback)
+		go b.runJob(jobID, &sd, msgCallback)
 	}
 
 	return nil

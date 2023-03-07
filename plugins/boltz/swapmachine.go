@@ -70,7 +70,7 @@ func (s *SwapMachine) FsmSwapFailed(in FsmIn) FsmOut {
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int32(in.GetJobID()),
-			Message:    fmt.Sprintf("Swap %d failed\n", in.GetJobID()),
+			Message:    fmt.Sprintf("Swap %d failed", in.GetJobID()),
 			IsError:    true,
 			IsFinished: true,
 		})
@@ -82,7 +82,7 @@ func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int32(in.GetJobID()),
-			Message:    fmt.Sprintf("Swap %d succeeded\n", in.GetJobID()),
+			Message:    fmt.Sprintf("Swap %d succeeded", in.GetJobID()),
 			IsError:    false,
 			IsFinished: true,
 		})
