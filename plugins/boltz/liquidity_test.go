@@ -22,7 +22,7 @@ func TestGetNodeLiquidity(t *testing.T) {
 	}
 	assert.NoError(t, err)
 
-	_, err = b.GetNodeLiquidity(context.Background())
+	_, err = b.GetNodeLiquidity(context.Background(), nil)
 	assert.NoError(t, err)
 }
 
@@ -40,7 +40,7 @@ func TestGetByDescendingOutboundLiqudity(t *testing.T) {
 	assert.NoError(t, err)
 
 	const Limit = uint64(3523220)
-	resp, err := b.GetByDescendingOutboundLiqudity(context.Background(), Limit)
+	resp, err := b.GetByDescendingOutboundLiquidity(context.Background(), Limit, nil)
 	assert.NoError(t, err)
 
 	total := uint64(0)

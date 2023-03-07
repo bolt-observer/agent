@@ -67,6 +67,6 @@ func TestFsmEval(t *testing.T) {
 		},
 	}
 
-	fsm.FsmEval(TestFsmIn{Trail: &trail}, FsmA, nil, nil)
+	fsm.FsmEval(TestFsmIn{Trail: &trail}, FsmA, nil)
 	assert.Equal(t, "ABC", trail)
 }

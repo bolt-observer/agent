@@ -17,9 +17,11 @@ import (
 )
 
 // Redeemer is an abstraction that periodically gathers "stuck" UTXOs and spends them to a new lightning node address.
-
 // It can combine failed normal submarine transactions (RedeemNormal) and/or the outputs that need to be claimed for reverse submarine transactions (RedeemReverse)
+
 type JobID int32
+
+// RedeemerType is a bitmask
 type RedeemerType int
 
 const (
@@ -27,12 +29,13 @@ const (
 	RedeemReverse
 )
 
-type Redeemer struct {
+// Redeemer struct.
+type Redeemer[T SwapDataGetter] struct {
 	Type     RedeemerType
 	Ctx      context.Context
-	Callback RedeemedCallback
+	Callback RedeemedCallback[T]
 
-	Entries map[JobID]SwapData
+	Entries map[JobID]T
 	lock    sync.Mutex
 	Timer   *time.Timer
 
@@ -42,28 +45,34 @@ type Redeemer struct {
 	CryptoAPI   *CryptoAPI
 }
 
-type RedeemedCallback func(id JobID)
+type SwapDataGetter interface {
+	GetSwapData() SwapData
+}
 
-func NewRedeemer(ctx context.Context, t RedeemerType, chainParams *chaincfg.Params, boltzAPI *boltz.Boltz, lnAPI entities.NewAPICall,
-	interval time.Duration, cryptoAPI *CryptoAPI, callback RedeemedCallback) *Redeemer {
-	r := &Redeemer{
+type RedeemedCallback[T SwapDataGetter] func(data T, success bool)
+
+func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainParams *chaincfg.Params, boltzAPI *boltz.Boltz, lnAPI entities.NewAPICall,
+	interval time.Duration, cryptoAPI *CryptoAPI, callback RedeemedCallback[T]) *Redeemer[T] {
+
+	r := &Redeemer[T]{
 		Ctx:         ctx,
 		Type:        t,
 		Callback:    callback,
-		Entries:     make(map[JobID]SwapData),
+		Entries:     make(map[JobID]T),
 		lock:        sync.Mutex{},
 		ChainParams: chainParams,
 		BoltzAPI:    boltzAPI,
 		LnAPI:       lnAPI,
 		CryptoAPI:   cryptoAPI,
-		Timer:       time.NewTimer(interval),
 	}
 
 	go r.eventLoop()
+	r.Timer = time.NewTimer(interval)
+
 	return r
 }
 
-func (r *Redeemer) eventLoop() {
+func (r *Redeemer[T]) eventLoop() {
 	func() {
 		for {
 			select {
@@ -79,7 +88,7 @@ func (r *Redeemer) eventLoop() {
 	}()
 }
 
-func (r *Redeemer) redeem() bool {
+func (r *Redeemer[T]) redeem() bool {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -88,24 +97,61 @@ func (r *Redeemer) redeem() bool {
 		return true
 	}
 
+	lnAPI, err := r.LnAPI()
+	if err != nil {
+		return true
+	}
+	if lnAPI == nil {
+		return true
+	}
+
+	defer lnAPI.Cleanup()
+
+	info, err := lnAPI.GetInfo(r.Ctx)
+	if err != nil {
+		return true
+	}
+
 	outputs := make([]boltz.OutputDetails, 0)
 	used := make([]JobID, 0)
 	for _, entry := range r.Entries {
-		output := r.getRefundOutput(&entry)
+		var output *boltz.OutputDetails
+		sd := entry.GetSwapData()
+		if sd.State == RedeemingLockedFunds {
+			if info.BlockHeight < int(sd.TimoutBlockHeight) {
+				continue
+			}
+
+			output = r.getRefundOutput(&sd)
+		} else if sd.State == ClaimReverseFunds {
+			if info.BlockHeight > int(sd.TimoutBlockHeight) {
+				r.Callback(entry, false)
+				continue
+			}
+
+			output = r.getClaimOutput(&sd)
+
+		} else {
+			continue
+		}
+
 		if output == nil {
 			continue
 		}
 		outputs = append(outputs, *output)
-		used = append(used, entry.JobID)
+		used = append(used, sd.JobID)
 	}
 	if len(outputs) <= 0 {
 		return true
 	}
-	_, err := r.doRedemption(outputs)
+	_, err = r.doRedeem(outputs)
 	if err == nil {
 		for _, one := range used {
 			if r.Callback != nil {
-				r.Callback(one)
+				data, ok := r.Entries[one]
+				if ok {
+					r.Callback(data, true)
+				}
 			}
 			delete(r.Entries, one)
 		}
@@ -114,33 +160,34 @@ func (r *Redeemer) redeem() bool {
 	return true
 }
 
-func (r *Redeemer) AddEntry(data SwapData) error {
+func (r *Redeemer[T]) AddEntry(data T) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
 	// Check whether we can handle the state
 	ok := false
+	sd := data.GetSwapData()
 	if r.Type&RedeemNormal == RedeemNormal {
-		if data.State == RedeemingLockedFunds {
+		if sd.State == RedeemingLockedFunds {
 			ok = true
 		}
 	}
 
 	if r.Type&RedeemReverse == RedeemReverse {
-		if data.State == ClaimReverseFunds {
+		if sd.State == ClaimReverseFunds {
 			ok = true
 		}
 	}
 	if !ok {
-		return fmt.Errorf("trying to add non-redeemable thing (%v)", data.State)
+		return fmt.Errorf("trying to add non-redeemable thing (%v %v)", sd.State, sd.JobID)
 	}
 
-	r.Entries[data.JobID] = data
+	r.Entries[sd.JobID] = data
 
 	return nil
 }
 
-func (r *Redeemer) doRedemption(outputs []boltz.OutputDetails) (string, error) {
+func (r *Redeemer[T]) doRedeem(outputs []boltz.OutputDetails) (string, error) {
 	feeResp, err := r.BoltzAPI.GetFeeEstimation()
 	if err != nil {
 		return "", err
@@ -185,7 +232,69 @@ func (r *Redeemer) doRedemption(outputs []boltz.OutputDetails) (string, error) {
 	return transaction.TxHash().String(), nil
 }
 
-func (r *Redeemer) getRefundOutput(data *SwapData) *boltz.OutputDetails {
+func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
+	if data.State != ClaimReverseFunds {
+		return nil
+	}
+
+	status, err := r.BoltzAPI.SwapStatus(data.BoltzID)
+	if err != nil {
+		glog.Warningf("Could not get swap status %v", err)
+		return nil
+	}
+
+	lockupTransactionRaw, err := hex.DecodeString(status.Transaction.Hex)
+	if err != nil {
+		glog.Warningf("Could not decode transaction %v", err)
+		return nil
+	}
+
+	lockupTransaction, err := btcutil.NewTxFromBytes(lockupTransactionRaw)
+	if err != nil {
+		glog.Warningf("Could not parse transaction %v", err)
+		return nil
+	}
+
+	script, err := hex.DecodeString(data.Script)
+	if err != nil {
+		glog.Warningf("Could not decode script %v\n", err)
+		return nil
+	}
+
+	lockupAddress, err := boltz.WitnessScriptHashAddress(r.ChainParams, script)
+	if err != nil {
+		glog.Warningf("Could not derive address %v\n", err)
+		return nil
+	}
+
+	lockupVout, err := r.findLockupVout(lockupAddress, lockupTransaction.MsgTx().TxOut)
+	if err != nil {
+		glog.Warningf("Could not parse lockup vout %v\n", err)
+		return nil
+	}
+
+	keys, err := r.CryptoAPI.GetKeys(fmt.Sprintf("%d", data.JobID))
+	if err != nil {
+		glog.Warningf("Could not get keys %v\n", err)
+		return nil
+	}
+
+	if lockupTransaction.MsgTx().TxOut[lockupVout].Value < int64(data.ExpectedSats) {
+		glog.Warningf("Expected %v sats on chain but got just %v sats\n", lockupTransaction.MsgTx().TxOut[lockupVout].Value, data.ExpectedSats)
+		return nil
+	}
+
+	return &boltz.OutputDetails{
+		LockupTransaction: lockupTransaction,
+		Vout:              lockupVout,
+		OutputType:        boltz.SegWit,
+		RedeemScript:      script,
+		PrivateKey:        keys.Keys.PrivateKey,
+		Preimage:          keys.Preimage.Raw,
+	}
+}
+
+func (r *Redeemer[T]) getRefundOutput(data *SwapData) *boltz.OutputDetails {
 	if data.State != RedeemingLockedFunds {
 		return nil
 	}
@@ -240,7 +349,7 @@ func (r *Redeemer) getRefundOutput(data *SwapData) *boltz.OutputDetails {
 	}
 }
 
-func (r *Redeemer) broadcastTransaction(transaction *wire.MsgTx) error {
+func (r *Redeemer[T]) broadcastTransaction(transaction *wire.MsgTx) error {
 	transactionHex, err := boltz.SerializeTransaction(transaction)
 
 	if err != nil {
@@ -256,7 +365,7 @@ func (r *Redeemer) broadcastTransaction(transaction *wire.MsgTx) error {
 	return nil
 }
 
-func (r *Redeemer) findLockupVout(addressToFind string, outputs []*wire.TxOut) (uint32, error) {
+func (r *Redeemer[T]) findLockupVout(addressToFind string, outputs []*wire.TxOut) (uint32, error) {
 	for vout, output := range outputs {
 		_, outputAddresses, _, err := txscript.ExtractPkScriptAddrs(output.PkScript, r.ChainParams)
 

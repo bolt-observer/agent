@@ -81,6 +81,6 @@ func TestEnsureConnected(t *testing.T) {
 		return
 	}
 	require.NoError(t, err)
-	err = b.EnsureConnected(context.Background())
+	err = b.EnsureConnected(context.Background(), nil)
 	require.NoError(t, err)
 }

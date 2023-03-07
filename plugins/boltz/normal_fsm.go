@@ -11,24 +11,19 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 )
 
-const (
-	BtcPair = "BTC/BTC"
-	Btc     = "BTC"
-)
-
 // Normal (submarine) swap finite state machine
 
-func FsmInitialNormal(in FsmIn) FsmOut {
+func (s *SwapMachine) FsmInitialNormal(in FsmIn) FsmOut {
 	ctx := context.Background()
 
 	sats := in.SwapData.Sats
 
-	keys, err := in.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
+	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
 	if err != nil {
 		return FsmOut{Error: err}
 	}
 
-	pairs, err := in.BoltzPlugin.BoltzAPI.GetPairs()
+	pairs, err := s.BoltzPlugin.BoltzAPI.GetPairs()
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -49,7 +44,7 @@ func FsmInitialNormal(in FsmIn) FsmOut {
 	// times 2 is used as a safety margin
 	minerFees := 2 * res.Fees.MinerFees.BaseAsset.Normal
 
-	lnAPI, err := in.BoltzPlugin.LnAPI()
+	lnAPI, err := s.BoltzPlugin.LnAPI()
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -70,16 +65,17 @@ func FsmInitialNormal(in FsmIn) FsmOut {
 		return FsmOut{Error: err}
 	}
 
-	response, err := CreateSwapWithSanityCheck(in.BoltzPlugin.BoltzAPI, keys, invoice, info.BlockHeight, in.BoltzPlugin.ChainParams)
+	response, err := CreateSwapWithSanityCheck(s.BoltzPlugin.BoltzAPI, keys, invoice, info.BlockHeight, s.BoltzPlugin.ChainParams)
 	if err != nil {
 		return FsmOut{Error: err}
 	}
 
 	fee := float64(response.ExpectedAmount-sats+minerFees) / float64(sats)
-	if fee/100 > in.BoltzPlugin.MaxFeePercentage {
-		return FsmOut{Error: fmt.Errorf("fee was calculated to be %v, max allowed is %v", fee/100, in.BoltzPlugin.MaxFeePercentage)}
+	if fee/100 > s.BoltzPlugin.MaxFeePercentage {
+		return FsmOut{Error: fmt.Errorf("fee was calculated to be %v, max allowed is %v", fee/100, s.BoltzPlugin.MaxFeePercentage)}
 	}
 
+	// Check funds
 	funds, err := lnAPI.GetOnChainFunds(ctx)
 	if err != nil {
 		return FsmOut{Error: err}
@@ -89,15 +85,13 @@ func FsmInitialNormal(in FsmIn) FsmOut {
 		return FsmOut{Error: fmt.Errorf("we have %v sats on-chain but need %v", funds.ConfirmedBalance, response.ExpectedAmount+minerFees)}
 	}
 
-	in.BoltzPlugin.EnsureConnected(ctx)
-
 	in.SwapData.BoltzID = response.Id
 	in.SwapData.Script = response.RedeemScript
 	in.SwapData.Address = response.Address
 	in.SwapData.TimoutBlockHeight = response.TimeoutBlockHeight
 
 	// Explicitly first change state (in case we crash before sending)
-	changeState(in, OnChainFundsSent)
+	s.BoltzPlugin.changeState(in, OnChainFundsSent)
 
 	tx, err := lnAPI.SendToOnChainAddress(ctx, response.Address, int64(response.ExpectedAmount), false, lightning.Normal)
 	if err != nil {
@@ -108,17 +102,17 @@ func FsmInitialNormal(in FsmIn) FsmOut {
 	return FsmOut{NextState: OnChainFundsSent}
 }
 
-func FsmOnChainFundsSent(in FsmIn) FsmOut {
+func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 	ctx := context.Background()
 
-	SleepTime := GetSleepTime(in)
+	SleepTime := s.GetSleepTime(in)
 
 	if in.SwapData.BoltzID == "" {
 		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
 	}
 
 	for {
-		lnAPI, err := in.BoltzPlugin.LnAPI()
+		lnAPI, err := s.BoltzPlugin.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -130,7 +124,9 @@ func FsmOnChainFundsSent(in FsmIn) FsmOut {
 			continue
 		}
 
-		s, err := in.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
+		s.BoltzPlugin.EnsureConnected(ctx, lnAPI)
+
+		s, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
 			log(in, fmt.Sprintf("error communicating with BoltzAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -142,6 +138,8 @@ func FsmOnChainFundsSent(in FsmIn) FsmOut {
 			if status == boltz.TransactionMempool || status == boltz.TransactionConfirmed {
 				in.SwapData.LockupTransactionId = s.Transaction.Id
 			}
+
+			// We are not transitioning back if we crashed before sending
 		}
 
 		if status.IsFailedStatus() {
@@ -168,7 +166,7 @@ func FsmOnChainFundsSent(in FsmIn) FsmOut {
 	}
 }
 
-func FsmRedeemLockedFunds(in FsmIn) FsmOut {
+func (s *SwapMachine) FsmRedeemLockedFunds(in FsmIn) FsmOut {
 	ctx := context.Background()
 
 	if in.SwapData.BoltzID == "" {
@@ -179,11 +177,11 @@ func FsmRedeemLockedFunds(in FsmIn) FsmOut {
 		return FsmOut{Error: fmt.Errorf("invalid state txid not set")}
 	}
 
-	SleepTime := GetSleepTime(in)
+	SleepTime := s.GetSleepTime(in)
 
 	// Wait for expiry
 	for {
-		lnAPI, err := in.BoltzPlugin.LnAPI()
+		lnAPI, err := s.BoltzPlugin.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -215,18 +213,20 @@ func FsmRedeemLockedFunds(in FsmIn) FsmOut {
 	return FsmOut{NextState: RedeemingLockedFunds}
 }
 
-func FsmRedeemingLockedFunds(in FsmIn) FsmOut {
+func (s *SwapMachine) FsmRedeemingLockedFunds(in FsmIn) FsmOut {
 	// For state machine this is final state
+
+	s.BoltzPlugin.Redeemer.AddEntry(in)
 	return FsmOut{}
 }
 
-func FsmVerifyFundsReceived(in FsmIn) FsmOut {
+func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
 	ctx := context.Background()
 
-	SleepTime := GetSleepTime(in)
+	SleepTime := s.GetSleepTime(in)
 
 	for {
-		lnAPI, err := in.BoltzPlugin.LnAPI()
+		lnAPI, err := s.BoltzPlugin.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -238,7 +238,7 @@ func FsmVerifyFundsReceived(in FsmIn) FsmOut {
 			continue
 		}
 
-		keys, err := in.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
+		keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
 		if err != nil {
 			log(in, "error getting keys")
 			time.Sleep(SleepTime)
@@ -247,7 +247,7 @@ func FsmVerifyFundsReceived(in FsmIn) FsmOut {
 
 		paid, err := lnAPI.IsInvoicePaid(ctx, hex.EncodeToString(keys.Preimage.Hash))
 		if err != nil {
-			log(in, "error getting keys")
+			log(in, "error checking whether invoice is paid")
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -296,11 +296,4 @@ func CreateSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, invoice *lightning.
 	}
 
 	return response, nil
-}
-
-func GetSleepTime(in FsmIn) time.Duration {
-	if in.BoltzPlugin.ChainParams.Name == "mainnet" {
-		return 1 * time.Minute
-	}
-	return 5 * time.Second
 }

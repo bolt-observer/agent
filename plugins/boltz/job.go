@@ -41,12 +41,13 @@ type SwapData struct {
 	// Normal swap
 	Invoice             string
 	LockupTransactionId string
-	OnChainFundsSent    bool
 
 	// Reverse swap
-	ReverseInvoice      string
-	ReverseMinerInvoice string
-	ChanIdsToUse        []uint64
+	ReverseInvoice   string
+	ReverseChannelId uint64 // 0 means node level
+	//ReverseMinerInvoice string - not supported
+	ChanIdsToUse []uint64
+	ExpectedSats uint64
 }
 
 func ParseJobData(id int32, bytes []byte) (*JobData, error) {

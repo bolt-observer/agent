@@ -29,7 +29,7 @@ func (b *Plugin) CalcFundsToReceive(ctx context.Context, reverse bool, sats uint
 		}
 	} else {
 		// reverse submarine requires huge outbound liquidity
-		liq, err := b.GetNodeLiquidity(ctx)
+		liq, err := b.GetNodeLiquidity(ctx, nil)
 		if err != nil {
 			return 0, 0, err
 		}

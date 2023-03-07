@@ -3,6 +3,8 @@ package boltz
 import (
 	"context"
 	"fmt"
+
+	"github.com/bolt-observer/agent/lightning"
 )
 
 const (
@@ -11,20 +13,26 @@ const (
 )
 
 // EnsureConnected - ensures node is connected with Boltz
-func (b *Plugin) EnsureConnected(ctx context.Context) error {
+func (b *Plugin) EnsureConnected(ctx context.Context, optLnAPI lightning.LightingAPICalls) error {
 	nodes, err := b.BoltzAPI.GetNodes()
 	if err != nil {
 		return err
 	}
 
-	lnAPI, err := b.LnAPI()
-	if err != nil {
-		return err
+	var lnAPI lightning.LightingAPICalls
+
+	if optLnAPI != nil {
+		lnAPI = optLnAPI
+	} else {
+		lnAPI, err = b.LnAPI()
+		if err != nil {
+			return err
+		}
+		if lnAPI == nil {
+			return fmt.Errorf("could not get lightning api")
+		}
+		defer lnAPI.Cleanup()
 	}
-	if lnAPI == nil {
-		return fmt.Errorf("could not get lightning api")
-	}
-	defer lnAPI.Cleanup()
 
 	node, hasNode := nodes.Nodes[Symbol]
 
