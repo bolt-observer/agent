@@ -146,6 +146,64 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	return resp, nil
 }
 
+func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.MessageCallback) error {
+	ctx := context.Background()
+
+	jd := &JobData{}
+	err := json.Unmarshal(data, &jd)
+	if err != nil {
+		return ErrCouldNotParseJobData
+	}
+
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	if _, ok := b.jobs[jobID]; ok {
+		// job already exists and is running already
+		return nil
+	} else {
+		var sd SwapData
+
+		if err = b.db.Get(jobID, &sd); err != nil {
+			// job found in database
+			b.jobs[jobID] = sd
+		} else {
+			// create new job
+			data := b.jobDataToSwapData(ctx, jd, msgCallback)
+			if data == nil {
+				glog.Infof("[Boltz] [%v] Not supported job", jobID)
+				msgCallback(agent_entities.PluginMessage{
+					JobID:      int32(jobID),
+					Message:    "Not supported job",
+					IsError:    true,
+					IsFinished: true,
+				})
+				return nil
+			}
+
+			sd = *data
+
+			b.jobs[jobID] = sd
+			b.db.Insert(jobID, sd)
+		}
+
+		go b.runJob(jobID, &sd, msgCallback)
+	}
+
+	return nil
+}
+
+// start or continue running job
+func (b *Plugin) runJob(jobID int32, jd *SwapData, msgCallback agent_entities.MessageCallback) {
+	in := FsmIn{
+		SwapData:    *jd,
+		MsgCallback: msgCallback,
+	}
+
+	// Running the job just means going through the state machine starting with jd.State
+	b.SwapMachine.Eval(in, jd.State)
+}
+
 func getChainParams(cmdCtx *cli.Context) *chaincfg.Params {
 	network := cmdCtx.String("network")
 
@@ -195,14 +253,14 @@ func setMnemonic(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
 	return entropy, nil
 }
 
-func (b *Plugin) jobDataToSwapData(jobData *JobData, msgCallback agent_entities.MessageCallback) *SwapData {
+func (b *Plugin) jobDataToSwapData(ctx context.Context, jobData *JobData, msgCallback agent_entities.MessageCallback) *SwapData {
 	if jobData == nil {
 		return nil
 	}
 
 	switch jobData.Target {
 	case OutboundLiquidityNodePercent:
-		liquidity, err := b.GetNodeLiquidity(context.Background(), nil)
+		liquidity, err := b.GetNodeLiquidity(ctx, nil)
 
 		if err != nil {
 			glog.Infof("[Boltz] [%d] Could not get liquidity", jobData.ID)
@@ -251,59 +309,4 @@ func (b *Plugin) convertOutBoundLiqudityNodePercent(jobData *JobData, liquidity 
 		Sats:  uint64(math.Round(sats)),
 		State: InitialForward,
 	}
-}
-
-func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.MessageCallback) error {
-	jd := &JobData{}
-	err := json.Unmarshal(data, &jd)
-	if err != nil {
-		return ErrCouldNotParseJobData
-	}
-
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-
-	if _, ok := b.jobs[jobID]; ok {
-		// job already exists and is running already
-		return nil
-	} else {
-		var sd SwapData
-
-		if err = b.db.Get(jobID, &sd); err != nil {
-			// job found in database
-			b.jobs[jobID] = sd
-		} else {
-			// create new job
-			data := b.jobDataToSwapData(jd, msgCallback)
-			if data == nil {
-				glog.Infof("[Boltz] [%v] Not supported job", jobID)
-				msgCallback(agent_entities.PluginMessage{
-					JobID:      int32(jobID),
-					Message:    "Not supported job",
-					IsError:    true,
-					IsFinished: true,
-				})
-				return nil
-			}
-
-			sd = *data
-
-			b.jobs[jobID] = sd
-			b.db.Insert(jobID, sd)
-		}
-
-		go b.runJob(jobID, &sd, msgCallback)
-	}
-
-	return nil
-}
-
-// start or continue running job
-func (b *Plugin) runJob(jobID int32, jd *SwapData, msgCallback agent_entities.MessageCallback) {
-	in := FsmIn{
-		SwapData:    *jd,
-		MsgCallback: msgCallback,
-	}
-
-	b.SwapMachine.Eval(in, jd.State)
 }
