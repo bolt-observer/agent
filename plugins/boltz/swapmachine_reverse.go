@@ -107,7 +107,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 	ctx := context.Background()
 
-	SleepTime := s.GetSleepTime(in)
+	SleepTime := s.getSleepTime(in)
 
 	if in.SwapData.BoltzID == "" {
 		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
@@ -164,6 +164,9 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 
 func (s *SwapMachine) FsmClaimReverseFunds(in FsmIn) FsmOut {
 	// For state machine this is final state
+	if in.SwapData.BoltzID == "" {
+		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
+	}
 
 	s.BoltzPlugin.ReverseRedeemer.AddEntry(in)
 	return FsmOut{}

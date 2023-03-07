@@ -13,8 +13,7 @@ const (
 	Btc     = "BTC"
 )
 
-type State int
-
+// FsmIn is the input to each state
 type FsmIn struct {
 	SwapData    SwapData
 	MsgCallback entities.MessageCallback
@@ -25,6 +24,7 @@ func (i FsmIn) GetSwapData() SwapData {
 	return i.SwapData
 }
 
+// changeState actually registers the state change
 func (b *Plugin) changeState(in FsmIn, state State) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
@@ -32,7 +32,7 @@ func (b *Plugin) changeState(in FsmIn, state State) error {
 	in.SwapData.State = state
 	b.jobs[int32(in.SwapData.JobID)] = in.SwapData
 	err := b.db.Insert(in.SwapData, in.SwapData.JobID)
-	if err != nil {
+	if err != nil && in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int32(in.GetJobID()),
 			Message:    fmt.Sprintf("Could not change state to %v %v", state, err),
@@ -45,15 +45,17 @@ func (b *Plugin) changeState(in FsmIn, state State) error {
 
 func log(in FsmIn, msg string) {
 	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), msg)
-	in.MsgCallback(entities.PluginMessage{
-		JobID:      int32(in.GetJobID()),
-		Message:    msg,
-		IsError:    false,
-		IsFinished: false,
-	})
+	if in.MsgCallback != nil {
+		in.MsgCallback(entities.PluginMessage{
+			JobID:      int32(in.GetJobID()),
+			Message:    msg,
+			IsError:    false,
+			IsFinished: false,
+		})
+	}
 }
 
-func (s *SwapMachine) GetSleepTime(in FsmIn) time.Duration {
+func (s *SwapMachine) getSleepTime(in FsmIn) time.Duration {
 	if s.BoltzPlugin.ChainParams.Name == "mainnet" {
 		return 1 * time.Minute
 	}
@@ -65,22 +67,26 @@ func (s *SwapMachine) FsmNone(in FsmIn) FsmOut {
 }
 
 func (s *SwapMachine) FsmSwapFailed(in FsmIn) FsmOut {
-	in.MsgCallback(entities.PluginMessage{
-		JobID:      int32(in.GetJobID()),
-		Message:    fmt.Sprintf("Swap %d failed\n", in.GetJobID()),
-		IsError:    true,
-		IsFinished: true,
-	})
+	if in.MsgCallback != nil {
+		in.MsgCallback(entities.PluginMessage{
+			JobID:      int32(in.GetJobID()),
+			Message:    fmt.Sprintf("Swap %d failed\n", in.GetJobID()),
+			IsError:    true,
+			IsFinished: true,
+		})
+	}
 	return FsmOut{}
 }
 
 func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
-	in.MsgCallback(entities.PluginMessage{
-		JobID:      int32(in.GetJobID()),
-		Message:    fmt.Sprintf("Swap %d succeeded\n", in.GetJobID()),
-		IsError:    false,
-		IsFinished: true,
-	})
+	if in.MsgCallback != nil {
+		in.MsgCallback(entities.PluginMessage{
+			JobID:      int32(in.GetJobID()),
+			Message:    fmt.Sprintf("Swap %d succeeded\n", in.GetJobID()),
+			IsError:    false,
+			IsFinished: true,
+		})
+	}
 	return FsmOut{}
 }
 
@@ -100,6 +106,7 @@ func (s *SwapMachine) RedeemedCallback(data FsmIn, success bool) {
 	}
 }
 
+// FsmWrap will just wrap a normal state machine function and give it the ability to transition states based on return values
 func FsmWrap[I FsmInGetter, O FsmOutGetter](f func(data I) O, b *Plugin) func(data I) O {
 	return func(in I) O {
 
@@ -133,6 +140,9 @@ func FsmWrap[I FsmInGetter, O FsmOutGetter](f func(data I) O, b *Plugin) func(da
 	}
 }
 
+// State
+type State int
+
 const (
 	None State = iota
 
@@ -163,7 +173,8 @@ type SwapMachine struct {
 
 func NewSwapMachine(plugin *Plugin) *SwapMachine {
 	s := &SwapMachine{
-		Machine:     &Fsm[FsmIn, FsmOut, State]{States: make(map[State]func(data FsmIn) FsmOut)},
+		Machine: &Fsm[FsmIn, FsmOut, State]{States: make(map[State]func(data FsmIn) FsmOut)},
+		// TODO: instead of BoltzPlugin this should be a bit more granular
 		BoltzPlugin: plugin,
 	}
 

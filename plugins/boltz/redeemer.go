@@ -17,8 +17,8 @@ import (
 )
 
 // Redeemer is an abstraction that periodically gathers "stuck" UTXOs and spends them to a new lightning node address.
-// It can combine failed normal submarine transactions (RedeemNormal) and/or the outputs that need to be claimed for reverse submarine transactions (RedeemReverse)
-// Redeemer is supposed to work with any type that wraps SwapData (implements SwapDataGetter interface)
+// It can combine failed forward submarine (swap-in) transactions (RedeemForward) and/or the outputs that need to be claimed for reverse submarine (swap-out) transactions (RedeemReverse)
+// Redeemer is supposed to work with any type that wraps SwapData (implements SwapDataGetter interface - generics in Go are a bit weird).
 
 type JobID int32
 
@@ -26,7 +26,7 @@ type JobID int32
 type RedeemerType int
 
 const (
-	RedeemNormal RedeemerType = 1 << iota
+	RedeemForward RedeemerType = 1 << iota
 	RedeemReverse
 )
 
@@ -173,7 +173,7 @@ func (r *Redeemer[T]) AddEntry(data T) error {
 	// Check whether we can handle the state
 	ok := false
 	sd := data.GetSwapData()
-	if r.Type&RedeemNormal == RedeemNormal {
+	if r.Type&RedeemForward == RedeemForward {
 		if sd.State == RedeemingLockedFunds {
 			ok = true
 		}
@@ -263,30 +263,30 @@ func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 
 	script, err := hex.DecodeString(data.Script)
 	if err != nil {
-		glog.Warningf("Could not decode script %v\n", err)
+		glog.Warningf("Could not decode script %v", err)
 		return nil
 	}
 
 	lockupAddress, err := boltz.WitnessScriptHashAddress(r.ChainParams, script)
 	if err != nil {
-		glog.Warningf("Could not derive address %v\n", err)
+		glog.Warningf("Could not derive address %v", err)
 		return nil
 	}
 
 	lockupVout, err := r.findLockupVout(lockupAddress, lockupTransaction.MsgTx().TxOut)
 	if err != nil {
-		glog.Warningf("Could not parse lockup vout %v\n", err)
+		glog.Warningf("Could not parse lockup vout %v", err)
 		return nil
 	}
 
 	keys, err := r.CryptoAPI.GetKeys(fmt.Sprintf("%d", data.JobID))
 	if err != nil {
-		glog.Warningf("Could not get keys %v\n", err)
+		glog.Warningf("Could not get keys %v", err)
 		return nil
 	}
 
 	if lockupTransaction.MsgTx().TxOut[lockupVout].Value < int64(data.ExpectedSats) {
-		glog.Warningf("Expected %v sats on chain but got just %v sats\n", lockupTransaction.MsgTx().TxOut[lockupVout].Value, data.ExpectedSats)
+		glog.Warningf("Expected %v sats on chain but got just %v sats", lockupTransaction.MsgTx().TxOut[lockupVout].Value, data.ExpectedSats)
 		return nil
 	}
 
@@ -308,39 +308,39 @@ func (r *Redeemer[T]) getRefundOutput(data *SwapData) *boltz.OutputDetails {
 	swapTransactionResponse, err := r.BoltzAPI.GetSwapTransaction(data.BoltzID)
 
 	if err != nil {
-		glog.Warningf("Could not get refund transaction %v\n", err)
+		glog.Warningf("Could not get refund transaction %v", err)
 		return nil
 	}
 
 	lockupTransactionRaw, err := hex.DecodeString(swapTransactionResponse.TransactionHex)
 
 	if err != nil {
-		glog.Warningf("Could not decode transaction %v\n", err)
+		glog.Warningf("Could not decode transaction %v", err)
 		return nil
 	}
 
 	lockupTransaction, err := btcutil.NewTxFromBytes(lockupTransactionRaw)
 
 	if err != nil {
-		glog.Warningf("Could not parse transaction %v\n", err)
+		glog.Warningf("Could not parse transaction %v", err)
 		return nil
 	}
 
 	lockupVout, err := r.findLockupVout(data.Address, lockupTransaction.MsgTx().TxOut)
 	if err != nil {
-		glog.Warningf("Could not parse lockup vout %v\n", err)
+		glog.Warningf("Could not parse lockup vout %v", err)
 		return nil
 	}
 
 	keys, err := r.CryptoAPI.GetKeys(fmt.Sprintf("%d", data.JobID))
 	if err != nil {
-		glog.Warningf("Could not get keys %v\n", err)
+		glog.Warningf("Could not get keys %v", err)
 		return nil
 	}
 
 	script, err := hex.DecodeString(data.Script)
 	if err != nil {
-		glog.Warningf("Could not decode script %v\n", err)
+		glog.Warningf("Could not decode script %v", err)
 		return nil
 	}
 

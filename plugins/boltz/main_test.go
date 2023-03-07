@@ -125,3 +125,47 @@ func mkGetLndAPI(cmdCtx *cli.Context) agent_entities.NewAPICall {
 		})
 	}
 }
+
+func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
+	p := &Plugin{}
+
+	jd := &JobData{
+		Target:     OutboundLiqudityNodePercent,
+		Percentage: 100,
+		ID:         1337,
+	}
+
+	liquidity := &Liquidity{
+		InboundSats:        200000,
+		OutboundSats:       0,
+		Capacity:           200000,
+		InboundPercentage:  100,
+		OutboundPercentage: 0,
+	}
+
+	result := p.convertOutBoundLiqudityNodePercent(jd, liquidity, nil)
+
+	assert.Equal(t, JobID(1337), result.JobID)
+	assert.Equal(t, InitialForward, result.State)
+	assert.Equal(t, 200000, int(result.Sats))
+
+	jd = &JobData{
+		Target:     OutboundLiqudityNodePercent,
+		Percentage: 50,
+		ID:         1338,
+	}
+
+	liquidity = &Liquidity{
+		InboundSats:        200000,
+		OutboundSats:       0,
+		Capacity:           200000,
+		InboundPercentage:  100,
+		OutboundPercentage: 0,
+	}
+
+	result = p.convertOutBoundLiqudityNodePercent(jd, liquidity, nil)
+
+	assert.Equal(t, JobID(1338), result.JobID)
+	assert.Equal(t, InitialForward, result.State)
+	assert.Equal(t, 100000, int(result.Sats))
+}

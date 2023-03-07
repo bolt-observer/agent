@@ -55,7 +55,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	defer lnAPI.Cleanup()
 
 	invoice, err := lnAPI.CreateInvoice(ctx, int64(in.SwapData.Sats), hex.EncodeToString(keys.Preimage.Hash),
-		fmt.Sprintf("Automatic Swap Boltz %d", in.GetJobID()), 24*time.Hour)
+		fmt.Sprintf("Automatic Swap Boltz %d", in.GetJobID()), 24*time.Hour) // assume boltz returns 144 blocks
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -105,7 +105,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 	ctx := context.Background()
 
-	SleepTime := s.GetSleepTime(in)
+	SleepTime := s.getSleepTime(in)
 
 	if in.SwapData.BoltzID == "" {
 		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
@@ -177,7 +177,7 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in FsmIn) FsmOut {
 		return FsmOut{Error: fmt.Errorf("invalid state txid not set")}
 	}
 
-	SleepTime := s.GetSleepTime(in)
+	SleepTime := s.getSleepTime(in)
 
 	// Wait for expiry
 	for {
@@ -215,7 +215,10 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in FsmIn) FsmOut {
 
 func (s *SwapMachine) FsmRedeemingLockedFunds(in FsmIn) FsmOut {
 	// For state machine this is final state
+	if in.SwapData.BoltzID == "" {
+		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
 
+	}
 	s.BoltzPlugin.Redeemer.AddEntry(in)
 	return FsmOut{}
 }
@@ -223,7 +226,11 @@ func (s *SwapMachine) FsmRedeemingLockedFunds(in FsmIn) FsmOut {
 func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
 	ctx := context.Background()
 
-	SleepTime := s.GetSleepTime(in)
+	if in.SwapData.BoltzID == "" {
+		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
+	}
+
+	SleepTime := s.getSleepTime(in)
 
 	for {
 		lnAPI, err := s.BoltzPlugin.LnAPI()

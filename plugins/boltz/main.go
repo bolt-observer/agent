@@ -29,7 +29,7 @@ const (
 	SecretDbKey     = "secret"
 
 	DefaultSwap = 1000000
-	MinSwap     = 50000
+	MinSwap     = 50001
 
 	ErrInvalidArguments = Error("invalid arguments")
 )
@@ -96,20 +96,6 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		return nil, ErrInvalidArguments
 	}
 
-	network := cmdCtx.String("network")
-
-	params := chaincfg.MainNetParams
-	switch network {
-	case "mainnet":
-		params = chaincfg.MainNetParams
-	case "testnet":
-		params = chaincfg.TestNet3Params
-	case "regtest":
-		params = chaincfg.RegressionNetParams
-	case "simnet":
-		params = chaincfg.SimNetParams
-	}
-
 	db := &BoltzDB{}
 	dbFile := agent_entities.CleanAndExpandPath(cmdCtx.String("boltzdatabase"))
 	dir := path.Dir(dbFile)
@@ -129,7 +115,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	}
 
 	resp := &Plugin{
-		ChainParams: &params,
+		ChainParams: getChainParams(cmdCtx),
 		BoltzAPI: &boltz.Boltz{
 			URL: cmdCtx.String("boltzurl"),
 		},
@@ -138,25 +124,42 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		LnAPI:     lnAPI,
 		db:        db,
 	}
+	resp.MaxFeePercentage = cmdCtx.Float64("maxfeepercentage")
 
 	interval := 5 * time.Second
-	if params.Name == "mainnet" {
+	if resp.ChainParams.Name == "mainnet" {
 		interval = 1 * time.Minute
 	}
 
 	resp.SwapMachine = NewSwapMachine(resp)
 
 	// Currently there is just one redeemer instance (perhaps split it)
-	resp.Redeemer = NewRedeemer(context.Background(), (RedeemNormal | RedeemReverse), resp.ChainParams, resp.BoltzAPI, resp.LnAPI, interval, resp.CryptoAPI, resp.SwapMachine.RedeemedCallback)
+	resp.Redeemer = NewRedeemer(context.Background(), (RedeemForward | RedeemReverse), resp.ChainParams, resp.BoltzAPI, resp.LnAPI,
+		interval, resp.CryptoAPI, resp.SwapMachine.RedeemedCallback)
 	resp.ReverseRedeemer = resp.Redeemer // use reference to same instance
 
 	if cmdCtx.Bool("dumpmnemonic") {
 		fmt.Printf("Your secret is %s\n", resp.CryptoAPI.DumpMnemonic())
 	}
 
-	resp.MaxFeePercentage = cmdCtx.Float64("maxfeepercentage")
-
 	return resp, nil
+}
+
+func getChainParams(cmdCtx *cli.Context) *chaincfg.Params {
+	network := cmdCtx.String("network")
+
+	params := chaincfg.MainNetParams
+	switch network {
+	case "mainnet":
+		params = chaincfg.MainNetParams
+	case "testnet":
+		params = chaincfg.TestNet3Params
+	case "regtest":
+		params = chaincfg.RegressionNetParams
+	case "simnet":
+		params = chaincfg.SimNetParams
+	}
+	return &params
 }
 
 func setMnemonic(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
@@ -198,42 +201,45 @@ func (b *Plugin) jobDataToSwapData(jobData *JobData, msgCallback agent_entities.
 
 	switch jobData.Target {
 	case OutboundLiqudityNodePercent:
-		return b.convertOutBoundLiqudityNodeTarget(jobData, msgCallback)
+		liquidity, err := b.GetNodeLiquidity(context.Background(), nil)
+
+		if err != nil {
+			glog.Infof("[Boltz] [%d] Could not get liquidity", jobData.ID)
+			if msgCallback != nil {
+				msgCallback(agent_entities.PluginMessage{
+					JobID:      int32(jobData.ID),
+					Message:    "Could not get liquidity",
+					IsError:    true,
+					IsFinished: true,
+				})
+			}
+			return nil
+		}
+		return b.convertOutBoundLiqudityNodePercent(jobData, liquidity, msgCallback)
 	default:
 		// Not supported yet
 		return nil
 	}
 }
 
-func (b *Plugin) convertOutBoundLiqudityNodeTarget(jobData *JobData, msgCallback agent_entities.MessageCallback) *SwapData {
-	liquidity, err := b.GetNodeLiquidity(context.Background(), nil)
-
-	if err != nil {
-		glog.Infof("[Boltz] [%d] Could not get liquidity", jobData.ID)
-		msgCallback(agent_entities.PluginMessage{
-			JobID:      int32(jobData.ID),
-			Message:    "Could not get liquidity",
-			IsError:    true,
-			IsFinished: true,
-		})
-		return nil
-	}
-
+func (b *Plugin) convertOutBoundLiqudityNodePercent(jobData *JobData, liquidity *Liquidity, msgCallback agent_entities.MessageCallback) *SwapData {
 	if liquidity.OutboundPercentage > jobData.Percentage || jobData.Percentage < 0 || jobData.Percentage > 100 {
 		glog.Infof("[Boltz] [%v] No need to do anything - current outbound liquidity %v", jobData.ID, liquidity.OutboundPercentage)
-		msgCallback(agent_entities.PluginMessage{
-			JobID:      int32(jobData.ID),
-			Message:    fmt.Sprintf("No need to do anything - current outbound liquidity %v", liquidity.OutboundPercentage),
-			IsError:    false,
-			IsFinished: true,
-		})
+		if msgCallback != nil {
+			msgCallback(agent_entities.PluginMessage{
+				JobID:      int32(jobData.ID),
+				Message:    fmt.Sprintf("No need to do anything - current outbound liquidity %v", liquidity.OutboundPercentage),
+				IsError:    false,
+				IsFinished: true,
+			})
+		}
 		return nil
 	}
 
 	target := float64(jobData.Percentage) / 100
 	sats := float64(DefaultSwap)
 	if liquidity.Capacity != 0 {
-		sats = target / float64(liquidity.Capacity)
+		sats = float64(liquidity.Capacity) * target
 		sats -= float64(liquidity.OutboundSats)
 
 		sats = math.Max(sats, MinSwap)
@@ -266,7 +272,7 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 		}
 		data := b.jobDataToSwapData(jd, msgCallback)
 		if data == nil {
-			glog.Infof("[Boltz] [%v] Non supported job", jobID)
+			glog.Infof("[Boltz] [%v] Not supported job", jobID)
 			msgCallback(agent_entities.PluginMessage{
 				JobID:      int32(jobID),
 				Message:    "Non supported job",
