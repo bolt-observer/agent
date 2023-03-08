@@ -16,6 +16,7 @@ import (
 func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	ctx := context.Background()
 
+	fmt.Printf("InitialForward: %+v\n", in)
 	sats := in.SwapData.Sats
 
 	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
@@ -54,7 +55,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 
 	defer lnAPI.Cleanup()
 
-	invoice, err := lnAPI.CreateInvoice(ctx, int64(in.SwapData.Sats), hex.EncodeToString(keys.Preimage.Hash),
+	invoice, err := lnAPI.CreateInvoice(ctx, int64(in.SwapData.Sats), hex.EncodeToString(keys.Preimage.Raw),
 		fmt.Sprintf("Automatic Swap Boltz %d", in.GetJobID()), 24*time.Hour) // assume boltz returns 144 blocks
 	if err != nil {
 		return FsmOut{Error: err}
@@ -71,8 +72,8 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	}
 
 	fee := float64(response.ExpectedAmount-sats+minerFees) / float64(sats)
-	if fee/100 > s.BoltzPlugin.MaxFeePercentage {
-		return FsmOut{Error: fmt.Errorf("fee was calculated to be %v, max allowed is %v", fee/100, s.BoltzPlugin.MaxFeePercentage)}
+	if fee*100 > s.BoltzPlugin.MaxFeePercentage {
+		return FsmOut{Error: fmt.Errorf("fee was calculated to be %v %%, max allowed is %v %%", fee*100, s.BoltzPlugin.MaxFeePercentage)}
 	}
 
 	// Check funds
@@ -91,7 +92,10 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	in.SwapData.TimoutBlockHeight = response.TimeoutBlockHeight
 
 	// Explicitly first change state (in case we crash before sending)
-	s.BoltzPlugin.changeState(in, OnChainFundsSent)
+	err = s.BoltzPlugin.changeState(in, OnChainFundsSent)
+	if err != nil {
+		return FsmOut{Error: err}
+	}
 
 	tx, err := lnAPI.SendToOnChainAddress(ctx, response.Address, int64(response.ExpectedAmount), false, lightning.Normal)
 	if err != nil {
@@ -104,6 +108,8 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 
 func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 	ctx := context.Background()
+
+	fmt.Printf("OnChainFundsSent: %+v\n", in)
 
 	SleepTime := s.getSleepTime(in)
 
@@ -298,8 +304,8 @@ func CreateSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, invoice *lightning.
 		return nil, err
 	}
 
-	if currentBlockHeight+BlockEps < int(response.TimeoutBlockHeight) {
-		return nil, fmt.Errorf("error checking blockheight")
+	if currentBlockHeight+BlockEps > int(response.TimeoutBlockHeight) {
+		return nil, fmt.Errorf("error checking blockheight - current %v vs. timeout %v", currentBlockHeight, int(response.TimeoutBlockHeight))
 	}
 
 	return response, nil

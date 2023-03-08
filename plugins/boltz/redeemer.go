@@ -47,7 +47,7 @@ type Redeemer[T SwapDataGetter] struct {
 }
 
 type SwapDataGetter interface {
-	GetSwapData() SwapData
+	GetSwapData() *SwapData
 }
 
 type RedeemedCallback[T SwapDataGetter] func(data T, success bool)
@@ -128,14 +128,14 @@ func (r *Redeemer[T]) redeem() bool {
 				continue
 			}
 
-			output = r.getRefundOutput(&sd)
+			output = r.getRefundOutput(sd)
 		} else if sd.State == ClaimReverseFunds {
 			if info.BlockHeight > int(sd.TimoutBlockHeight) {
 				r.Callback(entry, false)
 				continue
 			}
 
-			output = r.getClaimOutput(&sd)
+			output = r.getClaimOutput(sd)
 
 		} else {
 			continue

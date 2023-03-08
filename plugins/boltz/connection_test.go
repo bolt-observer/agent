@@ -61,11 +61,16 @@ func getAPI(t *testing.T, name string, typ api.APIType) agent_entities.NewAPICal
 	}
 }
 
-func getMockCliCtx() *cli.Context {
+func getMockCliCtx(boltzUrl string) *cli.Context {
 	fs := &flag.FlagSet{}
-	fs.String("boltzurl", DefaultBoltzUrl, "")
+	if boltzUrl == "" {
+		fs.String("boltzurl", DefaultBoltzUrl, "")
+	} else {
+		fs.String("boltzurl", boltzUrl, "")
+	}
 	fs.String("boltzdatabase", "/tmp/boltz.db", "")
 	fs.String("network", "regtest", "")
+	fs.Float64("maxfeepercentage", 80.0, "")
 	return cli.NewContext(nil, fs, nil)
 }
 
@@ -73,7 +78,7 @@ func TestEnsureConnected(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	require.NoError(t, err)
 
-	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx())
+	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx(""))
 	if b == nil || b.LnAPI == nil {
 		if FailNoCredsBoltz {
 			t.Fail()

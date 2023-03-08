@@ -15,12 +15,12 @@ const (
 
 // FsmIn is the input to each state
 type FsmIn struct {
-	SwapData    SwapData
+	SwapData    *SwapData
 	MsgCallback entities.MessageCallback
 }
 
 // To satisfy interface
-func (i FsmIn) GetSwapData() SwapData {
+func (i FsmIn) GetSwapData() *SwapData {
 	return i.SwapData
 }
 
@@ -31,7 +31,7 @@ func (b *Plugin) changeState(in FsmIn, state State) error {
 
 	in.SwapData.State = state
 	b.jobs[int32(in.SwapData.JobID)] = in.SwapData
-	err := b.db.Insert(in.SwapData, in.SwapData.JobID)
+	err := b.db.Insert(in.SwapData.JobID, in.SwapData)
 	if err != nil && in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int32(in.GetJobID()),
@@ -133,7 +133,6 @@ func FsmWrap[I FsmInGetter, O FsmOutGetter](f func(data I) O, b *Plugin) func(da
 			if err != nil {
 				realOut.NextState = SwapFailed
 			}
-
 		}
 
 		return out

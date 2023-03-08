@@ -25,12 +25,15 @@ type ChanCapacity struct {
 
 // GetNodeLiquidity - gets current node liquidity
 func (b *Plugin) GetNodeLiquidity(ctx context.Context, optLnAPI lightning.LightingAPICalls) (*Liquidity, error) {
-	var lnAPI lightning.LightingAPICalls
+	var (
+		lnAPI lightning.LightingAPICalls
+		err   error
+	)
 
 	if optLnAPI != nil {
 		lnAPI = optLnAPI
 	} else {
-		lnAPI, err := b.LnAPI()
+		lnAPI, err = b.LnAPI()
 		if err != nil {
 			return nil, err
 		}
@@ -72,12 +75,15 @@ func (b *Plugin) GetNodeLiquidity(ctx context.Context, optLnAPI lightning.Lighti
 
 // GetByDescendingOutboundLiquidity - get channels in descreasing outbound liqudity so that sum >= limit satoshis
 func (b *Plugin) GetByDescendingOutboundLiquidity(ctx context.Context, limit uint64, optLnAPI lightning.LightingAPICalls) ([]ChanCapacity, error) {
-	var lnAPI lightning.LightingAPICalls
+	var (
+		lnAPI lightning.LightingAPICalls
+		err   error
+	)
 
 	if optLnAPI != nil {
 		lnAPI = optLnAPI
 	} else {
-		lnAPI, err := b.LnAPI()
+		lnAPI, err = b.LnAPI()
 		if err != nil {
 			return nil, err
 		}
@@ -131,12 +137,15 @@ func (b *Plugin) GetByDescendingOutboundLiquidity(ctx context.Context, limit uin
 
 // GetChanLiquidity
 func (b *Plugin) GetChanLiquidity(ctx context.Context, chanID uint64, limit uint64, optLnAPI lightning.LightingAPICalls) (*ChanCapacity, error) {
-	var lnAPI lightning.LightingAPICalls
+	var (
+		lnAPI lightning.LightingAPICalls
+		err   error
+	)
 
 	if optLnAPI != nil {
 		lnAPI = optLnAPI
 	} else {
-		lnAPI, err := b.LnAPI()
+		lnAPI, err = b.LnAPI()
 		if err != nil {
 			return nil, err
 		}

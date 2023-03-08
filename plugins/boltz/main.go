@@ -28,8 +28,9 @@ const (
 	SecretBitSize   = 256
 	SecretDbKey     = "secret"
 
-	DefaultSwap = 100000
-	MinSwap     = 50001
+	DefaultSwap = 100_000
+	MinSwap     = 50_001
+	MaxSwap     = 1_000_000
 
 	ErrInvalidArguments = Error("invalid arguments")
 )
@@ -123,6 +124,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		Filter:    filter,
 		LnAPI:     lnAPI,
 		db:        db,
+		jobs:      make(map[int32]interface{}),
 	}
 	resp.MaxFeePercentage = cmdCtx.Float64("maxfeepercentage")
 
@@ -183,7 +185,7 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 			}
 
 			sd = *data
-
+			sd.JobID = JobID(jobID)
 			b.db.Insert(jobID, sd)
 			b.jobs[jobID] = sd
 		}
@@ -197,7 +199,7 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 // start or continue running job
 func (b *Plugin) runJob(jobID int32, jd *SwapData, msgCallback agent_entities.MessageCallback) {
 	in := FsmIn{
-		SwapData:    *jd,
+		SwapData:    jd,
 		MsgCallback: msgCallback,
 	}
 
@@ -304,7 +306,7 @@ func (b *Plugin) convertOutBoundLiqudityNodePercent(jobData *JobData, liquidity 
 		sats = float64(liquidity.Capacity) * target
 		sats -= float64(liquidity.OutboundSats)
 
-		sats = math.Max(sats, MinSwap)
+		sats = math.Min(math.Max(sats, MinSwap), MaxSwap)
 	}
 
 	return &SwapData{

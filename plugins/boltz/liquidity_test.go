@@ -13,7 +13,7 @@ func TestGetNodeLiquidity(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndGrpc), f, getMockCliCtx())
+	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndGrpc), f, getMockCliCtx(""))
 	if b == nil || b.LnAPI == nil {
 		if FailNoCredsBoltz {
 			t.Fail()
@@ -30,7 +30,7 @@ func TestGetByDescendingOutboundLiqudity(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndGrpc), f, getMockCliCtx())
+	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndGrpc), f, getMockCliCtx(""))
 	if b == nil || b.LnAPI == nil {
 		if FailNoCredsBoltz {
 			t.Fail()
