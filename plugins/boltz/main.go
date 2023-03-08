@@ -265,34 +265,56 @@ func (b *Plugin) jobDataToSwapData(ctx context.Context, jobData *JobData, msgCal
 
 	switch jobData.Target {
 	case OutboundLiquidityNodePercent:
-		liquidity, err := b.GetNodeLiquidity(ctx, nil)
-
-		if err != nil {
-			glog.Infof("[Boltz] [%d] Could not get liquidity", jobData.ID)
-			if msgCallback != nil {
-				msgCallback(agent_entities.PluginMessage{
-					JobID:      int32(jobData.ID),
-					Message:    "Could not get liquidity",
-					IsError:    true,
-					IsFinished: true,
-				})
-			}
+		liquidity := b.getLiquidity(ctx, jobData, msgCallback)
+		if liquidity == nil {
 			return nil
 		}
-		return b.convertOutBoundLiqudityNodePercent(jobData, liquidity, msgCallback)
+		return b.convertLiqudityNodePercent(jobData, liquidity, msgCallback, true)
+	case InboundLiquidityNodePercent:
+		liquidity := b.getLiquidity(ctx, jobData, msgCallback)
+		if liquidity == nil {
+			return nil
+		}
+		return b.convertLiqudityNodePercent(jobData, liquidity, msgCallback, false)
 	default:
 		// Not supported yet
 		return nil
 	}
 }
 
-func (b *Plugin) convertOutBoundLiqudityNodePercent(jobData *JobData, liquidity *Liquidity, msgCallback agent_entities.MessageCallback) *SwapData {
-	if liquidity.OutboundPercentage > jobData.Percentage || jobData.Percentage < 0 || jobData.Percentage > 100 {
-		glog.Infof("[Boltz] [%v] No need to do anything - current outbound liquidity %v", jobData.ID, liquidity.OutboundPercentage)
+func (b *Plugin) getLiquidity(ctx context.Context, jobData *JobData, msgCallback agent_entities.MessageCallback) *Liquidity {
+	liquidity, err := b.GetNodeLiquidity(ctx, nil)
+
+	if err != nil {
+		glog.Infof("[Boltz] [%d] Could not get liquidity", jobData.ID)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
 				JobID:      int32(jobData.ID),
-				Message:    fmt.Sprintf("No need to do anything - current outbound liquidity %v", liquidity.OutboundPercentage),
+				Message:    "Could not get liquidity",
+				IsError:    true,
+				IsFinished: true,
+			})
+		}
+		return nil
+	}
+
+	return liquidity
+}
+
+func (b *Plugin) convertLiqudityNodePercent(jobData *JobData, liquidity *Liquidity, msgCallback agent_entities.MessageCallback, outbound bool) *SwapData {
+	val := liquidity.OutboundPercentage
+	name := "outbound"
+	if !outbound {
+		val = liquidity.InboundPercentage
+		name = "inbound"
+	}
+
+	if val > jobData.Percentage || jobData.Percentage < 0 || jobData.Percentage > 100 {
+		glog.Infof("[Boltz] [%v] No need to do anything - current %s liquidity %v", jobData.ID, name, val)
+		if msgCallback != nil {
+			msgCallback(agent_entities.PluginMessage{
+				JobID:      int32(jobData.ID),
+				Message:    fmt.Sprintf("No need to do anything - current %s liquidity %v", name, val),
 				IsError:    false,
 				IsFinished: true,
 			})
@@ -300,18 +322,24 @@ func (b *Plugin) convertOutBoundLiqudityNodePercent(jobData *JobData, liquidity 
 		return nil
 	}
 
-	target := float64(jobData.Percentage) / 100
 	sats := float64(DefaultSwap)
 	if liquidity.Capacity != 0 {
-		sats = float64(liquidity.Capacity) * target
-		sats -= float64(liquidity.OutboundSats)
+		factor := (jobData.Percentage - val) / float64(100)
+		sats = float64(liquidity.Capacity) * factor
 
 		sats = math.Min(math.Max(sats, MinSwap), MaxSwap)
 	}
 
-	return &SwapData{
+	s := &SwapData{
 		JobID: JobID(jobData.ID),
 		Sats:  uint64(math.Round(sats)),
-		State: InitialForward,
 	}
+
+	if outbound {
+		s.State = InitialForward
+	} else {
+		s.State = InitialReverse
+	}
+
+	return s
 }

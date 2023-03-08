@@ -70,6 +70,8 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 		return FsmOut{Error: fmt.Errorf("fee was calculated to be %v, max allowed is %v", fee/100, s.BoltzPlugin.MaxFeePercentage)}
 	}
 
+	log(in, fmt.Sprintf("Swap fee will be approximately %v %%", fee*100))
+
 	// Check funds
 	if in.SwapData.ReverseChannelId == 0 {
 		capacity, err := s.BoltzPlugin.GetByDescendingOutboundLiquidity(ctx, sats+SafetyMargin, lnAPI)

@@ -75,6 +75,8 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 		return FsmOut{Error: fmt.Errorf("fee was calculated to be %v %%, max allowed is %v %%", fee*100, s.BoltzPlugin.MaxFeePercentage)}
 	}
 
+	log(in, fmt.Sprintf("Swap fee will be approximately %v %%", fee*100))
+
 	// Check funds
 	funds, err := lnAPI.GetOnChainFunds(ctx)
 	if err != nil {
@@ -101,6 +103,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 		return FsmOut{Error: err}
 	}
 
+	log(in, fmt.Sprintf("Transaction ID for swap is %v (invoice hash %v)", tx, invoice.Hash))
 	in.SwapData.LockupTransactionId = tx
 
 	return FsmOut{NextState: OnChainFundsSent}
