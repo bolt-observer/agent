@@ -31,7 +31,7 @@ func (b *Plugin) changeState(in FsmIn, state State) error {
 
 	in.SwapData.State = state
 	b.jobs[int32(in.SwapData.JobID)] = in.SwapData
-	err := b.db.Insert(in.SwapData.JobID, in.SwapData)
+	err := b.db.Update(in.SwapData.JobID, in.SwapData)
 	if err != nil && in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int32(in.GetJobID()),
@@ -130,6 +130,12 @@ func FsmWrap[I FsmInGetter, O FsmOutGetter](f func(data I) O, b *Plugin) func(da
 		}
 		if realOut.NextState != None {
 			err := b.changeState(realIn, realOut.NextState)
+			realIn.MsgCallback(entities.PluginMessage{
+				JobID:      int32(realIn.GetJobID()),
+				Message:    fmt.Sprintf("Transitioning to state %v", realOut.NextState),
+				IsError:    false,
+				IsFinished: false,
+			})
 			if err != nil {
 				realOut.NextState = SwapFailed
 			}
@@ -159,6 +165,11 @@ const (
 	ReverseSwapCreated
 	ClaimReverseFunds
 )
+
+func (s State) String() string {
+	return []string{"None", "InitialForward", "InitialReverse", "SwapFaied", "SwapSuccess", "OnChainFundsSent",
+		"RedeemLockedFunds", "RedeemingLockedFunds", "VerifyFundsReceived", "ReverseSwapCreated", "ClaimReverseFunds"}[s]
+}
 
 func (s *State) isFinal() bool {
 	return *s == SwapFailed || *s == SwapSuccess

@@ -26,11 +26,15 @@ func getLocalLnd(t *testing.T, name string, endpoint string) agent_entities.NewA
 	data.ApiType = &x
 
 	content, err := os.ReadFile(fmt.Sprintf("%s/%s/tls.cert", Prefix, name))
-	assert.NoError(t, err)
+	if err != nil {
+		return nil
+	}
 	data.CertificateBase64 = base64.StdEncoding.EncodeToString(content)
 
 	macBytes, err := os.ReadFile(fmt.Sprintf("%s/%s/data/chain/bitcoin/regtest/admin.macaroon", Prefix, name))
-	assert.NoError(t, err)
+	if err != nil {
+		return nil
+	}
 	data.MacaroonHex = hex.EncodeToString(macBytes)
 
 	return func() (api.LightingAPICalls, error) {
@@ -49,9 +53,14 @@ func msgCallback(msg agent_entities.PluginMessage) error {
 
 func TestSwap(t *testing.T) {
 	const (
-		Node     = "E"
+		Node     = "C"
 		BoltzUrl = "http://localhost:9001"
 	)
+
+	// Useful commands:
+	// $ curl -X POST localhost:9001/swapstatus -d '{ "id": "E4eaqs" }'  -H "Content-Type: application/json"
+	// {"status":"invoice.set"}
+	// $ bitcoin-cli -datadir=/tmp/lnregtest-data/dev_network/bitcoin -generate 1
 
 	nodes := map[string]string{
 		"A": "localhost:11009",
@@ -63,14 +72,14 @@ func TestSwap(t *testing.T) {
 	}
 
 	ln := getLocalLnd(t, Node, nodes[Node])
+	if ln == nil {
+		return
+	}
 	// Sanity check of node
 	ctx := context.Background()
 	lnAPI, err := ln()
-	if lnAPI == nil || err != nil {
-		// in order to prevent failures on CI, you need e2e env started locally
-		return
-	}
-
+	assert.NotNil(t, lnAPI)
+	assert.NoError(t, err)
 	info, err := lnAPI.GetInfo(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, Node, info.Alias)
@@ -85,16 +94,15 @@ func TestSwap(t *testing.T) {
 
 	p, err := NewPlugin(ln, f, getMockCliCtx(BoltzUrl))
 	assert.NoError(t, err)
-	r, err := p.BoltzAPI.GetNodes()
+	_, err = p.BoltzAPI.GetNodes()
 	assert.NoError(t, err)
-	fmt.Printf("Nodes: %+v\n", r)
 
-	// Override entropy
+	// Override entropy (or id needs to be random)
 	entropy, err := bip39.NewEntropy(SecretBitSize)
 	assert.NoError(t, err)
 	p.CryptoAPI.MasterSecret = entropy
 
-	err = p.Execute(1338, []byte(`{ "target": "OutboundLiquidityNodePercent", "percentage": 12.3} `), msgCallback)
+	err = p.Execute(1339, []byte(`{ "target": "OutboundLiquidityNodePercent", "percentage": 12.3} `), msgCallback)
 	assert.NoError(t, err)
 
 	time.Sleep(5 * time.Minute)

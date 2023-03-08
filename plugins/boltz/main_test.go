@@ -51,6 +51,11 @@ func (t *TestDB) Insert(key, data interface{}) error {
 	return nil
 }
 
+func (t *TestDB) Update(key, data interface{}) error {
+	t.data[key] = data
+	return nil
+}
+
 func (t *TestDB) Connect(path string) error {
 	return nil
 }

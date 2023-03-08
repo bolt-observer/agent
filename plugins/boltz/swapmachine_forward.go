@@ -16,7 +16,6 @@ import (
 func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	ctx := context.Background()
 
-	fmt.Printf("InitialForward: %+v\n", in)
 	sats := in.SwapData.Sats
 
 	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
@@ -101,6 +100,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	if err != nil {
 		return FsmOut{Error: err}
 	}
+
 	in.SwapData.LockupTransactionId = tx
 
 	return FsmOut{NextState: OnChainFundsSent}
@@ -108,8 +108,6 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 
 func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 	ctx := context.Background()
-
-	fmt.Printf("OnChainFundsSent: %+v\n", in)
 
 	SleepTime := s.getSleepTime(in)
 
@@ -152,7 +150,7 @@ func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 			return FsmOut{NextState: RedeemLockedFunds}
 		}
 
-		if status.IsCompletedStatus() || status == boltz.ChannelCreated {
+		if status.IsCompletedStatus() || status == boltz.ChannelCreated || status == boltz.InvoicePaid {
 			return FsmOut{NextState: VerifyFundsReceived}
 		}
 
