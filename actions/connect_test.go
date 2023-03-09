@@ -27,12 +27,13 @@ func (tp *testPlugin) Execute(jobID int32, data []byte, msg entities.MessageCall
 }
 
 type blockingStream struct {
-	msg  *api.Action
-	sent []*api.AgentReply
+	msg          *api.Action
+	sent         []*api.AgentReply
+	receiveError error
 }
 
 func (b *blockingStream) Recv() (*api.Action, error) {
-	return b.msg, nil
+	return b.msg, b.receiveError
 }
 
 func (b *blockingStream) Send(r *api.AgentReply) error {
@@ -50,6 +51,14 @@ func mkGetLndAPI(cmdCtx *cli.Context) entities.NewAPICall {
 	}
 }
 
+type spyCaller struct {
+	called bool
+}
+
+func (s *spyCaller) call() {
+	s.called = true
+}
+
 func TestCommunicate(t *testing.T) {
 	plugins := map[string]entities.Plugin{
 		"test": &testPlugin{},
@@ -65,6 +74,7 @@ func TestCommunicate(t *testing.T) {
 	}
 
 	t.Run("Test execute unknown plugin", func(t *testing.T) {
+		sc := spyCaller{}
 		ctx, cancel := context.WithCancel(context.Background())
 		bs := blockingStream{
 			msg: &api.Action{
@@ -75,7 +85,7 @@ func TestCommunicate(t *testing.T) {
 			sent: []*api.AgentReply{},
 		}
 
-		go cc.communicate(ctx, &bs)
+		go cc.communicate(ctx, &bs, sc.call)
 
 		time.Sleep(10 * time.Millisecond)
 		cancel()
@@ -86,9 +96,11 @@ func TestCommunicate(t *testing.T) {
 			Type:     api.ReplyType_ERROR,
 			Message:  "Plugin unknown not found on agent",
 		}, bs.sent[0])
+		assert.True(t, sc.called)
 	})
 
 	t.Run("Test execute test plugin", func(t *testing.T) {
+		sc := spyCaller{}
 		ctx, cancel := context.WithCancel(context.Background())
 		bs := blockingStream{
 			msg: &api.Action{
@@ -99,7 +111,7 @@ func TestCommunicate(t *testing.T) {
 			sent: []*api.AgentReply{},
 		}
 
-		go cc.communicate(ctx, &bs)
+		go cc.communicate(ctx, &bs, sc.call)
 
 		time.Sleep(10 * time.Millisecond)
 		cancel()
@@ -109,9 +121,11 @@ func TestCommunicate(t *testing.T) {
 			Sequence: api.Sequence_EXECUTE,
 			Type:     api.ReplyType_SUCCESS,
 		}, bs.sent[0])
+		assert.True(t, sc.called)
 	})
 
 	t.Run("Test execute test plugin fails", func(t *testing.T) {
+		sc := spyCaller{}
 		ctx, cancel := context.WithCancel(context.Background())
 		bs := blockingStream{
 			msg: &api.Action{
@@ -122,7 +136,7 @@ func TestCommunicate(t *testing.T) {
 			sent: []*api.AgentReply{},
 		}
 
-		go cc.communicate(ctx, &bs)
+		go cc.communicate(ctx, &bs, sc.call)
 
 		time.Sleep(10 * time.Millisecond)
 		cancel()
@@ -133,8 +147,10 @@ func TestCommunicate(t *testing.T) {
 			Type:     api.ReplyType_ERROR,
 			Message:  "Could not execute",
 		}, bs.sent[0])
+		assert.True(t, sc.called)
 	})
 	t.Run("Test execute plugin in dry-run mode", func(t *testing.T) {
+		sc := spyCaller{}
 		ctx, cancel := context.WithCancel(context.Background())
 		bs := blockingStream{
 			msg: &api.Action{
@@ -153,7 +169,7 @@ func TestCommunicate(t *testing.T) {
 			IsDryRun:   true,
 		}
 
-		go c.communicate(ctx, &bs)
+		go c.communicate(ctx, &bs, sc.call)
 
 		time.Sleep(10 * time.Millisecond)
 		cancel()
@@ -164,5 +180,36 @@ func TestCommunicate(t *testing.T) {
 			Type:     api.ReplyType_SUCCESS,
 			Message:  `Agent received action "test" in dry-run mode. No action really taken`,
 		}, bs.sent[0])
+		assert.True(t, sc.called)
+	})
+
+	t.Run("Error receiveing from stream", func(t *testing.T) {
+		sc := spyCaller{}
+		ctx, cancel := context.WithCancel(context.Background())
+		bs := blockingStream{
+			msg: &api.Action{
+				JobId:    5,
+				Action:   "test",
+				Sequence: api.Sequence_EXECUTE,
+			},
+			sent:         []*api.AgentReply{},
+			receiveError: errors.New("some error"),
+		}
+		c := Connector{
+			Address:    "http://some.url/",
+			APIKey:     "test-key",
+			Plugins:    plugins,
+			LnAPI:      mkGetLndAPI(&cli.Context{}),
+			IsInsecure: true,
+			IsDryRun:   false,
+		}
+
+		go c.communicate(ctx, &bs, sc.call)
+
+		time.Sleep(10 * time.Millisecond)
+		cancel()
+
+		assert.Len(t, bs.sent, 0)
+		assert.False(t, sc.called)
 	})
 }
