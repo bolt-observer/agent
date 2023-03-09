@@ -93,7 +93,7 @@ func (s *SwapMachine) RedeemedCallback(data FsmIn, success bool) {
 	if sd.State == RedeemingLockedFunds {
 		// If we are redeeming locked funds this means by definition our swap failed
 		// so when redeemer was able to recover the funds we can transition to final state
-		// else we stay in RedeemingLockedFunds and continue with it
+		// else we stay in RedeemingLockedFunds and continue with it until eternity
 		if success {
 			go s.Eval(data, SwapFailed)
 		} else {
@@ -108,6 +108,8 @@ func (s *SwapMachine) RedeemedCallback(data FsmIn, success bool) {
 		} else {
 			go s.Eval(data, SwapFailed)
 		}
+	} else {
+		log(data, fmt.Sprintf("Received redeemed callback in wrong state %v", sd.State))
 	}
 }
 
