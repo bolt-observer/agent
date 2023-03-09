@@ -68,8 +68,16 @@ type Keys struct {
 	Keys     AsymmetricKeys
 }
 
+type CryptoAPI struct {
+	MasterSecret []byte
+}
+
+func NewCryptoAPI(masterSecret []byte) *CryptoAPI {
+	return &CryptoAPI{MasterSecret: masterSecret}
+}
+
 // GetKeys
-func (b *Plugin) GetKeys(id string) (*Keys, error) {
+func (b *CryptoAPI) GetKeys(id string) (*Keys, error) {
 	mnemonic, err := bip39.NewMnemonic(b.MasterSecret)
 	if err != nil {
 		return nil, err
@@ -110,7 +118,7 @@ func (b *Plugin) GetKeys(id string) (*Keys, error) {
 	return result, nil
 }
 
-func (b *Plugin) DumpMnemonic() string {
+func (b *CryptoAPI) DumpMnemonic() string {
 	mnemonic, err := bip39.NewMnemonic(b.MasterSecret)
 	if err != nil {
 		glog.Warningf("DumpMnemonic failed %v", err)

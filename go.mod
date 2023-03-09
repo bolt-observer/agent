@@ -18,6 +18,7 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/powerman/rpc-codec v1.2.2
 	github.com/stretchr/testify v1.8.1
+	github.com/timshannon/bolthold v0.0.0-20210913165410-232392fc8a6a
 	github.com/urfave/cli v1.22.12
 	golang.org/x/sync v0.1.0
 	google.golang.org/grpc v1.53.0
@@ -41,7 +42,6 @@ require (
 	github.com/lightningnetwork/lnd/queue v1.1.0 // indirect
 	github.com/lightningnetwork/lnd/ticker v1.1.0 // indirect
 	github.com/lightningnetwork/lnd/tlv v1.1.0 // indirect
-	github.com/timshannon/bolthold v0.0.0-20210913165410-232392fc8a6a // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.13.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.13.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.13.0 // indirect
@@ -132,7 +132,7 @@ require (
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/xiang90/probing v0.0.0-20221125231312-a49e3df8f510 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9 // indirect
-	go.etcd.io/bbolt v1.3.7 // indirect
+	go.etcd.io/bbolt v1.3.7
 	go.etcd.io/etcd/api/v3 v3.5.7 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.7 // indirect
 	go.etcd.io/etcd/client/v2 v2.305.7 // indirect

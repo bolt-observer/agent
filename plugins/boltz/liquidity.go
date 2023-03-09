@@ -24,15 +24,24 @@ type ChanCapacity struct {
 }
 
 // GetNodeLiquidity - gets current node liquidity
-func (b *Plugin) GetNodeLiquidity(ctx context.Context) (*Liquidity, error) {
-	lnAPI, err := b.LnAPI()
-	if err != nil {
-		return nil, err
+func (b *Plugin) GetNodeLiquidity(ctx context.Context, optLnAPI lightning.LightingAPICalls) (*Liquidity, error) {
+	var (
+		lnAPI lightning.LightingAPICalls
+		err   error
+	)
+
+	if optLnAPI != nil {
+		lnAPI = optLnAPI
+	} else {
+		lnAPI, err = b.LnAPI()
+		if err != nil {
+			return nil, err
+		}
+		if lnAPI == nil {
+			return nil, fmt.Errorf("could not get lightning api")
+		}
+		defer lnAPI.Cleanup()
 	}
-	if lnAPI == nil {
-		return nil, fmt.Errorf("error checking lightning")
-	}
-	defer lnAPI.Cleanup()
 
 	resp, err := lnAPI.GetChannels(ctx)
 	if err != nil {
@@ -64,16 +73,25 @@ func (b *Plugin) GetNodeLiquidity(ctx context.Context) (*Liquidity, error) {
 	return ret, nil
 }
 
-// GetByDescendingOutboundLiqudity - get channels in descreasing outbound liqudity so that sum >= limit satoshis
-func (b *Plugin) GetByDescendingOutboundLiqudity(ctx context.Context, limit uint64) ([]ChanCapacity, error) {
-	lnAPI, err := b.LnAPI()
-	if err != nil {
-		return nil, err
+// GetByDescendingOutboundLiquidity - get channels in descreasing outbound liqudity so that sum >= limit satoshis
+func (b *Plugin) GetByDescendingOutboundLiquidity(ctx context.Context, limit uint64, optLnAPI lightning.LightingAPICalls) ([]ChanCapacity, error) {
+	var (
+		lnAPI lightning.LightingAPICalls
+		err   error
+	)
+
+	if optLnAPI != nil {
+		lnAPI = optLnAPI
+	} else {
+		lnAPI, err = b.LnAPI()
+		if err != nil {
+			return nil, err
+		}
+		if lnAPI == nil {
+			return nil, fmt.Errorf("could not get lightning api")
+		}
+		defer lnAPI.Cleanup()
 	}
-	if lnAPI == nil {
-		return nil, fmt.Errorf("error checking lightning")
-	}
-	defer lnAPI.Cleanup()
 
 	resp, err := lnAPI.GetChannels(ctx)
 	if err != nil {
@@ -110,5 +128,50 @@ func (b *Plugin) GetByDescendingOutboundLiqudity(ctx context.Context, limit uint
 		idx++
 	}
 
+	if total < limit {
+		return nil, fmt.Errorf("not enough capacity")
+	}
+
 	return ret[:idx], nil
+}
+
+// GetChanLiquidity
+func (b *Plugin) GetChanLiquidity(ctx context.Context, chanID uint64, limit uint64, optLnAPI lightning.LightingAPICalls) (*ChanCapacity, uint64, error) {
+	var (
+		lnAPI lightning.LightingAPICalls
+		err   error
+	)
+
+	if optLnAPI != nil {
+		lnAPI = optLnAPI
+	} else {
+		lnAPI, err = b.LnAPI()
+		if err != nil {
+			return nil, 0, err
+		}
+		if lnAPI == nil {
+			return nil, 0, fmt.Errorf("could not get lightning api")
+		}
+		defer lnAPI.Cleanup()
+	}
+
+	resp, err := lnAPI.GetChannels(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, channel := range resp.Channels {
+		if !b.Filter.AllowChanID(channel.ChanID) && !b.Filter.AllowPubKey(channel.RemotePubkey) && !b.Filter.AllowSpecial(channel.Private) {
+			continue
+		}
+		if channel.ChanID != chanID {
+			continue
+		}
+		// Capacity is outbound liquidity here -> LocalBalance
+		if limit > 0 && channel.LocalBalance < limit {
+			return nil, 0, fmt.Errorf("not enough capacity")
+		}
+		return &ChanCapacity{Capacity: channel.LocalBalance, Channel: channel}, channel.Capacity, nil
+	}
+
+	return nil, 0, fmt.Errorf("channel %d not found", chanID)
 }

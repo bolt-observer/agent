@@ -7,10 +7,8 @@ import (
 	"testing"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
-	"github.com/bolt-observer/agent/entities"
 	agent_entities "github.com/bolt-observer/agent/entities"
 	lnapi "github.com/bolt-observer/agent/lightning"
-	"github.com/bolt-observer/agent/plugins/types"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/assert"
@@ -53,6 +51,11 @@ func (t *TestDB) Insert(key, data interface{}) error {
 	return nil
 }
 
+func (t *TestDB) Update(key, data interface{}) error {
+	t.data[key] = data
+	return nil
+}
+
 func (t *TestDB) Connect(path string) error {
 	return nil
 }
@@ -71,7 +74,7 @@ func TestExecute(t *testing.T) {
 	t.Run("Error on invalid data", func(t *testing.T) {
 		cs := &CallbackStore{}
 		err := p.Execute(123, []byte("invalid data"), cs.Callback)
-		require.ErrorIs(t, types.ErrCouldNotParseJobData, err)
+		require.ErrorIs(t, ErrCouldNotParseJobData, err)
 		assert.Equal(t, 0, len(cs.messages))
 	})
 
@@ -99,6 +102,7 @@ func TestExecute(t *testing.T) {
 		_, ok := p.jobs[123]
 		assert.True(t, ok)
 
+		fmt.Printf("%+v\n", p.db.(*TestDB).data)
 		_, ok = p.db.(*TestDB).data[int32(123)]
 		assert.True(t, ok)
 	})
@@ -118,7 +122,7 @@ func TestExecute(t *testing.T) {
 
 }
 
-func mkGetLndAPI(cmdCtx *cli.Context) entities.NewAPICall {
+func mkGetLndAPI(cmdCtx *cli.Context) agent_entities.NewAPICall {
 	return func() (lnapi.LightingAPICalls, error) {
 		return lnapi.NewAPI(lnapi.LndGrpc, func() (*common_entities.Data, error) {
 			return &common_entities.Data{
@@ -126,4 +130,80 @@ func mkGetLndAPI(cmdCtx *cli.Context) entities.NewAPICall {
 			}, nil
 		})
 	}
+}
+
+func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
+	p := &Plugin{}
+	limits := &SwapLimits{
+		MinSwap:       100_000,
+		DefaultSwap:   100_000,
+		MaxSwap:       1_000_000,
+		AllowZeroConf: true,
+	}
+
+	t.Run("Everything on inbound side want everyting outbound", func(t *testing.T) {
+		jd := &JobData{
+			Target:     OutboundLiquidityNodePercent,
+			Percentage: 100,
+			ID:         1337,
+		}
+
+		liquidity := &Liquidity{
+			InboundSats:        200000,
+			OutboundSats:       0,
+			Capacity:           200000,
+			InboundPercentage:  100,
+			OutboundPercentage: 0,
+		}
+
+		result := p.convertLiquidityNodePercent(jd, limits, liquidity, nil, true)
+
+		assert.Equal(t, JobID(1337), result.JobID)
+		assert.Equal(t, InitialForward, result.State)
+		assert.Equal(t, 200000, int(result.Sats))
+	})
+
+	t.Run("Everything on inbound side want half outbound", func(t *testing.T) {
+		jd := &JobData{
+			Target:     OutboundLiquidityNodePercent,
+			Percentage: 50,
+			ID:         1338,
+		}
+
+		liquidity := &Liquidity{
+			InboundSats:        200000,
+			OutboundSats:       0,
+			Capacity:           200000,
+			InboundPercentage:  100,
+			OutboundPercentage: 0,
+		}
+
+		result := p.convertLiquidityNodePercent(jd, limits, liquidity, nil, true)
+
+		assert.Equal(t, JobID(1338), result.JobID)
+		assert.Equal(t, InitialForward, result.State)
+		assert.Equal(t, 100000, int(result.Sats))
+	})
+
+	t.Run("Empty node", func(t *testing.T) {
+		jd := &JobData{
+			Target:     OutboundLiquidityNodePercent,
+			Percentage: 50,
+			ID:         1339,
+		}
+
+		liquidity := &Liquidity{
+			InboundSats:        0,
+			OutboundSats:       0,
+			Capacity:           0,
+			InboundPercentage:  0,
+			OutboundPercentage: 0,
+		}
+
+		result := p.convertLiquidityNodePercent(jd, limits, liquidity, nil, true)
+
+		assert.Equal(t, JobID(1339), result.JobID)
+		assert.Equal(t, InitialForward, result.State)
+		assert.Equal(t, 100000, int(result.Sats))
+	})
 }
