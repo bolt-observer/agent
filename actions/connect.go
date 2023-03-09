@@ -57,9 +57,7 @@ func (c *Connector) Run(ctx context.Context, resetBackOffFn func()) error {
 	}
 	c.client = stream
 
-	resetBackOffFn()
-
-	return c.communicate(ctx, stream)
+	return c.communicate(ctx, stream, resetBackOffFn)
 }
 
 type actionStreamer interface {
@@ -68,7 +66,7 @@ type actionStreamer interface {
 }
 
 // Receive messages from the server and execute the requested actions
-func (c *Connector) communicate(ctx context.Context, stream actionStreamer) error {
+func (c *Connector) communicate(ctx context.Context, stream actionStreamer, resetBackOffFn func()) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -126,6 +124,7 @@ func (c *Connector) communicate(ctx context.Context, stream actionStreamer) erro
 				glog.Errorf("Ignoring received message: %v", msg)
 			}
 		}
+		resetBackOffFn()
 	}
 }
 
