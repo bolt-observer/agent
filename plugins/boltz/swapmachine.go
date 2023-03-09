@@ -56,13 +56,11 @@ func log(in FsmIn, msg string) {
 }
 
 func (s *SwapMachine) getSleepTime(in FsmIn) time.Duration {
-	if s.BoltzPlugin.ChainParams.Name == "mainnet" {
-		return 1 * time.Minute
-	}
-	return 5 * time.Second
+	return s.BoltzPlugin.getSleepTime()
 }
 
 func (s *SwapMachine) FsmNone(in FsmIn) FsmOut {
+	log(in, "Invalid state reached")
 	panic("Invalid state reached")
 }
 
@@ -93,15 +91,22 @@ func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
 func (s *SwapMachine) RedeemedCallback(data FsmIn, success bool) {
 	sd := data.GetSwapData()
 	if sd.State == RedeemingLockedFunds {
-		// even when this succeeds state is still screwed up
+		// If we are redeeming locked funds this means by definition our swap failed
+		// so when redeemer was able to recover the funds we can transition to final state
+		// else we stay in RedeemingLockedFunds and continue with it
 		if success {
-			s.Eval(data, SwapFailed)
+			go s.Eval(data, SwapFailed)
+		} else {
+			go func() {
+				time.Sleep(s.getSleepTime(data))
+				s.Eval(data, RedeemingLockedFunds)
+			}()
 		}
 	} else if sd.State == ClaimReverseFunds {
 		if success {
-			s.Eval(data, SwapSuccess)
+			go s.Eval(data, SwapSuccess)
 		} else {
-			s.Eval(data, SwapFailed)
+			go s.Eval(data, SwapFailed)
 		}
 	}
 }
@@ -182,8 +187,7 @@ type SwapMachine struct {
 }
 
 func NewSwapMachine(plugin *Plugin) *SwapMachine {
-	s := &SwapMachine{
-		Machine: &Fsm[FsmIn, FsmOut, State]{States: make(map[State]func(data FsmIn) FsmOut)},
+	s := &SwapMachine{Machine: &Fsm[FsmIn, FsmOut, State]{States: make(map[State]func(data FsmIn) FsmOut)},
 		// TODO: instead of BoltzPlugin this should be a bit more granular
 		BoltzPlugin: plugin,
 	}
@@ -202,6 +206,7 @@ func NewSwapMachine(plugin *Plugin) *SwapMachine {
 	s.Machine.States[ClaimReverseFunds] = FsmWrap(s.FsmClaimReverseFunds, plugin)
 
 	return s
+
 }
 
 func (s *SwapMachine) Eval(in FsmIn, initial State) FsmOut {

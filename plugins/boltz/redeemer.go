@@ -103,17 +103,17 @@ func (r *Redeemer[T]) redeem() bool {
 		return true
 	}
 
-	lnAPI, err := r.LnAPI()
+	lnConnection, err := r.LnAPI()
 	if err != nil {
 		return true
 	}
-	if lnAPI == nil {
+	if lnConnection == nil {
 		return true
 	}
 
-	defer lnAPI.Cleanup()
+	defer lnConnection.Cleanup()
 
-	info, err := lnAPI.GetInfo(r.Ctx)
+	info, err := lnConnection.GetInfo(r.Ctx)
 	if err != nil {
 		return true
 	}
@@ -188,12 +188,18 @@ func (r *Redeemer[T]) AddEntry(data T) error {
 		return fmt.Errorf("trying to add non-redeemable thing (%v %v)", sd.State, sd.JobID)
 	}
 
+	// debug
+	fmt.Printf("Adding %+v to redeemer\n", data)
+
 	r.Entries[sd.JobID] = data
 
 	return nil
 }
 
 func (r *Redeemer[T]) doRedeem(outputs []boltz.OutputDetails) (string, error) {
+	fmt.Printf("Trying to redeem %d outputs\n", len(outputs))
+
+	// TODO: fee estimation now depends on working boltz API - use lightning API for it
 	feeResp, err := r.BoltzAPI.GetFeeEstimation()
 	if err != nil {
 		return "", err
@@ -206,16 +212,16 @@ func (r *Redeemer[T]) doRedeem(outputs []boltz.OutputDetails) (string, error) {
 		return "", fmt.Errorf("error getting fee estimate")
 	}
 
-	lnAPI, err := r.LnAPI()
+	lnConnection, err := r.LnAPI()
 	if err != nil {
 		return "", err
 	}
-	if lnAPI == nil {
+	if lnConnection == nil {
 		return "", fmt.Errorf("error getting LNAPI")
 	}
 
-	defer lnAPI.Cleanup()
-	addr, err := lnAPI.GetOnChainAddress(r.Ctx)
+	defer lnConnection.Cleanup()
+	addr, err := lnConnection.GetOnChainAddress(r.Ctx)
 	if err != nil {
 		return "", err
 	}

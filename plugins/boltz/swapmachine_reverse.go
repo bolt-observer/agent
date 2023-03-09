@@ -1,6 +1,7 @@
 package boltz
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -18,6 +19,8 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 	const SafetyMargin = 1000 // sats
 
 	sats := in.SwapData.Sats
+
+	log(in, fmt.Sprintf("Will do a reverse submarine swap with %v sats", sats))
 
 	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
 	if err != nil {
@@ -45,17 +48,17 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 	// times 2 is used as a safety margin
 	minerFees := 2 * res.Fees.MinerFees.BaseAsset.Reverse.Claim
 
-	lnAPI, err := s.BoltzPlugin.LnAPI()
+	lnConnection, err := s.BoltzPlugin.LnAPI()
 	if err != nil {
 		return FsmOut{Error: err}
 	}
-	if lnAPI == nil {
+	if lnConnection == nil {
 		return FsmOut{Error: fmt.Errorf("error getting lightning API")}
 	}
 
-	defer lnAPI.Cleanup()
+	defer lnConnection.Cleanup()
 
-	info, err := lnAPI.GetInfo(ctx)
+	info, err := lnConnection.GetInfo(ctx)
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -65,16 +68,16 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 		return FsmOut{Error: err}
 	}
 
-	fee := float64(response.OnchainAmount-sats+minerFees+SafetyMargin) / float64(sats)
-	if fee/100 > s.BoltzPlugin.MaxFeePercentage {
-		return FsmOut{Error: fmt.Errorf("fee was calculated to be %v, max allowed is %v", fee/100, s.BoltzPlugin.MaxFeePercentage)}
+	fee := float64(sats-response.OnchainAmount+minerFees+SafetyMargin) / float64(sats)
+	if fee*100 > s.BoltzPlugin.MaxFeePercentage {
+		return FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, s.BoltzPlugin.MaxFeePercentage)}
 	}
 
-	log(in, fmt.Sprintf("Swap fee will be approximately %v %%", fee*100))
+	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100))
 
 	// Check funds
 	if in.SwapData.ReverseChannelId == 0 {
-		capacity, err := s.BoltzPlugin.GetByDescendingOutboundLiquidity(ctx, sats+SafetyMargin, lnAPI)
+		capacity, err := s.BoltzPlugin.GetByDescendingOutboundLiquidity(ctx, sats+SafetyMargin, lnConnection)
 		if err != nil {
 			return FsmOut{Error: err}
 		}
@@ -90,7 +93,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 		in.SwapData.ChanIdsToUse = chans
 	} else {
 		// Will error when sufficient funds are not available
-		_, err = s.BoltzPlugin.GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, lnAPI)
+		_, err = s.BoltzPlugin.GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, lnConnection)
 		if err != nil {
 			return FsmOut{Error: err}
 		}
@@ -116,21 +119,23 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 	}
 
 	for {
-		lnAPI, err := s.BoltzPlugin.LnAPI()
+		lnConnection, err := s.BoltzPlugin.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
 			continue
 		}
-		if lnAPI == nil {
+		if lnConnection == nil {
 			log(in, "error getting LNAPI")
 			time.Sleep(SleepTime)
 			continue
 		}
 
-		// ignore errors
-		lnAPI.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, in.SwapData.ChanIdsToUse)
-		s.BoltzPlugin.EnsureConnected(ctx, lnAPI)
+		log(in, fmt.Sprintf("Paying invoice %v |%v|", in.SwapData.ReverseInvoice, in.SwapData.ChanIdsToUse))
+
+		// ignore errors - TODO fix this
+		lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, in.SwapData.ChanIdsToUse)
+		s.BoltzPlugin.EnsureConnected(ctx, lnConnection)
 
 		s, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
@@ -140,7 +145,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 		}
 		status := boltz.ParseEvent(s.Status)
 
-		if status == boltz.TransactionConfirmed {
+		if (in.SwapData.AllowZeroConf && status == boltz.TransactionMempool) || status == boltz.TransactionConfirmed {
 			return FsmOut{NextState: ClaimReverseFunds}
 		}
 
@@ -148,7 +153,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 			return FsmOut{NextState: SwapFailed}
 		}
 
-		info, err := lnAPI.GetInfo(ctx)
+		info, err := lnConnection.GetInfo(ctx)
 		if err != nil {
 			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -159,7 +164,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 			return FsmOut{NextState: SwapFailed}
 		}
 
-		lnAPI.Cleanup()
+		lnConnection.Cleanup()
 		time.Sleep(SleepTime)
 	}
 }
@@ -195,17 +200,12 @@ func CreateReverseSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, sats uint64,
 		return nil, err
 	}
 
-	err = boltz.CheckSwapScript(redeemScript, keys.Preimage.Hash, keys.Keys.PrivateKey, response.TimeoutBlockHeight)
+	err = boltz.CheckReverseSwapScript(redeemScript, keys.Preimage.Hash, keys.Keys.PrivateKey, response.TimeoutBlockHeight)
 	if err != nil {
 		return nil, err
 	}
 
-	err = boltz.CheckSwapAddress(chainparams, response.LockupAddress, redeemScript, true)
-	if err != nil {
-		return nil, err
-	}
-
-	if currentBlockHeight+BlockEps < int(response.TimeoutBlockHeight) {
+	if currentBlockHeight+BlockEps > int(response.TimeoutBlockHeight) {
 		return nil, fmt.Errorf("error checking blockheight")
 	}
 
@@ -214,8 +214,12 @@ func CreateReverseSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, sats uint64,
 		return nil, err
 	}
 
+	if !bytes.Equal(keys.Preimage.Hash, invoice.PaymentHash[:]) {
+		return nil, fmt.Errorf("invalid invoice preimage hash")
+	}
+
 	if uint64(invoice.MilliSat.ToSatoshis()) != sats {
-		return nil, fmt.Errorf("invalid invoice expected %v got %v", sats, invoice.MilliSat.ToSatoshis())
+		return nil, fmt.Errorf("invalid invoice expected %v sats got invoice for %v sats", sats, invoice.MilliSat.ToSatoshis())
 	}
 
 	return response, nil

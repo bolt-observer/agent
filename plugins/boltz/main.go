@@ -28,10 +28,6 @@ const (
 	SecretBitSize   = 256
 	SecretDbKey     = "secret"
 
-	DefaultSwap = 100_000
-	MinSwap     = 50_001
-	MaxSwap     = 1_000_000
-
 	ErrInvalidArguments = Error("invalid arguments")
 )
 
@@ -50,6 +46,18 @@ var PluginFlags = []cli.Flag{
 	},
 	cli.Float64Flag{
 		Name: "maxfeepercentage", Value: 5.0, Usage: "maximum fee in percentage that is still acceptable", Hidden: false,
+	},
+	cli.Uint64Flag{
+		Name: "maxswapsats", Value: 1_000_000, Usage: "maximum swap to perform in sats", Hidden: false,
+	},
+	cli.Uint64Flag{
+		Name: "minswapsats", Value: 100_000, Usage: "minimum swap to perform in sats", Hidden: false,
+	},
+	cli.Uint64Flag{
+		Name: "defaultswapsats", Value: 100_000, Usage: "default swap to perform in sats", Hidden: false,
+	},
+	cli.BoolFlag{
+		Name: "disablezeroconf", Usage: "disable zeroconfirmation", Hidden: false,
 	},
 }
 
@@ -76,6 +84,7 @@ type Plugin struct {
 	SwapMachine      *SwapMachine
 	Redeemer         *Redeemer[FsmIn]
 	ReverseRedeemer  *Redeemer[FsmIn]
+	Limits           *SwapLimits
 	db               DB
 	jobs             map[int32]interface{}
 	mutex            sync.Mutex
@@ -89,6 +98,13 @@ type JobModel struct {
 
 type Entropy struct {
 	Data []byte
+}
+
+type SwapLimits struct {
+	AllowZeroConf bool
+	MinSwap       uint64
+	MaxSwap       uint64
+	DefaultSwap   uint64
 }
 
 // NewPlugin creates new instance
@@ -128,17 +144,20 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	}
 	resp.MaxFeePercentage = cmdCtx.Float64("maxfeepercentage")
 
-	interval := 5 * time.Second
-	if resp.ChainParams.Name == "mainnet" {
-		interval = 1 * time.Minute
+	limits := &SwapLimits{
+		AllowZeroConf: !cmdCtx.Bool("disablezeroconf"),
+		MinSwap:       cmdCtx.Uint64("minswapsats"),
+		MaxSwap:       cmdCtx.Uint64("maxswapsats"),
+		DefaultSwap:   cmdCtx.Uint64("defaultswapsats"),
 	}
+	resp.Limits = limits
 
 	// Swap machine is the finite state machine for doing the swap
 	resp.SwapMachine = NewSwapMachine(resp)
 
 	// Currently there is just one redeemer instance (perhaps split it)
 	resp.Redeemer = NewRedeemer(context.Background(), (RedeemForward | RedeemReverse), resp.ChainParams, resp.BoltzAPI, resp.LnAPI,
-		interval, resp.CryptoAPI, resp.SwapMachine.RedeemedCallback)
+		resp.getSleepTime(), resp.CryptoAPI, resp.SwapMachine.RedeemedCallback)
 	resp.ReverseRedeemer = resp.Redeemer // use reference to same instance
 
 	if cmdCtx.Bool("dumpmnemonic") {
@@ -146,6 +165,14 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	}
 
 	return resp, nil
+}
+
+func (b *Plugin) getSleepTime() time.Duration {
+	interval := 5 * time.Second
+	if b.ChainParams.Name == "mainnet" {
+		interval = 1 * time.Minute
+	}
+	return interval
 }
 
 func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.MessageCallback) error {
@@ -172,7 +199,7 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 			b.jobs[jobID] = sd
 		} else {
 			// create new job
-			data := b.jobDataToSwapData(ctx, jd, msgCallback)
+			data := b.jobDataToSwapData(ctx, b.Limits, jd, msgCallback)
 			if data == nil {
 				glog.Infof("[Boltz] [%v] Not supported job", jobID)
 				msgCallback(agent_entities.PluginMessage{
@@ -223,11 +250,15 @@ func getChainParams(cmdCtx *cli.Context) *chaincfg.Params {
 	case "simnet":
 		params = chaincfg.SimNetParams
 	}
+
 	return &params
 }
 
 func setMnemonic(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
-	var entropy []byte
+	var (
+		entropy []byte
+		dummy   Entropy
+	)
 
 	mnemonic := cmdCtx.String("setmnemonic")
 	if mnemonic != "" {
@@ -235,14 +266,18 @@ func setMnemonic(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
 		if err != nil {
 			return entropy, err
 		}
-		err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
+
+		if err = db.Get(SecretDbKey, &dummy); err != nil {
+			err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
+		} else {
+			err = db.Update(SecretDbKey, &Entropy{Data: entropy})
+		}
 		if err != nil {
 			return entropy, err
 		}
 	} else {
-		var e Entropy
-		err := db.Get(SecretDbKey, &e)
-		entropy = e.Data
+		err := db.Get(SecretDbKey, &dummy)
+		entropy = dummy.Data
 
 		if err != nil {
 			entropy, err = bip39.NewEntropy(SecretBitSize)
@@ -258,7 +293,7 @@ func setMnemonic(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
 	return entropy, nil
 }
 
-func (b *Plugin) jobDataToSwapData(ctx context.Context, jobData *JobData, msgCallback agent_entities.MessageCallback) *SwapData {
+func (b *Plugin) jobDataToSwapData(ctx context.Context, limits *SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback) *SwapData {
 	if jobData == nil {
 		return nil
 	}
@@ -269,13 +304,13 @@ func (b *Plugin) jobDataToSwapData(ctx context.Context, jobData *JobData, msgCal
 		if liquidity == nil {
 			return nil
 		}
-		return b.convertLiqudityNodePercent(jobData, liquidity, msgCallback, true)
+		return b.convertLiqudityNodePercent(jobData, limits, liquidity, msgCallback, true)
 	case InboundLiquidityNodePercent:
 		liquidity := b.getLiquidity(ctx, jobData, msgCallback)
 		if liquidity == nil {
 			return nil
 		}
-		return b.convertLiqudityNodePercent(jobData, liquidity, msgCallback, false)
+		return b.convertLiqudityNodePercent(jobData, limits, liquidity, msgCallback, false)
 	default:
 		// Not supported yet
 		return nil
@@ -301,7 +336,7 @@ func (b *Plugin) getLiquidity(ctx context.Context, jobData *JobData, msgCallback
 	return liquidity
 }
 
-func (b *Plugin) convertLiqudityNodePercent(jobData *JobData, liquidity *Liquidity, msgCallback agent_entities.MessageCallback, outbound bool) *SwapData {
+func (b *Plugin) convertLiqudityNodePercent(jobData *JobData, limits *SwapLimits, liquidity *Liquidity, msgCallback agent_entities.MessageCallback, outbound bool) *SwapData {
 	val := liquidity.OutboundPercentage
 	name := "outbound"
 	if !outbound {
@@ -322,12 +357,12 @@ func (b *Plugin) convertLiqudityNodePercent(jobData *JobData, liquidity *Liquidi
 		return nil
 	}
 
-	sats := float64(DefaultSwap)
+	sats := float64(limits.DefaultSwap)
 	if liquidity.Capacity != 0 {
 		factor := (jobData.Percentage - val) / float64(100)
 		sats = float64(liquidity.Capacity) * factor
 
-		sats = math.Min(math.Max(sats, MinSwap), MaxSwap)
+		sats = math.Min(math.Max(sats, float64(limits.MinSwap)), float64(limits.MaxSwap))
 	}
 
 	s := &SwapData{
@@ -340,6 +375,8 @@ func (b *Plugin) convertLiqudityNodePercent(jobData *JobData, liquidity *Liquidi
 	} else {
 		s.State = InitialReverse
 	}
+
+	s.AllowZeroConf = limits.AllowZeroConf
 
 	return s
 }

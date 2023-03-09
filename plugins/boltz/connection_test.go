@@ -71,7 +71,13 @@ func getMockCliCtx(boltzUrl string) *cli.Context {
 	fs.String("boltzdatabase", "/tmp/boltz.db", "")
 	fs.String("network", "regtest", "")
 	fs.Float64("maxfeepercentage", 80.0, "")
+	fs.Uint64("maxswapsats", 1_000_000, "")
+	fs.Uint64("minswapsats", 100_000, "")
+	fs.Uint64("defaultswapsats", 100_000, "")
+	fs.Bool("disablezeroconf", false, "")
+
 	return cli.NewContext(nil, fs, nil)
+
 }
 
 func TestEnsureConnected(t *testing.T) {

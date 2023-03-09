@@ -134,6 +134,11 @@ func mkGetLndAPI(cmdCtx *cli.Context) agent_entities.NewAPICall {
 
 func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 	p := &Plugin{}
+	limits := &SwapLimits{
+		MinSwap:     100_000,
+		DefaultSwap: 100_000,
+		MaxSwap:     1_000_000,
+	}
 
 	t.Run("Everything on inbound side want everyting outbound", func(t *testing.T) {
 		jd := &JobData{
@@ -150,7 +155,7 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 			OutboundPercentage: 0,
 		}
 
-		result := p.convertLiqudityNodePercent(jd, liquidity, nil, true)
+		result := p.convertLiqudityNodePercent(jd, limits, liquidity, nil, true)
 
 		assert.Equal(t, JobID(1337), result.JobID)
 		assert.Equal(t, InitialForward, result.State)
@@ -172,7 +177,7 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 			OutboundPercentage: 0,
 		}
 
-		result := p.convertLiqudityNodePercent(jd, liquidity, nil, true)
+		result := p.convertLiqudityNodePercent(jd, limits, liquidity, nil, true)
 
 		assert.Equal(t, JobID(1338), result.JobID)
 		assert.Equal(t, InitialForward, result.State)
@@ -194,7 +199,7 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 			OutboundPercentage: 0,
 		}
 
-		result := p.convertLiqudityNodePercent(jd, liquidity, nil, true)
+		result := p.convertLiqudityNodePercent(jd, limits, liquidity, nil, true)
 
 		assert.Equal(t, JobID(1339), result.JobID)
 		assert.Equal(t, InitialForward, result.State)

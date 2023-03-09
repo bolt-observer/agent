@@ -18,6 +18,8 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 
 	sats := in.SwapData.Sats
 
+	log(in, fmt.Sprintf("Will do a submarine swap with %v sats", sats))
+
 	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
 	if err != nil {
 		return FsmOut{Error: err}
@@ -44,23 +46,23 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	// times 2 is used as a safety margin
 	minerFees := 2 * res.Fees.MinerFees.BaseAsset.Normal
 
-	lnAPI, err := s.BoltzPlugin.LnAPI()
+	lnConnection, err := s.BoltzPlugin.LnAPI()
 	if err != nil {
 		return FsmOut{Error: err}
 	}
-	if lnAPI == nil {
+	if lnConnection == nil {
 		return FsmOut{Error: fmt.Errorf("error getting lightning API")}
 	}
 
-	defer lnAPI.Cleanup()
+	defer lnConnection.Cleanup()
 
-	invoice, err := lnAPI.CreateInvoice(ctx, int64(in.SwapData.Sats), hex.EncodeToString(keys.Preimage.Raw),
+	invoice, err := lnConnection.CreateInvoice(ctx, int64(in.SwapData.Sats), hex.EncodeToString(keys.Preimage.Raw),
 		fmt.Sprintf("Automatic Swap Boltz %d", in.GetJobID()), 24*time.Hour) // assume boltz returns 144 blocks
 	if err != nil {
 		return FsmOut{Error: err}
 	}
 
-	info, err := lnAPI.GetInfo(ctx)
+	info, err := lnConnection.GetInfo(ctx)
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -72,19 +74,19 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 
 	fee := float64(response.ExpectedAmount-sats+minerFees) / float64(sats)
 	if fee*100 > s.BoltzPlugin.MaxFeePercentage {
-		return FsmOut{Error: fmt.Errorf("fee was calculated to be %v %%, max allowed is %v %%", fee*100, s.BoltzPlugin.MaxFeePercentage)}
+		return FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, s.BoltzPlugin.MaxFeePercentage)}
 	}
 
-	log(in, fmt.Sprintf("Swap fee will be approximately %v %%", fee*100))
+	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100))
 
 	// Check funds
-	funds, err := lnAPI.GetOnChainFunds(ctx)
+	funds, err := lnConnection.GetOnChainFunds(ctx)
 	if err != nil {
 		return FsmOut{Error: err}
 	}
 
 	if funds.ConfirmedBalance < int64(response.ExpectedAmount+minerFees) {
-		return FsmOut{Error: fmt.Errorf("we have %v sats on-chain but need %v", funds.ConfirmedBalance, response.ExpectedAmount+minerFees)}
+		return FsmOut{Error: fmt.Errorf("we have %v sats on-chain but need %v sats", funds.ConfirmedBalance, response.ExpectedAmount+minerFees)}
 	}
 
 	in.SwapData.BoltzID = response.Id
@@ -98,7 +100,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 		return FsmOut{Error: err}
 	}
 
-	tx, err := lnAPI.SendToOnChainAddress(ctx, response.Address, int64(response.ExpectedAmount), false, lightning.Normal)
+	tx, err := lnConnection.SendToOnChainAddress(ctx, response.Address, int64(response.ExpectedAmount), false, lightning.Normal)
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -188,19 +190,19 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in FsmIn) FsmOut {
 
 	// Wait for expiry
 	for {
-		lnAPI, err := s.BoltzPlugin.LnAPI()
+		lnConnection, err := s.BoltzPlugin.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
 			continue
 		}
-		if lnAPI == nil {
+		if lnConnection == nil {
 			log(in, "error getting LNAPI")
 			time.Sleep(SleepTime)
 			continue
 		}
 
-		info, err := lnAPI.GetInfo(ctx)
+		info, err := lnConnection.GetInfo(ctx)
 		if err != nil {
 			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -213,7 +215,7 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in FsmIn) FsmOut {
 
 		log(in, fmt.Sprintf("Waiting for expiry %d < %d", info.BlockHeight, in.SwapData.TimoutBlockHeight))
 
-		lnAPI.Cleanup()
+		lnConnection.Cleanup()
 		time.Sleep(SleepTime)
 	}
 
@@ -240,13 +242,13 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
 	SleepTime := s.getSleepTime(in)
 
 	for {
-		lnAPI, err := s.BoltzPlugin.LnAPI()
+		lnConnection, err := s.BoltzPlugin.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
 			continue
 		}
-		if lnAPI == nil {
+		if lnConnection == nil {
 			log(in, "error getting LNAPI")
 			time.Sleep(SleepTime)
 			continue
@@ -259,7 +261,7 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
 			continue
 		}
 
-		paid, err := lnAPI.IsInvoicePaid(ctx, hex.EncodeToString(keys.Preimage.Hash))
+		paid, err := lnConnection.IsInvoicePaid(ctx, hex.EncodeToString(keys.Preimage.Hash))
 		if err != nil {
 			log(in, "error checking whether invoice is paid")
 			time.Sleep(SleepTime)

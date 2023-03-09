@@ -35,6 +35,7 @@ type SwapData struct {
 	Attempt           int // Not used yet
 	BoltzID           string
 	State             State
+	AllowZeroConf     bool
 	TimoutBlockHeight uint32
 	Script            string
 	Sats              uint64

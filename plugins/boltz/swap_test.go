@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -17,21 +18,21 @@ import (
 	bip39 "github.com/tyler-smith/go-bip39"
 )
 
-func getLocalLnd(t *testing.T, name string, endpoint string) agent_entities.NewAPICall {
-	const Prefix = "/tmp/lnregtest-data/dev_network/lnnodes"
+const LnRegTestPathPrefix = "/tmp/lnregtest-data/dev_network/"
 
+func getLocalLnd(t *testing.T, name string, endpoint string) agent_entities.NewAPICall {
 	data := &common_entities.Data{}
 	x := int(api.LndGrpc)
 	data.Endpoint = endpoint
 	data.ApiType = &x
 
-	content, err := os.ReadFile(fmt.Sprintf("%s/%s/tls.cert", Prefix, name))
+	content, err := os.ReadFile(fmt.Sprintf("%s/lnnodes/%s/tls.cert", LnRegTestPathPrefix, name))
 	if err != nil {
 		return nil
 	}
 	data.CertificateBase64 = base64.StdEncoding.EncodeToString(content)
 
-	macBytes, err := os.ReadFile(fmt.Sprintf("%s/%s/data/chain/bitcoin/regtest/admin.macaroon", Prefix, name))
+	macBytes, err := os.ReadFile(fmt.Sprintf("%s/lnnodes/%s/data/chain/bitcoin/regtest/admin.macaroon", LnRegTestPathPrefix, name))
 	if err != nil {
 		return nil
 	}
@@ -51,14 +52,20 @@ func msgCallback(msg agent_entities.PluginMessage) error {
 	return nil
 }
 
+func mine(numBlocks int) error {
+	_, err := exec.Command("bitcoin-cli", fmt.Sprintf("-datadir=%s/bitcoin", LnRegTestPathPrefix), "-generate", fmt.Sprintf("%d", numBlocks)).Output()
+
+	return err
+}
+
 func TestSwap(t *testing.T) {
 	const (
-		Node     = "C"
+		Node     = "D"
 		BoltzUrl = "http://localhost:9001"
 	)
 
 	// Useful commands:
-	// $ curl -X POST localhost:9001/swapstatus -d '{ "id": "E4eaqs" }'  -H "Content-Type: application/json"
+	// $ curl -X POST localhost:9001/swapstatus -d '{ "id": "mmsUtR" }'  -H "Content-Type: application/json"
 	// {"status":"invoice.set"}
 	// $ bitcoin-cli -datadir=/tmp/lnregtest-data/dev_network/bitcoin -generate 1
 
@@ -73,6 +80,7 @@ func TestSwap(t *testing.T) {
 
 	ln := getLocalLnd(t, Node, nodes[Node])
 	if ln == nil {
+		fmt.Printf("Ignoring swap test since regtest network is not available\n")
 		return
 	}
 	// Sanity check of node
@@ -102,8 +110,13 @@ func TestSwap(t *testing.T) {
 	assert.NoError(t, err)
 	p.CryptoAPI.MasterSecret = entropy
 
-	err = p.Execute(1339, []byte(`{ "target": "OutboundLiquidityNodePercent", "percentage": 12.3} `), msgCallback)
+	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90} `), msgCallback)
 	assert.NoError(t, err)
+
+	for i := 0; i < 5; i++ {
+		mine(1)
+		time.Sleep(10 * time.Second)
+	}
 
 	time.Sleep(5 * time.Minute)
 	t.Fail()
