@@ -54,18 +54,17 @@ func msgCallback(msg agent_entities.PluginMessage) error {
 
 func mine(numBlocks int) error {
 	_, err := exec.Command("bitcoin-cli", fmt.Sprintf("-datadir=%s/bitcoin", LnRegTestPathPrefix), "-generate", fmt.Sprintf("%d", numBlocks)).Output()
-
 	return err
 }
 
 func TestSwap(t *testing.T) {
 	const (
-		Node     = "D"
+		Node     = "F"
 		BoltzUrl = "http://localhost:9001"
 	)
 
 	// Useful commands:
-	// $ curl -X POST localhost:9001/swapstatus -d '{ "id": "mmsUtR" }'  -H "Content-Type: application/json"
+	// $ curl -X POST localhost:9001/swapstatus -d '{ "id": "F9K55c" }'  -H "Content-Type: application/json"
 	// {"status":"invoice.set"}
 	// $ bitcoin-cli -datadir=/tmp/lnregtest-data/dev_network/bitcoin -generate 1
 
@@ -114,7 +113,10 @@ func TestSwap(t *testing.T) {
 	assert.NoError(t, err)
 
 	for i := 0; i < 5; i++ {
-		mine(1)
+		err = mine(1)
+		if err != nil {
+			fmt.Printf("Could not mine %v", err)
+		}
 		time.Sleep(10 * time.Second)
 	}
 

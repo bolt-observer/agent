@@ -93,11 +93,14 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 		in.SwapData.ChanIdsToUse = chans
 	} else {
 		// Will error when sufficient funds are not available
-		_, err = s.BoltzPlugin.GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, lnConnection)
+		_, _, err = s.BoltzPlugin.GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, lnConnection)
 		if err != nil {
 			return FsmOut{Error: err}
 		}
-		in.SwapData.ChanIdsToUse = nil
+
+		chans := make([]uint64, 0)
+		chans = append(chans, in.SwapData.ReverseChannelId)
+		in.SwapData.ChanIdsToUse = chans
 	}
 
 	in.SwapData.BoltzID = response.Id
@@ -111,6 +114,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 
 func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 	ctx := context.Background()
+	paid := false
 
 	SleepTime := s.getSleepTime(in)
 
@@ -131,11 +135,24 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 			continue
 		}
 
-		log(in, fmt.Sprintf("Paying invoice %v |%v|", in.SwapData.ReverseInvoice, in.SwapData.ChanIdsToUse))
+		if !paid {
+			log(in, fmt.Sprintf("Paying invoice %v", in.SwapData.ReverseInvoice))
 
-		// ignore errors - TODO fix this
-		lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, in.SwapData.ChanIdsToUse)
-		s.BoltzPlugin.EnsureConnected(ctx, lnConnection)
+			_, err = lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, in.SwapData.ChanIdsToUse)
+			if err != nil {
+				log(in, fmt.Sprintf("Failed paying invoice %v", in.SwapData.ReverseInvoice))
+				if in.SwapData.ReverseChannelId == 0 {
+					// this means node level liquidity - if the hints worked that would be nice, but try without them too
+
+					_, err = lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, nil)
+					if err == nil {
+						paid = true
+					}
+				}
+			} else {
+				paid = true
+			}
+		}
 
 		s, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {

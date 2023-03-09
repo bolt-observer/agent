@@ -133,7 +133,10 @@ func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 			continue
 		}
 
-		s.BoltzPlugin.EnsureConnected(ctx, lnAPI)
+		err = s.BoltzPlugin.EnsureConnected(ctx, lnAPI)
+		if err != nil {
+			log(in, fmt.Sprintf("error ensuring we are connected: %v", err))
+		}
 
 		s, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {

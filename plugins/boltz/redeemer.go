@@ -38,7 +38,7 @@ type Redeemer[T SwapDataGetter] struct {
 
 	Entries map[JobID]T
 	lock    sync.Mutex
-	Timer   *time.Timer
+	Timer   *time.Ticker
 
 	ChainParams *chaincfg.Params
 	BoltzAPI    *boltz.Boltz
@@ -72,8 +72,8 @@ func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainPar
 		CryptoAPI:   cryptoAPI,
 	}
 
+	r.Timer = time.NewTicker(interval)
 	go r.eventLoop()
-	r.Timer = time.NewTimer(interval)
 
 	return r
 }
@@ -136,7 +136,6 @@ func (r *Redeemer[T]) redeem() bool {
 			}
 
 			output = r.getClaimOutput(sd)
-
 		} else {
 			continue
 		}
@@ -188,17 +187,12 @@ func (r *Redeemer[T]) AddEntry(data T) error {
 		return fmt.Errorf("trying to add non-redeemable thing (%v %v)", sd.State, sd.JobID)
 	}
 
-	// debug
-	fmt.Printf("Adding %+v to redeemer\n", data)
-
 	r.Entries[sd.JobID] = data
 
 	return nil
 }
 
 func (r *Redeemer[T]) doRedeem(outputs []boltz.OutputDetails) (string, error) {
-	fmt.Printf("Trying to redeem %d outputs\n", len(outputs))
-
 	// TODO: fee estimation now depends on working boltz API - use lightning API for it
 	feeResp, err := r.BoltzAPI.GetFeeEstimation()
 	if err != nil {
