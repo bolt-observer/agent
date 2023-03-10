@@ -177,13 +177,9 @@ func (b *Plugin) getSleepTime() time.Duration {
 }
 
 func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.MessageCallback) error {
-	ctx := context.Background()
+	var err error
 
-	jd := &JobData{}
-	err := json.Unmarshal(data, &jd)
-	if err != nil {
-		return ErrCouldNotParseJobData
-	}
+	ctx := context.Background()
 
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
@@ -195,11 +191,13 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 		var sd SwapData
 
 		if err = b.db.Get(jobID, &sd); err != nil {
-			// job found in database
-			b.db.Insert(jobID, sd)
-			b.jobs[jobID] = sd
-		} else {
 			// create new job
+			jd := &JobData{}
+			err := json.Unmarshal(data, &jd)
+			if err != nil {
+				return ErrCouldNotParseJobData
+			}
+
 			data := b.jobDataToSwapData(ctx, b.Limits, jd, msgCallback)
 			if data == nil {
 				glog.Infof("[Boltz] [%v] Not supported job", jobID)
@@ -215,6 +213,9 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 			sd = *data
 			sd.JobID = JobID(jobID)
 			b.db.Insert(jobID, sd)
+			b.jobs[jobID] = sd
+		} else {
+			// job found in database
 			b.jobs[jobID] = sd
 		}
 

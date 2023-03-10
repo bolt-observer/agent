@@ -54,6 +54,18 @@ func getLocalCln(t *testing.T, name string) agent_entities.NewAPICall {
 	}
 }
 
+func getLocalLndByName(t *testing.T, name string) agent_entities.NewAPICall {
+	nodes := map[string]string{
+		"A": "localhost:11009",
+		"C": "localhost:11011",
+		"D": "localhost:11012",
+		"E": "localhost:11013",
+		"F": "localhost:11014",
+		"G": "localhost:11015",
+	}
+
+	return getLocalLnd(t, name, nodes[name])
+}
 func getLocalLnd(t *testing.T, name string, endpoint string) agent_entities.NewAPICall {
 	data := &common_entities.Data{}
 	x := int(api.LndGrpc)
@@ -129,11 +141,11 @@ func nodeSanityCheck(t *testing.T, ln agent_entities.NewAPICall, name string) {
 	assert.Greater(t, funds.ConfirmedBalance, int64(1_000_000))
 }
 
-func newPlugin(t *testing.T, ln agent_entities.NewAPICall) *Plugin {
+func newPlugin(t *testing.T, ln agent_entities.NewAPICall, dbName string) *Plugin {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	p, err := NewPlugin(ln, f, getMockCliCtx(BoltzUrl))
+	p, err := NewPlugin(ln, f, getMockCliCtx(BoltzUrl, dbName))
 	assert.NoError(t, err)
 	_, err = p.BoltzAPI.GetNodes()
 	assert.NoError(t, err)
@@ -146,6 +158,7 @@ func newPlugin(t *testing.T, ln agent_entities.NewAPICall) *Plugin {
 
 func TestSwapCln(t *testing.T) {
 	const Node = "B"
+
 	ln := getLocalCln(t, Node)
 	if ln == nil {
 		fmt.Printf("Ignoring swap test since regtest network is not available\n")
@@ -153,10 +166,15 @@ func TestSwapCln(t *testing.T) {
 	}
 
 	nodeSanityCheck(t, ln, Node)
-	p := newPlugin(t, ln)
+
+	tempf, err := os.CreateTemp("", "tempdb-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempf.Name())
+
+	p := newPlugin(t, ln, tempf.Name())
 
 	l := NewLogAggregator()
-	err := p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90} `), l.Log)
+	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90} `), l.Log)
 	assert.NoError(t, err)
 
 	for i := 0; i < 20; i++ {
@@ -174,20 +192,9 @@ func TestSwapCln(t *testing.T) {
 }
 
 func TestSwapLnd(t *testing.T) {
-	const (
-		Node = "F"
-	)
+	const Node = "F"
 
-	nodes := map[string]string{
-		"A": "localhost:11009",
-		"C": "localhost:11011",
-		"D": "localhost:11012",
-		"E": "localhost:11013",
-		"F": "localhost:11014",
-		"G": "localhost:11015",
-	}
-
-	ln := getLocalLnd(t, Node, nodes[Node])
+	ln := getLocalLndByName(t, Node)
 	if ln == nil {
 		fmt.Printf("Ignoring swap test since regtest network is not available\n")
 		return
@@ -195,10 +202,14 @@ func TestSwapLnd(t *testing.T) {
 
 	nodeSanityCheck(t, ln, Node)
 
-	p := newPlugin(t, ln)
+	tempf, err := os.CreateTemp("", "tempdb-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempf.Name())
+
+	p := newPlugin(t, ln, tempf.Name())
 
 	l := NewLogAggregator()
-	err := p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90} `), l.Log)
+	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90} `), l.Log)
 	assert.NoError(t, err)
 
 	for i := 0; i < 5; i++ {
@@ -213,4 +224,51 @@ func TestSwapLnd(t *testing.T) {
 	}
 
 	t.Fail()
+}
+
+func TestStateMachineRecovery(t *testing.T) {
+	const Node = "F"
+
+	ln := getLocalLndByName(t, Node)
+	if ln == nil {
+		fmt.Printf("Ignoring swap test since regtest network is not available\n")
+		return
+	}
+
+	tempf, err := os.CreateTemp("", "tempdb-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempf.Name())
+
+	db := &BoltzDB{}
+	err = db.Connect(tempf.Name())
+	assert.NoError(t, err)
+
+	sd := &SwapData{
+		JobID: JobID(1336),
+		Sats:  100000,
+		State: SwapSuccess,
+	}
+
+	if err = db.Get(int32(sd.JobID), &sd); err != nil {
+		err = db.Insert(int32(sd.JobID), sd)
+	} else {
+		err = db.Update(int32(sd.JobID), sd)
+	}
+	assert.NoError(t, err)
+	db.db.Close()
+
+	p := newPlugin(t, ln, tempf.Name())
+
+	l := NewLogAggregator()
+	err = p.Execute(1336, []byte(``), l.Log)
+	assert.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		if l.WasSuccess() {
+			return
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	t.Fatalf("Did not get success in log")
 }
