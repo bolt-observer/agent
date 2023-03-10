@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"time"
 
 	"github.com/lightningnetwork/lnd/lnwire"
 )
@@ -59,7 +61,7 @@ func (msg *CommandoMsg) Encode(buf *bytes.Buffer, pver uint32) error {
 }
 
 // NewCommandoReader invokes a command and retruns a reader to read reply
-func (ln *LN) NewCommandoReader(ctx context.Context, rune, serviceMethod, params string) (io.Reader, error) {
+func (ln *LN) NewCommandoReader(ctx context.Context, rune, serviceMethod, params string, timeout time.Duration) (io.Reader, error) {
 	commando := NewCommandoMsg(rune, serviceMethod, params)
 
 	var b bytes.Buffer
@@ -76,18 +78,23 @@ func (ln *LN) NewCommandoReader(ctx context.Context, rune, serviceMethod, params
 	reader, writer := io.Pipe()
 	w := bufio.NewWriter(writer)
 
+	until := time.Now().Add(timeout)
+
 	go func() {
 		for {
-			select {
-			case <-ctx.Done():
+			if ctx.Err() != nil {
+				writer.CloseWithError(os.ErrDeadlineExceeded)
 				return
-			default:
-				// Do nothing
+			}
+			if time.Now().After(until) {
+				writer.CloseWithError(os.ErrDeadlineExceeded)
+				return
 			}
 
 			msgtype, res, err := ln.Read()
 			if err != nil {
 				writer.CloseWithError(err)
+				return
 			}
 			switch msgtype {
 			case CommandoReplyContinues:
@@ -108,8 +115,8 @@ func (ln *LN) NewCommandoReader(ctx context.Context, rune, serviceMethod, params
 }
 
 // CommandoReadAll reads complete commando response as string - used with internal lib
-func (ln *LN) CommandoReadAll(ctx context.Context, rune, serviceMethod, params string) (string, error) {
-	reader, err := ln.NewCommandoReader(ctx, rune, serviceMethod, params)
+func (ln *LN) CommandoReadAll(ctx context.Context, rune, serviceMethod, params string, timeout time.Duration) (string, error) {
+	reader, err := ln.NewCommandoReader(ctx, rune, serviceMethod, params, timeout)
 	if err != nil {
 		return "", err
 	}

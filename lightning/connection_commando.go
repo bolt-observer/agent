@@ -36,7 +36,7 @@ func NewCommandoConnection(addr string, rune string, timeout time.Duration) *Cln
 }
 
 // Call calls serviceMethod with args and fills reply with response.
-func (l *ClnCommandoConnection) Call(ctx context.Context, serviceMethod string, args any, reply any) error {
+func (l *ClnCommandoConnection) Call(ctx context.Context, serviceMethod string, args any, reply any, timeout time.Duration) error {
 	err := l.initConnection()
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func (l *ClnCommandoConnection) Call(ctx context.Context, serviceMethod string, 
 
 	params := convertArgs(args)
 
-	reader, err := l.ln.NewCommandoReader(ctx, l.rune, serviceMethod, params)
+	reader, err := l.ln.NewCommandoReader(ctx, l.rune, serviceMethod, params, timeout)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (l *ClnCommandoConnection) StreamResponse(ctx context.Context, serviceMetho
 
 	params := convertArgs(args)
 
-	reader, err := l.ln.NewCommandoReader(ctx, l.rune, serviceMethod, params)
+	reader, err := l.ln.NewCommandoReader(ctx, l.rune, serviceMethod, params, 8*24*time.Hour)
 	if err != nil {
 		return nil, err
 	}

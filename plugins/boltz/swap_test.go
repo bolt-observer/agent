@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"testing"
 	"time"
 
@@ -18,7 +19,40 @@ import (
 	bip39 "github.com/tyler-smith/go-bip39"
 )
 
-const LnRegTestPathPrefix = "/tmp/lnregtest-data/dev_network/"
+const (
+	LnRegTestPathPrefix = "/tmp/lnregtest-data/dev_network/"
+	BoltzUrl            = "http://localhost:9001"
+)
+
+// Make sure to increase test timeout to 60 s
+// Visual Studio Code: Code / Settings / Settings / "go.TestTimeout" and change the 30s to 60s
+
+// Useful commands:
+// curl -X POST localhost:9001/swapstatus -d '{ "id": "9klCJS" }'  -H "Content-Type: application/json"
+// {"status":"invoice.set"}
+// bitcoin-cli -datadir=/tmp/lnregtest-data/dev_network/bitcoin -generate 1
+// lncli --lnddir=/tmp/lnregtest-data/dev_network/lnnodes/A --rpcserver=localhost:11009 --macaroonpath=/tmp/lnregtest-data/dev_network/lnnodes/A/data/chain/bitcoin/regtest/admin.macaroon --network=regtest
+// lightning-cli --lightning-dir=/tmp/lnregtest-data/dev_network/lnnodes/B --network=regtest
+// lncli --lnddir=/tmp/lnregtest-data/dev_network/lnnodes/C --rpcserver=localhost:11011 --macaroonpath=/tmp/lnregtest-data/dev_network/lnnodes/C/data/chain/bitcoin/regtest/admin.macaroon --network=regtest
+// lncli --lnddir=/tmp/lnregtest-data/dev_network/lnnodes/D --rpcserver=localhost:11012 --macaroonpath=/tmp/lnregtest-data/dev_network/lnnodes/D/data/chain/bitcoin/regtest/admin.macaroon --network=regtest
+// lncli --lnddir=/tmp/lnregtest-data/dev_network/lnnodes/E --rpcserver=localhost:11013 --macaroonpath=/tmp/lnregtest-data/dev_network/lnnodes/E/data/chain/bitcoin/regtest/admin.macaroon --network=regtest
+// lncli --lnddir=/tmp/lnregtest-data/dev_network/lnnodes/F --rpcserver=localhost:11014 --macaroonpath=/tmp/lnregtest-data/dev_network/lnnodes/F/data/chain/bitcoin/regtest/admin.macaroon --network=regtest
+// lncli --lnddir=/tmp/lnregtest-data/dev_network/lnnodes/G --rpcserver=localhost:11015 --macaroonpath=/tmp/lnregtest-data/dev_network/lnnodes/G/data/chain/bitcoin/regtest/admin.macaroon --network=regtest
+
+func getLocalCln(t *testing.T, name string) agent_entities.NewAPICall {
+	data := &common_entities.Data{}
+	x := int(api.ClnSocket)
+	data.Endpoint = fmt.Sprintf("%s/lnnodes/%s/regtest/lightning-rpc", LnRegTestPathPrefix, name)
+	data.ApiType = &x
+
+	return func() (api.LightingAPICalls, error) {
+		api, err := api.NewAPI(api.ClnSocket, func() (*common_entities.Data, error) {
+			return data, nil
+		})
+
+		return api, err
+	}
+}
 
 func getLocalLnd(t *testing.T, name string, endpoint string) agent_entities.NewAPICall {
 	data := &common_entities.Data{}
@@ -47,26 +81,102 @@ func getLocalLnd(t *testing.T, name string, endpoint string) agent_entities.NewA
 	}
 }
 
-func msgCallback(msg agent_entities.PluginMessage) error {
-	fmt.Printf("%+v\n", msg)
-	return nil
-}
-
 func mine(numBlocks int) error {
 	_, err := exec.Command("bitcoin-cli", fmt.Sprintf("-datadir=%s/bitcoin", LnRegTestPathPrefix), "-generate", fmt.Sprintf("%d", numBlocks)).Output()
 	return err
 }
 
-func TestSwap(t *testing.T) {
-	const (
-		Node     = "F"
-		BoltzUrl = "http://localhost:9001"
-	)
+type LogAggregator struct {
+	LogLines []string
+}
 
-	// Useful commands:
-	// $ curl -X POST localhost:9001/swapstatus -d '{ "id": "F9K55c" }'  -H "Content-Type: application/json"
-	// {"status":"invoice.set"}
-	// $ bitcoin-cli -datadir=/tmp/lnregtest-data/dev_network/bitcoin -generate 1
+func NewLogAggregator() *LogAggregator {
+	return &LogAggregator{
+		LogLines: make([]string, 0),
+	}
+}
+
+func (l *LogAggregator) Log(msg agent_entities.PluginMessage) error {
+	fmt.Printf("[%s] %+v\n", time.Now().Format(time.StampMilli), msg)
+	l.LogLines = append(l.LogLines, msg.Message)
+
+	return nil
+}
+
+func (l *LogAggregator) WasSuccess() bool {
+	regex := regexp.MustCompile("Swap .* succeeded")
+	for _, msg := range l.LogLines {
+		if regex.MatchString(msg) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func nodeSanityCheck(t *testing.T, ln agent_entities.NewAPICall, name string) {
+	// Sanity check of node
+	ctx := context.Background()
+	lnAPI, err := ln()
+	assert.NotNil(t, lnAPI)
+	assert.NoError(t, err)
+	info, err := lnAPI.GetInfo(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, name, info.Alias)
+
+	funds, err := lnAPI.GetOnChainFunds(ctx)
+	assert.NoError(t, err)
+	assert.Greater(t, funds.ConfirmedBalance, int64(1_000_000))
+}
+
+func newPlugin(t *testing.T, ln agent_entities.NewAPICall) *Plugin {
+	f, err := filter.NewAllowAllFilter()
+	assert.NoError(t, err)
+
+	p, err := NewPlugin(ln, f, getMockCliCtx(BoltzUrl))
+	assert.NoError(t, err)
+	_, err = p.BoltzAPI.GetNodes()
+	assert.NoError(t, err)
+
+	entropy, err := bip39.NewEntropy(SecretBitSize)
+	assert.NoError(t, err)
+	p.CryptoAPI.MasterSecret = entropy
+	return p
+}
+
+func TestSwapCln(t *testing.T) {
+	const Node = "B"
+	ln := getLocalCln(t, Node)
+	if ln == nil {
+		fmt.Printf("Ignoring swap test since regtest network is not available\n")
+		return
+	}
+
+	nodeSanityCheck(t, ln, Node)
+	p := newPlugin(t, ln)
+
+	l := NewLogAggregator()
+	err := p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90} `), l.Log)
+	assert.NoError(t, err)
+
+	for i := 0; i < 20; i++ {
+		err = mine(1)
+		if err != nil {
+			fmt.Printf("Could not mine %v\n", err)
+		}
+		if l.WasSuccess() {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+
+	t.Fail()
+}
+
+func TestSwapLnd(t *testing.T) {
+	const (
+		Node = "F"
+	)
 
 	nodes := map[string]string{
 		"A": "localhost:11009",
@@ -82,34 +192,13 @@ func TestSwap(t *testing.T) {
 		fmt.Printf("Ignoring swap test since regtest network is not available\n")
 		return
 	}
-	// Sanity check of node
-	ctx := context.Background()
-	lnAPI, err := ln()
-	assert.NotNil(t, lnAPI)
-	assert.NoError(t, err)
-	info, err := lnAPI.GetInfo(ctx)
-	assert.NoError(t, err)
-	assert.Equal(t, Node, info.Alias)
 
-	funds, err := lnAPI.GetOnChainFunds(ctx)
-	assert.NoError(t, err)
-	assert.Greater(t, funds.ConfirmedBalance, int64(1_000_000))
+	nodeSanityCheck(t, ln, Node)
 
-	// Construct plugin
-	f, err := filter.NewAllowAllFilter()
-	assert.NoError(t, err)
+	p := newPlugin(t, ln)
 
-	p, err := NewPlugin(ln, f, getMockCliCtx(BoltzUrl))
-	assert.NoError(t, err)
-	_, err = p.BoltzAPI.GetNodes()
-	assert.NoError(t, err)
-
-	// Override entropy (or id needs to be random)
-	entropy, err := bip39.NewEntropy(SecretBitSize)
-	assert.NoError(t, err)
-	p.CryptoAPI.MasterSecret = entropy
-
-	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90} `), msgCallback)
+	l := NewLogAggregator()
+	err := p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90} `), l.Log)
 	assert.NoError(t, err)
 
 	for i := 0; i < 5; i++ {
@@ -117,9 +206,11 @@ func TestSwap(t *testing.T) {
 		if err != nil {
 			fmt.Printf("Could not mine %v", err)
 		}
-		time.Sleep(10 * time.Second)
+		if l.WasSuccess() {
+			break
+		}
+		time.Sleep(5 * time.Second)
 	}
 
-	time.Sleep(5 * time.Minute)
 	t.Fail()
 }

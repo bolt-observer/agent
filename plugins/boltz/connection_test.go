@@ -77,7 +77,6 @@ func getMockCliCtx(boltzUrl string) *cli.Context {
 	fs.Bool("disablezeroconf", false, "")
 
 	return cli.NewContext(nil, fs, nil)
-
 }
 
 func TestEnsureConnected(t *testing.T) {

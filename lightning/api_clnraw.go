@@ -29,6 +29,8 @@ const (
 	Withdraw     = "withdraw"
 	Pay          = "pay"
 	InvoiceCmd   = "invoice"
+
+	DefaultDuration = 1 * time.Hour
 )
 
 // ClnRawLightningAPI struct.
@@ -46,7 +48,7 @@ func (l *ClnRawLightningAPI) Cleanup() {
 // DescribeGraph - DescribeGraph API call.
 func (l *ClnRawLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
 	var reply ClnListNodeResp
-	err := l.connection.Call(ctx, ListNodes, []interface{}{}, &reply)
+	err := l.connection.Call(ctx, ListNodes, []interface{}{}, &reply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +155,7 @@ func ConvertChannelInternal(chans []ClnListChan, id uint64, chanpoint string) (*
 // GetChanInfo - GetChanInfo API call.
 func (l *ClnRawLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
 	var listChanReply ClnListChanResp
-	err := l.connection.Call(ctx, ListChannels, []string{FromLndChanID(chanID)}, &listChanReply)
+	err := l.connection.Call(ctx, ListChannels, []string{FromLndChanID(chanID)}, &listChanReply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +176,7 @@ func (l *ClnRawLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*N
 // GetChannels - GetChannels API call.
 func (l *ClnRawLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
 	var fundsReply ClnFundsChanResp
-	err := l.connection.Call(ctx, ListFunds, []string{}, &fundsReply)
+	err := l.connection.Call(ctx, ListFunds, []string{}, &fundsReply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +186,7 @@ func (l *ClnRawLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, err
 	var listChanReply ClnListChanResp
 
 	for _, one := range fundsReply.Channels {
-		err = l.connection.Call(ctx, ListChannels, []string{one.ShortChannelID}, &listChanReply)
+		err = l.connection.Call(ctx, ListChannels, []string{one.ShortChannelID}, &listChanReply, DefaultDuration)
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +233,7 @@ func (l *ClnRawLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, err
 
 func (l *ClnRawLightningAPI) getMyChannels(ctx context.Context) ([]NodeChannelAPIExtended, error) {
 	var fundsReply ClnFundsChanResp
-	err := l.connection.Call(ctx, ListFunds, []string{}, &fundsReply)
+	err := l.connection.Call(ctx, ListFunds, []string{}, &fundsReply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +243,7 @@ func (l *ClnRawLightningAPI) getMyChannels(ctx context.Context) ([]NodeChannelAP
 	var listChanReply ClnListChanResp
 
 	for _, one := range fundsReply.Channels {
-		err = l.connection.Call(ctx, ListChannels, []string{one.ShortChannelID}, &listChanReply)
+		err = l.connection.Call(ctx, ListChannels, []string{one.ShortChannelID}, &listChanReply, DefaultDuration)
 		if err != nil {
 			return nil, err
 		}
@@ -270,7 +272,7 @@ func (l *ClnRawLightningAPI) getMyChannels(ctx context.Context) ([]NodeChannelAP
 // GetInfo - GetInfo API call.
 func (l *ClnRawLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
 	var reply ClnInfo
-	err := l.connection.Call(ctx, GetInfo, []string{}, &reply)
+	err := l.connection.Call(ctx, GetInfo, []string{}, &reply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +337,7 @@ func ConvertAddresses(addr []ClnListNodeAddr) []NodeAddressAPI {
 // GetNodeInfo - API call.
 func (l *ClnRawLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
 	var reply ClnListNodeResp
-	err := l.connection.Call(ctx, ListNodes, []string{pubKey}, &reply)
+	err := l.connection.Call(ctx, ListNodes, []string{pubKey}, &reply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +392,7 @@ func (l *ClnRawLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, cha
 // GetNodeInfoFull - API call.
 func (l *ClnRawLightningAPI) GetNodeInfoFull(ctx context.Context, channels bool, unannounced bool) (*NodeInfoAPIExtended, error) {
 	var reply ClnInfo
-	err := l.connection.Call(ctx, GetInfo, []string{}, &reply)
+	err := l.connection.Call(ctx, GetInfo, []string{}, &reply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +450,7 @@ func (l *ClnRawLightningAPI) SubscribeForwards(ctx context.Context, since time.T
 				return
 			}
 
-			err := l.connection.Call(ctx, ListForwards, []interface{}{}, &reply)
+			err := l.connection.Call(ctx, ListForwards, []interface{}{}, &reply, DefaultDuration)
 			if err != nil {
 				glog.Warningf("Error getting forwards %v\n", err)
 				if errors >= int(maxErrors) {
@@ -673,7 +675,7 @@ func (l *ClnRawLightningAPI) GetInternalChannels(ctx context.Context, pubKey str
 	result := make(map[string][]ClnListChan, 0)
 
 	var listChanReply ClnListChanResp
-	err := l.connection.Call(ctx, ListChannels, []interface{}{nil, pubKey, nil}, &listChanReply)
+	err := l.connection.Call(ctx, ListChannels, []interface{}{nil, pubKey, nil}, &listChanReply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -690,7 +692,7 @@ func (l *ClnRawLightningAPI) GetInternalChannels(ctx context.Context, pubKey str
 		result[one.ShortChannelID] = append(result[one.ShortChannelID], one)
 	}
 
-	err = l.connection.Call(ctx, ListChannels, []interface{}{nil, nil, pubKey}, &listChanReply)
+	err = l.connection.Call(ctx, ListChannels, []interface{}{nil, nil, pubKey}, &listChanReply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -715,7 +717,7 @@ func (l *ClnRawLightningAPI) GetInternalChannelsAll(ctx context.Context) (map[st
 	result := make(map[string][]ClnListChan, 0)
 
 	var listChanReply ClnListChanResp
-	err := l.connection.Call(ctx, ListChannels, []interface{}{}, &listChanReply)
+	err := l.connection.Call(ctx, ListChannels, []interface{}{}, &listChanReply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -738,7 +740,7 @@ func (l *ClnRawLightningAPI) GetInternalChannelsAll(ctx context.Context) (map[st
 // ConnectPeer - API call.
 func (l *ClnRawLightningAPI) ConnectPeer(ctx context.Context, id string) error {
 	var resp ClnConnectResp
-	err := l.connection.Call(ctx, Connect, []string{id}, &resp)
+	err := l.connection.Call(ctx, Connect, []string{id}, &resp, DefaultDuration)
 	if err != nil {
 		return err
 	}
@@ -754,7 +756,7 @@ func (l *ClnRawLightningAPI) ConnectPeer(ctx context.Context, id string) error {
 func (l *ClnRawLightningAPI) GetOnChainAddress(ctx context.Context) (string, error) {
 	var resp ClnNewAddrResp
 
-	err := l.connection.Call(ctx, NewAddr, []interface{}{}, &resp)
+	err := l.connection.Call(ctx, NewAddr, []interface{}{}, &resp, DefaultDuration)
 	if err != nil {
 		return "", err
 	}
@@ -775,7 +777,7 @@ func (l *ClnRawLightningAPI) GetOnChainFunds(ctx context.Context) (*Funds, error
 	)
 
 	var fundsReply ClnFundsChainResp
-	err := l.connection.Call(ctx, ListFunds, []string{}, &fundsReply)
+	err := l.connection.Call(ctx, ListFunds, []string{}, &fundsReply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -819,7 +821,7 @@ func (l *ClnRawLightningAPI) SendToOnChainAddress(ctx context.Context, address s
 		minConf = 0
 	}
 
-	err := l.connection.Call(ctx, Withdraw, []interface{}{address, sats, feerate, minConf}, &reply)
+	err := l.connection.Call(ctx, Withdraw, []interface{}{address, sats, feerate, minConf}, &reply, DefaultDuration)
 	if err != nil {
 		return "", err
 	}
@@ -843,11 +845,17 @@ func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest stri
 		return nil, err
 	}
 
+	// "The response will occur when the payment fails or succeeds. Once a payment has succeeded, calls to pay with the same bolt11 will succeed immediately.
+    // Until retry_for seconds passes (default: 60), the command will keep finding routes and retrying the payment. However,
+	// a payment may be delayed for up to maxdelay blocks by another node; clients should be prepared for this worst case.""
+	// OR in layman terms this might just block for 2016 blocks (almost forever)
+
 	timeoutSeconds := 10
+	timeout := time.Duration((int64(timeoutSeconds) + 1) * int64(time.Second))
 	if sats > 0 {
-		err = l.connection.Call(ctx, Pay, []interface{}{paymentRequest, sats * 1000, nil, nil, nil, timeoutSeconds, nil, nil, nil, exclusions}, &reply)
+		err = l.connection.Call(ctx, Pay, []interface{}{paymentRequest, sats * 1000, nil, nil, nil, timeoutSeconds, nil, nil, nil, exclusions}, &reply, timeout)
 	} else {
-		err = l.connection.Call(ctx, Pay, []interface{}{paymentRequest, nil, nil, nil, nil, nil, nil, timeoutSeconds, nil, exclusions}, &reply)
+		err = l.connection.Call(ctx, Pay, []interface{}{paymentRequest, nil, nil, nil, nil, nil, nil, timeoutSeconds, nil, exclusions}, &reply, timeout)
 	}
 
 	if err != nil {
@@ -879,7 +887,7 @@ func (l *ClnRawLightningAPI) calculateExclusions(ctx context.Context, outgoingCh
 	}
 
 	var info ClnInfo
-	err := l.connection.Call(ctx, GetInfo, []string{}, &info)
+	err := l.connection.Call(ctx, GetInfo, []string{}, &info, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -929,7 +937,7 @@ func (l *ClnRawLightningAPI) calculateExclusions(ctx context.Context, outgoingCh
 // GetPaymentStatus - API call.
 func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
 	var reply ClnPaymentEntries
-	err := l.connection.Call(ctx, ListPays, []interface{}{nil, paymentHash}, &reply)
+	err := l.connection.Call(ctx, ListPays, []interface{}{nil, paymentHash}, &reply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -977,15 +985,15 @@ func (l *ClnRawLightningAPI) CreateInvoice(ctx context.Context, sats int64, prei
 
 	if sats > 0 {
 		if preimage != "" {
-			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{sats * 1000, "", memo, duration, nil, preimage}, &reply)
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{sats * 1000, "", memo, duration, nil, preimage}, &reply, DefaultDuration)
 		} else {
-			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{sats * 1000, "", memo, duration, nil, nil}, &reply)
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{sats * 1000, "", memo, duration, nil, nil}, &reply, DefaultDuration)
 		}
 	} else {
 		if preimage != "" {
-			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{"any", "", memo, duration, nil, preimage}, &reply)
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{"any", "", memo, duration, nil, preimage}, &reply, DefaultDuration)
 		} else {
-			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{"any", "", memo, duration, nil, nil}, &reply)
+			err = l.connection.Call(ctx, InvoiceCmd, []interface{}{"any", "", memo, duration, nil, nil}, &reply, DefaultDuration)
 		}
 	}
 
@@ -1006,7 +1014,7 @@ func (l *ClnRawLightningAPI) CreateInvoice(ctx context.Context, sats int64, prei
 // IsInvoicePaid - API call.
 func (l *ClnRawLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error) {
 	var reply ClnInvoiceEntries
-	err := l.connection.Call(ctx, ListInvoices, []interface{}{nil, nil, paymentHash}, &reply)
+	err := l.connection.Call(ctx, ListInvoices, []interface{}{nil, nil, paymentHash}, &reply, DefaultDuration)
 	if err != nil {
 		return false, err
 	}
