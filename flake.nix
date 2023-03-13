@@ -12,7 +12,7 @@
       packages = forAllSystems
         (system:
           let
-            version = "0.0.47";
+            version = "v0.0.48";
             pkgs = nixpkgsFor.${system};
             ldflags = ''-ldflags "-X main.GitRevision=${version} -extldflags '-static'"'';
           in
@@ -35,22 +35,22 @@
                   buildFlagsArray+=("-tags=timetzdata,plugins")
                 '';
               };
-            });
+          });
 
-            # Add dependencies that are only needed for development
-            devShells = forAllSystems (system:
-              let
-                pkgs = nixpkgsFor.${system};
-              in
-              {
-                default = pkgs.mkShell {
-                  buildInputs = with pkgs; [ go gopls gotools go-tools ];
-                };
-              });
-
-            # The default package for 'nix build'. This makes sense if the
-            # flake provides only one package or there is a clear "main"
-            # package.
-            defaultPackage = forAllSystems (system: self.packages.${system}.bolt-agent);
+      # Add dependencies that are only needed for development
+      devShells = forAllSystems (system:
+        let
+          pkgs = nixpkgsFor.${system};
+        in
+        {
+          default = pkgs.mkShell {
+            buildInputs = with pkgs; [ go gopls gotools go-tools ];
           };
-        }
+        });
+
+      # The default package for 'nix build'. This makes sense if the
+      # flake provides only one package or there is a clear "main"
+      # package.
+      defaultPackage = forAllSystems (system: self.packages.${system}.bolt-agent);
+    };
+}
