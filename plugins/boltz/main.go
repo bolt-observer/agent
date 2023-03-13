@@ -60,7 +60,7 @@ var PluginFlags = []cli.Flag{
 		Name: "defaultswapsats", Value: 100_000, Usage: "default swap to perform in sats", Hidden: false,
 	},
 	cli.BoolFlag{
-		Name: "disablezeroconf", Usage: "disable zeroconfirmation", Hidden: false,
+		Name: "disablezeroconf", Usage: "disable zeroconfirmation for swaps", Hidden: false,
 	},
 }
 
