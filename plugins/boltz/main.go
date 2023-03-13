@@ -1,3 +1,6 @@
+//go:build plugins
+// +build plugins
+
 package boltz
 
 import (
@@ -57,7 +60,7 @@ var PluginFlags = []cli.Flag{
 		Name: "defaultswapsats", Value: 100_000, Usage: "default swap to perform in sats", Hidden: false,
 	},
 	cli.BoolFlag{
-		Name: "disablezeroconf", Usage: "disable zeroconfirmation", Hidden: false,
+		Name: "disablezeroconf", Usage: "disable zeroconfirmation for swaps", Hidden: false,
 	},
 }
 
@@ -85,6 +88,7 @@ type Plugin struct {
 	Redeemer         *Redeemer[FsmIn]
 	ReverseRedeemer  *Redeemer[FsmIn]
 	Limits           *SwapLimits
+	isDryRun         bool
 	db               DB
 	jobs             map[int32]interface{}
 	mutex            sync.Mutex
@@ -141,6 +145,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		LnAPI:     lnAPI,
 		db:        db,
 		jobs:      make(map[int32]interface{}),
+		isDryRun:  cmdCtx.Bool("dryrun"),
 	}
 	resp.MaxFeePercentage = cmdCtx.Float64("maxfeepercentage")
 	resp.BoltzAPI.Init(Btc) // required
@@ -177,13 +182,9 @@ func (b *Plugin) getSleepTime() time.Duration {
 }
 
 func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.MessageCallback) error {
-	ctx := context.Background()
+	var err error
 
-	jd := &JobData{}
-	err := json.Unmarshal(data, &jd)
-	if err != nil {
-		return ErrCouldNotParseJobData
-	}
+	ctx := context.Background()
 
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
@@ -195,11 +196,13 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 		var sd SwapData
 
 		if err = b.db.Get(jobID, &sd); err != nil {
-			// job found in database
-			b.db.Insert(jobID, sd)
-			b.jobs[jobID] = sd
-		} else {
 			// create new job
+			jd := &JobData{}
+			err := json.Unmarshal(data, &jd)
+			if err != nil {
+				return ErrCouldNotParseJobData
+			}
+
 			data := b.jobDataToSwapData(ctx, b.Limits, jd, msgCallback)
 			if data == nil {
 				glog.Infof("[Boltz] [%v] Not supported job", jobID)
@@ -212,9 +215,13 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 				return nil
 			}
 
+			data.IsDryRun = b.isDryRun
 			sd = *data
 			sd.JobID = JobID(jobID)
 			b.db.Insert(jobID, sd)
+			b.jobs[jobID] = sd
+		} else {
+			// job found in database
 			b.jobs[jobID] = sd
 		}
 
@@ -314,6 +321,8 @@ func (b *Plugin) jobDataToSwapData(ctx context.Context, limits *SwapLimits, jobD
 		return b.convertLiquidityNodePercent(jobData, limits, liquidity, msgCallback, false)
 	case InboundLiquidityChannelPercent:
 		return b.convertInboundLiqudityChanPercent(ctx, jobData, limits, msgCallback)
+	case DummyTarget:
+		return &SwapData{}
 	default:
 		// Not supported yet
 		return nil

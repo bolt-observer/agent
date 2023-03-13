@@ -149,39 +149,6 @@ func TestCommunicate(t *testing.T) {
 		}, bs.sent[0])
 		assert.True(t, sc.called)
 	})
-	t.Run("Test execute plugin in dry-run mode", func(t *testing.T) {
-		sc := spyCaller{}
-		ctx, cancel := context.WithCancel(context.Background())
-		bs := blockingStream{
-			msg: &api.Action{
-				JobId:    5,
-				Action:   "test",
-				Sequence: api.Sequence_EXECUTE,
-			},
-			sent: []*api.AgentReply{},
-		}
-		c := Connector{
-			Address:    "http://some.url/",
-			APIKey:     "test-key",
-			Plugins:    plugins,
-			LnAPI:      mkGetLndAPI(&cli.Context{}),
-			IsInsecure: true,
-			IsDryRun:   true,
-		}
-
-		go c.communicate(ctx, &bs, sc.call)
-
-		time.Sleep(10 * time.Millisecond)
-		cancel()
-
-		assert.Equal(t, &api.AgentReply{
-			JobId:    5,
-			Sequence: api.Sequence_EXECUTE,
-			Type:     api.ReplyType_SUCCESS,
-			Message:  `Agent received action "test" in dry-run mode. No action really taken`,
-		}, bs.sent[0])
-		assert.True(t, sc.called)
-	})
 
 	t.Run("Error receiveing from stream", func(t *testing.T) {
 		sc := spyCaller{}

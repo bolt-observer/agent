@@ -8,6 +8,7 @@ import (
 	"io"
 	r "net/rpc"
 	"os"
+	"time"
 
 	"github.com/golang/glog"
 	rpc "github.com/powerman/rpc-codec/jsonrpc2"
@@ -43,7 +44,7 @@ func NewUnixConnection(socketType string, address string) *ClnUnixConnection {
 }
 
 // Call calls serviceMethod with args and fills reply with response.
-func (l *ClnUnixConnection) Call(ctx context.Context, serviceMethod string, args any, reply any) error {
+func (l *ClnUnixConnection) Call(ctx context.Context, serviceMethod string, args any, reply any, timeout time.Duration) error {
 	if l.Client == nil {
 		return fmt.Errorf("no client")
 	}
@@ -55,6 +56,8 @@ func (l *ClnUnixConnection) Call(ctx context.Context, serviceMethod string, args
 	case call := <-c:
 		return call.Error
 	case <-ctx.Done():
+		return os.ErrDeadlineExceeded
+	case <-time.After(timeout):
 		return os.ErrDeadlineExceeded
 	}
 }

@@ -38,7 +38,7 @@ func (c *Connector) Run(ctx context.Context, resetBackOffFn func()) error {
 
 	pubkey, err := c.getPubKey(ctx, lnAPI)
 	if err != nil {
-		return fmt.Errorf("Could not get pubkey %w", err)
+		return fmt.Errorf("could not get pubkey %w", err)
 	}
 
 	clientType := fmt.Sprint(lnAPI.GetAPIType())
@@ -92,13 +92,6 @@ func (c *Connector) communicate(ctx context.Context, stream actionStreamer, rese
 						Sequence: api.Sequence_EXECUTE,
 						Type:     api.ReplyType_ERROR,
 						Message:  fmt.Sprintf("Plugin %s not found on agent", msg.Action),
-					})
-				} else if c.IsDryRun {
-					err = stream.Send(&api.AgentReply{
-						JobId:    msg.JobId,
-						Sequence: api.Sequence_EXECUTE,
-						Type:     api.ReplyType_SUCCESS,
-						Message:  fmt.Sprintf(`Agent received action "%s" in dry-run mode. No action really taken`, msg.Action),
 					})
 				} else if err = plugin.Execute(msg.JobId, msg.Data, c.ForwardJobMessages); err != nil {
 					glog.Errorf("Could not execute action: %v", err)

@@ -1,3 +1,6 @@
+//go:build plugins
+// +build plugins
+
 package boltz
 
 import (
@@ -61,14 +64,18 @@ func getAPI(t *testing.T, name string, typ api.APIType) agent_entities.NewAPICal
 	}
 }
 
-func getMockCliCtx(boltzUrl string) *cli.Context {
+func getMockCliCtx(boltzUrl string, dbFile string) *cli.Context {
 	fs := &flag.FlagSet{}
 	if boltzUrl == "" {
 		fs.String("boltzurl", DefaultBoltzUrl, "")
 	} else {
 		fs.String("boltzurl", boltzUrl, "")
 	}
-	fs.String("boltzdatabase", "/tmp/boltz.db", "")
+	if dbFile == "" {
+		dbFile = "/tmp/boltz.db"
+	}
+
+	fs.String("boltzdatabase", dbFile, "")
 	fs.String("network", "regtest", "")
 	fs.Float64("maxfeepercentage", 80.0, "")
 	fs.Uint64("maxswapsats", 1_000_000, "")
@@ -77,14 +84,13 @@ func getMockCliCtx(boltzUrl string) *cli.Context {
 	fs.Bool("disablezeroconf", false, "")
 
 	return cli.NewContext(nil, fs, nil)
-
 }
 
 func TestEnsureConnected(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	require.NoError(t, err)
 
-	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx(""))
+	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx("", ""))
 	if b == nil || b.LnAPI == nil {
 		if FailNoCredsBoltz {
 			t.Fail()
