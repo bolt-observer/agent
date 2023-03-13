@@ -324,11 +324,16 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:  "dryrun",
-			Usage: "Allow execution of actions in dry drun mode (no actions will actually be executed)",
+			Usage: "allow execution of actions in dry run mode (no actions will actually be executed)",
 		},
 		&cli.BoolFlag{
 			Name:   "insecure",
-			Usage:  "Allow insecure connections to the api. Can be usefull for debugging purposes",
+			Usage:  "allow insecure connections to the api. Can be usefull for debugging purposes",
+			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:   "noplugins",
+			Usage:  "do not load any plugins",
 			Hidden: true,
 		},
 	}
@@ -613,7 +618,9 @@ func runAgent(cmdCtx *cli.Context) error {
 
 	if cmdCtx.Bool("actions") {
 		fn := mkGetLndAPI(cmdCtx)
-		plugins.InitPlugins(fn, f, cmdCtx)
+		if !cmdCtx.Bool("noplugins") {
+			plugins.InitPlugins(fn, f, cmdCtx)
+		}
 		g.Go(func() error {
 			ac := &actions.Connector{
 				Address:    cmdCtx.String("datastore-url"),

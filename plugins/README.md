@@ -1,6 +1,16 @@
 # Plugins
 Plugins are triggered by actions defined on `bolt.observer` site.
 
-# structure
+# Structure
 Each plugin must be in it's own directory. Directory name must match `action name` defined on `bolt.observer` site.
 It must implement `Plugin` interface defined in `entities/plugin.go`.
+
+# Compile time enablement
+We are using tag `plugins` so you can build agent without plugins too. By default plugins are enabled (`go build -tags=plugins`).
+To make everything work in Visual Studio Code, go to Settings / Settings / Gopls / Edit settings.json and add
+
+```
+"gopls": {
+    "build.buildFlags": ["-tags=plugins"]
+}
+```

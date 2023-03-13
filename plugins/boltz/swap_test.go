@@ -1,9 +1,13 @@
+//go:build plugins
+// +build plugins
+
 package boltz
 
 import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -43,6 +47,9 @@ func getLocalCln(t *testing.T, name string) agent_entities.NewAPICall {
 	data := &common_entities.Data{}
 	x := int(api.ClnSocket)
 	data.Endpoint = fmt.Sprintf("%s/lnnodes/%s/regtest/lightning-rpc", LnRegTestPathPrefix, name)
+	if _, err := os.Stat(data.Endpoint); errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
 	data.ApiType = &x
 
 	return func() (api.LightingAPICalls, error) {

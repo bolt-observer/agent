@@ -1,3 +1,6 @@
+//go:build plugins
+// +build plugins
+
 package boltz
 
 type FsmFn[I FsmInGetter, O FsmOutGetter] func(data I) O
