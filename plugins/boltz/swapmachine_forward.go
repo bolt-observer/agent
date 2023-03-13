@@ -97,6 +97,10 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	in.SwapData.Address = response.Address
 	in.SwapData.TimoutBlockHeight = response.TimeoutBlockHeight
 
+	if in.SwapData.IsDryRun {
+		return FsmOut{NextState: SwapSuccess}
+	}
+
 	// Explicitly first change state (in case we crash before sending)
 	err = s.BoltzPlugin.changeState(in, OnChainFundsSent)
 	if err != nil {

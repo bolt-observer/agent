@@ -125,6 +125,10 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
 	}
 
+	if in.SwapData.IsDryRun {
+		return FsmOut{NextState: SwapSuccess}
+	}
+
 	for {
 		lnConnection, err := s.BoltzPlugin.LnAPI()
 		if err != nil {

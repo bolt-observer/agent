@@ -19,6 +19,7 @@ const (
 type TargetType string
 
 const (
+	DummyTarget                    TargetType = "DummyTarget"
 	OutboundLiquidityNodePercent   TargetType = "OutboundLiquidityNodePercent"
 	InboundLiquidityNodePercent    TargetType = "InboundLiquidityNodePercent"
 	InboundLiquidityChannelPercent TargetType = "InboundLiquidityChannelPercent"
@@ -54,11 +55,14 @@ type SwapData struct {
 	//ReverseMinerInvoice string - not supported
 	ChanIdsToUse []uint64
 	ExpectedSats uint64
+
+	IsDryRun bool
 }
 
 // ParseJobData gets a new JobData from bytes
 func ParseJobData(id int32, bytes []byte) (*JobData, error) {
 	var jd JobData
+
 	err := json.Unmarshal(bytes, &jd)
 	if err != nil {
 		return nil, ErrCouldNotParseJobData
@@ -80,6 +84,8 @@ func ParseJobData(id int32, bytes []byte) (*JobData, error) {
 		if jd.ChannelId == 0 {
 			return nil, ErrCouldNotParseJobData
 		}
+		return &jd, nil
+	case DummyTarget:
 		return &jd, nil
 	}
 	// Possibly deserialize to something extending JobData for more complicate scenarios

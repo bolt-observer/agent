@@ -88,6 +88,7 @@ type Plugin struct {
 	Redeemer         *Redeemer[FsmIn]
 	ReverseRedeemer  *Redeemer[FsmIn]
 	Limits           *SwapLimits
+	isDryRun         bool
 	db               DB
 	jobs             map[int32]interface{}
 	mutex            sync.Mutex
@@ -144,6 +145,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		LnAPI:     lnAPI,
 		db:        db,
 		jobs:      make(map[int32]interface{}),
+		isDryRun:  cmdCtx.Bool("dryrun"),
 	}
 	resp.MaxFeePercentage = cmdCtx.Float64("maxfeepercentage")
 	resp.BoltzAPI.Init(Btc) // required
@@ -213,6 +215,7 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 				return nil
 			}
 
+			data.IsDryRun = b.isDryRun
 			sd = *data
 			sd.JobID = JobID(jobID)
 			b.db.Insert(jobID, sd)
@@ -318,6 +321,8 @@ func (b *Plugin) jobDataToSwapData(ctx context.Context, limits *SwapLimits, jobD
 		return b.convertLiquidityNodePercent(jobData, limits, liquidity, msgCallback, false)
 	case InboundLiquidityChannelPercent:
 		return b.convertInboundLiqudityChanPercent(ctx, jobData, limits, msgCallback)
+	case DummyTarget:
+		return &SwapData{}
 	default:
 		// Not supported yet
 		return nil

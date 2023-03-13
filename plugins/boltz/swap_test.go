@@ -181,7 +181,7 @@ func TestSwapCln(t *testing.T) {
 	p := newPlugin(t, ln, tempf.Name())
 
 	l := NewLogAggregator()
-	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90} `), l.Log)
+	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90}`), l.Log)
 	assert.NoError(t, err)
 
 	for i := 0; i < 20; i++ {
@@ -216,7 +216,7 @@ func TestSwapLnd(t *testing.T) {
 	p := newPlugin(t, ln, tempf.Name())
 
 	l := NewLogAggregator()
-	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90} `), l.Log)
+	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90}`), l.Log)
 	assert.NoError(t, err)
 
 	for i := 0; i < 5; i++ {

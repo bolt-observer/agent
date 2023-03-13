@@ -10,6 +10,7 @@ We are using tag `plugins` so you can build agent without plugins too. By defaul
 To make everything work in Visual Studio Code, go to Settings / Settings / Gopls / Edit settings.json and add
 
 ```
+"go.testTags": "plugins",
 "gopls": {
     "build.buildFlags": ["-tags=plugins"]
 }

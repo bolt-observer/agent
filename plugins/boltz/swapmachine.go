@@ -83,7 +83,7 @@ func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int32(in.GetJobID()),
-			Message:    fmt.Sprintf("Swap %d succeeded", in.GetJobID()),
+			Message:    fmt.Sprintf("Swap %d succeeded (dry run: %v)", in.GetJobID(), in.SwapData.IsDryRun),
 			IsError:    false,
 			IsFinished: true,
 		})
