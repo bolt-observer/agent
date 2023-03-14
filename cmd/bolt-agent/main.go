@@ -320,7 +320,7 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:  "actions",
-			Usage: "Allow execution of actions defined in the bolt app (beta feature)",
+			Usage: "allow execution of actions defined in the bolt app (beta feature)",
 		},
 		&cli.BoolFlag{
 			Name:  "dryrun",

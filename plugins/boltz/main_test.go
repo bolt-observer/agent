@@ -161,7 +161,8 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 			OutboundPercentage: 0,
 		}
 
-		result := p.convertLiquidityNodePercent(jd, limits, liquidity, nil, true)
+		result, err := p.convertLiquidityNodePercent(jd, limits, liquidity, nil, true)
+		assert.NoError(t, err)
 
 		assert.Equal(t, JobID(1337), result.JobID)
 		assert.Equal(t, InitialForward, result.State)
@@ -183,7 +184,8 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 			OutboundPercentage: 0,
 		}
 
-		result := p.convertLiquidityNodePercent(jd, limits, liquidity, nil, true)
+		result, err := p.convertLiquidityNodePercent(jd, limits, liquidity, nil, true)
+		assert.NoError(t, err)
 
 		assert.Equal(t, JobID(1338), result.JobID)
 		assert.Equal(t, InitialForward, result.State)
@@ -205,7 +207,8 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 			OutboundPercentage: 0,
 		}
 
-		result := p.convertLiquidityNodePercent(jd, limits, liquidity, nil, true)
+		result, err := p.convertLiquidityNodePercent(jd, limits, liquidity, nil, true)
+		assert.NoError(t, err)
 
 		assert.Equal(t, JobID(1339), result.JobID)
 		assert.Equal(t, InitialForward, result.State)
