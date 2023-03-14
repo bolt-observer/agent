@@ -26,4 +26,9 @@ func TestParseJobData(t *testing.T) {
 	jd, err = ParseJobData(2001, []byte(`{ "target": "InboundLiquidityChannelPercent", "percentage": 55, "channel_id": 12345 }`))
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(12345), jd.ChannelId)
+
+	jd, err = ParseJobData(1, []byte(`{"percentage": 50, "target": "InboundLiquidityChannelPercent", "channel_id": 128642860515328}`))
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(128642860515328), jd.ChannelId)
+	assert.Equal(t, float64(50), jd.Percentage)
 }

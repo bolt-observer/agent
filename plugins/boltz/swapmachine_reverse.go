@@ -96,7 +96,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 		in.SwapData.ChanIdsToUse = chans
 	} else {
 		// Will error when sufficient funds are not available
-		_, _, err = s.BoltzPlugin.GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, lnConnection)
+		_, _, err = s.BoltzPlugin.GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, true, lnConnection)
 		if err != nil {
 			return FsmOut{Error: err}
 		}

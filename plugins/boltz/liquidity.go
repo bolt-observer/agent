@@ -139,7 +139,7 @@ func (b *Plugin) GetByDescendingOutboundLiquidity(ctx context.Context, limit uin
 }
 
 // GetChanLiquidity
-func (b *Plugin) GetChanLiquidity(ctx context.Context, chanID uint64, limit uint64, optLnAPI lightning.LightingAPICalls) (*ChanCapacity, uint64, error) {
+func (b *Plugin) GetChanLiquidity(ctx context.Context, chanID uint64, limit uint64, outbound bool, optLnAPI lightning.LightingAPICalls) (*ChanCapacity, uint64, error) {
 	var (
 		lnAPI lightning.LightingAPICalls
 		err   error
@@ -169,11 +169,14 @@ func (b *Plugin) GetChanLiquidity(ctx context.Context, chanID uint64, limit uint
 		if channel.ChanID != chanID {
 			continue
 		}
-		// Capacity is outbound liquidity here -> LocalBalance
-		if limit > 0 && channel.LocalBalance < limit {
+		liq := channel.LocalBalance
+		if !outbound {
+			liq = channel.RemoteBalance
+		}
+		if limit > 0 && liq < limit {
 			return nil, 0, fmt.Errorf("not enough capacity")
 		}
-		return &ChanCapacity{Capacity: channel.LocalBalance, Channel: channel}, channel.Capacity, nil
+		return &ChanCapacity{Capacity: liq, Channel: channel}, channel.Capacity, nil
 	}
 
 	return nil, 0, fmt.Errorf("channel %d not found", chanID)

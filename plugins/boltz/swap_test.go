@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -26,6 +27,9 @@ import (
 const (
 	LnRegTestPathPrefix = "/tmp/lnregtest-data/dev_network/"
 	BoltzUrl            = "http://localhost:9001"
+	TestnetBoltzUrl     = "https://testnet.boltz.exchange/api"
+	Regtest             = "regtest"
+	Tesnet              = "testnet"
 )
 
 // Make sure to increase test timeout to 60 s
@@ -73,6 +77,7 @@ func getLocalLndByName(t *testing.T, name string) agent_entities.NewAPICall {
 
 	return getLocalLnd(t, name, nodes[name])
 }
+
 func getLocalLnd(t *testing.T, name string, endpoint string) agent_entities.NewAPICall {
 	data := &common_entities.Data{}
 	x := int(api.LndGrpc)
@@ -100,6 +105,35 @@ func getLocalLnd(t *testing.T, name string, endpoint string) agent_entities.NewA
 	}
 }
 
+func getTestnetLnd(t *testing.T) agent_entities.NewAPICall {
+	name := "testnet.secret"
+	data := &common_entities.Data{}
+
+	if _, err := os.Stat(name); errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	content, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatalf("Error when opening file: %v", err)
+		return nil
+	}
+
+	err = json.Unmarshal(content, &data)
+	if err != nil {
+		t.Fatalf("Error during Unmarshal(): %v", err)
+		return nil
+	}
+
+	return func() (api.LightingAPICalls, error) {
+		api, err := api.NewAPI(api.LndGrpc, func() (*common_entities.Data, error) {
+			return data, nil
+		})
+
+		return api, err
+	}
+}
+
 func mine(numBlocks int) error {
 	_, err := exec.Command("bitcoin-cli", fmt.Sprintf("-datadir=%s/bitcoin", LnRegTestPathPrefix), "-generate", fmt.Sprintf("%d", numBlocks)).Output()
 	return err
@@ -107,19 +141,30 @@ func mine(numBlocks int) error {
 
 type LogAggregator struct {
 	LogLines []string
+	T        *testing.T
+	Failure  bool
 }
 
-func NewLogAggregator() *LogAggregator {
+func NewLogAggregator(t *testing.T) *LogAggregator {
 	return &LogAggregator{
 		LogLines: make([]string, 0),
+		T:        t,
+		Failure:  false,
 	}
 }
 
 func (l *LogAggregator) Log(msg agent_entities.PluginMessage) error {
-	fmt.Printf("[%s] %+v\n", time.Now().Format(time.StampMilli), msg)
+	l.T.Logf("[%s] %+v\n", time.Now().Format(time.StampMilli), msg)
+	if msg.IsError {
+		l.Failure = true
+	}
 	l.LogLines = append(l.LogLines, msg.Message)
 
 	return nil
+}
+
+func (l *LogAggregator) WasFailure() bool {
+	return l.Failure
 }
 
 func (l *LogAggregator) WasSuccess() bool {
@@ -148,11 +193,11 @@ func nodeSanityCheck(t *testing.T, ln agent_entities.NewAPICall, name string) {
 	assert.Greater(t, funds.ConfirmedBalance, int64(1_000_000))
 }
 
-func newPlugin(t *testing.T, ln agent_entities.NewAPICall, dbName string) *Plugin {
+func newPlugin(t *testing.T, ln agent_entities.NewAPICall, dbName string, boltzUrl string, network string) *Plugin {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	p, err := NewPlugin(ln, f, getMockCliCtx(BoltzUrl, dbName))
+	p, err := NewPlugin(ln, f, getMockCliCtx(boltzUrl, dbName, network))
 	assert.NoError(t, err)
 	_, err = p.BoltzAPI.GetNodes()
 	assert.NoError(t, err)
@@ -178,9 +223,9 @@ func TestSwapCln(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.RemoveAll(tempf.Name())
 
-	p := newPlugin(t, ln, tempf.Name())
+	p := newPlugin(t, ln, tempf.Name(), BoltzUrl, Regtest)
 
-	l := NewLogAggregator()
+	l := NewLogAggregator(t)
 	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90}`), l.Log)
 	assert.NoError(t, err)
 
@@ -213,9 +258,9 @@ func TestSwapLnd(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.RemoveAll(tempf.Name())
 
-	p := newPlugin(t, ln, tempf.Name())
+	p := newPlugin(t, ln, tempf.Name(), BoltzUrl, Regtest)
 
-	l := NewLogAggregator()
+	l := NewLogAggregator(t)
 	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90}`), l.Log)
 	assert.NoError(t, err)
 
@@ -264,9 +309,9 @@ func TestStateMachineRecovery(t *testing.T) {
 	assert.NoError(t, err)
 	db.db.Close()
 
-	p := newPlugin(t, ln, tempf.Name())
+	p := newPlugin(t, ln, tempf.Name(), BoltzUrl, Regtest)
 
-	l := NewLogAggregator()
+	l := NewLogAggregator(t)
 	err = p.Execute(1336, []byte(``), l.Log)
 	assert.NoError(t, err)
 
@@ -278,4 +323,45 @@ func TestStateMachineRecovery(t *testing.T) {
 	}
 
 	t.Fatalf("Did not get success in log")
+}
+
+func TestInboundTestnet(t *testing.T) {
+	// go test -test.v -timeout 1h -tags plugins -run ^TestInboundTestnet$ github.com/bolt-observer/agent/plugins/boltz
+	ln := getTestnetLnd(t)
+	if ln == nil {
+		fmt.Printf("Ignoring swap test since test network is not available\n")
+		return
+	}
+	ctx := context.Background()
+	lnAPI, err := ln()
+	assert.NotNil(t, lnAPI)
+	assert.NoError(t, err)
+	info, err := lnAPI.GetInfo(ctx)
+	assert.NoError(t, err)
+	t.Logf("Info %v\n", info)
+
+	tempf, err := os.CreateTemp("", "tempdb-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempf.Name())
+
+	p := newPlugin(t, ln, tempf.Name(), TestnetBoltzUrl, Tesnet)
+
+	l := NewLogAggregator(t)
+
+	err = p.Execute(1, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 10}`), l.Log)
+	assert.NoError(t, err)
+
+	for i := 0; i < 360; i++ {
+		if l.WasSuccess() {
+			break
+		}
+		if l.WasFailure() {
+			t.Fail()
+			return
+		}
+		time.Sleep(10 * time.Second)
+	}
+
+	t.Logf("timed out")
+	t.Fail()
 }

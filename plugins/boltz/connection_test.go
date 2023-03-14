@@ -64,7 +64,7 @@ func getAPI(t *testing.T, name string, typ api.APIType) agent_entities.NewAPICal
 	}
 }
 
-func getMockCliCtx(boltzUrl string, dbFile string) *cli.Context {
+func getMockCliCtx(boltzUrl string, dbFile string, network string) *cli.Context {
 	fs := &flag.FlagSet{}
 	if boltzUrl == "" {
 		fs.String("boltzurl", DefaultBoltzUrl, "")
@@ -76,7 +76,7 @@ func getMockCliCtx(boltzUrl string, dbFile string) *cli.Context {
 	}
 
 	fs.String("boltzdatabase", dbFile, "")
-	fs.String("network", "regtest", "")
+	fs.String("network", network, "")
 	fs.Float64("maxfeepercentage", 80.0, "")
 	fs.Uint64("maxswapsats", 1_000_000, "")
 	fs.Uint64("minswapsats", 100_000, "")
@@ -90,7 +90,7 @@ func TestEnsureConnected(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	require.NoError(t, err)
 
-	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx("", ""))
+	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx("", "", "regtest"))
 	if b == nil || b.LnAPI == nil {
 		if FailNoCredsBoltz {
 			t.Fail()
