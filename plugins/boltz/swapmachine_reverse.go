@@ -201,7 +201,8 @@ func (s *SwapMachine) FsmClaimReverseFunds(in FsmIn) FsmOut {
 		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
 	}
 
-	log(in, fmt.Sprintf("Adding entry %+v to redeem locked funds", in))
+	// debug
+	log(in, fmt.Sprintf("Adding entry %+v to redeem locked funds", in.SwapData))
 
 	s.BoltzPlugin.ReverseRedeemer.AddEntry(in)
 	return FsmOut{}

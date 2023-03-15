@@ -246,7 +246,7 @@ func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 		return nil
 	}
 
-	glog.Info("Getting swap status for %v\n", data.BoltzID)
+	glog.Infof("Getting swap status for %v\n", data.BoltzID)
 
 	status, err := r.BoltzAPI.SwapStatus(data.BoltzID)
 	if err != nil {
@@ -254,23 +254,28 @@ func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 		return nil
 	}
 
+	glog.Infof("Status is %+v\n", status)
+
 	lockupTransactionRaw, err := hex.DecodeString(status.Transaction.Hex)
 	if err != nil {
 		glog.Warningf("Could not decode transaction %v", err)
 		return nil
 	}
 
+	glog.Infof("A\n")
 	lockupTransaction, err := btcutil.NewTxFromBytes(lockupTransactionRaw)
 	if err != nil {
 		glog.Warningf("Could not parse transaction %v", err)
 		return nil
 	}
+	glog.Infof("B\n")
 
 	script, err := hex.DecodeString(data.Script)
 	if err != nil {
 		glog.Warningf("Could not decode script %v", err)
 		return nil
 	}
+	glog.Infof("C\n")
 
 	lockupAddress, err := boltz.WitnessScriptHashAddress(r.ChainParams, script)
 	if err != nil {
@@ -278,22 +283,28 @@ func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 		return nil
 	}
 
+	glog.Infof("D\n")
+
 	lockupVout, err := r.findLockupVout(lockupAddress, lockupTransaction.MsgTx().TxOut)
 	if err != nil {
 		glog.Warningf("Could not parse lockup vout %v", err)
 		return nil
 	}
 
+	glog.Infof("E\n")
 	keys, err := r.CryptoAPI.GetKeys(fmt.Sprintf("%d", data.JobID))
 	if err != nil {
 		glog.Warningf("Could not get keys %v", err)
 		return nil
 	}
+	glog.Infof("F\n")
 
 	if lockupTransaction.MsgTx().TxOut[lockupVout].Value < int64(data.ExpectedSats) {
 		glog.Warningf("Expected %v sats on chain but got just %v sats", lockupTransaction.MsgTx().TxOut[lockupVout].Value, data.ExpectedSats)
 		return nil
 	}
+
+	glog.Infof("Getting output details\n")
 
 	return &boltz.OutputDetails{
 		LockupTransaction: lockupTransaction,
