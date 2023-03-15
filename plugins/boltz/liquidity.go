@@ -145,6 +145,8 @@ func (b *Plugin) GetChanLiquidity(ctx context.Context, chanID uint64, limit uint
 		err   error
 	)
 
+	fmt.Printf("DEBUG GetChanLiquidity %v %v", chanID, outbound)
+
 	if optLnAPI != nil {
 		lnAPI = optLnAPI
 	} else {
@@ -173,6 +175,7 @@ func (b *Plugin) GetChanLiquidity(ctx context.Context, chanID uint64, limit uint
 		if !outbound {
 			liq = channel.RemoteBalance
 		}
+		fmt.Printf("DEBUG LIQ %v", liq)
 		if limit > 0 && liq < limit {
 			return nil, 0, fmt.Errorf("not enough capacity")
 		}

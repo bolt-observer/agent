@@ -202,6 +202,7 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 			if err != nil {
 				return ErrCouldNotParseJobData
 			}
+			jd.ID = jobID
 
 			data, err := b.jobDataToSwapData(ctx, b.Limits, jd, msgCallback)
 			if err != nil {
@@ -365,11 +366,11 @@ func (b *Plugin) convertInboundLiqudityChanPercent(ctx context.Context, jobData 
 
 	ratio := float64(liquidity.Capacity) / float64(total)
 	if ratio*100 > jobData.Amount || jobData.Amount < 0 || jobData.Amount > 100 {
-		glog.Infof("[Boltz] [%v] No need to do anything - current inbound liquidity %v %%", jobData.ID, ratio*100)
+		glog.Infof("[Boltz] [%v] No need to do anything - current inbound liquidity %v %% for channel %v", jobData.ID, ratio*100, jobData.ChannelId)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
 				JobID:      int32(jobData.ID),
-				Message:    fmt.Sprintf("No need to do anything - current inbound liquidity %v %%", ratio*100),
+				Message:    fmt.Sprintf("No need to do anything - current inbound liquidity %v %% for channel %v", ratio*100, jobData.ChannelId),
 				IsError:    false,
 				IsFinished: true,
 			})
