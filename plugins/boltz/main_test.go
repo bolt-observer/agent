@@ -149,7 +149,7 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 	t.Run("Everything on inbound side want everyting outbound", func(t *testing.T) {
 		jd := &JobData{
 			Target:     OutboundLiquidityNodePercent,
-			Percentage: 100,
+			Amount: 100,
 			ID:         1337,
 		}
 
@@ -172,7 +172,7 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 	t.Run("Everything on inbound side want half outbound", func(t *testing.T) {
 		jd := &JobData{
 			Target:     OutboundLiquidityNodePercent,
-			Percentage: 50,
+			Amount: 50,
 			ID:         1338,
 		}
 
@@ -195,7 +195,7 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 	t.Run("Empty node", func(t *testing.T) {
 		jd := &JobData{
 			Target:     OutboundLiquidityNodePercent,
-			Percentage: 50,
+			Amount: 50,
 			ID:         1339,
 		}
 
