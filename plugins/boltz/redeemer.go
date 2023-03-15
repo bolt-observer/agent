@@ -155,9 +155,11 @@ func (r *Redeemer[T]) redeem() bool {
 	_, err = r.doRedeem(outputs)
 	if err == nil {
 		for _, one := range used {
+			fmt.Printf("DEBUG ONE %+v\n", one)
 			if r.Callback != nil {
 				data, ok := r.Entries[one]
 				if ok {
+					fmt.Printf("DEBUG CALLBACK\n")
 					r.Callback(data, true)
 				}
 			}
