@@ -29,7 +29,7 @@ const (
 type JobData struct {
 	ID         int32      `json:"id,omitempty"`
 	Target     TargetType `json:"target"`
-	Percentage float64    `json:"percentage,omitempty"`
+	Amount     float64    `json:"amount,omitempty"`
 	ChannelId  uint64     `json:"channel_id,omitempty"`
 }
 
@@ -73,12 +73,12 @@ func ParseJobData(id int32, bytes []byte) (*JobData, error) {
 	case OutboundLiquidityNodePercent:
 		fallthrough
 	case InboundLiquidityNodePercent:
-		if jd.Percentage <= 0 || jd.Percentage >= 100 {
+		if jd.Amount <= 0 || jd.Amount >= 100 {
 			return nil, ErrCouldNotParseJobData
 		}
 		return &jd, nil
 	case InboundLiquidityChannelPercent:
-		if jd.Percentage <= 0 || jd.Percentage >= 100 {
+		if jd.Amount <= 0 || jd.Amount >= 100 {
 			return nil, ErrCouldNotParseJobData
 		}
 		if jd.ChannelId == 0 {
