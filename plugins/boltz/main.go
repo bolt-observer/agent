@@ -364,7 +364,7 @@ func (b *Plugin) convertInboundLiqudityChanPercent(ctx context.Context, jobData 
 	}
 
 	ratio := float64(liquidity.Capacity) / float64(total)
-	if ratio*100 > jobData.Percentage || jobData.Percentage < 0 || jobData.Percentage > 100 {
+	if ratio*100 > jobData.Amount || jobData.Amount < 0 || jobData.Amount > 100 {
 		glog.Infof("[Boltz] [%v] No need to do anything - current inbound liquidity %v %%", jobData.ID, ratio*100)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
@@ -377,7 +377,7 @@ func (b *Plugin) convertInboundLiqudityChanPercent(ctx context.Context, jobData 
 		return nil, fmt.Errorf("no need to do anything")
 	}
 
-	factor := ((jobData.Percentage / 100) - ratio)
+	factor := ((jobData.Amount / 100) - ratio)
 	sats := float64(total) * factor
 	sats = math.Min(math.Max(sats, float64(limits.MinSwap)), float64(limits.MaxSwap))
 
@@ -398,7 +398,7 @@ func (b *Plugin) convertLiquidityNodePercent(jobData *JobData, limits *SwapLimit
 		name = "inbound"
 	}
 
-	if val > jobData.Percentage || jobData.Percentage < 0 || jobData.Percentage > 100 {
+	if val > jobData.Amount || jobData.Amount < 0 || jobData.Amount > 100 {
 		glog.Infof("[Boltz] [%v] No need to do anything - current %s liquidity %v %%", jobData.ID, name, val)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
@@ -413,7 +413,7 @@ func (b *Plugin) convertLiquidityNodePercent(jobData *JobData, limits *SwapLimit
 
 	sats := float64(limits.DefaultSwap)
 	if liquidity.Capacity != 0 {
-		factor := (jobData.Percentage - val) / float64(100)
+		factor := (jobData.Amount - val) / float64(100)
 		sats = float64(liquidity.Capacity) * factor
 
 		sats = math.Min(math.Max(sats, float64(limits.MinSwap)), float64(limits.MaxSwap))
