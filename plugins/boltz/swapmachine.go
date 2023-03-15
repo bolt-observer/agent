@@ -68,7 +68,6 @@ func (s *SwapMachine) FsmNone(in FsmIn) FsmOut {
 }
 
 func (s *SwapMachine) FsmSwapFailed(in FsmIn) FsmOut {
-	glog.Info("SWAP FAILED %v\n", in.MsgCallback)
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int32(in.GetJobID()),
@@ -81,9 +80,7 @@ func (s *SwapMachine) FsmSwapFailed(in FsmIn) FsmOut {
 }
 
 func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
-	glog.Info("SWAP SUCCESS %v\n", in.MsgCallback)
 	if in.MsgCallback != nil {
-		glog.Info("Message callback...")
 		message := fmt.Sprintf("Swap %d succeeded", in.GetJobID())
 		if in.SwapData.IsDryRun {
 			message = fmt.Sprintf("Swap %d finished in dry-run mode (no funds were used)", in.GetJobID())
