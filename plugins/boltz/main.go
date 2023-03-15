@@ -360,7 +360,7 @@ func (b *Plugin) convertInboundLiqudityChanPercent(ctx context.Context, jobData 
 				IsFinished: true,
 			})
 		}
-		return nil, fmt.Errorf("could not get liquidity")
+		return nil, fmt.Errorf("could not get liquidity %v", err)
 	}
 
 	ratio := float64(liquidity.Capacity) / float64(total)

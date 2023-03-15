@@ -365,3 +365,37 @@ func TestInboundTestnet(t *testing.T) {
 	t.Logf("timed out")
 	t.Fail()
 }
+
+func TestPayInvoice(t *testing.T) {
+	return
+
+	ctx := context.Background()
+
+	lnA := getLocalLndByName(t, "A")
+	lnC := getLocalLndByName(t, "C")
+
+	lnAPI1, err := lnA()
+	assert.NotNil(t, lnAPI1)
+	assert.NoError(t, err)
+
+	lnAPI2, err := lnC()
+	assert.NotNil(t, lnAPI2)
+	assert.NoError(t, err)
+
+	_, err = lnAPI1.GetInfo(ctx)
+	assert.NoError(t, err)
+	_, err = lnAPI2.GetInfo(ctx)
+	assert.NoError(t, err)
+
+	invoice, err := lnAPI2.CreateInvoice(ctx, 3000000, "", "", 24*time.Hour)
+	assert.NoError(t, err)
+
+	t.Logf("Invoice %v\n", invoice.PaymentRequest)
+
+	// 128642860515328
+	resp, err := lnAPI1.PayInvoice(ctx, invoice.PaymentRequest, 0, []uint64{1337, 128642860515328, 1338})
+	assert.NoError(t, err)
+	t.Logf("Burek %v", resp)
+
+	t.Fail()
+}

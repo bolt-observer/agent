@@ -246,6 +246,8 @@ func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 		return nil
 	}
 
+	glog.Info("Getting swap status for %v\n", data.BoltzID)
+
 	status, err := r.BoltzAPI.SwapStatus(data.BoltzID)
 	if err != nil {
 		glog.Warningf("Could not get swap status %v", err)

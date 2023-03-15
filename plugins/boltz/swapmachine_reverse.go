@@ -143,7 +143,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 		}
 
 		if !paid {
-			log(in, fmt.Sprintf("Paying invoice %v", in.SwapData.ReverseInvoice))
+			log(in, fmt.Sprintf("Paying invoice %v %+v", in.SwapData.ReverseInvoice, in.SwapData.ChanIdsToUse))
 
 			_, err = lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, in.SwapData.ChanIdsToUse)
 			if err != nil {
@@ -168,6 +168,8 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 			continue
 		}
 		status := boltz.ParseEvent(s.Status)
+
+		log(in, fmt.Sprintf("Swap status is: %v", status))
 
 		if (in.SwapData.AllowZeroConf && status == boltz.TransactionMempool) || status == boltz.TransactionConfirmed {
 			return FsmOut{NextState: ClaimReverseFunds}
@@ -198,6 +200,8 @@ func (s *SwapMachine) FsmClaimReverseFunds(in FsmIn) FsmOut {
 	if in.SwapData.BoltzID == "" {
 		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
 	}
+
+	log(in, fmt.Sprintf("Adding entry %+v to redeem locked funds", in))
 
 	s.BoltzPlugin.ReverseRedeemer.AddEntry(in)
 	return FsmOut{}
