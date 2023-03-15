@@ -68,7 +68,7 @@ func (s *SwapMachine) FsmNone(in FsmIn) FsmOut {
 }
 
 func (s *SwapMachine) FsmSwapFailed(in FsmIn) FsmOut {
-	glog.Info("SWAP FAILED\n")
+	glog.Info("SWAP FAILED %v\n", in.MsgCallback)
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int32(in.GetJobID()),
@@ -81,8 +81,9 @@ func (s *SwapMachine) FsmSwapFailed(in FsmIn) FsmOut {
 }
 
 func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
-	glog.Info("SWAP SUCCESS\n")
+	glog.Info("SWAP SUCCESS %v\n", in.MsgCallback)
 	if in.MsgCallback != nil {
+		glog.Info("Message callback...")
 		message := fmt.Sprintf("Swap %d succeeded", in.GetJobID())
 		if in.SwapData.IsDryRun {
 			message = fmt.Sprintf("Swap %d finished in dry-run mode (no funds were used)", in.GetJobID())
@@ -112,11 +113,10 @@ func (s *SwapMachine) RedeemedCallback(data FsmIn, success bool) {
 			}()
 		}
 	} else if sd.State == ClaimReverseFunds {
+		fmt.Printf("Data %+v, sd %+v cb %+v\n", data, data.SwapData, data.MsgCallback)
 		if success {
-			glog.Info("Redeeemed success\n")
 			go s.Eval(data, SwapSuccess)
 		} else {
-			glog.Info("Redeeemed fail\n")
 			go s.Eval(data, SwapFailed)
 		}
 	} else {

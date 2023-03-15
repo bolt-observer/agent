@@ -869,7 +869,6 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 	// TODO: this is mandatory field but timeout could be configurable
 	req.TimeoutSeconds = 10
 
-	fmt.Printf("DEBUG payinvoice called %+v\n", req)
 	resp, err := l.RouterClient.SendPaymentV2(ctx, req)
 
 	if err != nil {
@@ -885,7 +884,6 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 			return nil, ctx.Err()
 		}
 		event, err := resp.Recv()
-		fmt.Printf("DEBUG payinvoice event received %v %v\n", event, err)
 
 		if err != nil {
 			return nil, err

@@ -155,11 +155,9 @@ func (r *Redeemer[T]) redeem() bool {
 	_, err = r.doRedeem(outputs)
 	if err == nil {
 		for _, one := range used {
-			fmt.Printf("DEBUG ONE %+v\n", one)
 			if r.Callback != nil {
 				data, ok := r.Entries[one]
 				if ok {
-					fmt.Printf("DEBUG CALLBACK\n")
 					r.Callback(data, true)
 				}
 			}
@@ -213,8 +211,6 @@ func (r *Redeemer[T]) doRedeem(outputs []boltz.OutputDetails) (string, error) {
 		return "", fmt.Errorf("error getting fee estimate")
 	}
 
-	fmt.Printf("DEBUG Fee %v\n", satsPerVbyte)
-
 	lnConnection, err := r.LnAPI()
 	if err != nil {
 		return "", err
@@ -252,15 +248,11 @@ func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 		return nil
 	}
 
-	glog.Infof("Getting swap status for %v\n", data.BoltzID)
-
 	status, err := r.BoltzAPI.SwapStatus(data.BoltzID)
 	if err != nil {
 		glog.Warningf("Could not get swap status %v", err)
 		return nil
 	}
-
-	glog.Infof("Status is %+v\n", status)
 
 	lockupTransactionRaw, err := hex.DecodeString(status.Transaction.Hex)
 	if err != nil {
@@ -302,8 +294,6 @@ func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 		glog.Warningf("Expected %v sats on chain but got just %v sats", lockupTransaction.MsgTx().TxOut[lockupVout].Value, data.ExpectedSats)
 		return nil
 	}
-
-	glog.Infof("Getting output details\n")
 
 	return &boltz.OutputDetails{
 		LockupTransaction: lockupTransaction,
