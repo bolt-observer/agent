@@ -69,8 +69,8 @@ func init() {
 	plugins.AllPluginFlags = append(plugins.AllPluginFlags, PluginFlags...)
 	plugins.RegisteredPlugins = append(plugins.RegisteredPlugins, plugins.PluginData{
 		Name: Name,
-		Init: func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) (agent_entities.Plugin, error) {
-			r, err := NewPlugin(lnAPI, filter, cmdCtx)
+		Init: func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (agent_entities.Plugin, error) {
+			r, err := NewPlugin(lnAPI, filter, cmdCtx, nodeDataInvalidator)
 			return agent_entities.Plugin(r), err
 		},
 	})
@@ -78,20 +78,21 @@ func init() {
 
 // Plugin can save its data here
 type Plugin struct {
-	BoltzAPI         *boltz.Boltz
-	ChainParams      *chaincfg.Params
-	LnAPI            agent_entities.NewAPICall
-	Filter           filter.FilteringInterface
-	MaxFeePercentage float64
-	CryptoAPI        *CryptoAPI
-	SwapMachine      *SwapMachine
-	Redeemer         *Redeemer[FsmIn]
-	ReverseRedeemer  *Redeemer[FsmIn]
-	Limits           *SwapLimits
-	isDryRun         bool
-	db               DB
-	jobs             map[int32]interface{}
-	mutex            sync.Mutex
+	BoltzAPI            *boltz.Boltz
+	ChainParams         *chaincfg.Params
+	LnAPI               agent_entities.NewAPICall
+	Filter              filter.FilteringInterface
+	MaxFeePercentage    float64
+	CryptoAPI           *CryptoAPI
+	SwapMachine         *SwapMachine
+	Redeemer            *Redeemer[FsmIn]
+	ReverseRedeemer     *Redeemer[FsmIn]
+	Limits              *SwapLimits
+	NodeDataInvalidator agent_entities.Invalidatable
+	isDryRun            bool
+	db                  DB
+	jobs                map[int32]interface{}
+	mutex               sync.Mutex
 	agent_entities.Plugin
 }
 
@@ -112,7 +113,7 @@ type SwapLimits struct {
 }
 
 // NewPlugin creates new instance
-func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) (*Plugin, error) {
+func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (*Plugin, error) {
 	if lnAPI == nil {
 		return nil, ErrInvalidArguments
 	}
@@ -140,12 +141,13 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		BoltzAPI: &boltz.Boltz{
 			URL: cmdCtx.String("boltzurl"),
 		},
-		CryptoAPI: NewCryptoAPI(entropy),
-		Filter:    filter,
-		LnAPI:     lnAPI,
-		db:        db,
-		jobs:      make(map[int32]interface{}),
-		isDryRun:  cmdCtx.Bool("dryrun"),
+		CryptoAPI:           NewCryptoAPI(entropy),
+		Filter:              filter,
+		LnAPI:               lnAPI,
+		NodeDataInvalidator: nodeDataInvalidator,
+		db:                  db,
+		jobs:                make(map[int32]interface{}),
+		isDryRun:            cmdCtx.Bool("dryrun"),
 	}
 	resp.MaxFeePercentage = cmdCtx.Float64("maxfeepercentage")
 	resp.BoltzAPI.Init(Btc) // required
@@ -159,7 +161,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	resp.Limits = limits
 
 	// Swap machine is the finite state machine for doing the swap
-	resp.SwapMachine = NewSwapMachine(resp)
+	resp.SwapMachine = NewSwapMachine(resp, nodeDataInvalidator)
 
 	// Currently there is just one redeemer instance (perhaps split it)
 	resp.Redeemer = NewRedeemer(context.Background(), (RedeemForward | RedeemReverse), resp.ChainParams, resp.BoltzAPI, resp.LnAPI,
@@ -235,8 +237,8 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 // start or continue running job
 func (b *Plugin) runJob(jobID int32, jd *SwapData, msgCallback agent_entities.MessageCallback) {
 	in := FsmIn{
-		SwapData:    jd,
-		MsgCallback: msgCallback,
+		SwapData:            jd,
+		MsgCallback:         msgCallback,
 	}
 
 	// Running the job just means going through the state machine starting with jd.State

@@ -197,7 +197,7 @@ func newPlugin(t *testing.T, ln agent_entities.NewAPICall, dbName string, boltzU
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	p, err := NewPlugin(ln, f, getMockCliCtx(boltzUrl, dbName, network))
+	p, err := NewPlugin(ln, f, getMockCliCtx(boltzUrl, dbName, network), nil)
 	assert.NoError(t, err)
 	_, err = p.BoltzAPI.GetNodes()
 	assert.NoError(t, err)

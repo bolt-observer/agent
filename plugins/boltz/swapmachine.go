@@ -76,6 +76,9 @@ func (s *SwapMachine) FsmSwapFailed(in FsmIn) FsmOut {
 			IsFinished: true,
 		})
 	}
+	if s.NodeDataInvalidator != nil {
+		s.NodeDataInvalidator.Invalidate()
+	}
 	return FsmOut{}
 }
 
@@ -91,6 +94,9 @@ func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
 			IsError:    false,
 			IsFinished: true,
 		})
+	}
+	if s.NodeDataInvalidator != nil {
+		s.NodeDataInvalidator.Invalidate()
 	}
 	return FsmOut{}
 }
@@ -110,7 +116,6 @@ func (s *SwapMachine) RedeemedCallback(data FsmIn, success bool) {
 			}()
 		}
 	} else if sd.State == ClaimReverseFunds {
-		fmt.Printf("Data %+v, sd %+v cb %+v\n", data, data.SwapData, data.MsgCallback)
 		if success {
 			go s.Eval(data, SwapSuccess)
 		} else {
@@ -192,14 +197,16 @@ func (s *State) isFinal() bool {
 
 // Swapmachine is a finite state machine used for swaps.
 type SwapMachine struct {
-	Machine     *Fsm[FsmIn, FsmOut, State]
-	BoltzPlugin *Plugin
+	Machine             *Fsm[FsmIn, FsmOut, State]
+	BoltzPlugin         *Plugin
+	NodeDataInvalidator entities.Invalidatable
 }
 
-func NewSwapMachine(plugin *Plugin) *SwapMachine {
+func NewSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable) *SwapMachine {
 	s := &SwapMachine{Machine: &Fsm[FsmIn, FsmOut, State]{States: make(map[State]func(data FsmIn) FsmOut)},
 		// TODO: instead of BoltzPlugin this should be a bit more granular
-		BoltzPlugin: plugin,
+		BoltzPlugin:         plugin,
+		NodeDataInvalidator: nodeDataInvalidator,
 	}
 
 	s.Machine.States[SwapFailed] = FsmWrap(s.FsmSwapFailed, plugin)

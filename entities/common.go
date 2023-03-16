@@ -62,3 +62,8 @@ func (r *ReentrancyBlock) Release(id string) {
 
 	sem.Release(1)
 }
+
+// Invalidatable interface.
+type Invalidatable interface {
+	Invalidate() error
+}

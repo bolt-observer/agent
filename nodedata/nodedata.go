@@ -74,6 +74,20 @@ func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duratio
 	}
 }
 
+// Invalidate when data was last reported
+func (c *NodeData) Invalidate() error {
+	c.perNodeSettings.mutex.Lock()
+	defer c.perNodeSettings.mutex.Unlock()
+
+	for _, one := range c.perNodeSettings.data {
+		one.lastCheck = time.Time{}
+		one.lastReport = time.Time{}
+		one.lastNodeReport = time.Time{}
+	}
+
+	return nil
+}
+
 // IsSubscribed - check if we are subscribed for a certain public key
 func (c *NodeData) IsSubscribed(pubKey, uniqueID string) bool {
 	return utils.Contains(c.perNodeSettings.GetKeys(), pubKey+uniqueID)
@@ -540,6 +554,12 @@ func (c *NodeData) checkOne(
 		return nil, 0, fmt.Errorf("pubkey and reported pubkey are not the same")
 	}
 
+	funds, err := api.GetOnChainFunds(c.ctx)
+	if err != nil {
+		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
+		return nil, 0, fmt.Errorf("failed to get info: %v", err)
+	}
+
 	identifier.Identifier = info.IdentityPubkey
 
 	channelList, set, err := c.getChannelList(api, info, settings.AllowedEntropy, settings.AllowPrivateChannels, settings.Filter)
@@ -578,9 +598,10 @@ func (c *NodeData) checkOne(
 	}
 
 	nodeInfoFull := &entities.NodeDetails{
-		NodeVersion:     info.Version,
-		IsSyncedToChain: info.IsSyncedToChain,
-		IsSyncedToGraph: info.IsSyncedToGraph,
+		NodeVersion:         info.Version,
+		IsSyncedToChain:     info.IsSyncedToChain,
+		IsSyncedToGraph:     info.IsSyncedToGraph,
+		TotalOnChainBalance: uint64(funds.TotalBalance),
 	}
 
 	nodeInfoFull.NodeInfoAPIExtended = *nodeInfo
