@@ -14,6 +14,7 @@ func (e Error) Error() string { return string(e) }
 const (
 	ErrCouldNotParseJobData  = Error("could not parse job data")
 	ErrUnsupportedTargetType = Error("unsupported target type")
+	ErrNoNeedToDoAnything    = Error("no need to do anything")
 )
 
 type TargetType string
@@ -27,16 +28,16 @@ const (
 
 // JobData struct comes from the request.
 type JobData struct {
-	ID         int32      `json:"id,omitempty"`
-	Target     TargetType `json:"target"`
-	Amount     float64    `json:"amount,omitempty"`
-	ChannelId  uint64     `json:"channel_id,omitempty"`
+	ID        int32      `json:"id,omitempty"`
+	Target    TargetType `json:"target"`
+	Amount    float64    `json:"amount,omitempty"`
+	ChannelId uint64     `json:"channel_id,omitempty"`
 }
 
 // SwapData struct.
 type SwapData struct {
 	JobID             JobID
-	Attempt           int // Not used yet
+	Attempt           int
 	BoltzID           string
 	State             State
 	AllowZeroConf     bool
@@ -56,7 +57,8 @@ type SwapData struct {
 	ChanIdsToUse []uint64
 	ExpectedSats uint64
 
-	IsDryRun bool
+	IsDryRun       bool
+	OriginaJobData JobData // original job data
 }
 
 // ParseJobData gets a new JobData from bytes

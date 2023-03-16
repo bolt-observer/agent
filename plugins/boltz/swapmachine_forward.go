@@ -23,7 +23,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 
 	log(in, fmt.Sprintf("Will do a submarine swap with %v sats", sats))
 
-	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
+	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(in.GetUniqueJobID())
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -264,7 +264,7 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
 			continue
 		}
 
-		keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
+		keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(in.GetUniqueJobID())
 		if err != nil {
 			log(in, "error getting keys")
 			time.Sleep(SleepTime)

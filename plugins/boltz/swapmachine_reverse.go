@@ -25,7 +25,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 
 	log(in, fmt.Sprintf("Will do a reverse submarine swap with %v sats", sats))
 
-	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
+	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(in.GetUniqueJobID())
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -206,6 +206,43 @@ func (s *SwapMachine) FsmClaimReverseFunds(in FsmIn) FsmOut {
 
 	s.BoltzPlugin.ReverseRedeemer.AddEntry(in)
 	return FsmOut{}
+}
+
+func (s *SwapMachine) FsmSwapClaimed(in FsmIn) FsmOut {
+	// This just happpened while e2e testing, in practice we don't really care if
+	// Boltz does not claim  their funds
+
+	log(in, fmt.Sprintf("Locked funds were claimed %v", in.SwapData.JobID))
+
+	SleepTime := s.getSleepTime(in)
+	MaxWait := 2 * time.Minute // do we need to make this configurable?
+
+	start := time.Now()
+
+	for {
+		now := time.Now()
+		if now.After(start.Add(MaxWait)) {
+			break
+		}
+
+		s, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
+		if err != nil {
+			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err))
+			time.Sleep(SleepTime)
+			continue
+		}
+
+		status := boltz.ParseEvent(s.Status)
+
+		if status == boltz.InvoiceSettled {
+			break
+		} else {
+			log(in, fmt.Sprintf("Boltz did not claim funds on their side %v, status is %v", in.SwapData.JobID, status))
+		}
+	}
+
+	return FsmOut{NextState: SwapSuccess}
+
 }
 
 func CreateReverseSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, sats uint64, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateReverseSwapResponse, error) {

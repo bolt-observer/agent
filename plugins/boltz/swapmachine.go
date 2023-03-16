@@ -4,6 +4,7 @@
 package boltz
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -84,7 +85,7 @@ func (s *SwapMachine) FsmSwapFailed(in FsmIn) FsmOut {
 
 func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
 	if in.MsgCallback != nil {
-		message := fmt.Sprintf("Swap %d succeeded", in.GetJobID())
+		message := fmt.Sprintf("Swap %d (attempt %d) succeeded", in.GetJobID(), in.SwapData.Attempt)
 		if in.SwapData.IsDryRun {
 			message = fmt.Sprintf("Swap %d finished in dry-run mode (no funds were used)", in.GetJobID())
 		}
@@ -92,12 +93,57 @@ func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
 			JobID:      int32(in.GetJobID()),
 			Message:    message,
 			IsError:    false,
-			IsFinished: true,
+			IsFinished: in.SwapData.IsDryRun,
 		})
 	}
-	if s.NodeDataInvalidator != nil {
-		s.NodeDataInvalidator.Invalidate()
+
+	if in.SwapData.IsDryRun {
+		return FsmOut{}
 	}
+
+	return s.nextRound(in)
+}
+
+func (s *SwapMachine) nextRound(in FsmIn) FsmOut {
+	ctx := context.Background()
+	sd, err := s.BoltzPlugin.JobDataToSwapData(ctx, s.BoltzPlugin.Limits, &in.SwapData.OriginaJobData, in.MsgCallback)
+
+	if err == ErrNoNeedToDoAnything {
+		if in.MsgCallback != nil {
+			message := fmt.Sprintf("Swap %d overall finished in attempt %d", in.GetJobID(), in.SwapData.Attempt)
+			in.MsgCallback(entities.PluginMessage{
+				JobID:      int32(in.GetJobID()),
+				Message:    message,
+				IsError:    false,
+				IsFinished: true,
+			})
+		}
+
+		if s.NodeDataInvalidator != nil {
+			s.NodeDataInvalidator.Invalidate()
+		}
+
+		return FsmOut{}
+	}
+
+	sd.Attempt = in.SwapData.Attempt + 1
+	if sd.Attempt > MaxAttempts {
+		if in.MsgCallback != nil {
+			message := fmt.Sprintf("Swap %d aborted after attempt %d", in.GetJobID(), in.SwapData.Attempt)
+			in.MsgCallback(entities.PluginMessage{
+				JobID:      int32(in.GetJobID()),
+				Message:    message,
+				IsError:    true,
+				IsFinished: true,
+			})
+		}
+
+		return FsmOut{}
+	}
+
+	in.SwapData = sd
+	go s.Eval(in, sd.State)
+
 	return FsmOut{}
 }
 
@@ -117,7 +163,7 @@ func (s *SwapMachine) RedeemedCallback(data FsmIn, success bool) {
 		}
 	} else if sd.State == ClaimReverseFunds {
 		if success {
-			go s.Eval(data, SwapSuccess)
+			go s.Eval(data, SwapClaimed)
 		} else {
 			go s.Eval(data, SwapFailed)
 		}
@@ -184,11 +230,12 @@ const (
 
 	ReverseSwapCreated
 	ClaimReverseFunds
+	SwapClaimed
 )
 
 func (s State) String() string {
 	return []string{"None", "InitialForward", "InitialReverse", "SwapFaied", "SwapSuccess", "OnChainFundsSent",
-		"RedeemLockedFunds", "RedeemingLockedFunds", "VerifyFundsReceived", "ReverseSwapCreated", "ClaimReverseFunds"}[s]
+		"RedeemLockedFunds", "RedeemingLockedFunds", "VerifyFundsReceived", "ReverseSwapCreated", "ClaimReverseFunds", "SwapClaimed"}[s]
 }
 
 func (s *State) isFinal() bool {
@@ -221,6 +268,7 @@ func NewSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable) 
 	s.Machine.States[InitialReverse] = FsmWrap(s.FsmInitialReverse, plugin)
 	s.Machine.States[ReverseSwapCreated] = FsmWrap(s.FsmReverseSwapCreated, plugin)
 	s.Machine.States[ClaimReverseFunds] = FsmWrap(s.FsmClaimReverseFunds, plugin)
+	s.Machine.States[SwapClaimed] = FsmWrap(s.FsmSwapClaimed, plugin)
 
 	return s
 

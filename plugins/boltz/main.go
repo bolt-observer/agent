@@ -30,6 +30,7 @@ const (
 	DefaultBoltzUrl = "https://boltz.exchange/api"
 	SecretBitSize   = 256
 	SecretDbKey     = "secret"
+	MaxAttempts     = 10
 
 	ErrInvalidArguments = Error("invalid arguments")
 )
@@ -206,7 +207,7 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 			}
 			jd.ID = jobID
 
-			data, err := b.jobDataToSwapData(ctx, b.Limits, jd, msgCallback)
+			data, err := b.JobDataToSwapData(ctx, b.Limits, jd, msgCallback)
 			if err != nil {
 				glog.Infof("[Boltz] [%v] Error %v", jobID, err)
 				msgCallback(agent_entities.PluginMessage{
@@ -237,8 +238,8 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 // start or continue running job
 func (b *Plugin) runJob(jobID int32, jd *SwapData, msgCallback agent_entities.MessageCallback) {
 	in := FsmIn{
-		SwapData:            jd,
-		MsgCallback:         msgCallback,
+		SwapData:    jd,
+		MsgCallback: msgCallback,
 	}
 
 	// Running the job just means going through the state machine starting with jd.State
@@ -304,7 +305,7 @@ func setMnemonic(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
 	return entropy, nil
 }
 
-func (b *Plugin) jobDataToSwapData(ctx context.Context, limits *SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback) (*SwapData, error) {
+func (b *Plugin) JobDataToSwapData(ctx context.Context, limits *SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback) (*SwapData, error) {
 	if jobData == nil {
 		return nil, fmt.Errorf("empty job data")
 	}
@@ -377,7 +378,7 @@ func (b *Plugin) convertInboundLiqudityChanPercent(ctx context.Context, jobData 
 				IsFinished: true,
 			})
 		}
-		return nil, fmt.Errorf("no need to do anything")
+		return nil, ErrNoNeedToDoAnything
 	}
 
 	factor := ((jobData.Amount / 100) - ratio)
@@ -390,6 +391,7 @@ func (b *Plugin) convertInboundLiqudityChanPercent(ctx context.Context, jobData 
 		State:            InitialReverse,
 		AllowZeroConf:    limits.AllowZeroConf,
 		ReverseChannelId: jobData.ChannelId,
+		OriginaJobData:   *jobData,
 	}, nil
 }
 
@@ -411,7 +413,7 @@ func (b *Plugin) convertLiquidityNodePercent(jobData *JobData, limits *SwapLimit
 				IsFinished: true,
 			})
 		}
-		return nil, fmt.Errorf("no need to do anything")
+		return nil, ErrNoNeedToDoAnything
 	}
 
 	sats := float64(limits.DefaultSwap)
@@ -427,6 +429,7 @@ func (b *Plugin) convertLiquidityNodePercent(jobData *JobData, limits *SwapLimit
 		Sats:             uint64(math.Round(sats)),
 		ReverseChannelId: 0,
 		AllowZeroConf:    limits.AllowZeroConf,
+		OriginaJobData:   *jobData,
 	}
 
 	if outbound {
