@@ -147,7 +147,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 
 			_, err = lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, in.SwapData.ChanIdsToUse)
 			if err != nil {
-				log(in, fmt.Sprintf("Failed paying invoice %v", in.SwapData.ReverseInvoice))
+				log(in, fmt.Sprintf("Failed paying invoice %v due to %v", in.SwapData.ReverseInvoice, err))
 				if in.SwapData.ReverseChannelId == 0 {
 					// this means node level liquidity - if the hints worked that would be nice, but try without them too
 
@@ -163,7 +163,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 
 		s, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
-			log(in, fmt.Sprintf("error communicating with BoltzAPI: %v", err))
+			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err))
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -181,7 +181,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 
 		info, err := lnConnection.GetInfo(ctx)
 		if err != nil {
-			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err))
+			log(in, fmt.Sprintf("Error communicating with LNAPI: %v", err))
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -202,7 +202,7 @@ func (s *SwapMachine) FsmClaimReverseFunds(in FsmIn) FsmOut {
 	}
 
 	// debug
-	log(in, fmt.Sprintf("Adding entry %+v to redeem locked funds", in.SwapData))
+	log(in, fmt.Sprintf("Adding entry %v to redeem locked funds", in.SwapData.JobID))
 
 	s.BoltzPlugin.ReverseRedeemer.AddEntry(in)
 	return FsmOut{}
@@ -210,7 +210,7 @@ func (s *SwapMachine) FsmClaimReverseFunds(in FsmIn) FsmOut {
 
 func (s *SwapMachine) FsmSwapClaimed(in FsmIn) FsmOut {
 	// This just happpened while e2e testing, in practice we don't really care if
-	// Boltz does not claim  their funds
+	// Boltz does not claim their funds
 
 	log(in, fmt.Sprintf("Locked funds were claimed %v", in.SwapData.JobID))
 

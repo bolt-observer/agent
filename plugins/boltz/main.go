@@ -392,6 +392,7 @@ func (b *Plugin) convertInboundLiqudityChanPercent(ctx context.Context, jobData 
 		AllowZeroConf:    limits.AllowZeroConf,
 		ReverseChannelId: jobData.ChannelId,
 		OriginaJobData:   *jobData,
+		Attempt:          1,
 	}, nil
 }
 
@@ -429,6 +430,7 @@ func (b *Plugin) convertLiquidityNodePercent(jobData *JobData, limits *SwapLimit
 		Sats:             uint64(math.Round(sats)),
 		ReverseChannelId: 0,
 		AllowZeroConf:    limits.AllowZeroConf,
+		Attempt:          1,
 		OriginaJobData:   *jobData,
 	}
 

@@ -77,6 +77,8 @@ func (s *SwapMachine) FsmSwapFailed(in FsmIn) FsmOut {
 			IsFinished: true,
 		})
 	}
+
+	// Make sure after swap latest data is sent
 	if s.NodeDataInvalidator != nil {
 		s.NodeDataInvalidator.Invalidate()
 	}
@@ -84,6 +86,8 @@ func (s *SwapMachine) FsmSwapFailed(in FsmIn) FsmOut {
 }
 
 func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
+	// TODO: it would be great if we could calculate how much the swap actually cost us, but it is hard to do precisely
+	// because redeemer might have claimed multiple funds
 	if in.MsgCallback != nil {
 		message := fmt.Sprintf("Swap %d (attempt %d) succeeded", in.GetJobID(), in.SwapData.Attempt)
 		if in.SwapData.IsDryRun {
@@ -119,6 +123,7 @@ func (s *SwapMachine) nextRound(in FsmIn) FsmOut {
 			})
 		}
 
+		// Make sure after swap latest data is sent
 		if s.NodeDataInvalidator != nil {
 			s.NodeDataInvalidator.Invalidate()
 		}
@@ -126,10 +131,11 @@ func (s *SwapMachine) nextRound(in FsmIn) FsmOut {
 		return FsmOut{}
 	}
 
+	// TODO: does this make sense? Maybe we should start multiple swaps in parallel at the begining
 	sd.Attempt = in.SwapData.Attempt + 1
 	if sd.Attempt > MaxAttempts {
 		if in.MsgCallback != nil {
-			message := fmt.Sprintf("Swap %d aborted after attempt %d", in.GetJobID(), in.SwapData.Attempt)
+			message := fmt.Sprintf("Swap %d aborted after attempt %d/%d", in.GetJobID(), in.SwapData.Attempt, MaxAttempts)
 			in.MsgCallback(entities.PluginMessage{
 				JobID:      int32(in.GetJobID()),
 				Message:    message,
@@ -271,7 +277,6 @@ func NewSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable) 
 	s.Machine.States[SwapClaimed] = FsmWrap(s.FsmSwapClaimed, plugin)
 
 	return s
-
 }
 
 func (s *SwapMachine) Eval(in FsmIn, initial State) FsmOut {
