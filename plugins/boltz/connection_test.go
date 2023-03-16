@@ -90,7 +90,7 @@ func TestEnsureConnected(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	require.NoError(t, err)
 
-	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx("", "", "regtest"))
+	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx("", "", "regtest"), nil)
 	if b == nil || b.LnAPI == nil {
 		if FailNoCredsBoltz {
 			t.Fail()

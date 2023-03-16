@@ -27,7 +27,7 @@ var (
 )
 
 // InitPluginFn signature of init plugin function
-type InitPluginFn func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) (agent_entities.Plugin, error)
+type InitPluginFn func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (agent_entities.Plugin, error)
 
 // PluginData structure
 type PluginData struct {
@@ -35,11 +35,11 @@ type PluginData struct {
 	Init InitPluginFn
 }
 
-func InitPlugins(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) error {
+func InitPlugins(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) error {
 	Plugins = make(map[string]agent_entities.Plugin)
 
 	for _, p := range RegisteredPlugins {
-		plugin, err := p.Init(lnAPI, filter, cmdCtx)
+		plugin, err := p.Init(lnAPI, filter, cmdCtx, nodeDataInvalidator)
 		if err != nil {
 			glog.Warningf("Plugin %s had an error %v\n", p.Name, err)
 			return err

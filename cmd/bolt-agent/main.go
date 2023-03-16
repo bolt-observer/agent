@@ -410,6 +410,14 @@ func shouldCrash(status int, body string) {
 }
 
 func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+	if report == nil {
+		return true
+	}
+	if report.NodeDetails != nil {
+		// a bit cumbersome but we don't want to put GitRevision into the checker
+		report.NodeDetails.AgentVersion = fmt.Sprintf("bolt-agent/%s", GitRevision)
+	}
+
 	rep, err := json.Marshal(report)
 	if err != nil {
 		glog.Warningf("Error marshalling report: %v", err)
@@ -430,7 +438,7 @@ func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport
 		return false
 	}
 
-	req.Header.Set("User-Agent", fmt.Sprintf("boltobserver-agent/%s", GitRevision))
+	req.Header.Set("User-Agent", fmt.Sprintf("bolt-agent/%s", GitRevision))
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -582,8 +590,10 @@ func runAgent(cmdCtx *cli.Context) error {
 
 	g, gctx := errgroup.WithContext(ct)
 
+	var nodeDataChecker *nodedata.NodeData
+
 	if periodicSend {
-		nodeDataChecker := nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedata checker"))
+		nodeDataChecker = nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedata checker"))
 		settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
 		if settings.PollInterval == agent_entities.ManualRequest {
@@ -619,7 +629,14 @@ func runAgent(cmdCtx *cli.Context) error {
 	if cmdCtx.Bool("actions") {
 		fn := mkGetLndAPI(cmdCtx)
 		if !cmdCtx.Bool("noplugins") {
-			plugins.InitPlugins(fn, f, cmdCtx)
+			// Need this due to https://stackoverflow.com/questions/43059653/golang-interfacenil-is-nil-or-not
+			var invalidatable agent_entities.Invalidatable
+			if nodeDataChecker == nil {
+				invalidatable = nil
+			} else {
+				invalidatable = agent_entities.Invalidatable(nodeDataChecker)
+			}
+			plugins.InitPlugins(fn, f, cmdCtx, invalidatable)
 		}
 		g.Go(func() error {
 			ac := &actions.Connector{

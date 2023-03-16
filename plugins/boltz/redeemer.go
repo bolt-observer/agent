@@ -163,6 +163,8 @@ func (r *Redeemer[T]) redeem() bool {
 			}
 			delete(r.Entries, one)
 		}
+	} else {
+		glog.Warningf("Redeeming failed due to %v\n", err)
 	}
 
 	return true

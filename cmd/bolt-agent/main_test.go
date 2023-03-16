@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bolt-observer/agent/entities"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,4 +34,18 @@ func TestConvertTimeSetting(t *testing.T) {
 	assert.Equal(t, true, s.enabled)
 	assert.Equal(t, false, s.useLatestTimeFromServer)
 	assert.Equal(t, now, s.time)
+}
+
+func TestNilInterface(t *testing.T) {
+	//var nodeDataChecker *nodedata.NodeData
+	//x := entities.Invalidatable(nodeDataChecker)
+	var y entities.Invalidatable
+	if y == nil {
+		t.Logf("NIL\n")
+		return
+	}
+
+	t.Logf("NOT NIL %v\n", y)
+
+	t.Fail()
 }
