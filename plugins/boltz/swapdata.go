@@ -74,6 +74,10 @@ func JobDataToSwapData(ctx context.Context, limits *SwapLimits, jobData *JobData
 	}
 }
 
+func (sd *SwapData) GetUniqueJobID() string {
+	return fmt.Sprintf("%d-%d", sd.JobID, sd.Attempt)
+}
+
 func getLiquidity(ctx context.Context, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) *Liquidity {
 	liquidity, err := GetNodeLiquidity(ctx, lnAPI, filter)
 

@@ -3,8 +3,6 @@
 
 package boltz
 
-import "fmt"
-
 type FsmFn[I FsmInGetter, O FsmOutGetter] func(data I) O
 
 type Fsm[I FsmInGetter, O FsmOutGetter, S State] struct {
@@ -24,7 +22,7 @@ func (f FsmIn) GetJobID() JobID {
 }
 
 func (f FsmIn) GetUniqueJobID() string {
-	return fmt.Sprintf("%d-%d", f.SwapData.JobID, f.SwapData.Attempt)
+	return f.SwapData.GetUniqueJobID()
 }
 
 type FsmOut struct {

@@ -284,7 +284,7 @@ func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 		return nil
 	}
 
-	keys, err := r.CryptoAPI.GetKeys(fmt.Sprintf("%d", data.JobID))
+	keys, err := r.CryptoAPI.GetKeys(data.GetUniqueJobID())
 	if err != nil {
 		glog.Warningf("Could not get keys %v", err)
 		return nil
@@ -337,7 +337,7 @@ func (r *Redeemer[T]) getRefundOutput(data *SwapData) *boltz.OutputDetails {
 		return nil
 	}
 
-	keys, err := r.CryptoAPI.GetKeys(fmt.Sprintf("%d", data.JobID))
+	keys, err := r.CryptoAPI.GetKeys(data.GetUniqueJobID())
 	if err != nil {
 		glog.Warningf("Could not get keys %v", err)
 		return nil
