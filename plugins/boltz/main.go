@@ -29,7 +29,6 @@ const (
 	DefaultBoltzUrl = "https://boltz.exchange/api"
 	SecretBitSize   = 256
 	SecretDbKey     = "secret"
-	MaxAttempts     = 10
 
 	ErrInvalidArguments = Error("invalid arguments")
 )
@@ -51,7 +50,7 @@ var PluginFlags = []cli.Flag{
 		Name: "maxfeepercentage", Value: 5.0, Usage: "maximum fee in percentage that is still acceptable", Hidden: false,
 	},
 	cli.Uint64Flag{
-		Name: "maxswapsats", Value: 1_000_000, Usage: "maximum swap to perform in sats", Hidden: false,
+		Name: "maxswapsats", Value: 10_000_000, Usage: "maximum swap to perform in sats", Hidden: false,
 	},
 	cli.Uint64Flag{
 		Name: "minswapsats", Value: 100_000, Usage: "minimum swap to perform in sats", Hidden: false,
@@ -61,6 +60,9 @@ var PluginFlags = []cli.Flag{
 	},
 	cli.BoolFlag{
 		Name: "disablezeroconf", Usage: "disable zeroconfirmation for swaps", Hidden: false,
+	},
+	cli.IntFlag{
+		Name: "maxswapattempts", Value: 3, Usage: "max swap attempts for bigger jobs", Hidden: true,
 	},
 }
 
@@ -110,6 +112,7 @@ type SwapLimits struct {
 	MinSwap       uint64
 	MaxSwap       uint64
 	DefaultSwap   uint64
+	MaxAttempts   int
 }
 
 // NewPlugin creates new instance
@@ -157,6 +160,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 		MinSwap:       cmdCtx.Uint64("minswapsats"),
 		MaxSwap:       cmdCtx.Uint64("maxswapsats"),
 		DefaultSwap:   cmdCtx.Uint64("defaultswapsats"),
+		MaxAttempts:   cmdCtx.Int("maxswapattempts"),
 	}
 	resp.Limits = limits
 

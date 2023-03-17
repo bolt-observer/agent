@@ -39,6 +39,9 @@ type SwapData struct {
 
 	IsDryRun       bool
 	OriginaJobData JobData // original job data
+
+	SatsSwappedSoFar uint64
+	FeesPaidSoFar    uint64
 }
 
 type JobDataToSwapDataFn func(ctx context.Context, limits *SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error)
@@ -64,7 +67,7 @@ func JobDataToSwapData(ctx context.Context, limits *SwapLimits, jobData *JobData
 	case InboundLiquidityChannelPercent:
 		return convertInboundLiqudityChanPercent(ctx, jobData, limits, msgCallback, lnAPI, filter)
 	case DummyTarget:
-		return &SwapData{Attempt: MaxAttempts + 1}, nil
+		return &SwapData{Attempt: limits.MaxAttempts + 1}, nil
 	default:
 		// Not supported yet
 		return nil, fmt.Errorf("not supported")
@@ -131,6 +134,8 @@ func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, li
 		ReverseChannelId: jobData.ChannelId,
 		OriginaJobData:   *jobData,
 		Attempt:          1,
+		FeesPaidSoFar:    0,
+		SatsSwappedSoFar: 0,
 	}, nil
 }
 
@@ -170,6 +175,8 @@ func convertLiquidityNodePercent(jobData *JobData, limits *SwapLimits, liquidity
 		AllowZeroConf:    limits.AllowZeroConf,
 		Attempt:          1,
 		OriginaJobData:   *jobData,
+		FeesPaidSoFar:    0,
+		SatsSwappedSoFar: 0,
 	}
 
 	if outbound {

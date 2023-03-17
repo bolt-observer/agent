@@ -147,9 +147,9 @@ func (s *SwapMachine) nextRound(in FsmIn) FsmOut {
 
 	// TODO: does this make sense? Maybe we should start multiple swaps in parallel at the begining
 	sd.Attempt = in.SwapData.Attempt + 1
-	if sd.Attempt > MaxAttempts {
+	if sd.Attempt > s.BoltzPlugin.Limits.MaxAttempts {
 		if in.MsgCallback != nil {
-			message := fmt.Sprintf("Swap %d aborted after attempt %d/%d", in.GetJobID(), in.SwapData.Attempt, MaxAttempts)
+			message := fmt.Sprintf("Swap %d aborted after attempt %d/%d", in.GetJobID(), in.SwapData.Attempt, s.BoltzPlugin.Limits.MaxAttempts)
 			in.MsgCallback(entities.PluginMessage{
 				JobID:      int32(in.GetJobID()),
 				Message:    message,

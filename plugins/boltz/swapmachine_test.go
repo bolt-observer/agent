@@ -61,6 +61,9 @@ func TestNextRoundNotNeeded(t *testing.T) {
 		BoltzAPI:    &boltz.Boltz{URL: "https://testapi.boltz.exchange"},
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
+		Limits: &SwapLimits{
+			MaxAttempts: 10,
+		},
 	}
 
 	invalidatable := &FakeInvalidatable{}
@@ -87,6 +90,9 @@ func TestNextRoundNeeded(t *testing.T) {
 		BoltzAPI:    &boltz.Boltz{URL: "https://testapi.boltz.exchange"},
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
+		Limits: &SwapLimits{
+			MaxAttempts: 10,
+		},
 	}
 
 	sd := &SwapData{
@@ -118,7 +124,7 @@ func TestNextRoundNeeded(t *testing.T) {
 	// Now fast forward to last attempt
 
 	sd.State = SwapSuccess
-	sd.Attempt = MaxAttempts
+	sd.Attempt = p.Limits.MaxAttempts
 	in.SwapData = sd
 
 	o = s.nextRound(in)

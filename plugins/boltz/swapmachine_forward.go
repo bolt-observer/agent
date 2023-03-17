@@ -80,6 +80,11 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 		return FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, s.BoltzPlugin.MaxFeePercentage)}
 	}
 
+	totalFee := float64(in.SwapData.FeesPaidSoFar+(response.ExpectedAmount-sats)) / float64(in.SwapData.SatsSwappedSoFar+response.ExpectedAmount) * 100
+	if totalFee > s.BoltzPlugin.MaxFeePercentage {
+		return FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, s.BoltzPlugin.MaxFeePercentage)}
+	}
+
 	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100))
 
 	// Check funds
@@ -114,6 +119,9 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 
 	log(in, fmt.Sprintf("Transaction ID for swap is %v (invoice hash %v)", tx, invoice.Hash))
 	in.SwapData.LockupTransactionId = tx
+
+	in.SwapData.FeesPaidSoFar += (response.ExpectedAmount - sats)
+	in.SwapData.SatsSwappedSoFar += response.ExpectedAmount
 
 	return FsmOut{NextState: OnChainFundsSent}
 }

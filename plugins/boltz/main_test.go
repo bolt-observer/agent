@@ -11,12 +11,9 @@ import (
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
 	agent_entities "github.com/bolt-observer/agent/entities"
-	lnapi "github.com/bolt-observer/agent/lightning"
-	common_entities "github.com/bolt-observer/go_common/entities"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/urfave/cli"
 )
 
 type CallbackStore struct {
@@ -69,11 +66,14 @@ func TestExecute(t *testing.T) {
 	p := &Plugin{
 		BoltzAPI:    &boltz.Boltz{URL: "https://testapi.boltz.exchange"},
 		ChainParams: &chaincfg.TestNet3Params,
-		LnAPI:       mkGetLndAPI(&cli.Context{}),
+		LnAPI:       mkFakeLndAPI(),
 		jobs:        make(map[int32]interface{}),
 		db: &TestDB{data: map[interface{}]interface{}{
 			int32(42): target,
 		}},
+		Limits: &SwapLimits{
+			MaxAttempts: 10,
+		},
 	}
 
 	t.Run("Error on invalid data", func(t *testing.T) {
@@ -124,15 +124,4 @@ func TestExecute(t *testing.T) {
 		_, ok := p.jobs[int32(42)]
 		assert.True(t, ok)
 	})
-
-}
-
-func mkGetLndAPI(cmdCtx *cli.Context) agent_entities.NewAPICall {
-	return func() (lnapi.LightingAPICalls, error) {
-		return lnapi.NewAPI(lnapi.LndGrpc, func() (*common_entities.Data, error) {
-			return &common_entities.Data{
-				PubKey: "test-pubkey",
-			}, nil
-		})
-	}
 }
