@@ -49,7 +49,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	// times 2 is used as a safety margin
 	minerFees := 2 * res.Fees.MinerFees.BaseAsset.Normal
 
-	lnConnection, err := s.BoltzPlugin.LnAPI()
+	lnConnection, err := s.LnAPI()
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -128,7 +128,7 @@ func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 	}
 
 	for {
-		lnAPI, err := s.BoltzPlugin.LnAPI()
+		lnAPI, err := s.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -200,7 +200,7 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in FsmIn) FsmOut {
 
 	// Wait for expiry
 	for {
-		lnConnection, err := s.BoltzPlugin.LnAPI()
+		lnConnection, err := s.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -252,7 +252,7 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
 	SleepTime := s.getSleepTime(in)
 
 	for {
-		lnConnection, err := s.BoltzPlugin.LnAPI()
+		lnConnection, err := s.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)

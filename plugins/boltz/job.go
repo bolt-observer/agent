@@ -34,33 +34,6 @@ type JobData struct {
 	ChannelId uint64     `json:"channel_id,omitempty"`
 }
 
-// SwapData struct.
-type SwapData struct {
-	JobID             JobID
-	Attempt           int
-	BoltzID           string
-	State             State
-	AllowZeroConf     bool
-	TimoutBlockHeight uint32
-	Script            string
-	Sats              uint64
-	Address           string
-
-	// Normal swap
-	Invoice             string
-	LockupTransactionId string
-
-	// Reverse swap
-	ReverseInvoice   string
-	ReverseChannelId uint64 // 0 means node level
-	//ReverseMinerInvoice string - not supported
-	ChanIdsToUse []uint64
-	ExpectedSats uint64
-
-	IsDryRun       bool
-	OriginaJobData JobData // original job data
-}
-
 // ParseJobData gets a new JobData from bytes
 func ParseJobData(id int32, bytes []byte) (*JobData, error) {
 	var jd JobData

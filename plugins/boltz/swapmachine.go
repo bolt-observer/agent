@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bolt-observer/agent/entities"
+	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/golang/glog"
 )
 
@@ -110,7 +111,18 @@ func (s *SwapMachine) FsmSwapSuccess(in FsmIn) FsmOut {
 
 func (s *SwapMachine) nextRound(in FsmIn) FsmOut {
 	ctx := context.Background()
-	sd, err := s.BoltzPlugin.JobDataToSwapData(ctx, s.BoltzPlugin.Limits, &in.SwapData.OriginaJobData, in.MsgCallback)
+
+	lnConnection, err := s.LnAPI()
+	if err != nil {
+		return FsmOut{Error: err}
+	}
+	if lnConnection == nil {
+		return FsmOut{Error: fmt.Errorf("error getting lightning API")}
+	}
+
+	defer lnConnection.Cleanup()
+
+	sd, err := s.JobDataToSwapData(ctx, s.BoltzPlugin.Limits, &in.SwapData.OriginaJobData, in.MsgCallback, lnConnection, s.BoltzPlugin.Filter)
 
 	if err == ErrNoNeedToDoAnything {
 		if in.MsgCallback != nil {
@@ -129,6 +141,8 @@ func (s *SwapMachine) nextRound(in FsmIn) FsmOut {
 		}
 
 		return FsmOut{}
+	} else if err != nil {
+		return FsmOut{Error: err}
 	}
 
 	// TODO: does this make sense? Maybe we should start multiple swaps in parallel at the begining
@@ -144,8 +158,15 @@ func (s *SwapMachine) nextRound(in FsmIn) FsmOut {
 			})
 		}
 
+		// Make sure after swap latest data is sent
+		if s.NodeDataInvalidator != nil {
+			s.NodeDataInvalidator.Invalidate()
+		}
+
 		return FsmOut{}
 	}
+
+	fmt.Printf("New SD %+v\n", sd)
 
 	in.SwapData = sd
 	go s.Eval(in, sd.State)
@@ -250,16 +271,20 @@ func (s *State) isFinal() bool {
 
 // Swapmachine is a finite state machine used for swaps.
 type SwapMachine struct {
-	Machine             *Fsm[FsmIn, FsmOut, State]
+	Machine *Fsm[FsmIn, FsmOut, State]
+	// TODO: we should not be referencing plugin here
 	BoltzPlugin         *Plugin
 	NodeDataInvalidator entities.Invalidatable
+	JobDataToSwapData   JobDataToSwapDataFn
+	LnAPI               agent_entities.NewAPICall
 }
 
-func NewSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable) *SwapMachine {
+func NewSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData JobDataToSwapDataFn, lnAPI agent_entities.NewAPICall) *SwapMachine {
 	s := &SwapMachine{Machine: &Fsm[FsmIn, FsmOut, State]{States: make(map[State]func(data FsmIn) FsmOut)},
-		// TODO: instead of BoltzPlugin this should be a bit more granular
 		BoltzPlugin:         plugin,
 		NodeDataInvalidator: nodeDataInvalidator,
+		JobDataToSwapData:   jobDataToSwapData,
+		LnAPI:               lnAPI,
 	}
 
 	s.Machine.States[SwapFailed] = FsmWrap(s.FsmSwapFailed, plugin)

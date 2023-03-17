@@ -51,7 +51,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 	// times 2 is used as a safety margin
 	minerFees := 2 * res.Fees.MinerFees.BaseAsset.Reverse.Claim
 
-	lnConnection, err := s.BoltzPlugin.LnAPI()
+	lnConnection, err := s.LnAPI()
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -80,7 +80,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 
 	// Check funds
 	if in.SwapData.ReverseChannelId == 0 {
-		capacity, err := s.BoltzPlugin.GetByDescendingOutboundLiquidity(ctx, sats+SafetyMargin, lnConnection)
+		capacity, err := GetByDescendingOutboundLiquidity(ctx, sats+SafetyMargin, lnConnection, s.BoltzPlugin.Filter)
 		if err != nil {
 			return FsmOut{Error: err}
 		}
@@ -96,7 +96,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 		in.SwapData.ChanIdsToUse = chans
 	} else {
 		// Will error when sufficient funds are not available
-		_, _, err = s.BoltzPlugin.GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, true, lnConnection)
+		_, _, err = GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, true, lnConnection, s.BoltzPlugin.Filter)
 		if err != nil {
 			return FsmOut{Error: err}
 		}
@@ -130,7 +130,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 	}
 
 	for {
-		lnConnection, err := s.BoltzPlugin.LnAPI()
+		lnConnection, err := s.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
