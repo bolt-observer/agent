@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bolt-observer/agent/checkermonitoring"
 	"github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
@@ -37,24 +38,24 @@ type NodeData struct {
 	smooth            bool          // Should we smooth out fluctuations due to HTLCs
 	keepAliveInterval time.Duration // Keepalive interval
 	checkGraph        bool          // Should we check gossip
-	monitoring        *Monitoring
+	monitoring        *checkermonitoring.CheckerMonitoring
 	eventLoopInterval time.Duration
 	reentrancyBlock   *entities.ReentrancyBlock
 }
 
 // NewDefaultNodeData constructs a new NodeData
-func NewDefaultNodeData(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *Monitoring) *NodeData {
+func NewDefaultNodeData(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *checkermonitoring.CheckerMonitoring) *NodeData {
 	return NewNodeData(ctx, NewInMemoryChannelCache(), keepAlive, smooth, checkGraph, monitoring)
 }
 
 // NewNodeData constructs a new NodeData
-func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *Monitoring) *NodeData {
+func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *checkermonitoring.CheckerMonitoring) *NodeData {
 	if ctx == nil {
 		ctx = getContext()
 	}
 
 	if monitoring == nil {
-		monitoring = NewNopNodeDataMonitoring("nodedata")
+		monitoring = checkermonitoring.NewNopCheckerMonitoring("nodedata")
 	}
 
 	return &NodeData{
@@ -598,10 +599,11 @@ func (c *NodeData) checkOne(
 	}
 
 	nodeInfoFull := &entities.NodeDetails{
-		NodeVersion:         info.Version,
-		IsSyncedToChain:     info.IsSyncedToChain,
-		IsSyncedToGraph:     info.IsSyncedToGraph,
-		TotalOnChainBalance: uint64(funds.TotalBalance),
+		NodeVersion:                    info.Version,
+		IsSyncedToChain:                info.IsSyncedToChain,
+		IsSyncedToGraph:                info.IsSyncedToGraph,
+		TotalOnChainBalanceConfirmed:   uint64(funds.ConfirmedBalance),
+		TotalOnChainBalanceUnconfirmed: uint64(funds.TotalBalance - funds.ConfirmedBalance),
 	}
 
 	nodeInfoFull.NodeInfoAPIExtended = *nodeInfo

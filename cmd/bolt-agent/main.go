@@ -24,6 +24,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/bolt-observer/agent/actions"
+	"github.com/bolt-observer/agent/checkermonitoring"
 	raw "github.com/bolt-observer/agent/data-upload"
 	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
@@ -593,7 +594,7 @@ func runAgent(cmdCtx *cli.Context) error {
 	var nodeDataChecker *nodedata.NodeData
 
 	if periodicSend {
-		nodeDataChecker = nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedata checker"))
+		nodeDataChecker = nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), checkermonitoring.NewNopCheckerMonitoring("nodedata checker"))
 		settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
 		if settings.PollInterval == agent_entities.ManualRequest {
