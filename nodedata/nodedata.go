@@ -599,11 +599,11 @@ func (c *NodeData) checkOne(
 	}
 
 	nodeInfoFull := &entities.NodeDetails{
-		NodeVersion:                    info.Version,
-		IsSyncedToChain:                info.IsSyncedToChain,
-		IsSyncedToGraph:                info.IsSyncedToGraph,
-		TotalOnChainBalanceConfirmed:   uint64(funds.ConfirmedBalance),
-		TotalOnChainBalanceUnconfirmed: uint64(funds.TotalBalance - funds.ConfirmedBalance),
+		NodeVersion:             info.Version,
+		IsSyncedToChain:         info.IsSyncedToChain,
+		IsSyncedToGraph:         info.IsSyncedToGraph,
+		OnChainBalanceConfirmed: uint64(funds.ConfirmedBalance),
+		OnChainBalanceTotal:     uint64(funds.TotalBalance),
 	}
 
 	nodeInfoFull.NodeInfoAPIExtended = *nodeInfo
