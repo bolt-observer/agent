@@ -21,6 +21,10 @@ func (f FsmIn) GetJobID() JobID {
 	return f.SwapData.JobID
 }
 
+func (f FsmIn) GetUniqueJobID() string {
+	return f.SwapData.GetUniqueJobID()
+}
+
 type FsmOut struct {
 	Error     error
 	NextState State

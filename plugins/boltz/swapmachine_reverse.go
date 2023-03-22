@@ -25,7 +25,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 
 	log(in, fmt.Sprintf("Will do a reverse submarine swap with %v sats", sats))
 
-	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
+	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(in.GetUniqueJobID())
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -51,7 +51,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 	// times 2 is used as a safety margin
 	minerFees := 2 * res.Fees.MinerFees.BaseAsset.Reverse.Claim
 
-	lnConnection, err := s.BoltzPlugin.LnAPI()
+	lnConnection, err := s.LnAPI()
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -76,11 +76,19 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 		return FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, s.BoltzPlugin.MaxFeePercentage)}
 	}
 
+	totalFee := float64(in.SwapData.FeesPaidSoFar+(sats-response.OnchainAmount)) / float64(in.SwapData.SatsSwappedSoFar+sats) * 100
+	if totalFee > s.BoltzPlugin.MaxFeePercentage {
+		return FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, s.BoltzPlugin.MaxFeePercentage)}
+	}
+
 	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100))
+
+	in.SwapData.FeesPaidSoFar += (sats-response.OnchainAmount)
+	in.SwapData.SatsSwappedSoFar += sats
 
 	// Check funds
 	if in.SwapData.ReverseChannelId == 0 {
-		capacity, err := s.BoltzPlugin.GetByDescendingOutboundLiquidity(ctx, sats+SafetyMargin, lnConnection)
+		capacity, err := GetByDescendingOutboundLiquidity(ctx, sats+SafetyMargin, lnConnection, s.BoltzPlugin.Filter)
 		if err != nil {
 			return FsmOut{Error: err}
 		}
@@ -96,7 +104,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 		in.SwapData.ChanIdsToUse = chans
 	} else {
 		// Will error when sufficient funds are not available
-		_, _, err = s.BoltzPlugin.GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, true, lnConnection)
+		_, _, err = GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, true, lnConnection, s.BoltzPlugin.Filter)
 		if err != nil {
 			return FsmOut{Error: err}
 		}
@@ -130,7 +138,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 	}
 
 	for {
-		lnConnection, err := s.BoltzPlugin.LnAPI()
+		lnConnection, err := s.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -147,7 +155,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 
 			_, err = lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, in.SwapData.ChanIdsToUse)
 			if err != nil {
-				log(in, fmt.Sprintf("Failed paying invoice %v", in.SwapData.ReverseInvoice))
+				log(in, fmt.Sprintf("Failed paying invoice %v due to %v", in.SwapData.ReverseInvoice, err))
 				if in.SwapData.ReverseChannelId == 0 {
 					// this means node level liquidity - if the hints worked that would be nice, but try without them too
 
@@ -163,7 +171,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 
 		s, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
-			log(in, fmt.Sprintf("error communicating with BoltzAPI: %v", err))
+			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err))
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -181,7 +189,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 
 		info, err := lnConnection.GetInfo(ctx)
 		if err != nil {
-			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err))
+			log(in, fmt.Sprintf("Error communicating with LNAPI: %v", err))
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -202,10 +210,47 @@ func (s *SwapMachine) FsmClaimReverseFunds(in FsmIn) FsmOut {
 	}
 
 	// debug
-	log(in, fmt.Sprintf("Adding entry %+v to redeem locked funds", in.SwapData))
+	log(in, fmt.Sprintf("Adding entry %v to redeem locked funds", in.SwapData.JobID))
 
 	s.BoltzPlugin.ReverseRedeemer.AddEntry(in)
 	return FsmOut{}
+}
+
+func (s *SwapMachine) FsmSwapClaimed(in FsmIn) FsmOut {
+	// This just happpened while e2e testing, in practice we don't really care if
+	// Boltz does not claim their funds
+
+	log(in, fmt.Sprintf("Locked funds were claimed %v", in.SwapData.JobID))
+
+	SleepTime := s.getSleepTime(in)
+	MaxWait := 2 * time.Minute // do we need to make this configurable?
+
+	start := time.Now()
+
+	for {
+		now := time.Now()
+		if now.After(start.Add(MaxWait)) {
+			break
+		}
+
+		s, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
+		if err != nil {
+			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err))
+			time.Sleep(SleepTime)
+			continue
+		}
+
+		status := boltz.ParseEvent(s.Status)
+
+		if status == boltz.InvoiceSettled {
+			break
+		} else {
+			log(in, fmt.Sprintf("Boltz did not claim funds on their side %v, status is %v", in.SwapData.JobID, status))
+		}
+	}
+
+	return FsmOut{NextState: SwapSuccess}
+
 }
 
 func CreateReverseSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, sats uint64, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateReverseSwapResponse, error) {

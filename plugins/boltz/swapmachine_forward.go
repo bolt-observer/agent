@@ -23,7 +23,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 
 	log(in, fmt.Sprintf("Will do a submarine swap with %v sats", sats))
 
-	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
+	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(in.GetUniqueJobID())
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -49,7 +49,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	// times 2 is used as a safety margin
 	minerFees := 2 * res.Fees.MinerFees.BaseAsset.Normal
 
-	lnConnection, err := s.BoltzPlugin.LnAPI()
+	lnConnection, err := s.LnAPI()
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -78,6 +78,11 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	fee := float64(response.ExpectedAmount-sats+minerFees) / float64(sats)
 	if fee*100 > s.BoltzPlugin.MaxFeePercentage {
 		return FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, s.BoltzPlugin.MaxFeePercentage)}
+	}
+
+	totalFee := float64(in.SwapData.FeesPaidSoFar+(response.ExpectedAmount-sats)) / float64(in.SwapData.SatsSwappedSoFar+response.ExpectedAmount) * 100
+	if totalFee > s.BoltzPlugin.MaxFeePercentage {
+		return FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, s.BoltzPlugin.MaxFeePercentage)}
 	}
 
 	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100))
@@ -115,6 +120,9 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	log(in, fmt.Sprintf("Transaction ID for swap is %v (invoice hash %v)", tx, invoice.Hash))
 	in.SwapData.LockupTransactionId = tx
 
+	in.SwapData.FeesPaidSoFar += (response.ExpectedAmount - sats)
+	in.SwapData.SatsSwappedSoFar += response.ExpectedAmount
+
 	return FsmOut{NextState: OnChainFundsSent}
 }
 
@@ -128,7 +136,7 @@ func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 	}
 
 	for {
-		lnAPI, err := s.BoltzPlugin.LnAPI()
+		lnAPI, err := s.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -200,7 +208,7 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in FsmIn) FsmOut {
 
 	// Wait for expiry
 	for {
-		lnConnection, err := s.BoltzPlugin.LnAPI()
+		lnConnection, err := s.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -252,7 +260,7 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
 	SleepTime := s.getSleepTime(in)
 
 	for {
-		lnConnection, err := s.BoltzPlugin.LnAPI()
+		lnConnection, err := s.LnAPI()
 		if err != nil {
 			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -264,7 +272,7 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
 			continue
 		}
 
-		keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(fmt.Sprintf("%d", in.GetJobID()))
+		keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(in.GetUniqueJobID())
 		if err != nil {
 			log(in, "error getting keys")
 			time.Sleep(SleepTime)

@@ -16,16 +16,14 @@ func TestGetNodeLiquidity(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndGrpc), f, getMockCliCtx("", "", "regtest"), nil)
-	if b == nil || b.LnAPI == nil {
-		if FailNoCredsBoltz {
-			t.Fail()
-		}
+	l := getAPI(t, "fixture.secret", api.LndGrpc)
+	if l == nil {
 		return
 	}
+	lnAPI, err := l()
 	assert.NoError(t, err)
 
-	_, err = b.GetNodeLiquidity(context.Background(), nil)
+	_, err = GetNodeLiquidity(context.Background(), lnAPI, f)
 	assert.NoError(t, err)
 }
 
@@ -33,17 +31,15 @@ func TestGetByDescendingOutboundLiqudity(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndGrpc), f, getMockCliCtx("", "", "regtest"), nil)
-	if b == nil || b.LnAPI == nil {
-		if FailNoCredsBoltz {
-			t.Fail()
-		}
+	l := getAPI(t, "fixture.secret", api.LndGrpc)
+	if l == nil {
 		return
 	}
+	lnAPI, err := l()
 	assert.NoError(t, err)
 
 	const Limit = uint64(3523220)
-	resp, err := b.GetByDescendingOutboundLiquidity(context.Background(), Limit, nil)
+	resp, err := GetByDescendingOutboundLiquidity(context.Background(), Limit, lnAPI, f)
 	assert.NoError(t, err)
 
 	total := uint64(0)
