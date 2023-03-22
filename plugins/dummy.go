@@ -17,6 +17,6 @@ var (
 	Plugins        map[string]agent_entities.Plugin
 )
 
-func InitPlugins(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context) error {
+func InitPlugins(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) error {
 	return nil
 }

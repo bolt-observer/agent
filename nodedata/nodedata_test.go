@@ -226,13 +226,82 @@ func TestBasicFlow(t *testing.T) {
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 	wasCalled := false
 
 	c.Subscribe(
 		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+			if report.NodeDetails.OnChainBalanceConfirmed == 0 {
+				return true
+			}
+			if len(report.ChangedChannels) == 2 && report.UniqueID == "random_id" {
+				wasCalled = true
+			}
+
+			cancel()
+			return true
+		},
+		func() (lightning_api.LightingAPICalls, error) { return api, nil },
+		pubKey,
+		agent_entities.ReportingSettings{
+			AllowedEntropy:       64,
+			PollInterval:         agent_entities.Second,
+			AllowPrivateChannels: true,
+		},
+		"random_id",
+	)
+
+	c.EventLoop()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("Took too long")
+	case <-ctx.Done():
+		if !wasCalled {
+			t.Fatalf("Callback was not correctly invoked")
+		}
+	}
+}
+
+func TestBasicFlowDoNotReportBalance(t *testing.T) {
+	pubKey, api, d := initTest(t)
+
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
+		var contents string
+		if strings.Contains(req.URL.Path, "v1/getinfo") {
+			contents = getInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else if strings.Contains(req.URL.Path, "v1/channels") {
+			contents = getChannelJSON(1337, false, true)
+		} else if strings.Contains(req.URL.Path, "v1/graph/edge") {
+			contents = getChanInfo(req.URL.Path)
+		} else if strings.Contains(req.URL.Path, "v1/graph/node") {
+			contents = getNodeInfoJSON("02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256")
+		} else if strings.Contains(req.URL.Path, "v1/balance/blockchain") {
+			contents = getBalanceJSON()
+		}
+
+		r := io.NopCloser(bytes.NewReader([]byte(contents)))
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, true, nil)
+	// Make everything a bit faster
+	c.OverrideLoopInterval(1 * time.Second)
+	wasCalled := false
+
+	c.Subscribe(
+		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+			if report.NodeDetails.OnChainBalanceConfirmed != 0 || report.NodeDetails.OnChainBalanceNotReported != true {
+				return true
+			}
 			if len(report.ChangedChannels) == 2 && report.UniqueID == "random_id" {
 				wasCalled = true
 			}
@@ -288,7 +357,7 @@ func TestContextCanBeNil(t *testing.T) {
 		}, nil
 	}
 
-	c := NewDefaultNodeData(nil, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(nil, time.Duration(0), true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 	wasCalled := false
@@ -352,7 +421,7 @@ func TestGetState(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 	defer cancel()
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 
 	resp, err := c.GetState(
 		pubKey, "random_id",
@@ -404,7 +473,7 @@ func TestGetStateCallback(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 	defer cancel()
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 
 	var callresp *agent_entities.NodeDataReport
 	callresp = nil
@@ -476,7 +545,7 @@ func TestSubscription(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 	defer cancel()
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 
 	if c.IsSubscribed(pubKey, "random_id") {
 		t.Fatalf("Should not be subscribed")
@@ -559,7 +628,7 @@ func TestPrivateChannelsExcluded(t *testing.T) {
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 	wasCalled := false
@@ -630,7 +699,7 @@ func TestInactiveFlow(t *testing.T) {
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 
@@ -721,7 +790,7 @@ func TestChange(t *testing.T) {
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 
@@ -794,7 +863,7 @@ func TestPubkeyWrong(t *testing.T) {
 		}, nil
 	}
 
-	c := NewDefaultNodeData(context.Background(), time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(context.Background(), time.Duration(0), true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 
@@ -853,7 +922,7 @@ func TestKeepAliveIsSent(t *testing.T) {
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 
-	c := NewDefaultNodeData(ctx, 2*time.Second, true, false, nil)
+	c := NewDefaultNodeData(ctx, 2*time.Second, true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 
@@ -941,7 +1010,7 @@ func TestKeepAliveIsNotSentWhenError(t *testing.T) {
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(6*time.Second))
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 
@@ -1023,7 +1092,7 @@ func TestChangeIsCachedWhenCallbackFails(t *testing.T) {
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 
@@ -1116,7 +1185,7 @@ func TestGraphIsRequested(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 	defer cancel()
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, true, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, true, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 
@@ -1184,7 +1253,7 @@ func TestBasicFlowRedis(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 
 	// Use redis
-	c := NewNodeData(ctx, NewRedisChannelCache(), time.Duration(0), true, false, nil)
+	c := NewNodeData(ctx, NewRedisChannelCache(), time.Duration(0), true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 	wasCalled := false
@@ -1255,7 +1324,7 @@ func TestBaseFeePolicyChange(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 	defer cancel()
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 
 	err := c.Subscribe(
 		func(ctx context.Context, report *agent_entities.NodeDataReport) bool {
@@ -1333,7 +1402,7 @@ func TestBasicFlowFilterOne(t *testing.T) {
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 	wasCalled := false
@@ -1401,7 +1470,7 @@ func TestBasicFlowFilterTwo(t *testing.T) {
 	}
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 
-	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, nil)
+	c := NewDefaultNodeData(ctx, time.Duration(0), true, false, false, nil)
 	// Make everything a bit faster
 	c.OverrideLoopInterval(1 * time.Second)
 	wasCalled := false

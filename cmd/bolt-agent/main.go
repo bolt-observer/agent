@@ -337,6 +337,11 @@ func getApp() *cli.App {
 			Usage:  "do not load any plugins",
 			Hidden: true,
 		},
+		&cli.BoolFlag{
+			Name:   "noonchainbalance",
+			Usage:  "do not report on-chain balance",
+			Hidden: true,
+		},
 	}
 
 	app.Flags = append(app.Flags, glogFlags...)
@@ -594,7 +599,7 @@ func runAgent(cmdCtx *cli.Context) error {
 	var nodeDataChecker *nodedata.NodeData
 
 	if periodicSend {
-		nodeDataChecker = nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), checkermonitoring.NewNopCheckerMonitoring("nodedata checker"))
+		nodeDataChecker = nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), cmdCtx.Bool("noonchainbalance"), checkermonitoring.NewNopCheckerMonitoring("nodedata checker"))
 		settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
 		if settings.PollInterval == agent_entities.ManualRequest {
