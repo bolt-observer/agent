@@ -339,7 +339,7 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:   "noonchainbalance",
-			Usage:  "do report on-chain balance",
+			Usage:  "do not report on-chain balance",
 			Hidden: true,
 		},
 	}
