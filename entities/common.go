@@ -19,7 +19,7 @@ func (n *NodeIdentifier) GetID() string {
 }
 
 // NewAPICall is the signature of the function to get Lightning API
-type NewAPICall func() api.LightingAPICalls
+type NewAPICall func() (api.LightingAPICalls, error)
 
 // ReentrancyBlock is used to block reentrancy based on string ID
 type ReentrancyBlock struct {
@@ -61,4 +61,9 @@ func (r *ReentrancyBlock) Release(id string) {
 	r.mutex.Unlock()
 
 	sem.Release(1)
+}
+
+// Invalidatable interface.
+type Invalidatable interface {
+	Invalidate() error
 }

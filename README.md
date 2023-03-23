@@ -18,7 +18,7 @@ USAGE:
    bolt-agent [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.0.46
+   v0.0.47
 
 COMMANDS:
    help, h  Shows a list of commands or help for one command
@@ -49,6 +49,7 @@ ADVANCED OPTIONS:
    --fetch-invoices            fetch invoices (default: 0)
    --fetch-forwards            fetch forwards (default: 0)
    --fetch-payments            fetch payments (default: 0)
+   --noplugins                 disable plugins (default: false)
 
 GLOG OPTIONS (described in https://github.com/google/glog#setting-flags):
    --verbosity (instead of -v)
@@ -225,8 +226,11 @@ Internally we use:
 * [filter](./filter): this is used to filter specific channels on the agent side
 * [checkermonitoring](./checkermonitoring): is used for reporting metrics via Graphite (not used directly in bolt-agent here)
 * [lightning](./lightning): an abstraction around lightning node API (that furthermore heavily depends on common code from [lnd](https://github.com/lightningnetwork/lnd))
-* [agent](./agent): is the GRPC client for new funcionality
+* [lnsocket](./lnsocket): a way to establish a commando connection with CLN nodes
+* [agent](./agent): is the GRPC client for reporting payment data
+* [actions](./actions): is the GRPC client for getting what actios to invoke
 * [raw](./raw): is the connection between [agent](./agent) API and [lightning](./lightning) API
+* [plugins](./plugins): contains the plugins
 
 ## Dependencies
 

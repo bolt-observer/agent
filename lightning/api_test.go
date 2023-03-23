@@ -4,37 +4,34 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
-	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestApiSelection(t *testing.T) {
-
-	cert := utils.ObtainCert("bolt.observer:443")
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
 
+	ignore := 4
 	data := entities.Data{
-		PubKey:            "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
-		MacaroonHex:       dummyMac,
-		CertificateBase64: cert,
-		Endpoint:          "bolt.observer:443",
+		PubKey:               "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
+		MacaroonHex:          dummyMac,
+		Endpoint:             "bolt.observer:443",
+		CertVerificationType: &ignore,
 	}
 
 	// ApiType in NewApi() is a preference that can be overriden through data
 
 	// Invalid API type
-	api := NewAPI(APIType(500), func() (*entities.Data, error) {
+	api, err := NewAPI(APIType(500), func() (*entities.Data, error) {
 		return &data, nil
 	})
-
+	assert.Error(t, err)
 	if api != nil {
 		t.Fatalf("API should be nil")
 	}
@@ -45,9 +42,10 @@ func TestApiSelection(t *testing.T) {
 
 	temp := data.Endpoint
 	data.Endpoint = name
-	api = NewAPI(ClnSocket, func() (*entities.Data, error) {
+	api, err = NewAPI(ClnSocket, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 	data.Endpoint = temp
 
 	if api == nil {
@@ -60,9 +58,10 @@ func TestApiSelection(t *testing.T) {
 	}
 
 	// Use gRPC
-	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -74,9 +73,10 @@ func TestApiSelection(t *testing.T) {
 	}
 
 	// Use REST
-	api = NewAPI(LndRest, func() (*entities.Data, error) {
+	api, err = NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -90,9 +90,10 @@ func TestApiSelection(t *testing.T) {
 	v := int(LndGrpc)
 	data.ApiType = &v
 
-	api = NewAPI(LndRest, func() (*entities.Data, error) {
+	api, err = NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -106,9 +107,10 @@ func TestApiSelection(t *testing.T) {
 	v = int(LndRest)
 	data.ApiType = &v
 
-	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -123,9 +125,10 @@ func TestApiSelection(t *testing.T) {
 	v = 500
 	data.ApiType = &v
 
-	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -139,28 +142,29 @@ func TestApiSelection(t *testing.T) {
 }
 
 func TestGrpcDoesNotOpenConnection(t *testing.T) {
-	cert := utils.ObtainCert("bolt.observer:443")
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
-
+	ignore := 4
 	data := entities.Data{
-		PubKey:            "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
-		MacaroonHex:       dummyMac,
-		CertificateBase64: cert,
-		Endpoint:          "bolt.observer:443",
+		PubKey:               "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
+		MacaroonHex:          dummyMac,
+		Endpoint:             "bolt.observer:443",
+		CertVerificationType: &ignore,
 	}
 
-	api := NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err := NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
 	}
 
 	data.Endpoint = "burek:444"
-	api = NewAPI(LndGrpc, func() (*entities.Data, error) {
+	api, err = NewAPI(LndGrpc, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
@@ -168,99 +172,33 @@ func TestGrpcDoesNotOpenConnection(t *testing.T) {
 }
 
 func TestRestDoesNotOpenConnection(t *testing.T) {
-	cert := utils.ObtainCert("bolt.observer:443")
 	dummyMac := "0201036c6e640224030a10f1c3ac8f073a46b6474e24b780a96c3f1201301a0c0a04696e666f12047265616400022974696d652d6265666f726520323032322d30382d30385430383a31303a30342e38383933303336335a00020e69706164647220312e322e332e34000006201495fe7fe048b47ff26abd66a56393869aec2dcb249594ebea44d398f58f26ec"
-
+	ignore := 4
 	data := entities.Data{
-		PubKey:            "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
-		MacaroonHex:       dummyMac,
-		CertificateBase64: cert,
-		Endpoint:          "bolt.observer:443",
+		PubKey:               "030f7b46defcec976ed516de5e7841bdcb7a19bb388b679ec9dba4bb526e93efb0",
+		MacaroonHex:          dummyMac,
+		Endpoint:             "bolt.observer:443",
+		CertVerificationType: &ignore,
 	}
 
-	api := NewAPI(LndRest, func() (*entities.Data, error) {
+	api, err := NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
 	}
 
 	data.Endpoint = "burek:444"
-	api = NewAPI(LndRest, func() (*entities.Data, error) {
+	api, err = NewAPI(LndRest, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	if api == nil {
 		t.Fatalf("API should not be nil")
 	}
-}
-
-type MockLightningAPI struct {
-	Trace string
-}
-
-func (m *MockLightningAPI) Cleanup() {}
-func (m *MockLightningAPI) GetInfo(ctx context.Context) (*InfoAPI, error) {
-	m.Trace += "getinfo"
-	return &InfoAPI{IdentityPubkey: "fake"}, nil
-}
-
-func (m *MockLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, error) {
-	m.Trace += "getchannels"
-	return &ChannelsAPI{Channels: []ChannelAPI{{ChanID: 1, Capacity: 1}, {ChanID: 2, Capacity: 2, Private: true}}}, nil
-}
-
-func (m *MockLightningAPI) DescribeGraph(ctx context.Context, unannounced bool) (*DescribeGraphAPI, error) {
-	m.Trace += "describegraph" + strconv.FormatBool(unannounced)
-
-	return &DescribeGraphAPI{Nodes: []DescribeGraphNodeAPI{{PubKey: "fake"}},
-		Channels: []NodeChannelAPI{{ChannelID: 1, Capacity: 1, Node1Pub: "fake"}, {ChannelID: 2, Capacity: 2, Node2Pub: "fake"}}}, nil
-}
-func (m *MockLightningAPI) GetNodeInfoFull(ctx context.Context, channels, unannounced bool) (*NodeInfoAPIExtended, error) {
-	// Do not use
-	m.Trace += "wrong"
-	return nil, nil
-}
-func (m *MockLightningAPI) GetNodeInfo(ctx context.Context, pubKey string, channels bool) (*NodeInfoAPI, error) {
-	m.Trace += "getnodeinfo" + pubKey + strconv.FormatBool(channels)
-
-	return &NodeInfoAPI{Node: DescribeGraphNodeAPI{PubKey: "fake"},
-		Channels:    []NodeChannelAPI{{ChannelID: 1, Capacity: 1}},
-		NumChannels: 2, TotalCapacity: 3}, nil
-}
-
-func (m *MockLightningAPI) GetChanInfo(ctx context.Context, chanID uint64) (*NodeChannelAPI, error) {
-	m.Trace += fmt.Sprintf("getchaninfo%d", chanID)
-	return &NodeChannelAPI{ChannelID: chanID, Capacity: chanID}, nil
-}
-
-func (m *MockLightningAPI) GetInvoices(ctx context.Context, pendingOnly bool, pagination Pagination) (*InvoicesResponse, error) {
-	panic("not implemented")
-}
-
-func (m *MockLightningAPI) SubscribeForwards(ctx context.Context, since time.Time, batchSize uint16, maxErrors uint16) (<-chan []ForwardingEvent, <-chan ErrorData) {
-	panic("not implemented")
-}
-
-func (m *MockLightningAPI) GetPayments(ctx context.Context, includeIncomplete bool, pagination Pagination) (*PaymentsResponse, error) {
-	panic("not implemented")
-}
-
-func (m *MockLightningAPI) GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
-	panic("not implemented")
-}
-
-func (m *MockLightningAPI) GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
-	panic("not implemented")
-}
-
-func (m *MockLightningAPI) GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error) {
-	panic("not implemented")
-}
-
-func (m *MockLightningAPI) GetAPIType() APIType {
-	panic("not implemented")
 }
 
 func TestNodeInfoFull(t *testing.T) {
@@ -414,14 +352,35 @@ func TestRawMessageSerialization(t *testing.T) {
 			t.Fatalf("Message marshal error: %v\n", err)
 		}
 
-		msg, err := json.Marshal(raw)
+		_, err := json.Marshal(raw)
 		if err != nil {
 			t.Fatalf("Wrapped message marshal error: %v\n", err)
 		}
-
-		fmt.Printf("JSON |%s|\n", msg)
 	}
 
 	//t.Fail()
 
+}
+
+func TestCtxError(t *testing.T) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(8*time.Second))
+
+	done := false
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			if ctx.Err() != nil {
+				//fmt.Printf("Error: %v\n", ctx.Err())
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		done = true
+	}()
+
+	cancel()
+	time.Sleep(200 * time.Millisecond)
+	assert.Equal(t, true, done)
+
+	//t.Fail()
 }

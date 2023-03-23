@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -22,23 +21,33 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/golang/glog"
 	cli "github.com/urfave/cli"
+	"golang.org/x/sync/errgroup"
 
+	"github.com/bolt-observer/agent/actions"
+	"github.com/bolt-observer/agent/checkermonitoring"
 	raw "github.com/bolt-observer/agent/data-upload"
 	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/agent/nodedata"
+	"github.com/bolt-observer/agent/plugins"
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 
 	agent_entities "github.com/bolt-observer/agent/entities"
+
+	// we need this so init() is called
+	_ "github.com/bolt-observer/agent/plugins/boltz"
 )
 
 const (
-	defaultDataDir          = "data"
-	defaultChainSubDir      = "chain"
-	defaultTLSCertFilename  = "tls.cert"
-	defaultMacaroonFilename = "readonly.macaroon"
-	whitelist               = "channel-whitelist"
+	defaultDataDir               = "data"
+	defaultChainSubDir           = "chain"
+	defaultTLSCertFilename       = "tls.cert"
+	defaultReadMacaroonFilename  = "readonly.macaroon"
+	defaultAdminMacaroonFilename = "admin.macaroon"
+	whitelist                    = "channel-whitelist"
+
+	periodicSend = true
 )
 
 var (
@@ -122,32 +131,6 @@ func getData(cmdCtx *cli.Context) (*entities.Data, error) {
 	return resp, nil
 }
 
-// cleanAndExpandPath expands environment variables and leading ~ in the
-// passed path, cleans the result, and returns it.
-// This function is taken from https://github.com/btcsuite/btcd
-func cleanAndExpandPath(path string) string {
-	if path == "" {
-		return ""
-	}
-
-	// Expand initial ~ to OS specific home directory.
-	if strings.HasPrefix(path, "~") {
-		var homeDir string
-		user, err := user.Current()
-		if err == nil {
-			homeDir = user.HomeDir
-		} else {
-			homeDir = os.Getenv("HOME")
-		}
-
-		path = strings.Replace(path, "~", homeDir, 1)
-	}
-
-	// NOTE: The os.ExpandEnv doesn't work with Windows-style %VARIABLE%,
-	// but the variables can still be expanded via POSIX-style $VARIABLE.
-	return filepath.Clean(os.ExpandEnv(path))
-}
-
 func extractPathArgs(ctx *cli.Context) (string, string, error) {
 	// We'll start off by parsing the active chain and network. These are
 	// needed to determine the correct path to the macaroon when not
@@ -170,24 +153,30 @@ func extractPathArgs(ctx *cli.Context) (string, string, error) {
 	// properly read the macaroons (if needed) and also the cert. This will
 	// either be the default, or will have been overwritten by the end
 	// user.
-	lndDir := cleanAndExpandPath(ctx.String("lnddir"))
+	lndDir := agent_entities.CleanAndExpandPath(ctx.String("lnddir"))
 
 	// If the macaroon path as been manually provided, then we'll only
 	// target the specified file.
 	var macPath string
 	if ctx.String("macaroonpath") != "" {
-		macPath = cleanAndExpandPath(ctx.String("macaroonpath"))
+		macPath = agent_entities.CleanAndExpandPath(ctx.String("macaroonpath"))
 	} else {
 		// Otherwise, we'll go into the path:
 		// lnddir/data/chain/<chain>/<network> in order to fetch the
 		// macaroon that we need.
+
+		name := defaultReadMacaroonFilename
+		if ctx.Bool("actions") {
+			name = defaultAdminMacaroonFilename
+		}
+
 		macPath = filepath.Join(
 			lndDir, defaultDataDir, defaultChainSubDir, chain,
-			network, defaultMacaroonFilename,
+			network, name,
 		)
 	}
 
-	tlsCertPath := cleanAndExpandPath(ctx.String("tlscertpath"))
+	tlsCertPath := agent_entities.CleanAndExpandPath(ctx.String("tlscertpath"))
 
 	// If a custom lnd directory was set, we'll also check if custom paths
 	// for the TLS cert and macaroon file were set as well. If not, we'll
@@ -330,9 +319,33 @@ func getApp() *cli.App {
 			Value:  0,
 			Hidden: true,
 		},
+		&cli.BoolFlag{
+			Name:  "actions",
+			Usage: "allow execution of actions defined in the bolt app (beta feature)",
+		},
+		&cli.BoolFlag{
+			Name:  "dryrun",
+			Usage: "allow execution of actions in dry run mode (no actions will actually be executed)",
+		},
+		&cli.BoolFlag{
+			Name:   "insecure",
+			Usage:  "allow insecure connections to the api. Can be usefull for debugging purposes",
+			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:   "noplugins",
+			Usage:  "do not load any plugins",
+			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:   "noonchainbalance",
+			Usage:  "do not report on-chain balance",
+			Hidden: true,
+		},
 	}
 
 	app.Flags = append(app.Flags, glogFlags...)
+	app.Flags = append(app.Flags, plugins.AllPluginFlags...)
 
 	return app
 }
@@ -403,6 +416,14 @@ func shouldCrash(status int, body string) {
 }
 
 func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport) bool {
+	if report == nil {
+		return true
+	}
+	if report.NodeDetails != nil {
+		// a bit cumbersome but we don't want to put GitRevision into the checker
+		report.NodeDetails.AgentVersion = fmt.Sprintf("bolt-agent/%s", GitRevision)
+	}
+
 	rep, err := json.Marshal(report)
 	if err != nil {
 		glog.Warningf("Error marshalling report: %v", err)
@@ -423,7 +444,7 @@ func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport
 		return false
 	}
 
-	req.Header.Set("User-Agent", fmt.Sprintf("boltobserver-agent/%s", GitRevision))
+	req.Header.Set("User-Agent", fmt.Sprintf("bolt-agent/%s", GitRevision))
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -459,7 +480,7 @@ func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport
 }
 
 func mkGetLndAPI(cmdCtx *cli.Context) agent_entities.NewAPICall {
-	return func() api.LightingAPICalls {
+	return func() (api.LightingAPICalls, error) {
 		return api.NewAPI(api.LndGrpc, func() (*entities.Data, error) {
 			return getData(cmdCtx)
 		})
@@ -514,13 +535,12 @@ func signalHandler(ctx context.Context, f filter.FilteringInterface) {
 	os.Exit(code)
 }
 
-func nodeDataChecker(cmdCtx *cli.Context) error {
+func runAgent(cmdCtx *cli.Context) error {
 	apiKey = utils.GetEnvWithDefault("API_KEY", "")
 	if apiKey == "" {
 		apiKey = cmdCtx.String("apikey")
 	}
-
-	if apiKey == "" && cmdCtx.String("url") != "" {
+	if apiKey == "" {
 		// We don't return error here since we don't want glog to handle it
 		fmt.Fprintf(os.Stderr, "missing API key (use --apikey or set API_KEY environment variable)\n")
 		os.Exit(1)
@@ -552,48 +572,99 @@ func nodeDataChecker(cmdCtx *cli.Context) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		if !cmdCtx.Bool("private") {
+			x := f.(*filter.AllowAllFilter)
+			x.Options = filter.AllowAllPublic
+		}
 	}
-
 	go signalHandler(ct, f)
 
 	url = cmdCtx.String("url")
 	private = cmdCtx.Bool("private") || cmdCtx.String(whitelist) != ""
+	preferipv4 = cmdCtx.Bool("preferipv4")
 
 	interval, err := getInterval(cmdCtx, "interval")
 	if err != nil {
 		return err
 	}
 
-	preferipv4 = cmdCtx.Bool("preferipv4")
-
 	if interval == agent_entities.Second {
 		// Second is just for testing purposes
 		interval = agent_entities.TenSeconds
 	}
 
-	nodeDataChecker := nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), nodedata.NewNopNodeDataMonitoring("nodedata checker"))
+	g, gctx := errgroup.WithContext(ct)
 
-	settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
+	var nodeDataChecker *nodedata.NodeData
 
-	sender(ct, cmdCtx, apiKey)
+	if periodicSend {
+		nodeDataChecker = nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), cmdCtx.Bool("noonchainbalance"), checkermonitoring.NewNopCheckerMonitoring("nodedata checker"))
+		settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
-	if settings.PollInterval == agent_entities.ManualRequest {
-		nodeDataChecker.GetState("", cmdCtx.String("uniqueid"), mkGetLndAPI(cmdCtx), settings, nodeDataCallback)
-	} else {
-		err = nodeDataChecker.Subscribe(
-			nodeDataCallback,
-			mkGetLndAPI(cmdCtx),
-			"",
-			settings,
-			cmdCtx.String("uniqueid"),
-		)
+		if settings.PollInterval == agent_entities.ManualRequest {
+			nodeDataChecker.GetState("", cmdCtx.String("uniqueid"), mkGetLndAPI(cmdCtx), settings, nodeDataCallback)
+		} else {
+			err = nodeDataChecker.Subscribe(
+				nodeDataCallback,
+				mkGetLndAPI(cmdCtx),
+				"",
+				settings,
+				cmdCtx.String("uniqueid"),
+			)
 
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
+
+			glog.Info("Waiting for events...")
+
+			g.Go(func() error {
+				nodeDataChecker.EventLoop()
+				return nil
+			})
 		}
+	}
 
-		glog.Info("Waiting for events...")
-		utils.WaitAll(nodeDataChecker)
+	if cmdCtx.Int64("fetch-invoices") != 0 || cmdCtx.Int64("fetch-payments") != 0 || cmdCtx.Int64("fetch-transactions") != 0 {
+		g.Go(func() error {
+			return sender(gctx, cmdCtx, apiKey)
+		})
+	}
+
+	if cmdCtx.Bool("actions") {
+		fn := mkGetLndAPI(cmdCtx)
+		if !cmdCtx.Bool("noplugins") {
+			// Need this due to https://stackoverflow.com/questions/43059653/golang-interfacenil-is-nil-or-not
+			var invalidatable agent_entities.Invalidatable
+			if nodeDataChecker == nil {
+				invalidatable = nil
+			} else {
+				invalidatable = agent_entities.Invalidatable(nodeDataChecker)
+			}
+			plugins.InitPlugins(fn, f, cmdCtx, invalidatable)
+		}
+		g.Go(func() error {
+			ac := &actions.Connector{
+				Address:    cmdCtx.String("datastore-url"),
+				APIKey:     cmdCtx.String("apikey"),
+				Plugins:    plugins.Plugins,
+				LnAPI:      fn,
+				IsInsecure: cmdCtx.Bool("insecure"),
+				IsDryRun:   cmdCtx.Bool("dryrun"),
+			}
+			// exponential backoff is used to reconnect if api is down
+			b := backoff.NewExponentialBackOff()
+			b.MaxElapsedTime = 0
+			return backoff.RetryNotify(func() error {
+				return ac.Run(gctx, b.Reset)
+			}, b, func(err error, d time.Duration) {
+				glog.Errorf("Could not connect to actions gRPC: %v", err)
+			})
+		})
+	}
+	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		glog.Errorf("Error while running agent: %v", err)
 	}
 
 	return nil
@@ -620,28 +691,28 @@ func convertTimeSetting(fetchSettingsValue int64) fetchSettings {
 	}
 }
 
-func sender(ctx context.Context, cmdCtx *cli.Context, apiKey string) {
-	if cmdCtx.String("datastore-url") != "" && apiKey != "" {
-		glog.Infof("Datastore server URL: %s", cmdCtx.String("datastore-url"))
+func sender(ctx context.Context, cmdCtx *cli.Context, apiKey string) error {
+	glog.Infof("Datastore server URL: %s", cmdCtx.String("datastore-url"))
 
-		b := backoff.NewExponentialBackOff()
-		b.MaxElapsedTime = 0
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 0
 
-		err := backoff.RetryNotify(func() error {
-			return senderWithRetries(ctx, cmdCtx, apiKey)
-		}, b, func(e error, d time.Duration) {
-			glog.Warningf("Could not init GRPC sending %v\n", e)
-		})
-		if err != nil {
-			glog.Warningf("Fatal error with GRPC sending init %v\n", err)
-		}
+	err := backoff.RetryNotify(func() error {
+		return senderWithRetries(ctx, cmdCtx, apiKey)
+	}, b, func(e error, d time.Duration) {
+		glog.Warningf("Could not init GRPC sending %v\n", e)
+	})
+	if err != nil {
+		glog.Warningf("Fatal error with GRPC sending init %v\n", err)
+		return err
 	}
+	return nil
 }
 
 func senderWithRetries(ctx context.Context, cmdCtx *cli.Context, apiKey string) error {
 	var permanent *backoff.PermanentError
 
-	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), mkGetLndAPI(cmdCtx))
+	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), mkGetLndAPI(cmdCtx), cmdCtx.Bool("insecure"))
 	if err != nil {
 		if permanent.Is(err) {
 			return backoff.Permanent(fmt.Errorf("get GRPC fetcher failure %v", err))
@@ -676,7 +747,7 @@ func main() {
 	app.Usage = "Utility to monitor and manage lightning node"
 	app.Action = func(cmdCtx *cli.Context) error {
 		glogShim(cmdCtx)
-		if err := nodeDataChecker(cmdCtx); err != nil {
+		if err := runAgent(cmdCtx); err != nil {
 			return err
 		}
 

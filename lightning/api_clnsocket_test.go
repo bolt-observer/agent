@@ -136,6 +136,23 @@ func clnCommon(t *testing.T, handler Handler) (*ClnSocketLightningAPI, LightingA
 	return d, api, closeFunc
 }
 
+func clnCannedResponse(t *testing.T, c net.Conn, method string, data []byte) {
+	req := RequestExtractor{}
+	err := json.NewDecoder(c).Decode(&req)
+	if err != nil {
+		t.Fatalf("Decode error: %v", err)
+	}
+
+	if strings.Contains(req.Method, method) {
+		reply := fmt.Sprintf(string(data), req.ID)
+		_, err = c.Write(([]byte)(reply))
+		assert.NoError(t, err)
+	}
+
+	err = c.Close()
+	assert.NoError(t, err)
+}
+
 type RequestExtractor struct {
 	ID     int    `json:"id"`
 	Method string `json:"method"`
@@ -145,25 +162,7 @@ func TestClnGetInfo(t *testing.T) {
 	data := clnData(t, "cln_info")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "getinfo") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "getinfo", data)
 	})
 	defer closer()
 
@@ -171,9 +170,7 @@ func TestClnGetInfo(t *testing.T) {
 	defer cancel()
 
 	resp, err := api.GetInfo(ctx)
-	if err != nil {
-		t.Fatalf("GetInfo call failed: %v", err)
-	}
+	assert.NoError(t, err)
 
 	if resp.IdentityPubkey != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" || resp.Alias != "cln1" || resp.Chain != "mainnet" || resp.Network != "bitcoin" {
 		t.Fatal("Wrong response")
@@ -189,25 +186,7 @@ func TestClnGetChanInfo(t *testing.T) {
 	data := clnData(t, "cln_listchans")
 
 	_, api, closer := clnCommon(t, func(c net.Conn) {
-		req := RequestExtractor{}
-		err := json.NewDecoder(c).Decode(&req)
-		if err != nil {
-			t.Fatalf("Decode error: %v", err)
-		}
-
-		if strings.Contains(req.Method, "listchannels") {
-			reply := fmt.Sprintf(string(data), req.ID)
-			_, err = c.Write(([]byte)(reply))
-
-			if err != nil {
-				t.Fatalf("Could not write to socket: %v", err)
-			}
-		}
-
-		err = c.Close()
-		if err != nil {
-			t.Fatalf("Could not close socket: %v", err)
-		}
+		clnCannedResponse(t, c, "listchannels", data)
 	})
 	defer closer()
 
@@ -219,9 +198,7 @@ func TestClnGetChanInfo(t *testing.T) {
 	defer cancel()
 
 	resp, err := api.GetChanInfo(ctx, id)
-	if err != nil {
-		t.Fatalf("GetInfo call failed: %v", err)
-	}
+	assert.NoError(t, err)
 
 	if resp.ChannelID != 839247329907769344 || resp.Node1Pub != "020f63ca0fd5cbb11012727c035b7c087c2d014a26ed8ed5ed2115c783945a3fc7" || resp.Node2Pub != "03d1c07e00297eae99263dcc01850ec7339bb4c87a1a3e841a195cbfdcdec7a219" {
 		t.Fatal("Wrong response")
@@ -339,4 +316,173 @@ func TestClnGetPaymentsRaw(t *testing.T) {
 			return resp, err
 		}),
 	)
+}
+
+func TestClnConnectPeer(t *testing.T) {
+	data := clnData(t, "cln_connect")
+
+	pubkey := "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a"
+	host := "161.97.184.185:9735"
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		clnCannedResponse(t, c, "connect", data)
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	err := api.ConnectPeer(ctx, fmt.Sprintf("%s@%s", pubkey, host))
+	assert.NoError(t, err)
+}
+
+func TestClnGetOnChainAddress(t *testing.T) {
+	data := clnData(t, "cln_newaddr")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		clnCannedResponse(t, c, "newaddr", data)
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetOnChainAddress(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, "bcrt1qxkt36rvxtjlkkxqv6msna7srlg85gx8fa5dd2f", resp)
+
+	assert.NotEqual(t, 0, len(resp))
+}
+
+func TestClnGetOnChainFunds(t *testing.T) {
+	data := clnData(t, "cln_funds")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		clnCannedResponse(t, c, "listfunds", data)
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetOnChainFunds(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(85996736), resp.TotalBalance)
+	assert.Equal(t, int64(85996736), resp.ConfirmedBalance)
+	assert.Equal(t, int64(0), resp.LockedBalance)
+}
+
+func TestClnSendToOnChainAddress(t *testing.T) {
+	data := clnData(t, "cln_withdraw")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		clnCannedResponse(t, c, "withdraw", data)
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	txid, err := api.SendToOnChainAddress(ctx, "bcrt1qu00529sy2n6ke3qe5q48t5e47u6wjdyc39s56g", 1337, false, Urgent)
+	assert.NoError(t, err)
+	assert.Equal(t, "69ae714ef8286742b902524eb9817cbf25cac72e7e5ab29db788a5d02ff923b9", txid)
+}
+
+func TestClnPayInvoice(t *testing.T) {
+	data := clnData(t, "cln_pay")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		clnCannedResponse(t, c, "pay", data)
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	payreq := "lnbcrt1p3lvffzpp56jm4cq97e7ea2zucu2t287857kg27gynlh0cwrqp45hpnj8p8x2qdqqcqzpgxqyz5vqsp5ffzl54an7sq8crhft3e5l8h0ph2ye3qwewkes4n4xy2en8p6ctss9qyyssquq66ryhudp2vh032eyggur0wauasr6g86ezapwwwylk6ed5e5rpn92j5k0w674zu72nv3nstc39yv6j7e7ejmr8thzyd8ejly87zz8spzzex77"
+	_, err := api.PayInvoice(ctx, payreq, 1337, nil)
+	assert.NoError(t, err)
+}
+
+func TestClnGetPaymentStatus(t *testing.T) {
+	data := clnData(t, "cln_listpay")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		clnCannedResponse(t, c, "listpay", data)
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetPaymentStatus(ctx, "d4b75c00becfb3d50b98e296a3f8f4f590af2093fddf870c01ad2e19c8e13994")
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, resp.Preimage)
+
+	_, err = api.GetPaymentStatus(ctx, "d4b75c00becfb3d50b98e296a3f8f4f590af2093fddf870c01ad2e19c8e13995")
+	assert.Error(t, err)
+}
+
+func TestClnCreateInvoice(t *testing.T) {
+	data := clnData(t, "cln_invoice")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		clnCannedResponse(t, c, "invoice", data)
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	_, err := api.CreateInvoice(ctx, 10000, "d4b75c00becfb3d50b98e296a3f8f4f590af2093fddf870c01ad2e19c8e13995", "test1", 5*time.Hour)
+	assert.NoError(t, err)
+}
+
+func TestClnIsInvoicePaidPending(t *testing.T) {
+	ClnIsInvoicePaid(t, "cln_invoicepending", false)
+}
+
+func TestClnIsInvoicePaidComplete(t *testing.T) {
+	ClnIsInvoicePaid(t, "cln_invoicepaid", true)
+}
+
+func ClnIsInvoicePaid(t *testing.T, name string, paid bool) {
+	data := clnData(t, name)
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		clnCannedResponse(t, c, "listinvoices", data)
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.IsInvoicePaid(ctx, "c246e952658ef14d1c71516e8ba66c7f2d16203acac0d8a6795dd97728e85dab")
+	assert.NoError(t, err)
+	assert.Equal(t, paid, resp)
+}
+
+func TestCall(t *testing.T) {
+	// socat -t100 -x -v UNIX-LISTEN:/tmp/cln-socket,mode=777,reuseaddr,fork UNIX-CONNECT:/tmp/lnregtest-data/dev_network/lnnodes/B/regtest/lightning-rpc
+	// bitcoin-cli -datadir=/tmp/lnregtest-data/dev_network/bitcoin -generate 10
+
+	fileName := "/tmp/cln-socket"
+	if _, err := os.Stat(fileName); err != nil {
+		return
+	}
+
+	api := NewClnSocketLightningAPIRaw("unix", fileName)
+	if api == nil {
+		t.Fatalf("API should not be nil")
+	}
+	defer api.Cleanup()
+
+	chanid, err := ToLndChanID("132x1x0")
+	assert.NoError(t, err)
+	resp, err := api.PayInvoice(context.Background(), "lnbcrt20u1p3lwsavpp5j7838vtkm43f2ushkwdfflcs67k7p7y6tzqnsxc8esywlrmh096sdqqcqzpgxqyz5vqsp55ryxkmjdz5wvf9nrnmn0j2ace5vu965pye0jufslsuun6cuw6auq9qyyssqpyt5495wg4xywp608etrjc4w6vwa5vmz36kqmefaqkqs2snsukmqsn7j3y0rec3fm3vemu56aa4vdxldpd3046zddt5jwe49u35vwwgpnzt97y",
+		0, []uint64{chanid})
+	assert.NoError(t, err)
+	fmt.Printf("%+v\n", resp)
+
+	t.Fail()
 }
