@@ -41,9 +41,10 @@ func getAPI(t *testing.T, name string, typ APIType) LightingAPICalls {
 		return nil
 	}
 
-	api := NewAPI(typ, func() (*entities.Data, error) {
+	api, err := NewAPI(typ, func() (*entities.Data, error) {
 		return &data, nil
 	})
+	assert.NoError(t, err)
 
 	return api
 }

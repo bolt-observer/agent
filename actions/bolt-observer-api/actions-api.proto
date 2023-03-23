@@ -1,0 +1,37 @@
+
+syntax = "proto3";
+
+option go_package = "github.com/bolt-observer/agent/actions/bolt-observer-api";
+
+package agent;
+
+service ActionAPI {
+  rpc Subscribe(stream AgentReply) returns (stream Action) {};
+}
+
+message Action {
+  int32 jobId = 1;
+  Sequence sequence = 2;
+  string action = 3;
+  bytes data = 4;
+}
+
+message AgentReply {
+  int32 jobId = 1;
+  Sequence sequence = 2;
+  ReplyType type = 3;
+  string message = 4;
+  bytes data = 5;
+}
+
+enum ReplyType {
+  SUCCESS = 0;
+  ERROR = 1;
+}
+
+enum Sequence {
+  CONNECT = 0;
+  EXECUTE = 1;
+  LOG = 2;
+  FINISHED = 3;
+}

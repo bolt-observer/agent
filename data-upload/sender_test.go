@@ -39,9 +39,9 @@ func TestSender(t *testing.T) {
 
 	token := strings.Trim(string(tokenData), "\t\r\n ")
 
-	f, err := MakeSender(context.Background(), token, os.Getenv("AGENT_API_URL"), func() api.LightingAPICalls {
-		return itf
-	})
+	f, err := MakeSender(context.Background(), token, os.Getenv("AGENT_API_URL"), func() (api.LightingAPICalls, error) {
+		return itf, nil
+	}, false)
 
 	if err != nil {
 		t.Fatalf("failed to make Sender: %v", err)

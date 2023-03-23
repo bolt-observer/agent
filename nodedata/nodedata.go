@@ -12,8 +12,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bolt-observer/agent/checkermonitoring"
 	"github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
+	"github.com/bolt-observer/agent/lightning"
 	api "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
 	"github.com/bolt-observer/go_common/utils"
@@ -37,24 +39,25 @@ type NodeData struct {
 	smooth            bool          // Should we smooth out fluctuations due to HTLCs
 	keepAliveInterval time.Duration // Keepalive interval
 	checkGraph        bool          // Should we check gossip
-	monitoring        *Monitoring
+	noOnChainBalance  bool          // Do not report on-chain balance
+	monitoring        *checkermonitoring.CheckerMonitoring
 	eventLoopInterval time.Duration
 	reentrancyBlock   *entities.ReentrancyBlock
 }
 
 // NewDefaultNodeData constructs a new NodeData
-func NewDefaultNodeData(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *Monitoring) *NodeData {
-	return NewNodeData(ctx, NewInMemoryChannelCache(), keepAlive, smooth, checkGraph, monitoring)
+func NewDefaultNodeData(ctx context.Context, keepAlive time.Duration, smooth bool, checkGraph bool, noOnChainBalance bool, monitoring *checkermonitoring.CheckerMonitoring) *NodeData {
+	return NewNodeData(ctx, NewInMemoryChannelCache(), keepAlive, smooth, checkGraph, noOnChainBalance, monitoring)
 }
 
 // NewNodeData constructs a new NodeData
-func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duration, smooth bool, checkGraph bool, monitoring *Monitoring) *NodeData {
+func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duration, smooth bool, checkGraph bool, noOnChainBalance bool, monitoring *checkermonitoring.CheckerMonitoring) *NodeData {
 	if ctx == nil {
 		ctx = getContext()
 	}
 
 	if monitoring == nil {
-		monitoring = NewNopNodeDataMonitoring("nodedata")
+		monitoring = checkermonitoring.NewNopCheckerMonitoring("nodedata")
 	}
 
 	return &NodeData{
@@ -67,11 +70,26 @@ func NewNodeData(ctx context.Context, cache ChannelCache, keepAlive time.Duratio
 		remotelyDisabled:  make(SetOfChanIds),
 		smooth:            smooth,
 		checkGraph:        checkGraph,
+		noOnChainBalance:  noOnChainBalance,
 		keepAliveInterval: keepAlive,
 		monitoring:        monitoring,
 		eventLoopInterval: 10 * time.Second,
 		reentrancyBlock:   entities.NewReentrancyBlock(),
 	}
+}
+
+// Invalidate when data was last reported
+func (c *NodeData) Invalidate() error {
+	c.perNodeSettings.mutex.Lock()
+	defer c.perNodeSettings.mutex.Unlock()
+
+	for _, one := range c.perNodeSettings.data {
+		one.lastCheck = time.Time{}
+		one.lastReport = time.Time{}
+		one.lastNodeReport = time.Time{}
+	}
+
+	return nil
 }
 
 // IsSubscribed - check if we are subscribed for a certain public key
@@ -91,7 +109,10 @@ func (c *NodeData) Subscribe(
 		return errors.New("invalid pubkey")
 	}
 
-	api := getAPI()
+	api, err := getAPI()
+	if err != nil {
+		return err
+	}
 	if api == nil {
 		return fmt.Errorf("failed to get client")
 	}
@@ -338,7 +359,11 @@ func (c *NodeData) fetchGraph(
 	settings entities.ReportingSettings,
 ) error {
 
-	api := getAPI()
+	api, err := getAPI()
+	if err != nil {
+		return err
+	}
+
 	if api == nil {
 		return fmt.Errorf("failed to get client")
 	}
@@ -511,7 +536,10 @@ func (c *NodeData) checkOne(
 		return nil, 0, fmt.Errorf("failed to get client - getAPI was nil")
 	}
 
-	api := getAPI()
+	api, err := getAPI()
+	if err != nil {
+		return nil, 0, err
+	}
 	if api == nil {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, 0, fmt.Errorf("failed to get client - getAPI returned nil")
@@ -528,6 +556,15 @@ func (c *NodeData) checkOne(
 	if identifier.Identifier != "" && !strings.EqualFold(info.IdentityPubkey, identifier.Identifier) {
 		c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
 		return nil, 0, fmt.Errorf("pubkey and reported pubkey are not the same")
+	}
+
+	funds := &lightning.Funds{}
+	if !c.noOnChainBalance {
+		funds, err = api.GetOnChainFunds(c.ctx)
+		if err != nil {
+			c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
+			return nil, 0, fmt.Errorf("failed to get info: %v", err)
+		}
 	}
 
 	identifier.Identifier = info.IdentityPubkey
@@ -568,9 +605,12 @@ func (c *NodeData) checkOne(
 	}
 
 	nodeInfoFull := &entities.NodeDetails{
-		NodeVersion:     info.Version,
-		IsSyncedToChain: info.IsSyncedToChain,
-		IsSyncedToGraph: info.IsSyncedToGraph,
+		NodeVersion:               info.Version,
+		IsSyncedToChain:           info.IsSyncedToChain,
+		IsSyncedToGraph:           info.IsSyncedToGraph,
+		OnChainBalanceNotReported: c.noOnChainBalance,
+		OnChainBalanceConfirmed:   uint64(funds.ConfirmedBalance),
+		OnChainBalanceTotal:       uint64(funds.TotalBalance),
 	}
 
 	nodeInfoFull.NodeInfoAPIExtended = *nodeInfo

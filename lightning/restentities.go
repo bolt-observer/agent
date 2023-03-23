@@ -9,18 +9,18 @@ import (
 
 // A hack to override uint64 -> string (REST API)
 
-// GetInfoResponseOverride struct
+// GetInfoResponseOverride struct.
 type GetInfoResponseOverride struct {
 	BestHeaderTimestamp string `json:"best_header_timestamp,omitempty"`
 	lnrpc.GetInfoResponse
 }
 
-// Channels struct
+// Channels struct.
 type Channels struct {
 	Channels []*ChannelOverride `json:"channels"`
 }
 
-// ChannelConstraintsOverride struct
+// ChannelConstraintsOverride struct.
 type ChannelConstraintsOverride struct {
 	ChanReserveSat    string `json:"chan_reserve_sat,omitempty"`
 	DustLimitSat      string `json:"dust_limit_sat,omitempty"`
@@ -30,7 +30,7 @@ type ChannelConstraintsOverride struct {
 	lnrpc.ChannelConstraints
 }
 
-// HtlcOverride struct
+// HtlcOverride struct.
 type HtlcOverride struct {
 	Amount              string `json:"amount,omitempty"`
 	HashLock            string `json:"hash_lock,omitempty"`
@@ -40,7 +40,7 @@ type HtlcOverride struct {
 	lnrpc.HTLC
 }
 
-// ChannelOverride struct
+// ChannelOverride struct.
 type ChannelOverride struct {
 	ChanID                string `json:"chan_id,omitempty"`
 	Capacity              string `json:"capacity,omitempty"`
@@ -71,15 +71,13 @@ type ChannelOverride struct {
 	lnrpc.Channel
 }
 
-// Graph struct
+// Graph struct.
 type Graph struct {
 	GraphNodeOverride  []*GraphNodeOverride `json:"nodes,omitempty"`
 	GraphEdgesOverride []*GraphEdgeOverride `json:"edges,omitempty"`
-
-	//lnrpc.ChannelGraph
 }
 
-// RoutingPolicyOverride struct
+// RoutingPolicyOverride struct.
 type RoutingPolicyOverride struct {
 	MinHtlc          string `json:"min_htlc,omitempty"`
 	FeeBaseMsat      string `json:"fee_base_msat,omitempty"`
@@ -89,12 +87,12 @@ type RoutingPolicyOverride struct {
 	lnrpc.RoutingPolicy
 }
 
-// GraphNodeOverride struct
+// GraphNodeOverride struct.
 type GraphNodeOverride struct {
 	lnrpc.LightningNode
 }
 
-// GetNodeInfoOverride struct
+// GetNodeInfoOverride struct.
 type GetNodeInfoOverride struct {
 	Node          *GraphNodeOverride   `json:"node,omitempty"`
 	NumChannels   int64                `json:"num_channels,omitempty"`
@@ -104,7 +102,7 @@ type GetNodeInfoOverride struct {
 	lnrpc.NodeInfo
 }
 
-// GraphEdgeOverride struct
+// GraphEdgeOverride struct.
 type GraphEdgeOverride struct {
 	ChannelID   string                 `json:"channel_id,omitempty"`
 	Capacity    string                 `json:"capacity,omitempty"`
@@ -114,7 +112,7 @@ type GraphEdgeOverride struct {
 	lnrpc.ChannelEdge
 }
 
-// ForwardingHistoryRequestOverride struct
+// ForwardingHistoryRequestOverride struct.
 type ForwardingHistoryRequestOverride struct {
 	StartTime string `json:"start_time,omitempty"`
 	EndTime   string `json:"end_time,omitempty"`
@@ -122,13 +120,13 @@ type ForwardingHistoryRequestOverride struct {
 	lnrpc.ForwardingHistoryRequest
 }
 
-// ForwardingHistoryResponseOverride struct
+// ForwardingHistoryResponseOverride struct.
 type ForwardingHistoryResponseOverride struct {
 	ForwardingEvents []*ForwardingEventOverride `json:"forwarding_events,omitempty"`
 	lnrpc.ForwardingHistoryResponse
 }
 
-// ForwardingEventOverride struct
+// ForwardingEventOverride struct.
 type ForwardingEventOverride struct {
 	Timestamp   string `json:"timestamp,omitempty"`
 	ChanIDIn    string `json:"chan_id_in,omitempty"`
@@ -144,7 +142,7 @@ type ForwardingEventOverride struct {
 	lnrpc.ForwardingEvent
 }
 
-// HtlcEventOverride struct
+// HtlcEventOverride struct.
 type HtlcEventOverride struct {
 	IncomingChannelID string             `json:"incoming_channel_id,omitempty"`
 	OutgoingChannelID string             `json:"outgoing_channel_id,omitempty"`
@@ -157,13 +155,13 @@ type HtlcEventOverride struct {
 	routerrpc.HtlcEvent
 }
 
-// HtlcInfoOverride struct
+// HtlcInfoOverride struct.
 type HtlcInfoOverride struct {
 	IncomingAmtMsat string `json:"incoming_amt_msat,omitempty"`
 	OutgoingAmtMsat string `json:"outgoing_amt_msat,omitempty"`
 }
 
-// HtlcEventComposite struct (our abstraction over that mess with inheritance)
+// HtlcEventComposite struct (our abstraction over that mess with inheritance).
 type HtlcEventComposite struct {
 	Info          *HtlcInfoOverride `json:"info,omitempty"`
 	Preimage      string            `json:"preimage,omitempty"`
@@ -172,7 +170,7 @@ type HtlcEventComposite struct {
 	FailureString string            `json:"failure_string,omitempty"`
 }
 
-// ListInvoiceRequestOverride struct
+// ListInvoiceRequestOverride struct.
 type ListInvoiceRequestOverride struct {
 	IndexOffset    string `json:"index_offset,omitempty"`
 	NumMaxInvoices string `json:"num_max_invoices,omitempty"`
@@ -180,7 +178,7 @@ type ListInvoiceRequestOverride struct {
 	lnrpc.ListInvoiceRequest
 }
 
-// ListInvoiceResponseOverride struct
+// ListInvoiceResponseOverride struct.
 type ListInvoiceResponseOverride struct {
 	Invoices         []*InvoiceOverride `json:"invoices,omitempty"`
 	LastIndexOffset  string             `json:"last_index_offset,omitempty"`
@@ -189,7 +187,7 @@ type ListInvoiceResponseOverride struct {
 	lnrpc.ListInvoiceResponse
 }
 
-// InvoiceOverride struct
+// InvoiceOverride struct.
 type InvoiceOverride struct {
 	Value        string `json:"value,omitempty"`
 	ValueMsat    string `json:"value_msat,omitempty"`
@@ -218,21 +216,21 @@ type InvoiceOverride struct {
 	lnrpc.Invoice
 }
 
-// RouteHintOverride struct
+// RouteHintOverride struct.
 type RouteHintOverride struct {
 	HopHints []*HopHintOverride `json:"hop_hints,omitempty"`
 
 	lnrpc.RouteHint
 }
 
-// HopHintOverride struct
+// HopHintOverride struct.
 type HopHintOverride struct {
 	ChanID string `json:"chan_id,omitempty"`
 
 	lnrpc.HopHint
 }
 
-// ListPaymentsRequestOverride struct
+// ListPaymentsRequestOverride struct.
 type ListPaymentsRequestOverride struct {
 	IndexOffset string `json:"index_offset,omitempty"`
 	MaxPayments string `json:"max_payments,omitempty"`
@@ -240,7 +238,7 @@ type ListPaymentsRequestOverride struct {
 	lnrpc.ListPaymentsRequest
 }
 
-// ListPaymentsResponseOverride struct
+// ListPaymentsResponseOverride struct.
 type ListPaymentsResponseOverride struct {
 	Payments         []*PaymentOverride `json:"payments,omitempty"`
 	LastIndexOffset  string             `json:"last_index_offset,omitempty"`
@@ -250,7 +248,7 @@ type ListPaymentsResponseOverride struct {
 	lnrpc.ListPaymentsResponse
 }
 
-// PaymentOverride struct
+// PaymentOverride struct.
 type PaymentOverride struct {
 	Value          string                 `json:"value,omitempty"`
 	CreationDate   string                 `json:"creation_date,omitempty"`
@@ -268,7 +266,7 @@ type PaymentOverride struct {
 	lnrpc.Payment
 }
 
-// HTLCAttemptOverride struct
+// HTLCAttemptOverride struct.
 type HTLCAttemptOverride struct {
 	AttemptID     string          `json:"attempt_id,omitempty"`
 	Status        string          `json:"status,omitempty"`
@@ -281,7 +279,7 @@ type HTLCAttemptOverride struct {
 	lnrpc.HTLCAttempt
 }
 
-// RouteOverride struct
+// RouteOverride struct.
 type RouteOverride struct {
 	TotalFees     string         `json:"total_fees,omitempty"`
 	TotalAmt      string         `json:"total_amt,omitempty"`
@@ -292,7 +290,7 @@ type RouteOverride struct {
 	lnrpc.Route
 }
 
-// HopOverride struct
+// HopOverride struct.
 type HopOverride struct {
 	ChanID           string          `json:"chan_id,omitempty"`
 	ChanCapacity     string          `json:"chan_capacity,omitempty"`
@@ -306,4 +304,85 @@ type HopOverride struct {
 	Metadata         string          `json:"metadata,omitempty"`
 
 	lnrpc.Hop
+}
+
+// ConnectPeerRequestOverride struct.
+type ConnectPeerRequestOverride struct {
+	Addr    *LightningAddressOverride `json:"addr,omitempty"`
+	Timeout string                    `json:"timeout,omitempty"`
+	lnrpc.ConnectPeerRequest
+}
+
+// LightningAddressOverride struct.
+type LightningAddressOverride struct {
+	lnrpc.LightningAddress
+}
+
+// WalletBalanceResponseOverride struct.
+type WalletBalanceResponseOverride struct {
+	TotalBalance              string          `json:"total_balance,omitempty"`
+	ConfirmedBalance          string          `json:"confirmed_balance,omitempty"`
+	UnconfirmedBalance        string          `json:"unconfirmed_balance,omitempty"`
+	LockedBalance             string          `json:"locked_balance,omitempty"`
+	ReservedBalanceAnchorChan string          `json:"reserved_balance_anchor_chan,omitempty"`
+	AccountBalance            json.RawMessage `json:"account_balance,omitempty"`
+
+	lnrpc.WalletBalanceResponse
+}
+
+/*
+// AccountBalanceEntryOverride struct.
+type AccountBalanceEntryOverride struct {
+	// ignore
+}
+*/
+
+// SendCoinsRequestOverride struct.
+type SendCoinsRequestOverride struct {
+	Amount      string `json:"amount,omitempty"`
+	SatPerVbyte string `json:"sat_per_vbyte,omitempty"`
+	// Deprecated
+	SatPerByte string `json:"sat_per_byte,omitempty"`
+	lnrpc.SendCoinsRequest
+}
+
+// SendPaymentRequestOverride struct.
+type SendPaymentRequestOverride struct {
+	Dest         string `json:"dest,omitempty"`
+	Amt          string `json:"amt,omitempty"`
+	AmtMsat      string `json:"amt_msat,omitempty"`
+	PaymentHash  string `json:"payment_hash,omitempty"`
+	PaymentAddr  string `json:"payment_addr,omitempty"`
+	FeeLimitSat  string `json:"fee_limit_sat,omitempty"`
+	FeeLimitMsat string `json:"fee_limit_msat,omitempty"`
+	// Deprecated: Do not use.
+	OutgoingChanId    string                         `json:"outgoing_chan_id,omitempty"`
+	OutgoingChanIds   []string                       `json:"outgoing_chan_ids,omitempty"`
+	LastHopPubkey     string                         `json:"last_hop_pubkey,omitempty"`
+	RouteHints        []RouteHintOverride            `json:"route_hints,omitempty"`
+	DestCustomRecords DestCustomRecordsEntryOverride `json:"dest_custom_records,omitempty"`
+	DestFeatures      []lnrpc.FeatureBit             `json:"dest_features,omitempty"`
+	MaxShardSizeMsat  string                         `json:"max_shard_size_msat,omitempty"`
+
+	routerrpc.SendPaymentRequest
+}
+
+// DestCustomRecordsEntryOverride struct.
+type DestCustomRecordsEntryOverride struct {
+	// ignore
+}
+
+// AddInvoiceResponseOverride struct.
+type AddInvoiceResponseOverride struct {
+	RHash       string `json:"r_hash,omitempty"`
+	AddIndex    string `json:"add_index,omitempty"`
+	PaymentAddr string `json:"payment_addr,omitempty"`
+
+	lnrpc.AddInvoiceResponse
+}
+
+// TrackPaymentRequestOverride struct.
+type TrackPaymentRequestOverride struct {
+	PaymentHash string `json:"payment_hash,omitempty"`
+	routerrpc.TrackPaymentRequest
 }

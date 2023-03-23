@@ -13,10 +13,10 @@ import (
 	"github.com/golang/glog"
 )
 
-// APIType enum
+// APIType enum.
 type APIType int
 
-// ApiTypes
+// ApiTypes.
 const (
 	LndGrpc APIType = iota
 	LndRest
@@ -24,7 +24,7 @@ const (
 	ClnCommando
 )
 
-// GetAPIType from integer
+// GetAPIType from integer.
 func GetAPIType(t *int) (*APIType, error) {
 	if t == nil {
 		return nil, fmt.Errorf("no api type specified")
@@ -37,7 +37,7 @@ func GetAPIType(t *int) (*APIType, error) {
 	return &ret, nil
 }
 
-// InfoAPI struct
+// InfoAPI struct.
 type InfoAPI struct {
 	IdentityPubkey  string
 	Alias           string
@@ -46,14 +46,15 @@ type InfoAPI struct {
 	Version         string
 	IsSyncedToGraph bool
 	IsSyncedToChain bool
+	BlockHeight     int
 }
 
-// ChannelsAPI struct
+// ChannelsAPI struct.
 type ChannelsAPI struct {
 	Channels []ChannelAPI
 }
 
-// ChannelAPI struct
+// ChannelAPI struct.
 type ChannelAPI struct {
 	Private               bool
 	Active                bool
@@ -70,7 +71,7 @@ type ChannelAPI struct {
 	NumUpdates            uint64
 }
 
-// HtlcAPI struct
+// HtlcAPI struct.
 type HtlcAPI struct {
 	Amount              uint64
 	Incoming            bool
@@ -78,13 +79,13 @@ type HtlcAPI struct {
 	ForwardingHtlcIndex uint64
 }
 
-// DescribeGraphAPI struct
+// DescribeGraphAPI struct.
 type DescribeGraphAPI struct {
 	Nodes    []DescribeGraphNodeAPI
 	Channels []NodeChannelAPI
 }
 
-// DescribeGraphNodeAPI struct
+// DescribeGraphNodeAPI struct.
 type DescribeGraphNodeAPI struct {
 	PubKey     string                    `json:"pub_key,omitempty"`
 	Alias      string                    `json:"alias,omitempty"`
@@ -94,20 +95,20 @@ type DescribeGraphNodeAPI struct {
 	LastUpdate entities.JsonTime         `json:"last_update,omitempty"`
 }
 
-// NodeAddressAPI struct
+// NodeAddressAPI struct.
 type NodeAddressAPI struct {
 	Network string `json:"network,omitempty"`
 	Addr    string `json:"addr,omitempty"`
 }
 
-// NodeFeatureAPI struct
+// NodeFeatureAPI struct.
 type NodeFeatureAPI struct {
 	Name       string `json:"name,omitempty"`
 	IsRequired bool   `json:"is_required,omitempty"`
 	IsKnown    bool   `json:"is_known,omitempty"`
 }
 
-// NodeChannelAPI struct
+// NodeChannelAPI struct.
 type NodeChannelAPI struct {
 	ChannelID   uint64            `json:"channel_id,omitempty"`
 	ChanPoint   string            `json:"chan_point"`
@@ -119,7 +120,7 @@ type NodeChannelAPI struct {
 	LastUpdate  entities.JsonTime `json:"last_update,omitempty"`
 }
 
-// RoutingPolicyAPI struct
+// RoutingPolicyAPI struct.
 type RoutingPolicyAPI struct {
 	TimeLockDelta uint32            `json:"time_lock_delta"`
 	MinHtlc       uint64            `json:"min_htlc"`
@@ -130,7 +131,7 @@ type RoutingPolicyAPI struct {
 	MaxHtlc       uint64            `json:"max_htlc_msat"`
 }
 
-// NodeInfoAPI struct
+// NodeInfoAPI struct.
 type NodeInfoAPI struct {
 	Node          DescribeGraphNodeAPI `json:"node,omitempty"`
 	Channels      []NodeChannelAPI     `json:"channels"`
@@ -138,13 +139,13 @@ type NodeInfoAPI struct {
 	TotalCapacity uint64               `json:"total_capacity"`
 }
 
-// NodeChannelAPIExtended struct
+// NodeChannelAPIExtended struct.
 type NodeChannelAPIExtended struct {
 	Private bool `json:"private,omitempty"`
 	NodeChannelAPI
 }
 
-// NodeInfoAPIExtended struct
+// NodeInfoAPIExtended struct.
 type NodeInfoAPIExtended struct {
 	NodeInfoAPI
 	Channels []NodeChannelAPIExtended `json:"channels"`
@@ -152,7 +153,7 @@ type NodeInfoAPIExtended struct {
 
 ////////////////////////////////////////////////////////////////
 
-// Pagination struct
+// Pagination struct.
 type Pagination struct {
 	Offset    uint64 // Exclusive thus 1 means start from 2 (0 will start from beginning)
 	BatchSize uint64 // limit is 10k or so
@@ -161,10 +162,10 @@ type Pagination struct {
 	To        *time.Time
 }
 
-// PaymentStatus enum
+// PaymentStatus enum.
 type PaymentStatus int
 
-// PaymentStatus values
+// PaymentStatus values.
 const (
 	PaymentUnknown PaymentStatus = iota
 	PaymentInFlight
@@ -172,7 +173,7 @@ const (
 	PaymentFailed
 )
 
-// StringToPaymentStatus creates PaymentStatus based on a string
+// StringToPaymentStatus creates PaymentStatus based on a string.
 func StringToPaymentStatus(in string) PaymentStatus {
 	switch strings.ToLower(in) {
 	case "unknown":
@@ -188,10 +189,10 @@ func StringToPaymentStatus(in string) PaymentStatus {
 	return PaymentUnknown
 }
 
-// PaymentFailureReason enum
+// PaymentFailureReason enum.
 type PaymentFailureReason int
 
-// PaymentFailureReason values
+// PaymentFailureReason values.
 const (
 	FailureReasonNone PaymentFailureReason = 0
 	FailureReasonTimeout
@@ -201,17 +202,17 @@ const (
 	FailureReasonInsufficientBalance
 )
 
-// HTLCStatus enum
+// HTLCStatus enum.
 type HTLCStatus int
 
-// HTLCStatus values
+// HTLCStatus values.
 const (
 	HTLCInFlight HTLCStatus = 0
 	HTLCSucceeded
 	HTLCFailed
 )
 
-// Payment struct
+// Payment struct.
 type Payment struct {
 	PaymentHash     string
 	ValueMsat       int64
@@ -225,7 +226,7 @@ type Payment struct {
 	HTLCAttempts    []HTLCAttempt
 }
 
-// HTLCAttempt struct
+// HTLCAttempt struct.
 type HTLCAttempt struct {
 	ID      uint64
 	Status  HTLCStatus
@@ -235,7 +236,7 @@ type HTLCAttempt struct {
 	Route Route
 }
 
-// Route struct
+// Route struct.
 type Route struct {
 	TotalTimeLock uint32
 	TotalFeesMsat int64
@@ -244,7 +245,7 @@ type Route struct {
 	Hops []Hop
 }
 
-// Hop struct
+// Hop struct.
 type Hop struct {
 	ChanID           uint64
 	Expiry           uint32
@@ -252,7 +253,7 @@ type Hop struct {
 	FeeMsat          int64
 }
 
-// ForwardingEvent struct
+// ForwardingEvent struct.
 type ForwardingEvent struct {
 	Timestamp     time.Time
 	ChanIDIn      uint64
@@ -264,24 +265,24 @@ type ForwardingEvent struct {
 	FailureString string
 }
 
-// ResponseForwardPagination struct
+// ResponseForwardPagination struct.
 type ResponseForwardPagination struct {
 	LastOffsetIndex uint64
 }
 
-// ResponsePagination struct
+// ResponsePagination struct.
 type ResponsePagination struct {
 	ResponseForwardPagination
 	FirstOffsetIndex uint64
 }
 
-// InvoicesResponse struct
+// InvoicesResponse struct.
 type InvoicesResponse struct {
 	Invoices []Invoice
 	ResponsePagination
 }
 
-// Invoice struct
+// Invoice struct.
 type Invoice struct {
 	Memo            string
 	ValueMsat       int64
@@ -301,10 +302,10 @@ type Invoice struct {
 	SettleIndex     uint64
 }
 
-// InvoiceHTLCState enum
+// InvoiceHTLCState enum.
 type InvoiceHTLCState int
 
-// StringToInvoiceHTLCState creates InvoiceHTLCState based on a string
+// StringToInvoiceHTLCState creates InvoiceHTLCState based on a string.
 func StringToInvoiceHTLCState(in string) InvoiceHTLCState {
 	switch strings.ToLower(in) {
 	case "accepted":
@@ -318,27 +319,27 @@ func StringToInvoiceHTLCState(in string) InvoiceHTLCState {
 	return InvoiceCancelled
 }
 
-// InvoiceHTLCState values
+// InvoiceHTLCState values.
 const (
 	InvoiceAccepted InvoiceHTLCState = 0
 	InvoiceSettled
 	InvoiceCancelled
 )
 
-// PaymentsResponse struct
+// PaymentsResponse struct.
 type PaymentsResponse struct {
 	Payments []Payment
 	ResponsePagination
 }
 
-// RawMessage struct
+// RawMessage struct.
 type RawMessage struct {
 	Timestamp      time.Time       `json:"timestamp"`
 	Implementation string          `json:"implementation,omitempty"`
 	Message        json.RawMessage `json:"message,omitempty"`
 }
 
-// ResponseRawPagination struct
+// ResponseRawPagination struct.
 type ResponseRawPagination struct {
 	UseTimestamp bool
 	FirstTime    time.Time
@@ -346,7 +347,7 @@ type ResponseRawPagination struct {
 	ResponsePagination
 }
 
-// RawPagination struct
+// RawPagination struct.
 type RawPagination struct {
 	UseTimestamp bool
 	FirstTime    time.Time
@@ -354,30 +355,70 @@ type RawPagination struct {
 	Pagination
 }
 
+// Funds struct.
+type Funds struct {
+	TotalBalance     int64
+	ConfirmedBalance int64
+	LockedBalance    int64
+}
+
+// PaymentStatusEnum basic enum.
+type PaymentStatusEnum int
+
+// PaymentStatusEnum enum.
+const (
+	Failed PaymentStatusEnum = iota
+	Pending
+	Success
+)
+
+// PaymentResp struct.
+type PaymentResp struct {
+	Hash     string
+	Preimage string
+	Status   PaymentStatusEnum
+}
+
+// InvoiceResp struct.
+type InvoiceResp struct {
+	Hash           string
+	PaymentRequest string
+}
+
+// Urgency of the on-chain sending
+type Urgency int
+
+// Urgency enum.
+const (
+	Low Urgency = iota
+	Normal
+	Urgent
+)
+
 ////////////////////////////////////////////////////////////////
 
-// API - generic API settings
+// API - generic API settings.
 type API struct {
 	Name                                  string
 	GetNodeInfoFullThreshUseDescribeGraph int // If node has more than that number of channels use DescribeGraph else do GetChanInfo for each one
 }
 
-// GetDefaultBatchSize returns the default batch size
+// GetDefaultBatchSize returns the default batch size.
 func (a *API) GetDefaultBatchSize() uint16 {
 	return 50
 }
 
-// GetNodeInfoFull - GetNodeInfoFull API (GRPC interface)
+// GetNodeInfoFull - GetNodeInfoFull API (GRPC interface).
 func (l *LndGrpcLightningAPI) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoAPIExtended, error) {
 	return getNodeInfoFullTemplate(ctx, l, l.GetNodeInfoFullThreshUseDescribeGraph, channels, unnanounced)
 }
 
-// GetNodeInfoFull - GetNodeInfoFull API (REST interface)
+// GetNodeInfoFull - GetNodeInfoFull API (REST interface).
 func (l *LndRestLightningAPI) GetNodeInfoFull(ctx context.Context, channels, unnanounced bool) (*NodeInfoAPIExtended, error) {
 	return getNodeInfoFullTemplate(ctx, l, l.GetNodeInfoFullThreshUseDescribeGraph, channels, unnanounced)
 }
 
-// getNodeInfoFullTemplate returns info for local node possibly including unnanounced channels (as soon as that can be obtained via GetNodeInfo this method is useless)
+// getNodeInfoFullTemplate returns info for local node possibly including unnanounced channels (as soon as that can be obtained via GetNodeInfo this method is useless).
 func getNodeInfoFullTemplate(ctx context.Context, l LightingAPICalls, threshUseDescribeGraph int, channels, unnanounced bool) (*NodeInfoAPIExtended, error) {
 	info, err := l.GetInfo(ctx)
 	if err != nil {
@@ -445,7 +486,6 @@ func getNodeInfoFullTemplate(ctx context.Context, l LightingAPICalls, threshUseD
 				continue
 			}
 			c, err := l.GetChanInfo(ctx, ch.ChanID)
-
 			if err != nil {
 				glog.Warningf("Could not get channel info for %v (%v): %v", ch.ChanID, info.IdentityPubkey, err)
 				extendedNodeInfo.NumChannels--
@@ -473,13 +513,13 @@ func getNodeInfoFullTemplate(ctx context.Context, l LightingAPICalls, threshUseD
 	return extendedNodeInfo, nil
 }
 
-// ErrorData struct
+// ErrorData struct.
 type ErrorData struct {
 	Error          error
 	IsStillRunning bool
 }
 
-// LightingAPICalls is the interface for lightning API
+// LightingAPICalls is the interface for lightning API.
 type LightingAPICalls interface {
 	Cleanup()
 	GetAPIType() APIType
@@ -498,22 +538,31 @@ type LightingAPICalls interface {
 	GetInvoicesRaw(ctx context.Context, pendingOnly bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error)
 	GetPaymentsRaw(ctx context.Context, includeIncomplete bool, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error)
 	GetForwardsRaw(ctx context.Context, pagination RawPagination) ([]RawMessage, *ResponseRawPagination, error)
+
+	ConnectPeer(ctx context.Context, id string) error
+	GetOnChainAddress(ctx context.Context) (string, error)
+	GetOnChainFunds(ctx context.Context) (*Funds, error)
+	SendToOnChainAddress(ctx context.Context, address string, sats int64, useUnconfirmed bool, urgency Urgency) (string, error)
+	PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error)
+	GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error)
+	CreateInvoice(ctx context.Context, sats int64, preimage string, memo string, expiry time.Duration) (*InvoiceResp, error)
+	IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error)
 }
 
-// GetDataCall - signature of function for retrieving data
+// GetDataCall - signature of function for retrieving data.
 type GetDataCall func() (*entities.Data, error)
 
-// NewAPI - gets new lightning API
-func NewAPI(apiType APIType, getData GetDataCall) LightingAPICalls {
+// NewAPI - gets new lightning API.
+func NewAPI(apiType APIType, getData GetDataCall) (LightingAPICalls, error) {
 	if getData == nil {
 		sentry.CaptureMessage("getData was nil")
-		return nil
+		return nil, fmt.Errorf("getData error")
 	}
 
 	data, err := getData()
 	if err != nil {
 		sentry.CaptureException(err)
-		return nil
+		return nil, err
 	}
 
 	t := LndGrpc
@@ -531,15 +580,15 @@ func NewAPI(apiType APIType, getData GetDataCall) LightingAPICalls {
 
 	switch t {
 	case LndGrpc:
-		return NewLndGrpcLightningAPI(getData)
+		return NewLndGrpcLightningAPI(getData), nil
 	case LndRest:
-		return NewLndRestLightningAPI(getData)
+		return NewLndRestLightningAPI(getData), nil
 	case ClnSocket:
-		return NewClnSocketLightningAPI(getData)
+		return NewClnSocketLightningAPI(getData), nil
 	case ClnCommando:
-		return NewClnCommandoLightningAPI(getData)
+		return NewClnCommandoLightningAPI(getData), nil
 	}
 
 	sentry.CaptureMessage("Invalid api type")
-	return nil
+	return nil, fmt.Errorf("invalid API type")
 }

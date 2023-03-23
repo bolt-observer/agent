@@ -9,7 +9,8 @@ You can always check by running it with following flags, which forces a dry-run 
 Every report contains basic details: `poll_interval`, `allowed_entropy`, `allow_private_channels`, `chain`, `network` and `pubkey`.
 
 Besides it can contain `node_details` in a JSON format similar to [lnd getnodeinfoi](https://lightning.engineering/api-docs/api/lnd/lightning/get-node-info).
-Additional fields are  `node_version`, `is_synced_to_chain` and `is_synced_to_graph`. Node details will be reported just first time and if anything changes later on (during periodic polling).
+Additional fields are `node_version`, `is_synced_to_chain` and `is_synced_to_graph`, `onchain_balance_total` and `onchain_balance_total`. Node details will be reported just first time and if anything changes later on (during periodic polling).
+Using `--noonchainbalance` it is possible to disable reporting on-chain balance.
 
 ```
 {
@@ -24,6 +25,8 @@ Additional fields are  `node_version`, `is_synced_to_chain` and `is_synced_to_gr
     "node_version": "lnd-0.15.5-beta commit=",
     "is_synced_to_chain": true,
     "is_synced_to_graph": true,
+    "onchain_balance_total": 1337,
+    "onchain_balance_confirmed": 1336,
     "node": {
        "pub_key": "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a",
        "alias": "bolt.observer",

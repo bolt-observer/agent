@@ -22,7 +22,10 @@ func GetPaymentsChannel(ctx context.Context, lightning entities.NewAPICall, from
 
 	go paginator(ctx, lightning, GetRawData(
 		func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
-			itf := lightning()
+			itf, err := lightning()
+			if err != nil {
+				return nil, nil, err
+			}
 			if itf == nil {
 				return nil, nil, fmt.Errorf("could not get lightning API")
 			}
@@ -42,7 +45,10 @@ func GetInvoicesChannel(ctx context.Context, lightning entities.NewAPICall, from
 
 	go paginator(ctx, lightning, GetRawData(
 		func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
-			itf := lightning()
+			itf, err := lightning()
+			if err != nil {
+				return nil, nil, err
+			}
 			if itf == nil {
 				return nil, nil, fmt.Errorf("could not get lightning API")
 			}
@@ -60,9 +66,9 @@ func GetInvoicesChannel(ctx context.Context, lightning entities.NewAPICall, from
 func GetForwardsChannel(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
-	itf := lightning()
+	itf, err := lightning()
 
-	if itf != nil {
+	if itf != nil && err == nil {
 		// A hack to get failed forwards too
 		defer itf.Cleanup()
 
@@ -81,7 +87,10 @@ func GetForwardsChannel(ctx context.Context, lightning entities.NewAPICall, from
 
 	go paginator(ctx, lightning, GetRawData(
 		func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
-			itf := lightning()
+			itf, err := lightning()
+			if err != nil {
+				return nil, nil, err
+			}
 			if itf == nil {
 				return nil, nil, fmt.Errorf("could not get lightning API")
 			}

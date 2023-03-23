@@ -8,8 +8,8 @@ import (
 	"github.com/bolt-observer/go_common/utils"
 )
 
-func getAPI() api.LightingAPICalls {
-	return nil
+func getAPI() (api.LightingAPICalls, error) {
+	return nil, nil
 }
 
 func TestDeleteInTheMiddle(t *testing.T) {

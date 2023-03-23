@@ -35,7 +35,7 @@ func toClientType(t api.APIType) int {
 }
 
 // MakeSender creates a new Sender
-func MakeSender(ctx context.Context, authToken string, endpoint string, l entities.NewAPICall) (*Sender, error) {
+func MakeSender(ctx context.Context, authToken string, endpoint string, l entities.NewAPICall, isInsecure bool) (*Sender, error) {
 	if l == nil {
 		return nil, backoff.Permanent(fmt.Errorf("lightning API not specified"))
 	}
@@ -44,7 +44,10 @@ func MakeSender(ctx context.Context, authToken string, endpoint string, l entiti
 		LightningAPI: l,
 	}
 
-	api := l()
+	api, err := l()
+	if err != nil {
+		return nil, err
+	}
 	if api == nil {
 		return nil, backoff.Permanent(fmt.Errorf("lightning API not obtained"))
 	}
@@ -58,7 +61,7 @@ func MakeSender(ctx context.Context, authToken string, endpoint string, l entiti
 	f.ClientType = toClientType(api.GetAPIType())
 
 	f.PubKey = info.IdentityPubkey
-	agent, err := getAgentAPI(endpoint, f.PubKey, f.AuthToken)
+	agent, err := getAgentAPI(endpoint, f.PubKey, f.AuthToken, isInsecure)
 	if err != nil {
 		return nil, err
 	}
