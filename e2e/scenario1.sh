@@ -63,10 +63,9 @@ echo "----"
 docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/node-data-report/" --datastore-url $DATASTORE_SERVER --verbosity 3 2>&1 > $DIR/output.txt
 cat $DIR/output.txt
 
-grep -q "Sent out nodeinfo callback" $DIR/output.txt || { echo "Failed to send nodeinfo callback"; exit 1; }
 grep -q "Sent out callback" $DIR/output.txt || { echo "Failed to send callback"; exit 1; }
 
-NUM_CHANS=$(cat $DIR/output.txt | grep "Sent out nodeinfo callback" | sed -E 's/.* Sent out nodeinfo callback (.*)/\1/g' | jq '.num_channels' | tr -d " ")
+NUM_CHANS=$(cat $DIR/output.txt | grep -m 1 "Sent out callback" | sed -E 's/.* Sent out callback (.*)/\1/g' | jq '.node_details.num_channels' | tr -d " ")
 if [ "$NUM_CHANS" != "2" ]; then
   echo "Number of channels wrong $NUM_CHANS - should be 2"
   exit 1
@@ -76,10 +75,9 @@ fi
 docker run -t --network host -v $DIR:/tmp ghcr.io/bolt-observer/agent:$TAG --apikey $API_KEY --macaroonpath /tmp/readonly.macaroon --tlscertpath /tmp/tls.cert --rpcserver 127.0.0.1:10001 --interval manual --url "https://$SERVER/api/node-data-report/" --datastore-url $DATASTORE_SERVER --verbosity 3 --private 2>&1 > $DIR/output.txt
 cat $DIR/output.txt
 
-grep -q "Sent out nodeinfo callback" $DIR/output.txt || { echo "Failed to send nodeinfo callback"; exit 1; }
 grep -q "Sent out callback" $DIR/output.txt || { echo "Failed to send callback"; exit 1; }
 
-NUM_CHANS=$(cat $DIR/output.txt | grep "Sent out nodeinfo callback" | sed -E 's/.* Sent out nodeinfo callback (.*)/\1/g' | jq '.num_channels' | tr -d " ")
+NUM_CHANS=$(cat $DIR/output.txt | grep -m 1 "Sent out callback" | sed -E 's/.* Sent out callback (.*)/\1/g' | jq '.node_details.num_channels' | tr -d " ")
 if [ "$NUM_CHANS" != "3" ]; then
   echo "Number of channels wrong $NUM_CHANS - should be 3"
   exit 1
