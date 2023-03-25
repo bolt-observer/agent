@@ -1,6 +1,6 @@
 # Agent
 
-Agent is a piece of software that is able to run on lightning node (we provide raspberry builds too) and report various data from it.
+Bolt-agent is a tool for workflow based node management automation through [bolt.observer](https://bolt.observer) platform.
 
 ## Contents:
 
