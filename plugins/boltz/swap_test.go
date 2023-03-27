@@ -134,7 +134,7 @@ func getTestnetLnd(t *testing.T) agent_entities.NewAPICall {
 	}
 }
 
-func mine(numBlocks int) error {
+func Mine(numBlocks int) error {
 	_, err := exec.Command("bitcoin-cli", fmt.Sprintf("-datadir=%s/bitcoin", LnRegTestPathPrefix), "-generate", fmt.Sprintf("%d", numBlocks)).Output()
 	return err
 }
@@ -230,7 +230,7 @@ func TestSwapCln(t *testing.T) {
 	assert.NoError(t, err)
 
 	for i := 0; i < 20; i++ {
-		err = mine(1)
+		err = Mine(1)
 		if err != nil {
 			fmt.Printf("Could not mine %v\n", err)
 		}
@@ -261,11 +261,11 @@ func TestSwapLnd(t *testing.T) {
 	p := newPlugin(t, ln, tempf.Name(), BoltzUrl, Regtest)
 
 	l := NewLogAggregator(t)
-	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90}`), l.Log)
+	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "amount": 90}`), l.Log)
 	assert.NoError(t, err)
 
 	for i := 0; i < 5; i++ {
-		err = mine(1)
+		err = Mine(1)
 		if err != nil {
 			fmt.Printf("Could not mine %v", err)
 		}
@@ -348,7 +348,7 @@ func TestInboundTestnet(t *testing.T) {
 
 	l := NewLogAggregator(t)
 
-	err = p.Execute(1, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 10}`), l.Log)
+	err = p.Execute(1, []byte(`{ "target": "InboundLiquidityNodePercent", "amount": 10}`), l.Log)
 	assert.NoError(t, err)
 
 	for i := 0; i < 360; i++ {

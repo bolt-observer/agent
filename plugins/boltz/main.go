@@ -5,7 +5,6 @@ package boltz
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -168,7 +167,7 @@ func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface
 	resp.SwapMachine = NewSwapMachine(resp, nodeDataInvalidator, JobDataToSwapData, resp.LnAPI)
 
 	// Currently there is just one redeemer instance (perhaps split it)
-	resp.Redeemer = NewRedeemer(context.Background(), (RedeemForward | RedeemReverse), resp.ChainParams, resp.BoltzAPI, resp.LnAPI,
+	resp.Redeemer = NewRedeemer(context.Background(), (RedeemForward | RedeemReverse), resp.ChainParams, NewBoltzOnChainCommunicator(resp.BoltzAPI), resp.LnAPI,
 		resp.getSleepTime(), resp.CryptoAPI, resp.SwapMachine.RedeemedCallback)
 	resp.ReverseRedeemer = resp.Redeemer // use reference to same instance
 
@@ -187,6 +186,19 @@ func (b *Plugin) getSleepTime() time.Duration {
 	return interval
 }
 
+func (b *Plugin) handleError(jobID int32, msgCallback agent_entities.MessageCallback, err error) error {
+	glog.Infof("[Boltz] [%v] Error %v", jobID, err)
+	if msgCallback != nil {
+		msgCallback(agent_entities.PluginMessage{
+			JobID:      int32(jobID),
+			Message:    fmt.Sprintf("Error %v", err),
+			IsError:    true,
+			IsFinished: true,
+		})
+	}
+	return err
+}
+
 func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.MessageCallback) error {
 	var err error
 
@@ -203,29 +215,20 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 
 		if err = b.db.Get(jobID, &sd); err != nil {
 			// create new job
-			jd := &JobData{}
-			err := json.Unmarshal(data, &jd)
+			jd, err := ParseJobData(jobID, data)
 			if err != nil {
-				return ErrCouldNotParseJobData
+				return b.handleError(jobID, msgCallback, err)
 			}
-			jd.ID = jobID
 
 			lnAPI, err := b.LnAPI()
 			if err != nil {
-				return err
+				return b.handleError(jobID, msgCallback, err)
 			}
 			defer lnAPI.Cleanup()
 
 			data, err := JobDataToSwapData(ctx, b.Limits, jd, msgCallback, lnAPI, b.Filter)
 			if err != nil {
-				glog.Infof("[Boltz] [%v] Error %v", jobID, err)
-				msgCallback(agent_entities.PluginMessage{
-					JobID:      int32(jobID),
-					Message:    fmt.Sprintf("Error %v", err),
-					IsError:    true,
-					IsFinished: true,
-				})
-				return nil
+				return b.handleError(jobID, msgCallback, err)
 			}
 
 			data.IsDryRun = b.isDryRun

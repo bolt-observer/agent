@@ -166,8 +166,6 @@ func (s *SwapMachine) nextRound(in FsmIn) FsmOut {
 		return FsmOut{}
 	}
 
-	fmt.Printf("New SD %+v\n", sd)
-
 	in.SwapData = sd
 	go s.Eval(in, sd.State)
 

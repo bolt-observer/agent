@@ -38,7 +38,9 @@ type SwapData struct {
 	ExpectedSats uint64
 
 	IsDryRun       bool
-	OriginaJobData JobData // original job data
+	OriginaJobData JobData // original job
+
+	TransactionHex string
 
 	SatsSwappedSoFar uint64
 	FeesPaidSoFar    uint64
