@@ -122,7 +122,7 @@ func (s *SwapMachine) nextRound(in FsmIn) FsmOut {
 
 	defer lnConnection.Cleanup()
 
-	sd, err := s.JobDataToSwapData(ctx, s.BoltzPlugin.Limits, &in.SwapData.OriginaJobData, in.MsgCallback, lnConnection, s.BoltzPlugin.Filter)
+	sd, err := s.JobDataToSwapData(ctx, s.BoltzPlugin.Limits, &in.SwapData.OriginalJobData, in.MsgCallback, lnConnection, s.BoltzPlugin.Filter)
 
 	if err == ErrNoNeedToDoAnything {
 		if in.MsgCallback != nil {
@@ -165,8 +165,6 @@ func (s *SwapMachine) nextRound(in FsmIn) FsmOut {
 
 		return FsmOut{}
 	}
-
-	fmt.Printf("New SD %+v\n", sd)
 
 	in.SwapData = sd
 	go s.Eval(in, sd.State)

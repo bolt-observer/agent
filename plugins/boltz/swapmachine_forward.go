@@ -117,7 +117,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 		return FsmOut{Error: err}
 	}
 
-	log(in, fmt.Sprintf("Transaction ID for swap is %v (invoice hash %v)", tx, invoice.Hash))
+	log(in, fmt.Sprintf("Transaction ID for swap %v sats to %v is %v (invoice hash %v)", int64(response.ExpectedAmount), response.Address, tx, invoice.Hash))
 	in.SwapData.LockupTransactionId = tx
 
 	in.SwapData.FeesPaidSoFar += (response.ExpectedAmount - sats)
@@ -153,24 +153,28 @@ func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 			log(in, fmt.Sprintf("error ensuring we are connected: %v", err))
 		}
 
-		s, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
+		stat, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
 			log(in, fmt.Sprintf("error communicating with BoltzAPI: %v", err))
 			time.Sleep(SleepTime)
 			continue
 		}
-		status := boltz.ParseEvent(s.Status)
+		status := boltz.ParseEvent(stat.Status)
 
 		if in.SwapData.LockupTransactionId == "" {
 			if status == boltz.TransactionMempool || status == boltz.TransactionConfirmed {
-				in.SwapData.LockupTransactionId = s.Transaction.Id
+				in.SwapData.LockupTransactionId = stat.Transaction.Id
 			}
 
 			// We are not transitioning back if we crashed before sending
 		}
 
 		if status.IsFailedStatus() {
-			return FsmOut{NextState: RedeemLockedFunds}
+			swapTransactionResponse, err := s.BoltzPlugin.BoltzAPI.GetSwapTransaction(in.SwapData.BoltzID)
+			if err == nil {
+				in.SwapData.TransactionHex = swapTransactionResponse.TransactionHex
+				return FsmOut{NextState: RedeemLockedFunds}
+			}
 		}
 
 		if status.IsCompletedStatus() || status == boltz.ChannelCreated || status == boltz.InvoicePaid {
@@ -202,6 +206,10 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in FsmIn) FsmOut {
 
 	if in.SwapData.LockupTransactionId == "" {
 		return FsmOut{Error: fmt.Errorf("invalid state txid not set")}
+	}
+
+	if in.SwapData.TransactionHex == "" {
+		return FsmOut{Error: fmt.Errorf("invalid state transaction hex not set")}
 	}
 
 	SleepTime := s.getSleepTime(in)

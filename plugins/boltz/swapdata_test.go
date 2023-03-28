@@ -38,7 +38,7 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 		assert.Equal(t, JobID(1337), result.JobID)
 		assert.Equal(t, InitialForward, result.State)
 		assert.Equal(t, 200000, int(result.Sats))
-		assert.Equal(t, *jd, result.OriginaJobData)
+		assert.Equal(t, *jd, result.OriginalJobData)
 	})
 
 	t.Run("Everything on inbound side want half outbound", func(t *testing.T) {
@@ -62,7 +62,7 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 		assert.Equal(t, JobID(1338), result.JobID)
 		assert.Equal(t, InitialForward, result.State)
 		assert.Equal(t, 100000, int(result.Sats))
-		assert.Equal(t, *jd, result.OriginaJobData)
+		assert.Equal(t, *jd, result.OriginalJobData)
 	})
 
 	t.Run("Empty node", func(t *testing.T) {
@@ -86,6 +86,6 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 		assert.Equal(t, JobID(1339), result.JobID)
 		assert.Equal(t, InitialForward, result.State)
 		assert.Equal(t, 100000, int(result.Sats))
-		assert.Equal(t, *jd, result.OriginaJobData)
+		assert.Equal(t, *jd, result.OriginalJobData)
 	})
 }

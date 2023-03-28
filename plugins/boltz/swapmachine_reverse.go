@@ -83,7 +83,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 
 	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100))
 
-	in.SwapData.FeesPaidSoFar += (sats-response.OnchainAmount)
+	in.SwapData.FeesPaidSoFar += (sats - response.OnchainAmount)
 	in.SwapData.SatsSwappedSoFar += sats
 
 	// Check funds
@@ -180,7 +180,10 @@ func (s *SwapMachine) FsmReverseSwapCreated(in FsmIn) FsmOut {
 		log(in, fmt.Sprintf("Swap status is: %v", status))
 
 		if (in.SwapData.AllowZeroConf && status == boltz.TransactionMempool) || status == boltz.TransactionConfirmed {
-			return FsmOut{NextState: ClaimReverseFunds}
+			if s.Transaction.Hex != "" {
+				in.SwapData.TransactionHex = s.Transaction.Hex
+				return FsmOut{NextState: ClaimReverseFunds}
+			}
 		}
 
 		if status.IsFailedStatus() {
@@ -207,6 +210,9 @@ func (s *SwapMachine) FsmClaimReverseFunds(in FsmIn) FsmOut {
 	// For state machine this is final state
 	if in.SwapData.BoltzID == "" {
 		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
+	}
+	if in.SwapData.TransactionHex == "" {
+		return FsmOut{Error: fmt.Errorf("invalid state transaction hex not set")}
 	}
 
 	// debug
@@ -277,6 +283,11 @@ func CreateReverseSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, sats uint64,
 	err = boltz.CheckReverseSwapScript(redeemScript, keys.Preimage.Hash, keys.Keys.PrivateKey, response.TimeoutBlockHeight)
 	if err != nil {
 		return nil, err
+	}
+
+	lockupAddress, err := boltz.WitnessScriptHashAddress(chainparams, redeemScript)
+	if response.LockupAddress != lockupAddress {
+		return nil, fmt.Errorf("lockup address invalid")
 	}
 
 	if currentBlockHeight+BlockEps > int(response.TimeoutBlockHeight) {

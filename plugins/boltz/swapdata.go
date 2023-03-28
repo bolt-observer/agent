@@ -37,8 +37,10 @@ type SwapData struct {
 	ChanIdsToUse []uint64
 	ExpectedSats uint64
 
-	IsDryRun       bool
-	OriginaJobData JobData // original job data
+	IsDryRun        bool
+	OriginalJobData JobData // original job
+
+	TransactionHex string
 
 	SatsSwappedSoFar uint64
 	FeesPaidSoFar    uint64
@@ -136,7 +138,7 @@ func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, li
 		State:            InitialReverse,
 		AllowZeroConf:    limits.AllowZeroConf,
 		ReverseChannelId: jobData.ChannelId,
-		OriginaJobData:   *jobData,
+		OriginalJobData:  *jobData,
 		Attempt:          1,
 		FeesPaidSoFar:    0,
 		SatsSwappedSoFar: 0,
@@ -178,7 +180,7 @@ func convertLiquidityNodePercent(jobData *JobData, limits *SwapLimits, liquidity
 		ReverseChannelId: 0,
 		AllowZeroConf:    limits.AllowZeroConf,
 		Attempt:          1,
-		OriginaJobData:   *jobData,
+		OriginalJobData:  *jobData,
 		FeesPaidSoFar:    0,
 		SatsSwappedSoFar: 0,
 	}

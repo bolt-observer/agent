@@ -43,10 +43,10 @@ type Redeemer[T SwapDataGetter] struct {
 	lock    sync.Mutex
 	Timer   *time.Ticker
 
-	ChainParams *chaincfg.Params
-	BoltzAPI    *boltz.Boltz
-	LnAPI       entities.NewAPICall
-	CryptoAPI   *CryptoAPI
+	ChainParams         *chaincfg.Params
+	OnChainCommunicator OnChainCommunicator
+	LnAPI               entities.NewAPICall
+	CryptoAPI           *CryptoAPI
 }
 
 type SwapDataGetter interface {
@@ -55,7 +55,7 @@ type SwapDataGetter interface {
 
 type RedeemedCallback[T SwapDataGetter] func(data T, success bool)
 
-func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainParams *chaincfg.Params, boltzAPI *boltz.Boltz, lnAPI entities.NewAPICall,
+func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainParams *chaincfg.Params, OnChainCommunicator OnChainCommunicator, lnAPI entities.NewAPICall,
 	interval time.Duration, cryptoAPI *CryptoAPI, callback RedeemedCallback[T]) *Redeemer[T] {
 
 	if t == 0 {
@@ -64,15 +64,15 @@ func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainPar
 	}
 
 	r := &Redeemer[T]{
-		Ctx:         ctx,
-		Type:        t,
-		Callback:    callback,
-		Entries:     make(map[JobID]T),
-		lock:        sync.Mutex{},
-		ChainParams: chainParams,
-		BoltzAPI:    boltzAPI,
-		LnAPI:       lnAPI,
-		CryptoAPI:   cryptoAPI,
+		Ctx:                 ctx,
+		Type:                t,
+		Callback:            callback,
+		Entries:             make(map[JobID]T),
+		lock:                sync.Mutex{},
+		ChainParams:         chainParams,
+		OnChainCommunicator: OnChainCommunicator,
+		LnAPI:               lnAPI,
+		CryptoAPI:           cryptoAPI,
 	}
 
 	r.Timer = time.NewTicker(interval)
@@ -123,6 +123,8 @@ func (r *Redeemer[T]) redeem() bool {
 
 	outputs := make([]boltz.OutputDetails, 0)
 	used := make([]JobID, 0)
+	del := make([]JobID, 0)
+
 	for _, entry := range r.Entries {
 		var output *boltz.OutputDetails
 		sd := entry.GetSwapData()
@@ -134,11 +136,14 @@ func (r *Redeemer[T]) redeem() bool {
 			output = r.getRefundOutput(sd)
 		} else if sd.State == ClaimReverseFunds {
 			if info.BlockHeight > int(sd.TimoutBlockHeight) {
-				r.Callback(entry, false)
-				continue
+				if r.Callback != nil {
+					r.Callback(entry, false)
+				}
+				del = append(del, entry.GetSwapData().JobID)
+				output = nil
+			} else {
+				output = r.getClaimOutput(sd)
 			}
-
-			output = r.getClaimOutput(sd)
 		} else {
 			continue
 		}
@@ -149,6 +154,13 @@ func (r *Redeemer[T]) redeem() bool {
 		outputs = append(outputs, *output)
 		used = append(used, sd.JobID)
 	}
+
+	if len(del) > 0 {
+		for _, one := range del {
+			delete(r.Entries, one)
+		}
+	}
+
 	if len(outputs) <= 0 {
 		return true
 	}
@@ -178,13 +190,13 @@ func (r *Redeemer[T]) AddEntry(data T) error {
 	ok := false
 	sd := data.GetSwapData()
 	if r.Type&RedeemForward == RedeemForward {
-		if sd.State == RedeemingLockedFunds {
+		if sd.State == RedeemingLockedFunds && sd.TransactionHex != "" {
 			ok = true
 		}
 	}
 
 	if r.Type&RedeemReverse == RedeemReverse {
-		if sd.State == ClaimReverseFunds {
+		if sd.State == ClaimReverseFunds && sd.TransactionHex != "" {
 			ok = true
 		}
 	}
@@ -198,17 +210,9 @@ func (r *Redeemer[T]) AddEntry(data T) error {
 }
 
 func (r *Redeemer[T]) doRedeem(outputs []boltz.OutputDetails) (string, error) {
-	// TODO: fee estimation now depends on working boltz API - use lightning API for it
-	feeResp, err := r.BoltzAPI.GetFeeEstimation()
+	satsPerVbyte, err := r.OnChainCommunicator.GetFeeEstimation()
 	if err != nil {
 		return "", err
-	}
-
-	fee := *feeResp
-
-	satsPerVbyte, ok := fee[Btc]
-	if !ok {
-		return "", fmt.Errorf("error getting fee estimate")
 	}
 
 	lnConnection, err := r.LnAPI()
@@ -235,7 +239,7 @@ func (r *Redeemer[T]) doRedeem(outputs []boltz.OutputDetails) (string, error) {
 		return "", err
 	}
 
-	err = r.broadcastTransaction(transaction)
+	err = r.OnChainCommunicator.BroadcastTransaction(transaction)
 	if err != nil {
 		return "", err
 	}
@@ -248,13 +252,11 @@ func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 		return nil
 	}
 
-	status, err := r.BoltzAPI.SwapStatus(data.BoltzID)
-	if err != nil {
-		glog.Warningf("Could not get swap status %v", err)
+	if data.TransactionHex == "" {
 		return nil
 	}
 
-	lockupTransactionRaw, err := hex.DecodeString(status.Transaction.Hex)
+	lockupTransactionRaw, err := hex.DecodeString(data.TransactionHex)
 	if err != nil {
 		glog.Warningf("Could not decode transaction %v", err)
 		return nil
@@ -310,14 +312,11 @@ func (r *Redeemer[T]) getRefundOutput(data *SwapData) *boltz.OutputDetails {
 		return nil
 	}
 
-	swapTransactionResponse, err := r.BoltzAPI.GetSwapTransaction(data.BoltzID)
-
-	if err != nil {
-		glog.Warningf("Could not get refund transaction %v", err)
+	if data.TransactionHex == "" {
 		return nil
 	}
 
-	lockupTransactionRaw, err := hex.DecodeString(swapTransactionResponse.TransactionHex)
+	lockupTransactionRaw, err := hex.DecodeString(data.TransactionHex)
 
 	if err != nil {
 		glog.Warningf("Could not decode transaction %v", err)
@@ -358,22 +357,6 @@ func (r *Redeemer[T]) getRefundOutput(data *SwapData) *boltz.OutputDetails {
 		Preimage:           []byte{},
 		TimeoutBlockHeight: data.TimoutBlockHeight,
 	}
-}
-
-func (r *Redeemer[T]) broadcastTransaction(transaction *wire.MsgTx) error {
-	transactionHex, err := boltz.SerializeTransaction(transaction)
-
-	if err != nil {
-		return fmt.Errorf("could not serialize transaction: %v", err)
-	}
-
-	_, err = r.BoltzAPI.BroadcastTransaction(transactionHex)
-
-	if err != nil {
-		return fmt.Errorf("could not broadcast transaction: %v", err)
-	}
-
-	return nil
 }
 
 func (r *Redeemer[T]) findLockupVout(addressToFind string, outputs []*wire.TxOut) (uint32, error) {

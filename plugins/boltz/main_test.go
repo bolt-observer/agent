@@ -80,7 +80,8 @@ func TestExecute(t *testing.T) {
 		cs := &CallbackStore{}
 		err := p.Execute(123, []byte("invalid data"), cs.Callback)
 		require.ErrorIs(t, ErrCouldNotParseJobData, err)
-		assert.Equal(t, 0, len(cs.messages))
+		// We now report the error back
+		assert.Equal(t, 1, len(cs.messages))
 	})
 
 	t.Run("Ack if message is running already", func(t *testing.T) {
