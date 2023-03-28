@@ -136,7 +136,9 @@ func (r *Redeemer[T]) redeem() bool {
 			output = r.getRefundOutput(sd)
 		} else if sd.State == ClaimReverseFunds {
 			if info.BlockHeight > int(sd.TimoutBlockHeight) {
-				r.Callback(entry, false)
+				if r.Callback != nil {
+					r.Callback(entry, false)
+				}
 				del = append(del, entry.GetSwapData().JobID)
 				output = nil
 			} else {
@@ -188,13 +190,13 @@ func (r *Redeemer[T]) AddEntry(data T) error {
 	ok := false
 	sd := data.GetSwapData()
 	if r.Type&RedeemForward == RedeemForward {
-		if sd.State == RedeemingLockedFunds {
+		if sd.State == RedeemingLockedFunds && sd.TransactionHex != "" {
 			ok = true
 		}
 	}
 
 	if r.Type&RedeemReverse == RedeemReverse {
-		if sd.State == ClaimReverseFunds {
+		if sd.State == ClaimReverseFunds && sd.TransactionHex != "" {
 			ok = true
 		}
 	}
@@ -247,6 +249,10 @@ func (r *Redeemer[T]) doRedeem(outputs []boltz.OutputDetails) (string, error) {
 
 func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 	if data.State != ClaimReverseFunds {
+		return nil
+	}
+
+	if data.TransactionHex == "" {
 		return nil
 	}
 
@@ -303,6 +309,10 @@ func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 
 func (r *Redeemer[T]) getRefundOutput(data *SwapData) *boltz.OutputDetails {
 	if data.State != RedeemingLockedFunds {
+		return nil
+	}
+
+	if data.TransactionHex == "" {
 		return nil
 	}
 

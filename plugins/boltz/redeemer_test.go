@@ -53,6 +53,51 @@ func TestScripting(t *testing.T) {
 	}
 }
 
+func TestRedeemerTypes(t *testing.T) {
+	// Test all possibe redeemer types
+	ctx := context.Background()
+
+	ln := getLocalLndByName(t, Node)
+	if ln == nil {
+		t.Logf("Ignoring redeemer test since regtest network is not available\n")
+		return
+	}
+
+	lnAPI, err := ln()
+	require.NoError(t, err)
+	defer lnAPI.Cleanup()
+
+	redeemerFail := NewRedeemer[DummyStruct](ctx, 0, &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil, nil)
+	assert.Nil(t, redeemerFail)
+
+	forwardSd := &SwapData{State: RedeemingLockedFunds, TransactionHex: "dummy"}
+	reverseSd := &SwapData{State: ClaimReverseFunds, TransactionHex: "dummy"}
+
+	redeemerForward := NewRedeemer[DummyStruct](ctx, RedeemForward, &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil, nil)
+	require.NotNil(t, redeemerForward)
+
+	err = redeemerForward.AddEntry(DummyStruct{Data: forwardSd})
+	assert.NoError(t, err)
+	err = redeemerForward.AddEntry(DummyStruct{Data: reverseSd})
+	assert.Error(t, err)
+
+	redeemerReverse := NewRedeemer[DummyStruct](ctx, RedeemReverse, &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil, nil)
+	require.NotNil(t, redeemerReverse)
+
+	err = redeemerReverse.AddEntry(DummyStruct{Data: forwardSd})
+	assert.Error(t, err)
+	err = redeemerReverse.AddEntry(DummyStruct{Data: reverseSd})
+	assert.NoError(t, err)
+
+	redeemerBoth := NewRedeemer[DummyStruct](ctx, (RedeemReverse | RedeemForward), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil, nil)
+	require.NotNil(t, redeemerBoth)
+
+	err = redeemerBoth.AddEntry(DummyStruct{Data: forwardSd})
+	assert.NoError(t, err)
+	err = redeemerBoth.AddEntry(DummyStruct{Data: reverseSd})
+	assert.NoError(t, err)
+}
+
 func TestRedeemLockedFunds(t *testing.T) {
 	// Reverse swap finished, prepare redeemer to claim
 	ctx := context.Background()
@@ -208,7 +253,8 @@ func TestRedeemFailThatIsNotYetMature(t *testing.T) {
 	blockNum := GetCurrentBlockNum(t)
 
 	failSd := GenerateFailSd(t, c, "dummy1", 1, int(blockNum+1), "0.1")
-	dummySd := GenerateFailSd(t, c, "notused", 1, int(blockNum+1), "0.1")
+	notRedeemableSd := GenerateFailSd(t, c, "notredeemable", 2, int(blockNum+10), "0.1")
+	dummySd := GenerateFailSd(t, c, "notused", 3, int(blockNum+1), "0.1")
 	dummySd.State = RedeemLockedFunds
 
 	cnt := 0
@@ -220,6 +266,8 @@ func TestRedeemFailThatIsNotYetMature(t *testing.T) {
 
 	// ACT
 	err = redeemer.AddEntry(DummyStruct{Data: failSd})
+	assert.NoError(t, err)
+	err = redeemer.AddEntry(DummyStruct{Data: notRedeemableSd})
 	assert.NoError(t, err)
 	err = redeemer.AddEntry(DummyStruct{Data: dummySd})
 	assert.Error(t, err)
