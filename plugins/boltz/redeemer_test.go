@@ -21,10 +21,14 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	bip39 "github.com/tyler-smith/go-bip39"
 )
 
-const DataDir = "/tmp/lnregtest-data/dev_network/bitcoin"
+const (
+	DataDir = "/tmp/lnregtest-data/dev_network/bitcoin"
+	Node    = "F"
+)
 
 type DummyStruct struct {
 	Data *SwapData
@@ -40,26 +44,17 @@ func TestScripting(t *testing.T) {
 	timeoutBlockHeight := int64(1337)
 
 	privKey, err := secp256k1.GeneratePrivateKey()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, b := range []bool{false, true} {
 		script := GetScript(t, b, preimageHash, privKey, privKey, timeoutBlockHeight)
 		addr := GetAddress(t, b, script)
 		t.Logf("%v\n", addr)
 	}
-
-	return
 }
 
 func TestRedeemLockedFunds(t *testing.T) {
 	// Reverse swap finished, prepare redeemer to claim
-
-	const (
-		Node    = "F"
-		Id      = 1
-		Attempt = 1
-	)
-
 	ctx := context.Background()
 
 	ln := getLocalLndByName(t, Node)
@@ -69,34 +64,19 @@ func TestRedeemLockedFunds(t *testing.T) {
 	}
 
 	lnAPI, err := ln()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer lnAPI.Cleanup()
 
 	f, err := lnAPI.GetOnChainFunds(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	balanceBefore := f.TotalBalance
 
 	// ARRANGE
 	entropy, err := bip39.NewEntropy(256)
 	c := NewCryptoAPI(entropy)
-	k, err := c.GetKeys(fmt.Sprintf("%d-%d", Id, Attempt))
-	assert.NoError(t, err)
-	dummyKey, err := secp256k1.GeneratePrivateKey()
-	assert.NoError(t, err)
-
 	blockNum := GetCurrentBlockNum(t)
 
-	script := GetScript(t, true, k.Preimage.Hash, k.Keys.PrivateKey, dummyKey, int64(blockNum+10))
-	addr := GetAddress(t, true, script)
-
-	t.Logf("Address: %s %d\n", addr, blockNum)
-
-	txid := FundAddresss(t, addr, "0.1")
-	tx := GetRawTx(t, txid)
-
-	t.Logf("Transaction was %v\n", tx)
-
-	sd := &SwapData{BoltzID: "dummy", JobID: Id, Attempt: Attempt, State: ClaimReverseFunds, TransactionHex: tx, Address: addr, TimoutBlockHeight: uint32(blockNum + 10), Script: hex.EncodeToString(script)}
+	sd := GenerateClaimSd(t, c, "dummy1", 1, int(blockNum+10), "0.1")
 
 	finished := false
 	cb := func(data DummyStruct, success bool) {
@@ -119,7 +99,8 @@ func TestRedeemLockedFunds(t *testing.T) {
 	redeemer := NewRedeemer(ctx, (RedeemForward | RedeemReverse), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, c, cb)
 
 	// ACT
-	redeemer.AddEntry(DummyStruct{Data: sd})
+	err = redeemer.AddEntry(DummyStruct{Data: sd})
+	assert.NoError(t, err)
 
 	// ASSERT
 	for i := 0; i < 100; i++ {
@@ -132,16 +113,191 @@ func TestRedeemLockedFunds(t *testing.T) {
 	t.Fatalf("Did not succeed")
 }
 
+func TestRedeemLockedFundsTwoSources(t *testing.T) {
+	// Reverse swap finished and forward swap failed, prepare redeemer to claim both
+	ctx := context.Background()
+
+	ln := getLocalLndByName(t, Node)
+	if ln == nil {
+		t.Logf("Ignoring redeemer test since regtest network is not available\n")
+		return
+	}
+
+	lnAPI, err := ln()
+	require.NoError(t, err)
+	defer lnAPI.Cleanup()
+
+	f, err := lnAPI.GetOnChainFunds(ctx)
+	require.NoError(t, err)
+	balanceBefore := f.TotalBalance
+
+	// ARRANGE
+	entropy, err := bip39.NewEntropy(256)
+	c := NewCryptoAPI(entropy)
+	blockNum := GetCurrentBlockNum(t)
+
+	claimSd := GenerateClaimSd(t, c, "dummy2", 2, int(blockNum+10), "0.1")
+	failSd := GenerateFailSd(t, c, "dummy1", 1, int(blockNum-2), "0.2")
+	// Dummy cannot be claimed
+	dummySd := GenerateFailSd(t, c, "dummy3", 3, int(blockNum+5), "0.1")
+
+	cnt := 0
+	cb := func(data DummyStruct, success bool) {
+		t.Logf("Dummy %+v success %v\n", data, success)
+		cnt++
+	}
+
+	redeemer := NewRedeemer(ctx, (RedeemForward | RedeemReverse), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, c, cb)
+
+	// ACT
+	err = redeemer.AddEntry(DummyStruct{Data: dummySd})
+	assert.NoError(t, err)
+	err = redeemer.AddEntry(DummyStruct{Data: claimSd})
+	assert.NoError(t, err)
+	err = redeemer.AddEntry(DummyStruct{Data: failSd})
+	assert.NoError(t, err)
+
+	// ASSERT
+	for i := 0; i < 100; i++ {
+		if cnt == 2 {
+			time.Sleep(100 * time.Millisecond)
+
+			lnAPI, err := ln()
+			assert.NoError(t, err)
+			defer lnAPI.Cleanup()
+
+			f, err := lnAPI.GetOnChainFunds(ctx)
+			assert.NoError(t, err)
+			balanceAfter := f.TotalBalance
+
+			assert.Greater(t, balanceAfter, balanceBefore)
+			t.Logf("BalanceBefore %v BalanceAfter: %v\n", balanceBefore, balanceAfter)
+			// Not sure about fees, but this is a good approximation
+			assert.Less(t, int64(29_000_000), balanceAfter-balanceBefore)
+			assert.Greater(t, int64(31_000_000), balanceAfter-balanceBefore)
+
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	t.Fatalf("Did not succeed")
+}
+
+func TestRedeemFailThatIsNotYetMature(t *testing.T) {
+	// Swap failed, redeem locked funds that are still locked for one block
+	ctx := context.Background()
+
+	ln := getLocalLndByName(t, Node)
+	if ln == nil {
+		t.Logf("Ignoring redeemer test since regtest network is not available\n")
+		return
+	}
+
+	lnAPI, err := ln()
+	require.NoError(t, err)
+	defer lnAPI.Cleanup()
+
+	f, err := lnAPI.GetOnChainFunds(ctx)
+	require.NoError(t, err)
+	balanceBefore := f.TotalBalance
+
+	// ARRANGE
+	entropy, err := bip39.NewEntropy(256)
+	c := NewCryptoAPI(entropy)
+	blockNum := GetCurrentBlockNum(t)
+
+	failSd := GenerateFailSd(t, c, "dummy1", 1, int(blockNum+1), "0.1")
+	dummySd := GenerateFailSd(t, c, "notused", 1, int(blockNum+1), "0.1")
+	dummySd.State = RedeemLockedFunds
+
+	cnt := 0
+	cb := func(data DummyStruct, success bool) {
+		cnt++
+	}
+
+	redeemer := NewRedeemer(ctx, (RedeemForward | RedeemReverse), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, c, cb)
+
+	// ACT
+	err = redeemer.AddEntry(DummyStruct{Data: failSd})
+	assert.NoError(t, err)
+	err = redeemer.AddEntry(DummyStruct{Data: dummySd})
+	assert.Error(t, err)
+
+	err = Mine(2)
+	assert.NoError(t, err)
+
+	// ASSERT
+	for i := 0; i < 100; i++ {
+		if cnt == 1 {
+			time.Sleep(100 * time.Millisecond)
+
+			lnAPI, err := ln()
+			assert.NoError(t, err)
+			defer lnAPI.Cleanup()
+
+			f, err := lnAPI.GetOnChainFunds(ctx)
+			assert.NoError(t, err)
+			balanceAfter := f.TotalBalance
+
+			assert.Greater(t, balanceAfter, balanceBefore)
+			t.Logf("BalanceBefore %v BalanceAfter: %v\n", balanceBefore, balanceAfter)
+			// Not sure about fees, but this is a good approximation
+			assert.Less(t, int64(9_000_000), balanceAfter-balanceBefore)
+			assert.Greater(t, int64(11_000_000), balanceAfter-balanceBefore)
+
+			return
+		} else if cnt > 1 {
+			t.Fatalf("Too many callbacks %v\n", cnt)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	t.Fatalf("Did not succeed")
+}
+
+func GenerateClaimSd(t *testing.T, c *CryptoAPI, name string, id int, blockNum int, funds string) *SwapData {
+	k, err := c.GetKeys(fmt.Sprintf("%d-%d", id, 1))
+	require.NoError(t, err)
+	dummyKey, err := secp256k1.GeneratePrivateKey()
+	require.NoError(t, err)
+
+	script := GetScript(t, true, k.Preimage.Hash, k.Keys.PrivateKey, dummyKey, int64(blockNum))
+	addr := GetAddress(t, true, script)
+
+	txid := FundAddresss(t, addr, funds)
+	tx := GetRawTx(t, txid)
+	t.Logf("Transaction was %v\n", tx)
+
+	return &SwapData{BoltzID: name, JobID: JobID(id), Attempt: 1, State: ClaimReverseFunds, TransactionHex: tx, Address: addr, TimoutBlockHeight: uint32(blockNum), Script: hex.EncodeToString(script)}
+}
+
+func GenerateFailSd(t *testing.T, c *CryptoAPI, name string, id int, blockNum int, funds string) *SwapData {
+	k, err := c.GetKeys(fmt.Sprintf("%d-%d", id, 1))
+	require.NoError(t, err)
+	dummyKey, err := secp256k1.GeneratePrivateKey()
+	require.NoError(t, err)
+
+	script := GetScript(t, false, k.Preimage.Hash, k.Keys.PrivateKey, dummyKey, int64(blockNum))
+	addr := GetAddress(t, false, script)
+
+	txid := FundAddresss(t, addr, funds)
+	tx := GetRawTx(t, txid)
+	t.Logf("Transaction was %v\n", tx)
+
+	return &SwapData{BoltzID: name, JobID: JobID(id), Attempt: 1, State: RedeemingLockedFunds, TransactionHex: tx, Address: addr, TimoutBlockHeight: uint32(blockNum), Script: hex.EncodeToString(script)}
+}
+
 func GetAddress(t *testing.T, reverse bool, script []byte) string {
 	if reverse {
 		lockupAddress, err := boltz.WitnessScriptHashAddress(&chaincfg.RegressionNetParams, script)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		return lockupAddress
 	} else {
 		encodedAddress, err := boltz.NestedScriptHashAddress(&chaincfg.RegressionNetParams, script)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		err = boltz.CheckSwapAddress(&chaincfg.RegressionNetParams, encodedAddress, script, true)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		return encodedAddress
 	}
 }
@@ -171,10 +327,10 @@ func GetScript(t *testing.T, reverse bool, preimageHash []byte, myKey, theirKey 
 		builder.AddOp(txscript.OP_CHECKSIG)
 
 		script, err = builder.Script()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = boltz.CheckReverseSwapScript(script, preimageHash, myKey, uint32(timeoutBlockHeight))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	} else {
 		builder.AddOp(txscript.OP_HASH160)
 		builder.AddData(input.Ripemd160H(preimageHash))
@@ -190,10 +346,10 @@ func GetScript(t *testing.T, reverse bool, preimageHash []byte, myKey, theirKey 
 		builder.AddOp(txscript.OP_CHECKSIG)
 
 		script, err = builder.Script()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = boltz.CheckSwapScript(script, preimageHash, myKey, uint32(timeoutBlockHeight))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	return script
@@ -201,23 +357,23 @@ func GetScript(t *testing.T, reverse bool, preimageHash []byte, myKey, theirKey 
 
 func GetRawTx(t *testing.T, hash string) string {
 	out, err := exec.Command("bitcoin-cli", fmt.Sprintf("-datadir=%s", DataDir), "getrawtransaction", hash).Output()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	tx := strings.Trim(string(out), " \r\n")
 
 	raw, err := hex.DecodeString(tx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	actual, err := btcutil.NewTxFromBytes(raw)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, hash, actual.Hash().String())
+	require.Equal(t, hash, actual.Hash().String())
 
 	return tx
 }
 
 func FundAddresss(t *testing.T, addr string, amount string) string {
 	out, err := exec.Command("bitcoin-cli", fmt.Sprintf("-datadir=%s", DataDir), "sendtoaddress", addr, amount).Output()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	tx := strings.Trim(string(out), " \r\n")
 
@@ -226,12 +382,10 @@ func FundAddresss(t *testing.T, addr string, amount string) string {
 
 func BroadcastTransaction(t *testing.T, transaction string) string {
 	out, err := exec.Command("bitcoin-cli", fmt.Sprintf("-datadir=%s", DataDir), "sendrawtransaction", transaction).Output()
-	fmt.Printf("OUTPUT |%s| %s %v\n", transaction, string(out), err)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	tx := strings.Trim(string(out), " \r\n")
 
-	fmt.Printf("Txid %v\n", tx)
 	return tx
 }
 
@@ -246,7 +400,7 @@ func GetCurrentBlockNum(t *testing.T) uint64 {
 	var b BlockChainInfo
 	data := []byte(strings.Trim(string(out), " \r\n"))
 	err = json.Unmarshal(data, &b)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	return b.Blocks
 }

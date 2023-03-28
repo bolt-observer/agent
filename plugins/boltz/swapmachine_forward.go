@@ -117,7 +117,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 		return FsmOut{Error: err}
 	}
 
-	log(in, fmt.Sprintf("Transaction ID for swap is %v (invoice hash %v)", tx, invoice.Hash))
+	log(in, fmt.Sprintf("Transaction ID for swap %v sats to %v is %v (invoice hash %v)", int64(response.ExpectedAmount), response.Address, tx, invoice.Hash))
 	in.SwapData.LockupTransactionId = tx
 
 	in.SwapData.FeesPaidSoFar += (response.ExpectedAmount - sats)

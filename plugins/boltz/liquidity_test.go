@@ -10,6 +10,7 @@ import (
 	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetNodeLiquidity(t *testing.T) {
@@ -21,10 +22,10 @@ func TestGetNodeLiquidity(t *testing.T) {
 		return
 	}
 	lnAPI, err := l()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = GetNodeLiquidity(context.Background(), lnAPI, f)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestGetByDescendingOutboundLiqudity(t *testing.T) {
@@ -36,16 +37,16 @@ func TestGetByDescendingOutboundLiqudity(t *testing.T) {
 		return
 	}
 	lnAPI, err := l()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	const Limit = uint64(3523220)
 	resp, err := GetByDescendingOutboundLiquidity(context.Background(), Limit, lnAPI, f)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	total := uint64(0)
 	for _, one := range resp {
 		total += one.Capacity
 	}
 
-	assert.GreaterOrEqual(t, total, Limit)
+	require.GreaterOrEqual(t, total, Limit)
 }
