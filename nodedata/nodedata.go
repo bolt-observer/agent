@@ -586,7 +586,7 @@ func (c *NodeData) checkOne(
 		closedIds := make([]uint64, 0)
 		for key := range closed {
 			closedIds = append(closedIds, key)
-			// Initialize everythig with UnknownCloseInfo and then override if GetChannelCloseInfo succeeds
+			// Initialize everything with UnknownCloseInfo and then override if GetChannelCloseInfo succeeds
 			closedChannels = append(closedChannels, entities.ClosedChannel{ChannelID: key, CloseInfo: lightning.UnknownCloseInfo})
 		}
 		resp, err := api.GetChannelCloseInfo(c.ctx, closedIds)
@@ -595,7 +595,7 @@ func (c *NodeData) checkOne(
 				closedChannels[i].CloseInfo = info
 			}
 		} else {
-			glog.Warningf("Could not invoke GetChannelCloseInfo %v", err)
+			glog.Warningf("Could not invoke GetChannelCloseInfo, due to %v\n", err)
 		}
 	}
 
