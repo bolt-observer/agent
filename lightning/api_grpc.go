@@ -1016,3 +1016,54 @@ func (l *LndGrpcLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash str
 
 	return resp.State == lnrpc.Invoice_SETTLED, nil
 }
+
+func (l *LndGrpcLightningAPI) convertInitiator(initiator lnrpc.Initiator) CommonInitiator {
+	switch initiator {
+	case lnrpc.Initiator_INITIATOR_LOCAL:
+		return Local
+	case lnrpc.Initiator_INITIATOR_REMOTE:
+		return Remote
+	default:
+		return Unknown
+	}
+}
+
+// GetChannelCloseInfo API.
+func (l *LndGrpcLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error) {
+	resp, err := l.Client.ClosedChannels(ctx, &lnrpc.ClosedChannelsRequest{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	lookup := make(map[uint64]*lnrpc.ChannelCloseSummary)
+
+	for _, channel := range resp.Channels {
+		lookup[channel.ChanId] = channel
+	}
+
+	ret := make([]CloseInfo, 0)
+
+	for _, id := range chanIDs {
+		if c, ok := lookup[id]; ok {
+			typ := UnknownType
+
+			switch c.CloseType {
+			case lnrpc.ChannelCloseSummary_COOPERATIVE_CLOSE:
+				typ = CooperativeType
+			case lnrpc.ChannelCloseSummary_LOCAL_FORCE_CLOSE:
+			case lnrpc.ChannelCloseSummary_REMOTE_FORCE_CLOSE:
+				typ = ForceType
+			}
+			ret = append(ret, CloseInfo{
+				Opener:    l.convertInitiator(c.OpenInitiator),
+				Closer:    l.convertInitiator(c.CloseInitiator),
+				CloseType: typ,
+			})
+		} else {
+			ret = append(ret, UnknownCloseInfo)
+		}
+	}
+
+	return ret, nil
+}

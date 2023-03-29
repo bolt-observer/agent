@@ -386,3 +386,25 @@ type TrackPaymentRequestOverride struct {
 	PaymentHash string `json:"payment_hash,omitempty"`
 	routerrpc.TrackPaymentRequest
 }
+
+// ClosedChannelsResponseOverride struct.
+type ClosedChannelsResponseOverride struct {
+	Channels []*ChannelCloseSummaryOverride `json:"channels,omitempty"`
+	lnrpc.ClosedChannelsResponse
+}
+
+// ChannelCloseSummaryOverride struct
+type ChannelCloseSummaryOverride struct {
+	ChanId                string          `json:"chan_id,omitempty"`
+	Capacity              string          `json:"capacity,omitempty"`
+	SettledBalance        string          `json:"settled_balance,omitempty"`
+	TimeLockedBalance     string          `json:"time_locked_balance,omitempty"`
+	CloseType             string          `json:"close_type,omitempty"`
+	OpenInitiator         string          `json:"open_initiator,omitempty"`
+	CloseInitiator        string          `json:"close_initiator,omitempty"`
+	Resolutions           json.RawMessage `json:"resolutions,omitempty"`
+	AliasScids            json.RawMessage `json:"alias_scids,omitempty"`
+	ZeroConfConfirmedScid json.RawMessage `json:"zero_conf_confirmed_scid,omitempty"`
+
+	lnrpc.ChannelCloseSummary
+}

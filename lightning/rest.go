@@ -549,3 +549,24 @@ func (h *HTTPAPI) HTTPLookupInvoice(ctx context.Context, req *http.Request, paym
 
 	return &reply, nil
 }
+
+// HTTPClosedChannels - invokes ClosedChannels method.
+func (h *HTTPAPI) HTTPClosedChannels(ctx context.Context, req *http.Request) (*ClosedChannelsResponseOverride, error) {
+	var reply ClosedChannelsResponseOverride
+
+	req = req.WithContext(ctx)
+
+	u, err := url.Parse(fmt.Sprintf("%s/v1/channels/closed", req.URL))
+	if err != nil {
+		return nil, fmt.Errorf("invalid url %s", err)
+	}
+
+	req.URL = u
+
+	err = h.doGetRequest(req, &reply)
+	if err != nil {
+		return nil, err
+	}
+
+	return &reply, nil
+}

@@ -582,8 +582,20 @@ func (c *NodeData) checkOne(
 
 		// diff between new -> old
 		closed := utils.SetDiff(set, c.nodeChanIds[identifier.GetID()])
-		for k := range closed {
-			closedChannels = append(closedChannels, entities.ClosedChannel{ChannelID: k})
+
+		closedIds := make([]uint64, 0)
+		for key := range closed {
+			closedIds = append(closedIds, key)
+			// Initialize everythig with UnknownCloseInfo and then override if GetChannelCloseInfo succeeds
+			closedChannels = append(closedChannels, entities.ClosedChannel{ChannelID: key, CloseInfo: lightning.UnknownCloseInfo})
+		}
+		resp, err := api.GetChannelCloseInfo(c.ctx, closedIds)
+		if err == nil {
+			for i, info := range resp {
+				closedChannels[i].CloseInfo = info
+			}
+		} else {
+			glog.Warningf("Could not invoke GetChannelCloseInfo %v", err)
 		}
 	}
 
