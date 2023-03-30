@@ -100,7 +100,7 @@ func (c *NodeData) IsSubscribed(pubKey, uniqueID string) bool {
 // Subscribe - subscribe to notifications about node changes (if already subscribed this will force a callback, use IsSubscribed to check)
 func (c *NodeData) Subscribe(
 	nodeDataCallback entities.NodeDataReportCallback,
-	getAPI entities.NewAPICall,
+	getAPI api.NewAPICall,
 	pubKey string,
 	settings entities.ReportingSettings,
 	uniqueID string) error {
@@ -166,7 +166,7 @@ func (c *NodeData) Unsubscribe(pubkey, uniqueID string) error {
 func (c *NodeData) GetState(
 	pubKey string,
 	uniqueID string,
-	getAPI entities.NewAPICall,
+	getAPI api.NewAPICall,
 	settings entities.ReportingSettings,
 	optCallback entities.NodeDataReportCallback) (*entities.NodeDataReport, error) {
 
@@ -355,7 +355,7 @@ func (c *NodeData) EventLoop() {
 
 func (c *NodeData) fetchGraph(
 	pubKey string,
-	getAPI entities.NewAPICall,
+	getAPI api.NewAPICall,
 	settings entities.ReportingSettings,
 ) error {
 
@@ -517,7 +517,7 @@ func applyFilter(info *api.NodeInfoAPIExtended, filter filter.FilteringInterface
 // checkOne checks one specific node
 func (c *NodeData) checkOne(
 	identifier entities.NodeIdentifier,
-	getAPI entities.NewAPICall,
+	getAPI api.NewAPICall,
 	settings entities.ReportingSettings,
 	oldHash uint64,
 	ignoreCache bool,
@@ -592,6 +592,7 @@ func (c *NodeData) checkOne(
 		resp, err := api.GetChannelCloseInfo(c.ctx, closedIds)
 		if err == nil {
 			for i, info := range resp {
+				info.ChanID = 0 // ignore that
 				closedChannels[i].CloseInfo = info
 			}
 		} else {

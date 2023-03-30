@@ -5,13 +5,8 @@ package boltz
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/hex"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"testing"
 	"time"
@@ -19,18 +14,16 @@ import (
 	agent_entities "github.com/bolt-observer/agent/entities"
 	filter "github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
-	common_entities "github.com/bolt-observer/go_common/entities"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	bip39 "github.com/tyler-smith/go-bip39"
 )
 
 const (
-	LnRegTestPathPrefix = "/tmp/lnregtest-data/dev_network/"
-	BoltzUrl            = "http://localhost:9001"
-	TestnetBoltzUrl     = "https://testnet.boltz.exchange/api"
-	Regtest             = "regtest"
-	Tesnet              = "testnet"
+	BoltzUrl        = "http://localhost:9001"
+	TestnetBoltzUrl = "https://testnet.boltz.exchange/api"
+	Regtest         = "regtest"
+	Tesnet          = "testnet"
 )
 
 // Make sure to increase test timeout to 60 s
@@ -47,98 +40,6 @@ const (
 // lncli --lnddir=/tmp/lnregtest-data/dev_network/lnnodes/E --rpcserver=localhost:11013 --macaroonpath=/tmp/lnregtest-data/dev_network/lnnodes/E/data/chain/bitcoin/regtest/admin.macaroon --network=regtest
 // lncli --lnddir=/tmp/lnregtest-data/dev_network/lnnodes/F --rpcserver=localhost:11014 --macaroonpath=/tmp/lnregtest-data/dev_network/lnnodes/F/data/chain/bitcoin/regtest/admin.macaroon --network=regtest
 // lncli --lnddir=/tmp/lnregtest-data/dev_network/lnnodes/G --rpcserver=localhost:11015 --macaroonpath=/tmp/lnregtest-data/dev_network/lnnodes/G/data/chain/bitcoin/regtest/admin.macaroon --network=regtest
-
-func getLocalCln(t *testing.T, name string) agent_entities.NewAPICall {
-	data := &common_entities.Data{}
-	x := int(api.ClnSocket)
-	data.Endpoint = fmt.Sprintf("%s/lnnodes/%s/regtest/lightning-rpc", LnRegTestPathPrefix, name)
-	if _, err := os.Stat(data.Endpoint); errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	data.ApiType = &x
-
-	return func() (api.LightingAPICalls, error) {
-		api, err := api.NewAPI(api.ClnSocket, func() (*common_entities.Data, error) {
-			return data, nil
-		})
-
-		return api, err
-	}
-}
-
-func getLocalLndByName(t *testing.T, name string) agent_entities.NewAPICall {
-	nodes := map[string]string{
-		"A": "localhost:11009",
-		"C": "localhost:11011",
-		"D": "localhost:11012",
-		"E": "localhost:11013",
-		"F": "localhost:11014",
-		"G": "localhost:11015",
-	}
-
-	return getLocalLnd(t, name, nodes[name])
-}
-
-func getLocalLnd(t *testing.T, name string, endpoint string) agent_entities.NewAPICall {
-	data := &common_entities.Data{}
-	x := int(api.LndGrpc)
-	data.Endpoint = endpoint
-	data.ApiType = &x
-
-	content, err := os.ReadFile(fmt.Sprintf("%s/lnnodes/%s/tls.cert", LnRegTestPathPrefix, name))
-	if err != nil {
-		return nil
-	}
-	data.CertificateBase64 = base64.StdEncoding.EncodeToString(content)
-
-	macBytes, err := os.ReadFile(fmt.Sprintf("%s/lnnodes/%s/data/chain/bitcoin/regtest/admin.macaroon", LnRegTestPathPrefix, name))
-	if err != nil {
-		return nil
-	}
-	data.MacaroonHex = hex.EncodeToString(macBytes)
-
-	return func() (api.LightingAPICalls, error) {
-		api, err := api.NewAPI(api.LndGrpc, func() (*common_entities.Data, error) {
-			return data, nil
-		})
-
-		return api, err
-	}
-}
-
-func getTestnetLnd(t *testing.T) agent_entities.NewAPICall {
-	name := "testnet.secret"
-	data := &common_entities.Data{}
-
-	if _, err := os.Stat(name); errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-
-	content, err := os.ReadFile(name)
-	if err != nil {
-		t.Fatalf("Error when opening file: %v", err)
-		return nil
-	}
-
-	err = json.Unmarshal(content, &data)
-	if err != nil {
-		t.Fatalf("Error during Unmarshal(): %v", err)
-		return nil
-	}
-
-	return func() (api.LightingAPICalls, error) {
-		api, err := api.NewAPI(api.LndGrpc, func() (*common_entities.Data, error) {
-			return data, nil
-		})
-
-		return api, err
-	}
-}
-
-func Mine(numBlocks int) error {
-	_, err := exec.Command("bitcoin-cli", fmt.Sprintf("-datadir=%s/bitcoin", LnRegTestPathPrefix), "-generate", fmt.Sprintf("%d", numBlocks)).Output()
-	return err
-}
 
 type LogAggregator struct {
 	LogLines []string
@@ -179,7 +80,7 @@ func (l *LogAggregator) WasSuccess() bool {
 	return false
 }
 
-func nodeSanityCheck(t *testing.T, ln agent_entities.NewAPICall, name string) {
+func nodeSanityCheck(t *testing.T, ln api.NewAPICall, name string) {
 	// Sanity check of node
 	ctx := context.Background()
 	lnAPI, err := ln()
@@ -194,7 +95,7 @@ func nodeSanityCheck(t *testing.T, ln agent_entities.NewAPICall, name string) {
 	assert.Greater(t, funds.ConfirmedBalance, int64(1_000_000))
 }
 
-func newPlugin(t *testing.T, ln agent_entities.NewAPICall, dbName string, boltzUrl string, network string) *Plugin {
+func newPlugin(t *testing.T, ln api.NewAPICall, dbName string, boltzUrl string, network string) *Plugin {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
@@ -212,7 +113,7 @@ func newPlugin(t *testing.T, ln agent_entities.NewAPICall, dbName string, boltzU
 func TestSwapCln(t *testing.T) {
 	const Node = "B"
 
-	ln := getLocalCln(t, Node)
+	ln := api.GetLocalCln(t, Node)
 	if ln == nil {
 		fmt.Printf("Ignoring swap test since regtest network is not available\n")
 		return
@@ -231,7 +132,7 @@ func TestSwapCln(t *testing.T) {
 	assert.NoError(t, err)
 
 	for i := 0; i < 20; i++ {
-		err = Mine(1)
+		err = api.RegtestMine(1)
 		if err != nil {
 			fmt.Printf("Could not mine %v\n", err)
 		}
@@ -247,7 +148,7 @@ func TestSwapCln(t *testing.T) {
 func TestSwapLnd(t *testing.T) {
 	const Node = "F"
 
-	ln := getLocalLndByName(t, Node)
+	ln := api.GetLocalLndByName(t, Node)
 	if ln == nil {
 		fmt.Printf("Ignoring swap test since regtest network is not available\n")
 		return
@@ -266,7 +167,7 @@ func TestSwapLnd(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 5; i++ {
-		err = Mine(1)
+		err = api.RegtestMine(1)
 		if err != nil {
 			fmt.Printf("Could not mine %v", err)
 		}
@@ -282,7 +183,7 @@ func TestSwapLnd(t *testing.T) {
 func TestStateMachineRecovery(t *testing.T) {
 	const Node = "F"
 
-	ln := getLocalLndByName(t, Node)
+	ln := api.GetLocalLndByName(t, Node)
 	if ln == nil {
 		fmt.Printf("Ignoring swap test since regtest network is not available\n")
 		return
@@ -328,7 +229,7 @@ func TestStateMachineRecovery(t *testing.T) {
 
 func TestInboundTestnet(t *testing.T) {
 	// go test -test.v -timeout 1h -tags plugins -run ^TestInboundTestnet$ github.com/bolt-observer/agent/plugins/boltz
-	ln := getTestnetLnd(t)
+	ln := api.GetTestnetLnd(t)
 	if ln == nil {
 		fmt.Printf("Ignoring swap test since test network is not available\n")
 		return
@@ -371,8 +272,8 @@ func TestPayInvoice(t *testing.T) {
 
 	ctx := context.Background()
 
-	lnA := getLocalLndByName(t, "A")
-	lnC := getLocalLndByName(t, "C")
+	lnA := api.GetLocalLndByName(t, "A")
+	lnC := api.GetLocalLndByName(t, "C")
 
 	lnAPI1, err := lnA()
 	require.NotNil(t, lnAPI1)

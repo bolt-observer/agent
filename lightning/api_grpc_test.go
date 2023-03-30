@@ -16,6 +16,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	mocks "github.com/bolt-observer/agent/lightning/mocks"
 )
@@ -88,11 +89,13 @@ func TestObtainDataGrpc(t *testing.T) {
 	//api.ConnectPeer(context.Background(), "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a@161.97.184.185:9735")
 	//api.GetOnChainAddress(context.Background())
 	//resp, err := api.GetOnChainFunds(context.Background())
-	resp, err := api.IsInvoicePaid(context.Background(), "6c0a4f30b9bf9b6d1ca3f15ed7782ea2d52c67017cf0bd4f31c185724c37bccb")
-	assert.NoError(t, err)
-	fmt.Printf("%+v\n", resp)
+	//resp, err := api.IsInvoicePaid(context.Background(), "6c0a4f30b9bf9b6d1ca3f15ed7782ea2d52c67017cf0bd4f31c185724c37bccb")
 
-	t.Fail()
+	//resp, err := api.GetChannelCloseInfo(context.Background(), nil)
+	//assert.NoError(t, err)
+	//fmt.Printf("%+v\n", resp)
+
+	//t.Fail()
 }
 
 func commonGrpc(t *testing.T, name string, m *mocks.MockLightningClient, mr *mocks.MockRouterClient) ([]byte, LightingAPICalls) {
@@ -607,4 +610,52 @@ func TestIsInvoicePaidGrpc(t *testing.T) {
 
 		currentCase.Second(resp, err)
 	}
+}
+
+func TestGetChannelCloseInfoGrpc(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockLightningClient(ctrl)
+	mr := mocks.NewMockRouterClient(ctrl)
+	data, api := commonGrpc(t, "close", m, mr)
+
+	var entity *lnrpc.ClosedChannelsResponse
+
+	err := json.Unmarshal(data, &entity)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal info: %v", err)
+		return
+	}
+
+	m.
+		EXPECT().
+		ClosedChannels(gomock.Any(), gomock.Any()).
+		Return(entity, nil)
+
+	resp, err := api.GetChannelCloseInfo(context.Background(), nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(resp))
+	assert.Equal(t, CooperativeType, resp[0].CloseType)
+	assert.Equal(t, Remote, resp[0].Opener)
+	assert.Equal(t, Local, resp[0].Closer)
+
+	m.
+		EXPECT().
+		ClosedChannels(gomock.Any(), gomock.Any()).
+		Return(entity, nil)
+
+	id := resp[0].ChanID
+	resp, err = api.GetChannelCloseInfo(context.Background(), []uint64{id, 1337})
+	require.NoError(t, err)
+	require.Equal(t, 2, len(resp))
+	assert.Equal(t, CooperativeType, resp[0].CloseType)
+	assert.Equal(t, Remote, resp[0].Opener)
+	assert.Equal(t, Local, resp[0].Closer)
+	assert.Equal(t, id, resp[0].ChanID)
+
+	assert.Equal(t, UnknownType, resp[1].CloseType)
+	assert.Equal(t, Unknown, resp[1].Opener)
+	assert.Equal(t, Unknown, resp[1].Closer)
+	assert.Equal(t, uint64(0), resp[1].ChanID)
 }

@@ -415,12 +415,13 @@ const (
 
 // Close info struct.
 type CloseInfo struct {
+	ChanID    uint64          `json:"channel_id,omitempty"`
 	Opener    CommonInitiator `json:"opener"`
 	Closer    CommonInitiator `json:"closer"`
 	CloseType CommonCloseType `json:"closetype"`
 }
 
-var UnknownCloseInfo = CloseInfo{Opener: Unknown, Closer: Unknown, CloseType: UnknownType}
+var UnknownCloseInfo = CloseInfo{ChanID: 0, Opener: Unknown, Closer: Unknown, CloseType: UnknownType}
 
 ////////////////////////////////////////////////////////////////
 

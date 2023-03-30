@@ -802,22 +802,36 @@ func (l *LndRestLightningAPI) convertInitiator(initiator string) CommonInitiator
 
 // GetChannelCloseInfo API.
 func (l *LndRestLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error) {
+	var ids []uint64
 	resp, err := l.HTTPAPI.HTTPClosedChannels(ctx, l.Request)
 	if err != nil {
 		return nil, err
 	}
 
-	lookup := make(map[string]*ChannelCloseSummaryOverride)
+	lookup := make(map[uint64]*ChannelCloseSummaryOverride)
+
+	if chanIDs != nil {
+		ids = chanIDs
+	} else {
+		ids = make([]uint64, 0)
+	}
 
 	for _, channel := range resp.Channels {
-		lookup[channel.ChanId] = channel
+		chanid, err := strconv.ParseUint(channel.ChanId, 10, 64)
+		if err != nil {
+			continue
+		}
+
+		lookup[chanid] = channel
+		if chanIDs == nil {
+			ids = append(ids, chanid)
+		}
 	}
 
 	ret := make([]CloseInfo, 0)
 
-	for _, id := range chanIDs {
-		strId := fmt.Sprintf("%d", id)
-		if c, ok := lookup[strId]; ok {
+	for _, id := range ids {
+		if c, ok := lookup[id]; ok {
 			typ := UnknownType
 			switch c.CloseType {
 			case "COOPERATIVE_CLOSE":
@@ -827,6 +841,7 @@ func (l *LndRestLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs [
 				typ = ForceType
 			}
 			ret = append(ret, CloseInfo{
+				ChanID:    id,
 				Opener:    l.convertInitiator(c.OpenInitiator),
 				Closer:    l.convertInitiator(c.CloseInitiator),
 				CloseType: typ,

@@ -27,6 +27,7 @@ import (
 	"github.com/bolt-observer/agent/checkermonitoring"
 	raw "github.com/bolt-observer/agent/data-upload"
 	"github.com/bolt-observer/agent/filter"
+	"github.com/bolt-observer/agent/lightning"
 	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/agent/nodedata"
 	"github.com/bolt-observer/agent/plugins"
@@ -479,7 +480,7 @@ func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport
 	return true
 }
 
-func mkGetLndAPI(cmdCtx *cli.Context) agent_entities.NewAPICall {
+func mkGetLndAPI(cmdCtx *cli.Context) lightning.NewAPICall {
 	return func() (api.LightingAPICalls, error) {
 		return api.NewAPI(api.LndGrpc, func() (*entities.Data, error) {
 			return getData(cmdCtx)

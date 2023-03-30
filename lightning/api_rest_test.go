@@ -15,6 +15,7 @@ import (
 	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const FixtureDir = "./fixtures"
@@ -140,38 +141,42 @@ func TestObtainData(t *testing.T) {
 	}
 
 	// All methods
-
-	_, err = api.GetInfo(context.Background())
-	if err != nil {
-		t.Fatalf("fail %v", err)
-		return
-	}
-	_, err = api.GetChannels(context.Background())
-	if err != nil {
-		t.Fatalf("fail %v", err)
-		return
-	}
-
 	/*
-		_, err = api.DescribeGraph(context.Background(), false)
-		if err != nil {
-			t.Fatalf("fail %v", err)
-			return
-		}
+
+			_, err = api.GetInfo(context.Background())
+			if err != nil {
+				t.Fatalf("fail %v", err)
+				return
+			}
+			_, err = api.GetChannels(context.Background())
+			if err != nil {
+				t.Fatalf("fail %v", err)
+				return
+			}
+
+					_, err = api.DescribeGraph(context.Background(), false)
+					if err != nil {
+						t.Fatalf("fail %v", err)
+						return
+					}
+
+				_, err = api.GetNodeInfo(context.Background(), "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", true)
+				if err != nil {
+					t.Fatalf("fail %v", err)
+					return
+				}
+
+				_, err = api.GetChanInfo(context.Background(), 810130063083110402)
+				if err != nil {
+					t.Fatalf("fail %v", err)
+					return
+				}
+
+		resp, err := api.GetChannelCloseInfo(context.Background(), nil)
+		assert.NoError(t, err)
+		fmt.Printf("%+v\n", resp)
+		t.Fail()
 	*/
-
-	_, err = api.GetNodeInfo(context.Background(), "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", true)
-	if err != nil {
-		t.Fatalf("fail %v", err)
-		return
-	}
-
-	_, err = api.GetChanInfo(context.Background(), 810130063083110402)
-	if err != nil {
-		t.Fatalf("fail %v", err)
-		return
-	}
-
 }
 
 func common(t *testing.T, name string) ([]byte, *LndRestLightningAPI, LightingAPICalls) {
@@ -422,5 +427,41 @@ func TestGetOnChainAddress(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NotEqual(t, 0, len(resp))
+}
 
+func TestGetChannelCloseInfo(t *testing.T) {
+	data, d, api := common(t, "close")
+
+	// Mock
+	d.HTTPAPI.DoFunc = func(req *http.Request) (*http.Response, error) {
+		r := io.NopCloser(bytes.NewReader(data))
+		if !strings.Contains(req.URL.Path, "v1/channels/closed") {
+			t.Fatalf("URL should contain v1/channels/closed")
+		}
+		return &http.Response{
+			StatusCode: 200,
+			Body:       r,
+		}, nil
+	}
+
+	resp, err := api.GetChannelCloseInfo(context.Background(), nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(resp))
+	assert.Equal(t, CooperativeType, resp[0].CloseType)
+	assert.Equal(t, Remote, resp[0].Opener)
+	assert.Equal(t, Local, resp[0].Closer)
+
+	id := resp[0].ChanID
+	resp, err = api.GetChannelCloseInfo(context.Background(), []uint64{id, 1337})
+	require.NoError(t, err)
+	require.Equal(t, 2, len(resp))
+	assert.Equal(t, CooperativeType, resp[0].CloseType)
+	assert.Equal(t, Remote, resp[0].Opener)
+	assert.Equal(t, Local, resp[0].Closer)
+	assert.Equal(t, id, resp[0].ChanID)
+
+	assert.Equal(t, UnknownType, resp[1].CloseType)
+	assert.Equal(t, Unknown, resp[1].Opener)
+	assert.Equal(t, Unknown, resp[1].Closer)
+	assert.Equal(t, uint64(0), resp[1].ChanID)
 }

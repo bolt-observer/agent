@@ -18,7 +18,7 @@ import (
 type Connector struct {
 	Address    string
 	APIKey     string
-	LnAPI      entities.NewAPICall
+	LnAPI      lightning.NewAPICall
 	Plugins    map[string]entities.Plugin
 	IsInsecure bool
 	IsDryRun   bool

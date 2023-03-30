@@ -486,3 +486,17 @@ func TestCall(t *testing.T) {
 
 	t.Fail()
 }
+
+/*
+func TestVia(t *testing.T) {
+	api := GetLocalCln(t, "B")
+
+	lnAPI, err := api()
+	require.NoError(t, err)
+	require.NotNil(t, lnAPI)
+	defer lnAPI.Cleanup()
+
+	resp, err := lnAPI.GetChannelCloseInfo(context.Background(), nil)
+	fmt.Printf("%v %v\n", resp, err)
+}
+*/

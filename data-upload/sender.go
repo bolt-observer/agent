@@ -7,7 +7,6 @@ import (
 	"time"
 
 	agent "github.com/bolt-observer/agent/agent"
-	"github.com/bolt-observer/agent/entities"
 	api "github.com/bolt-observer/agent/lightning"
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/golang/glog"
@@ -23,7 +22,7 @@ const ReportBatch = 10
 // Sender struct
 type Sender struct {
 	AuthToken    string
-	LightningAPI entities.NewAPICall
+	LightningAPI api.NewAPICall
 	AgentAPI     agent.AgentAPIClient
 	PubKey       string
 	ClientType   int
@@ -35,7 +34,7 @@ func toClientType(t api.APIType) int {
 }
 
 // MakeSender creates a new Sender
-func MakeSender(ctx context.Context, authToken string, endpoint string, l entities.NewAPICall, isInsecure bool) (*Sender, error) {
+func MakeSender(ctx context.Context, authToken string, endpoint string, l api.NewAPICall, isInsecure bool) (*Sender, error) {
 	if l == nil {
 		return nil, backoff.Permanent(fmt.Errorf("lightning API not specified"))
 	}
@@ -97,7 +96,7 @@ func makePermanent(err error) error {
 }
 
 type senderGetTime func(ctx context.Context, empty *agent.Empty, opts ...grpc.CallOption) (*agent.TimestampResponse, error)
-type senderGetChan func(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage
+type senderGetChan func(ctx context.Context, lightning api.NewAPICall, from time.Time) <-chan api.RawMessage
 type senderPushData func(ctx context.Context, data *agent.DataRequest, opts ...grpc.CallOption) (*agent.Empty, error)
 
 type senderMethod struct {

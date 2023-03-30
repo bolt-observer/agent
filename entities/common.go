@@ -3,7 +3,6 @@ package entities
 import (
 	"sync"
 
-	api "github.com/bolt-observer/agent/lightning"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -17,9 +16,6 @@ type NodeIdentifier struct {
 func (n *NodeIdentifier) GetID() string {
 	return n.Identifier + n.UniqueID
 }
-
-// NewAPICall is the signature of the function to get Lightning API
-type NewAPICall func() (api.LightingAPICalls, error)
 
 // ReentrancyBlock is used to block reentrancy based on string ID
 type ReentrancyBlock struct {

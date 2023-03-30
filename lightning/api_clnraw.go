@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
@@ -1042,16 +1043,93 @@ func (l *ClnRawLightningAPI) convertInitiator(initiator string) CommonInitiator 
 	}
 }
 
-// GetChannelCloseInfo - API call.
-func (l *ClnRawLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error) {
-	var reply ClnClosedChannelEntires
+// GetChannelCloseInfoLegacy - API call.
+func (l *ClnRawLightningAPI) GetChannelCloseInfoLegacy(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error) {
+	// We could use listpeerchannels but that was also just recently introduced, thus use listfunds
+	var (
+		reply ClnFundsChanResp
+		ids   []uint64
+	)
 
-	err := l.connection.Call(ctx, ListClosedChannels, []interface{}{}, &reply, DefaultDuration)
+	err := l.connection.Call(ctx, ListFunds, []interface{}{}, &reply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
 
+	lookup := make(map[uint64]ClnFundsChan)
+
+	if chanIDs != nil {
+		ids = chanIDs
+	} else {
+		ids = make([]uint64, 0)
+	}
+
+	for _, channel := range reply.Channels {
+		if channel.ShortChannelID == "" {
+			continue
+		}
+		if channel.State == "CHANNELD_NORMAL" {
+			continue
+		}
+
+		id, err := ToLndChanID(channel.ShortChannelID)
+		if err != nil {
+			continue
+		}
+		lookup[id] = channel
+		if chanIDs == nil {
+			ids = append(chanIDs, id)
+		}
+	}
+
+	ret := make([]CloseInfo, 0)
+
+	for _, id := range ids {
+		if c, ok := lookup[id]; ok {
+
+			typ := CooperativeType
+			switch c.State {
+			case "FUNDING_SPEND_SEEN":
+			case "ONCHAIN":
+				typ = ForceType
+			}
+			ret = append(ret, CloseInfo{
+				ChanID:    id,
+				Opener:    Unknown,
+				Closer:    Unknown,
+				CloseType: typ,
+			})
+		} else {
+			ret = append(ret, UnknownCloseInfo)
+		}
+	}
+
+	return ret, nil
+}
+
+// GetChannelCloseInfo - API call.
+func (l *ClnRawLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error) {
+	var (
+		reply ClnClosedChannelEntires
+		ids   []uint64
+	)
+
+	err := l.connection.Call(ctx, ListClosedChannels, []interface{}{}, &reply, DefaultDuration)
+	if err != nil {
+		if strings.Contains(err.Error(), "Unknown command") {
+			return l.GetChannelCloseInfoLegacy(ctx, chanIDs)
+		} else {
+			return nil, err
+		}
+	}
+
 	lookup := make(map[uint64]ClnClosedChannelEntry)
+
+	if chanIDs != nil {
+		ids = chanIDs
+	} else {
+		ids = make([]uint64, 0)
+	}
 
 	for _, channel := range reply.Entries {
 		if channel.ShortChannelID == "" {
@@ -1063,11 +1141,14 @@ func (l *ClnRawLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []
 			continue
 		}
 		lookup[id] = channel
+		if chanIDs == nil {
+			ids = append(chanIDs, id)
+		}
 	}
 
 	ret := make([]CloseInfo, 0)
 
-	for _, id := range chanIDs {
+	for _, id := range ids {
 		if c, ok := lookup[id]; ok {
 			typ := UnknownType
 
@@ -1081,6 +1162,7 @@ func (l *ClnRawLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []
 				typ = ForceType
 			}
 			ret = append(ret, CloseInfo{
+				ChanID:    id,
 				Opener:    l.convertInitiator(c.Opener),
 				Closer:    l.convertInitiator(c.Closer),
 				CloseType: typ,
@@ -1091,5 +1173,4 @@ func (l *ClnRawLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []
 	}
 
 	return ret, nil
-
 }

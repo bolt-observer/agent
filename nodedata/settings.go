@@ -5,6 +5,7 @@ import (
 	"time"
 
 	entities "github.com/bolt-observer/agent/entities"
+	api "github.com/bolt-observer/agent/lightning"
 )
 
 // PerNodeSettings struct
@@ -57,7 +58,7 @@ func (s *PerNodeSettings) Delete(key string) {
 // Settings struct
 type Settings struct {
 	nodeDataCallback entities.NodeDataReportCallback
-	getAPI           entities.NewAPICall
+	getAPI           api.NewAPICall
 	hash             uint64
 	identifier       entities.NodeIdentifier
 	lastGraphCheck   time.Time

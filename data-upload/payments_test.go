@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	common_entities "github.com/bolt-observer/agent/entities"
-
 	"github.com/bolt-observer/go_common/entities"
 	"github.com/stretchr/testify/assert"
 
@@ -188,7 +186,7 @@ func TestPaginatorSimple(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 	defer cancel()
 
-	f := func(ctx context.Context, lightning common_entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+	f := func(ctx context.Context, lightning api.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
 		return []api.RawMessage{
 				{Timestamp: time.Unix(min-1, 0), Implementation: "A"},
 				{Timestamp: time.Unix(min-1, 0), Implementation: "B"},
@@ -228,7 +226,7 @@ func TestPaginatorSplit(t *testing.T) {
 
 	ctx = context.WithValue(ctx, ctxKey{}, &step)
 
-	f := func(ctx context.Context, lightning common_entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+	f := func(ctx context.Context, lightning api.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
 
 		ptr, ok := ctx.Value(ctxKey{}).(*int)
 		if !ok {

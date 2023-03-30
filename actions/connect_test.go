@@ -41,7 +41,7 @@ func (b *blockingStream) Send(r *api.AgentReply) error {
 	return nil
 }
 
-func mkGetLndAPI(cmdCtx *cli.Context) entities.NewAPICall {
+func mkGetLndAPI(cmdCtx *cli.Context) lnapi.NewAPICall {
 	return func() (lnapi.LightingAPICalls, error) {
 		return lnapi.NewAPI(lnapi.LndGrpc, func() (*common_entities.Data, error) {
 			return &common_entities.Data{

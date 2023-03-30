@@ -1030,6 +1030,8 @@ func (l *LndGrpcLightningAPI) convertInitiator(initiator lnrpc.Initiator) Common
 
 // GetChannelCloseInfo API.
 func (l *LndGrpcLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error) {
+	var ids []uint64
+
 	resp, err := l.Client.ClosedChannels(ctx, &lnrpc.ClosedChannelsRequest{})
 
 	if err != nil {
@@ -1038,13 +1040,22 @@ func (l *LndGrpcLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs [
 
 	lookup := make(map[uint64]*lnrpc.ChannelCloseSummary)
 
+	if chanIDs != nil {
+		ids = chanIDs
+	} else {
+		ids = make([]uint64, 0)
+	}
+
 	for _, channel := range resp.Channels {
 		lookup[channel.ChanId] = channel
+		if chanIDs == nil {
+			ids = append(ids, channel.ChanId)
+		}
 	}
 
 	ret := make([]CloseInfo, 0)
 
-	for _, id := range chanIDs {
+	for _, id := range ids {
 		if c, ok := lookup[id]; ok {
 			typ := UnknownType
 
@@ -1056,6 +1067,7 @@ func (l *LndGrpcLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs [
 				typ = ForceType
 			}
 			ret = append(ret, CloseInfo{
+				ChanID:    id,
 				Opener:    l.convertInitiator(c.OpenInitiator),
 				Closer:    l.convertInitiator(c.CloseInitiator),
 				CloseType: typ,

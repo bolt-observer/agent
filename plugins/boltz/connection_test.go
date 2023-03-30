@@ -13,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
 	"github.com/bolt-observer/agent/lightning"
 	api "github.com/bolt-observer/agent/lightning"
@@ -24,7 +23,7 @@ import (
 
 const FailNoCredsBoltz = false
 
-func getAPI(t *testing.T, name string, typ api.APIType) agent_entities.NewAPICall {
+func getAPI(t *testing.T, name string, typ api.APIType) api.NewAPICall {
 	var data common_entities.Data
 
 	if _, err := os.Stat(name); errors.Is(err, os.ErrNotExist) {
