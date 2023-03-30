@@ -140,43 +140,9 @@ func TestObtainData(t *testing.T) {
 		return resp, nil
 	}
 
-	// All methods
-	/*
-
-			_, err = api.GetInfo(context.Background())
-			if err != nil {
-				t.Fatalf("fail %v", err)
-				return
-			}
-			_, err = api.GetChannels(context.Background())
-			if err != nil {
-				t.Fatalf("fail %v", err)
-				return
-			}
-
-					_, err = api.DescribeGraph(context.Background(), false)
-					if err != nil {
-						t.Fatalf("fail %v", err)
-						return
-					}
-
-				_, err = api.GetNodeInfo(context.Background(), "02b67e55fb850d7f7d77eb71038362bc0ed0abd5b7ee72cc4f90b16786c69b9256", true)
-				if err != nil {
-					t.Fatalf("fail %v", err)
-					return
-				}
-
-				_, err = api.GetChanInfo(context.Background(), 810130063083110402)
-				if err != nil {
-					t.Fatalf("fail %v", err)
-					return
-				}
-
-		resp, err := api.GetChannelCloseInfo(context.Background(), nil)
-		assert.NoError(t, err)
-		fmt.Printf("%+v\n", resp)
-		t.Fail()
-	*/
+	resp, err := api.GetChannelCloseInfo(context.Background(), nil)
+	assert.NoError(t, err)
+	fmt.Printf("%+v\n", resp)
 }
 
 func common(t *testing.T, name string) ([]byte, *LndRestLightningAPI, LightingAPICalls) {
