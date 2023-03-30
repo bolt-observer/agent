@@ -13,6 +13,7 @@ import (
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
 	"github.com/bolt-observer/agent/lightning"
+	api "github.com/bolt-observer/agent/lightning"
 	lnapi "github.com/bolt-observer/agent/lightning"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/assert"
@@ -33,7 +34,7 @@ type FakeSwapMachine struct {
 	In           FsmIn
 }
 
-func NewFakeSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData JobDataToSwapDataFn, lnAPI agent_entities.NewAPICall) *FakeSwapMachine {
+func NewFakeSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData JobDataToSwapDataFn, lnAPI api.NewAPICall) *FakeSwapMachine {
 	s := &FakeSwapMachine{}
 	s.Machine = &Fsm[FsmIn, FsmOut, State]{States: make(map[State]func(data FsmIn) FsmOut)}
 	s.BoltzPlugin = plugin
@@ -50,7 +51,7 @@ func NewFakeSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatab
 	return s
 }
 
-func mkFakeLndAPI() agent_entities.NewAPICall {
+func mkFakeLndAPI() api.NewAPICall {
 	return func() (lnapi.LightingAPICalls, error) {
 		return &lnapi.MockLightningAPI{}, nil
 	}

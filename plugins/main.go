@@ -8,6 +8,7 @@ import (
 
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
+	api "github.com/bolt-observer/agent/lightning"
 	"github.com/golang/glog"
 	"github.com/urfave/cli"
 )
@@ -27,7 +28,7 @@ var (
 )
 
 // InitPluginFn signature of init plugin function
-type InitPluginFn func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (agent_entities.Plugin, error)
+type InitPluginFn func(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (agent_entities.Plugin, error)
 
 // PluginData structure
 type PluginData struct {
@@ -35,7 +36,7 @@ type PluginData struct {
 	Init InitPluginFn
 }
 
-func InitPlugins(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) error {
+func InitPlugins(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) error {
 	Plugins = make(map[string]agent_entities.Plugin)
 
 	for _, p := range RegisteredPlugins {

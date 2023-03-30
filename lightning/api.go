@@ -395,6 +395,34 @@ const (
 	Urgent
 )
 
+// CommonInitiator enum.
+type CommonInitiator string
+
+const (
+	Unknown CommonInitiator = "unknown"
+	Local   CommonInitiator = "local"
+	Remote  CommonInitiator = "remote"
+)
+
+// Close type enum.
+type CommonCloseType string
+
+const (
+	UnknownType     CommonCloseType = "unknown"
+	CooperativeType CommonCloseType = "cooperative"
+	ForceType       CommonCloseType = "force"
+)
+
+// Close info struct.
+type CloseInfo struct {
+	ChanID    uint64          `json:"channel_id,omitempty"`
+	Opener    CommonInitiator `json:"opener"`
+	Closer    CommonInitiator `json:"closer"`
+	CloseType CommonCloseType `json:"close_type"`
+}
+
+var UnknownCloseInfo = CloseInfo{ChanID: 0, Opener: Unknown, Closer: Unknown, CloseType: UnknownType}
+
 ////////////////////////////////////////////////////////////////
 
 // API - generic API settings.
@@ -547,6 +575,8 @@ type LightingAPICalls interface {
 	GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error)
 	CreateInvoice(ctx context.Context, sats int64, preimage string, memo string, expiry time.Duration) (*InvoiceResp, error)
 	IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error)
+
+	GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error)
 }
 
 // GetDataCall - signature of function for retrieving data.

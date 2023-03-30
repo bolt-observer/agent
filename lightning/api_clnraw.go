@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	entities "github.com/bolt-observer/go_common/entities"
@@ -16,19 +17,20 @@ var _ LightingAPICalls = &ClnRawLightningAPI{}
 
 // Method names.
 const (
-	ListChannels = "listchannels"
-	ListNodes    = "listnodes"
-	ListFunds    = "listfunds"
-	GetInfo      = "getinfo"
-	ListForwards = "listforwards"
-	ListInvoices = "listinvoices"
-	ListSendPays = "listsendpays"
-	ListPays     = "listpays"
-	Connect      = "connect"
-	NewAddr      = "newaddr"
-	Withdraw     = "withdraw"
-	Pay          = "pay"
-	InvoiceCmd   = "invoice"
+	ListChannels       = "listchannels"
+	ListNodes          = "listnodes"
+	ListFunds          = "listfunds"
+	GetInfo            = "getinfo"
+	ListForwards       = "listforwards"
+	ListInvoices       = "listinvoices"
+	ListSendPays       = "listsendpays"
+	ListPays           = "listpays"
+	Connect            = "connect"
+	NewAddr            = "newaddr"
+	Withdraw           = "withdraw"
+	Pay                = "pay"
+	InvoiceCmd         = "invoice"
+	ListClosedChannels = "listclosedchannels"
 
 	DefaultDuration = 1 * time.Hour
 )
@@ -846,7 +848,7 @@ func (l *ClnRawLightningAPI) PayInvoice(ctx context.Context, paymentRequest stri
 	}
 
 	// "The response will occur when the payment fails or succeeds. Once a payment has succeeded, calls to pay with the same bolt11 will succeed immediately.
-    // Until retry_for seconds passes (default: 60), the command will keep finding routes and retrying the payment. However,
+	// Until retry_for seconds passes (default: 60), the command will keep finding routes and retrying the payment. However,
 	// a payment may be delayed for up to maxdelay blocks by another node; clients should be prepared for this worst case.""
 	// OR in layman terms this might just block for 2016 blocks (almost forever)
 
@@ -1028,4 +1030,147 @@ func (l *ClnRawLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash stri
 	}
 
 	return reply.Entries[0].Status == "paid", nil
+}
+
+func (l *ClnRawLightningAPI) convertInitiator(initiator string) CommonInitiator {
+	switch initiator {
+	case "local":
+		return Local
+	case "remote":
+		return Remote
+	default:
+		return Unknown
+	}
+}
+
+// GetChannelCloseInfoLegacy - API call.
+func (l *ClnRawLightningAPI) GetChannelCloseInfoLegacy(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error) {
+	// We could use listpeerchannels but that was also just recently introduced, thus use listfunds
+	var (
+		reply ClnFundsChanResp
+		ids   []uint64
+	)
+
+	err := l.connection.Call(ctx, ListFunds, []interface{}{}, &reply, DefaultDuration)
+	if err != nil {
+		return nil, err
+	}
+
+	lookup := make(map[uint64]ClnFundsChan)
+
+	if chanIDs != nil {
+		ids = chanIDs
+	} else {
+		ids = make([]uint64, 0)
+	}
+
+	for _, channel := range reply.Channels {
+		if channel.ShortChannelID == "" {
+			continue
+		}
+		if channel.State == "CHANNELD_NORMAL" {
+			continue
+		}
+
+		id, err := ToLndChanID(channel.ShortChannelID)
+		if err != nil {
+			continue
+		}
+		lookup[id] = channel
+		if chanIDs == nil {
+			ids = append(chanIDs, id)
+		}
+	}
+
+	ret := make([]CloseInfo, 0)
+
+	for _, id := range ids {
+		if c, ok := lookup[id]; ok {
+
+			typ := CooperativeType
+			switch c.State {
+			case "FUNDING_SPEND_SEEN":
+			case "ONCHAIN":
+				typ = ForceType
+			}
+			ret = append(ret, CloseInfo{
+				ChanID:    id,
+				Opener:    Unknown,
+				Closer:    Unknown,
+				CloseType: typ,
+			})
+		} else {
+			ret = append(ret, UnknownCloseInfo)
+		}
+	}
+
+	return ret, nil
+}
+
+// GetChannelCloseInfo - API call.
+func (l *ClnRawLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error) {
+	var (
+		reply ClnClosedChannelEntires
+		ids   []uint64
+	)
+
+	err := l.connection.Call(ctx, ListClosedChannels, []interface{}{}, &reply, DefaultDuration)
+	if err != nil {
+		if strings.Contains(err.Error(), "Unknown command") {
+			return l.GetChannelCloseInfoLegacy(ctx, chanIDs)
+		} else {
+			return nil, err
+		}
+	}
+
+	lookup := make(map[uint64]ClnClosedChannelEntry)
+
+	if chanIDs != nil {
+		ids = chanIDs
+	} else {
+		ids = make([]uint64, 0)
+	}
+
+	for _, channel := range reply.Entries {
+		if channel.ShortChannelID == "" {
+			continue
+		}
+
+		id, err := ToLndChanID(channel.ShortChannelID)
+		if err != nil {
+			continue
+		}
+		lookup[id] = channel
+		if chanIDs == nil {
+			ids = append(chanIDs, id)
+		}
+	}
+
+	ret := make([]CloseInfo, 0)
+
+	for _, id := range ids {
+		if c, ok := lookup[id]; ok {
+			typ := UnknownType
+
+			switch c.CloseCause {
+			case "local":
+			case "user":
+			case "remote":
+				typ = CooperativeType
+			case "protocol":
+			case "onchain":
+				typ = ForceType
+			}
+			ret = append(ret, CloseInfo{
+				ChanID:    id,
+				Opener:    l.convertInitiator(c.Opener),
+				Closer:    l.convertInitiator(c.Closer),
+				CloseType: typ,
+			})
+		} else {
+			ret = append(ret, UnknownCloseInfo)
+		}
+	}
+
+	return ret, nil
 }

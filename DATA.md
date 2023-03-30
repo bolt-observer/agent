@@ -102,7 +102,7 @@ Actual channel balance is reported through `changed_channels` and if any channel
     ...
    ],
   "closed_channels": [
-    { "channel_id": 754581636042522626 }
+    { "channel_id": 754581636042522626, "close_info": { "opener": "local", "closer": "remote", "close_type": "cooperative" } }
   ]
   }
 ```

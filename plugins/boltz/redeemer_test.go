@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
+	api "github.com/bolt-observer/agent/lightning"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
@@ -57,7 +58,7 @@ func TestRedeemerTypes(t *testing.T) {
 	// Test all possibe redeemer types
 	ctx := context.Background()
 
-	ln := getLocalLndByName(t, Node)
+	ln := api.GetLocalLndByName(t, Node)
 	if ln == nil {
 		t.Logf("Ignoring redeemer test since regtest network is not available\n")
 		return
@@ -102,7 +103,7 @@ func TestRedeemLockedFunds(t *testing.T) {
 	// Reverse swap finished, prepare redeemer to claim
 	ctx := context.Background()
 
-	ln := getLocalLndByName(t, Node)
+	ln := api.GetLocalLndByName(t, Node)
 	if ln == nil {
 		t.Logf("Ignoring redeemer test since regtest network is not available\n")
 		return
@@ -162,7 +163,7 @@ func TestRedeemLockedFundsTwoSources(t *testing.T) {
 	// Reverse swap finished and forward swap failed, prepare redeemer to claim both
 	ctx := context.Background()
 
-	ln := getLocalLndByName(t, Node)
+	ln := api.GetLocalLndByName(t, Node)
 	if ln == nil {
 		t.Logf("Ignoring redeemer test since regtest network is not available\n")
 		return
@@ -233,7 +234,7 @@ func TestRedeemFailThatIsNotYetMature(t *testing.T) {
 	// Swap failed, redeem locked funds that are still locked for one block
 	ctx := context.Background()
 
-	ln := getLocalLndByName(t, Node)
+	ln := api.GetLocalLndByName(t, Node)
 	if ln == nil {
 		t.Logf("Ignoring redeemer test since regtest network is not available\n")
 		return
@@ -272,7 +273,7 @@ func TestRedeemFailThatIsNotYetMature(t *testing.T) {
 	err = redeemer.AddEntry(DummyStruct{Data: dummySd})
 	assert.Error(t, err)
 
-	err = Mine(2)
+	err = api.RegtestMine(2)
 	assert.NoError(t, err)
 
 	// ASSERT

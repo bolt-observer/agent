@@ -788,3 +788,68 @@ func (l *LndRestLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash str
 
 	return resp.State == "settled", nil
 }
+
+func (l *LndRestLightningAPI) convertInitiator(initiator string) CommonInitiator {
+	switch initiator {
+	case "INITIATOR_LOCAL":
+		return Local
+	case "INITIATOR_REMOTE":
+		return Remote
+	default:
+		return Unknown
+	}
+}
+
+// GetChannelCloseInfo API.
+func (l *LndRestLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error) {
+	var ids []uint64
+	resp, err := l.HTTPAPI.HTTPClosedChannels(ctx, l.Request)
+	if err != nil {
+		return nil, err
+	}
+
+	lookup := make(map[uint64]*ChannelCloseSummaryOverride)
+
+	if chanIDs != nil {
+		ids = chanIDs
+	} else {
+		ids = make([]uint64, 0)
+	}
+
+	for _, channel := range resp.Channels {
+		chanid, err := strconv.ParseUint(channel.ChanId, 10, 64)
+		if err != nil {
+			continue
+		}
+
+		lookup[chanid] = channel
+		if chanIDs == nil {
+			ids = append(ids, chanid)
+		}
+	}
+
+	ret := make([]CloseInfo, 0)
+
+	for _, id := range ids {
+		if c, ok := lookup[id]; ok {
+			typ := UnknownType
+			switch c.CloseType {
+			case "COOPERATIVE_CLOSE":
+				typ = CooperativeType
+			case "LOCAL_FORCE_CLOSE":
+			case "REMOTE_FORCE_CLOSE":
+				typ = ForceType
+			}
+			ret = append(ret, CloseInfo{
+				ChanID:    id,
+				Opener:    l.convertInitiator(c.OpenInitiator),
+				Closer:    l.convertInitiator(c.CloseInitiator),
+				CloseType: typ,
+			})
+		} else {
+			ret = append(ret, UnknownCloseInfo)
+		}
+	}
+
+	return ret, nil
+}

@@ -5,23 +5,22 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bolt-observer/agent/entities"
 	api "github.com/bolt-observer/agent/lightning"
 	"github.com/golang/glog"
 )
 
 // GetRawData - signature for the function to get raw data
-type GetRawData func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error)
+type GetRawData func(ctx context.Context, lightning api.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error)
 
 // DefaultBatchSize is the default batch size
 const DefaultBatchSize = 50
 
 // GetPaymentsChannel returns a channel with raw payments
-func GetPaymentsChannel(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage {
+func GetPaymentsChannel(ctx context.Context, lightning api.NewAPICall, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
 	go paginator(ctx, lightning, GetRawData(
-		func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+		func(ctx context.Context, lightning api.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
 			itf, err := lightning()
 			if err != nil {
 				return nil, nil, err
@@ -40,11 +39,11 @@ func GetPaymentsChannel(ctx context.Context, lightning entities.NewAPICall, from
 }
 
 // GetInvoicesChannel returns a channel with raw invoices
-func GetInvoicesChannel(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage {
+func GetInvoicesChannel(ctx context.Context, lightning api.NewAPICall, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
 	go paginator(ctx, lightning, GetRawData(
-		func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+		func(ctx context.Context, lightning api.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
 			itf, err := lightning()
 			if err != nil {
 				return nil, nil, err
@@ -63,7 +62,7 @@ func GetInvoicesChannel(ctx context.Context, lightning entities.NewAPICall, from
 }
 
 // GetForwardsChannel returns a channel with raw forwards
-func GetForwardsChannel(ctx context.Context, lightning entities.NewAPICall, from time.Time) <-chan api.RawMessage {
+func GetForwardsChannel(ctx context.Context, lightning api.NewAPICall, from time.Time) <-chan api.RawMessage {
 	outchan := make(chan api.RawMessage)
 
 	itf, err := lightning()
@@ -86,7 +85,7 @@ func GetForwardsChannel(ctx context.Context, lightning entities.NewAPICall, from
 	}
 
 	go paginator(ctx, lightning, GetRawData(
-		func(ctx context.Context, lightning entities.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
+		func(ctx context.Context, lightning api.NewAPICall, pagination api.RawPagination) ([]api.RawMessage, *api.ResponseRawPagination, error) {
 			itf, err := lightning()
 			if err != nil {
 				return nil, nil, err
@@ -115,7 +114,7 @@ func GetFirstDay(monthsAgo int) time.Time {
 	return x.AddDate(0, -1*monthsAgo, 0)
 }
 
-func paginator(ctx context.Context, lightning entities.NewAPICall, getData GetRawData, from time.Time, pageSize int, outchan chan api.RawMessage) error {
+func paginator(ctx context.Context, lightning api.NewAPICall, getData GetRawData, from time.Time, pageSize int, outchan chan api.RawMessage) error {
 	req := api.RawPagination{}
 	req.BatchSize = uint64(pageSize)
 	req.Pagination.BatchSize = uint64(pageSize)

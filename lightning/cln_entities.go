@@ -301,3 +301,17 @@ type ClnInvoiceResp struct {
 	// omitted stuff
 	ClnResp
 }
+
+// ClnClosedChannelEntires struct.
+type ClnClosedChannelEntires struct {
+	Entries []ClnClosedChannelEntry `json:"closedchannels,omitempty"`
+	ClnResp
+}
+
+// ClnClosedChannelEntry struct.
+type ClnClosedChannelEntry struct {
+	ShortChannelID string `json:"short_channel_id,omitempty"`
+	Closer         string `json:"closer,omitempty"`      // local, remote
+	Opener         string `json:"opener,omitempty"`      // local, remote
+	CloseCause     string `json:"close_cause,omitempty"` // close_cause (string): What caused the channel to close (one of "unknown", "local", "user", "remote", "protocol", "onchain")
+}

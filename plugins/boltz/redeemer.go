@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
-	"github.com/bolt-observer/agent/entities"
+	api "github.com/bolt-observer/agent/lightning"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
@@ -45,7 +45,7 @@ type Redeemer[T SwapDataGetter] struct {
 
 	ChainParams         *chaincfg.Params
 	OnChainCommunicator OnChainCommunicator
-	LnAPI               entities.NewAPICall
+	LnAPI               api.NewAPICall
 	CryptoAPI           *CryptoAPI
 }
 
@@ -55,7 +55,7 @@ type SwapDataGetter interface {
 
 type RedeemedCallback[T SwapDataGetter] func(data T, success bool)
 
-func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainParams *chaincfg.Params, OnChainCommunicator OnChainCommunicator, lnAPI entities.NewAPICall,
+func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainParams *chaincfg.Params, OnChainCommunicator OnChainCommunicator, lnAPI api.NewAPICall,
 	interval time.Duration, cryptoAPI *CryptoAPI, callback RedeemedCallback[T]) *Redeemer[T] {
 
 	if t == 0 {

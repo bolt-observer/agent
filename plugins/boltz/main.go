@@ -15,6 +15,8 @@ import (
 	"github.com/BoltzExchange/boltz-lnd/boltz"
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
+	"github.com/bolt-observer/agent/lightning"
+	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/agent/plugins"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -70,7 +72,7 @@ func init() {
 	plugins.AllPluginFlags = append(plugins.AllPluginFlags, PluginFlags...)
 	plugins.RegisteredPlugins = append(plugins.RegisteredPlugins, plugins.PluginData{
 		Name: Name,
-		Init: func(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (agent_entities.Plugin, error) {
+		Init: func(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (agent_entities.Plugin, error) {
 			r, err := NewPlugin(lnAPI, filter, cmdCtx, nodeDataInvalidator)
 			return agent_entities.Plugin(r), err
 		},
@@ -81,7 +83,7 @@ func init() {
 type Plugin struct {
 	BoltzAPI            *boltz.Boltz
 	ChainParams         *chaincfg.Params
-	LnAPI               agent_entities.NewAPICall
+	LnAPI               lightning.NewAPICall
 	Filter              filter.FilteringInterface
 	MaxFeePercentage    float64
 	CryptoAPI           *CryptoAPI
@@ -115,7 +117,7 @@ type SwapLimits struct {
 }
 
 // NewPlugin creates new instance
-func NewPlugin(lnAPI agent_entities.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (*Plugin, error) {
+func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (*Plugin, error) {
 	if lnAPI == nil {
 		return nil, ErrInvalidArguments
 	}

@@ -105,3 +105,7 @@ func (m *MockLightningAPI) CreateInvoice(ctx context.Context, sats int64, preima
 func (m *MockLightningAPI) IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error) {
 	panic("not implemented")
 }
+
+func (m *MockLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error) {
+	panic("not implemented")
+}

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bolt-observer/agent/entities"
-	agent_entities "github.com/bolt-observer/agent/entities"
+	api "github.com/bolt-observer/agent/lightning"
 	"github.com/golang/glog"
 )
 
@@ -274,10 +274,10 @@ type SwapMachine struct {
 	BoltzPlugin         *Plugin
 	NodeDataInvalidator entities.Invalidatable
 	JobDataToSwapData   JobDataToSwapDataFn
-	LnAPI               agent_entities.NewAPICall
+	LnAPI               api.NewAPICall
 }
 
-func NewSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData JobDataToSwapDataFn, lnAPI agent_entities.NewAPICall) *SwapMachine {
+func NewSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData JobDataToSwapDataFn, lnAPI api.NewAPICall) *SwapMachine {
 	s := &SwapMachine{Machine: &Fsm[FsmIn, FsmOut, State]{States: make(map[State]func(data FsmIn) FsmOut)},
 		BoltzPlugin:         plugin,
 		NodeDataInvalidator: nodeDataInvalidator,
