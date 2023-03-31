@@ -73,8 +73,7 @@ if [ -d "/etc/systemd/system" ]; then
   if [ ! -f "/etc/systemd/system/${agent}" ]; then
     echo "Will use sudo to install systemd service, you will probably need to enter credentials"
     if [ -z ${apikey+x} ]; then
-      echo "Please enter API key: "
-      read apikey
+      read -p "Enter API key shown for your node on bolt.observer website: " apikey
     fi
     ${sudo} cat "$tmpDir/service" | ${sudo} sed "s/changeme/${apikey}/g" > /etc/systemd/system/${agent}.service
     ${sudo} systemctl daemon-reload
