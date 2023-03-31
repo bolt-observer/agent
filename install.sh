@@ -27,6 +27,7 @@ require_util() {
 require_util unzip "unpack the package"
 require_util gpg "check integrity"
 require_util openssl "check integrity"
+require_util sed "change service file"
 
 if command -v curl > /dev/null 2>&1; then
     fetch() { curl -s --fail -L "$1" -o "$2"; }
