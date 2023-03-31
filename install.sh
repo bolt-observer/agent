@@ -72,9 +72,14 @@ if [ -d "/etc/systemd/system" ]; then
   fetch "$url" "$tmpDir/service" || oops "failed to download '$url'"
   if [ ! -f "/etc/systemd/system/${agent}" ]; then
     echo "Will use sudo to install systemd service, you will probably need to enter credentials"
-    ${sudo} cp -f "$tmpDir/service" /etc/systemd/system/${agent}.service
+    if [ -z ${apikey+x} ]; then
+      echo "Please enter API key: "
+      read apikey
+    fi
+    ${sudo} cat "$tmpDir/service" | ${sudo} sed "s/changeme/${apikey}/g" > /etc/systemd/system/${agent}.service
     ${sudo} systemctl daemon-reload
-    echo "Update API key in /etc/systemd/system/${agent}.service and do \"systemctl daemon-reload ; systemctl enable ${agent}.service ; systemctl start ${agent}.service\""
+    ${sudo} systemctl enable ${agent}.service
+    ${sudo} systemctl start ${agent}.service
   else
     echo "Will use sudo to restart systemd service, you will probably need to enter credentials"
     ${sudo} systemctl daemon-reload
