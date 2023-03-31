@@ -120,9 +120,9 @@ If you need some different architecture that is no problem except that you will 
 
 ### Nix
 
-If you have [Nix](https://nixos.org/) you can do:
+If you have [Nix](https://nixos.org/) with [flake support](https://nixos.wiki/wiki/Flakes) you can do:
 ```
-`nix profile install 'github:bolt-observer/agent'`
+nix profile install 'github:bolt-observer/agent'
 ```
 
 ### Script
