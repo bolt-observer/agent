@@ -27,6 +27,7 @@ require_util() {
 require_util unzip "unpack the package"
 require_util gpg "check integrity"
 require_util openssl "check integrity"
+require_util sed "change service file"
 
 if command -v curl > /dev/null 2>&1; then
     fetch() { curl -s --fail -L "$1" -o "$2"; }
@@ -72,9 +73,13 @@ if [ -d "/etc/systemd/system" ]; then
   fetch "$url" "$tmpDir/service" || oops "failed to download '$url'"
   if [ ! -f "/etc/systemd/system/${agent}" ]; then
     echo "Will use sudo to install systemd service, you will probably need to enter credentials"
-    ${sudo} cp -f "$tmpDir/service" /etc/systemd/system/${agent}.service
+    if [ -z ${apikey+x} ]; then
+      read -p "Enter API key shown for your node on bolt.observer website: " apikey
+    fi
+    ${sudo} cat "$tmpDir/service" | ${sudo} sed "s/changeme/${apikey}/g" > /etc/systemd/system/${agent}.service
     ${sudo} systemctl daemon-reload
-    echo "Update API key in /etc/systemd/system/${agent}.service and do \"systemctl daemon-reload ; systemctl enable ${agent}.service ; systemctl start ${agent}.service\""
+    ${sudo} systemctl enable ${agent}.service
+    ${sudo} systemctl start ${agent}.service
   else
     echo "Will use sudo to restart systemd service, you will probably need to enter credentials"
     ${sudo} systemctl daemon-reload

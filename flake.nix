@@ -12,7 +12,7 @@
       packages = forAllSystems
         (system:
           let
-            version = "v0.0.48";
+            version = "v0.1.1";
             pkgs = nixpkgsFor.${system};
             ldflags = ''-ldflags "-X main.GitRevision=${version} -extldflags '-static'"'';
           in
@@ -22,7 +22,7 @@
                 name = "bolt-agent";
                 inherit version;
                 src = ./.;
-                vendorHash = "sha256-W4OuqLvW5gdbsEQRmsAdVXaLbrT9KeqRDyCtnX77ipI=";
+                vendorHash = "sha256-Svg2m39/m2G5tSliFpOtGxMdTHrtfPIoQ3LD0R8LAdQ=";
                 doCheck = false;
                 doInstallCheck = false;
 
@@ -37,7 +37,6 @@
               };
           });
 
-      # Add dependencies that are only needed for development
       devShells = forAllSystems (system:
         let
           pkgs = nixpkgsFor.${system};
@@ -48,9 +47,6 @@
           };
         });
 
-      # The default package for 'nix build'. This makes sense if the
-      # flake provides only one package or there is a clear "main"
-      # package.
       defaultPackage = forAllSystems (system: self.packages.${system}.bolt-agent);
     };
 }
