@@ -18,7 +18,7 @@ USAGE:
    bolt-agent [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.1.1
+   v0.1.2
 
 COMMANDS:
    help, h  Shows a list of commands or help for one command
@@ -143,14 +143,14 @@ Script will execute same steps that you can invoke manually:
 * fetch latest revision from https://github.com/bolt-observer/agent/releases
 
 ```
-wget https://github.com/bolt-observer/agent/releases/download/v0.1.1/bolt-agent-v0.1.1-linux.zip https://github.com/bolt-observer/agent/releases/download/v0.1.1/manifest-v0.1.1.txt.asc https://github.com/bolt-observer/agent/releases/download/v0.1.1/manifest-v0.1.1.txt
+wget https://github.com/bolt-observer/agent/releases/download/v0.1.2/bolt-agent-v0.1.2-linux.zip https://github.com/bolt-observer/agent/releases/download/v0.1.2/manifest-v0.1.2.txt.asc https://github.com/bolt-observer/agent/releases/download/v0.1.2/manifest-v0.1.2.txt
 ```
 
 * verify integrity
 
 ```
 wget -qO- https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/fiksn.asc | gpg --import
-gpg --verify manifest-v0.1.1.txt.asc manifest-v0.1.1.txt
+gpg --verify manifest-v0.1.2.txt.asc manifest-v0.1.2.txt
 ```
 
 and you should see:
@@ -162,13 +162,13 @@ gpg: Good signature from "Gregor Pogacnik <gregor@bolt.observer>" [ultimate]
 * unpack the compressed binary
 
 ```
-unzip bolt-agent-v0.1.1-linux.zip
+unzip bolt-agent-v0.1.2-linux.zip
 ```
 
 * copy the binary to a common place
 
 ```
-cp bolt-agent-v0.1.1-linux /usr/local/bin/bolt-agent
+cp bolt-agent-v0.1.2-linux /usr/local/bin/bolt-agent
 ```
 
 * start the binary
@@ -197,7 +197,7 @@ You can use the docker image from GitHub:
 Usage:
 
 ```
-docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.1.1
+docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.1.2
 ```
 
 ## Filtering on agent side

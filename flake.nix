@@ -12,7 +12,7 @@
       packages = forAllSystems
         (system:
           let
-            version = "v0.1.1";
+            version = "v0.1.2";
             pkgs = nixpkgsFor.${system};
             ldflags = ''-ldflags "-X main.GitRevision=${version} -extldflags '-static'"'';
           in
