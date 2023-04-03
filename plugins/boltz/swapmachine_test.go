@@ -62,14 +62,14 @@ func TestNextRoundNotNeeded(t *testing.T) {
 		BoltzAPI:    &boltz.Boltz{URL: "https://testapi.boltz.exchange"},
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
-		Limits: &SwapLimits{
+		Limits: SwapLimits{
 			MaxAttempts: 10,
 		},
 	}
 
 	invalidatable := &FakeInvalidatable{}
 
-	noFun := func(ctx context.Context, limits *SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
+	noFun := func(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
 		return nil, ErrNoNeedToDoAnything
 	}
 
@@ -91,7 +91,7 @@ func TestNextRoundNeeded(t *testing.T) {
 		BoltzAPI:    &boltz.Boltz{URL: "https://testapi.boltz.exchange"},
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
-		Limits: &SwapLimits{
+		Limits: SwapLimits{
 			MaxAttempts: 10,
 		},
 	}
@@ -103,7 +103,7 @@ func TestNextRoundNeeded(t *testing.T) {
 
 	invalidatable := &FakeInvalidatable{}
 
-	fun := func(ctx context.Context, limits *SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
+	fun := func(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
 		sd.State = InitialForward
 		return sd, nil
 	}
@@ -148,7 +148,7 @@ func TestNextRoundJobConversionFails(t *testing.T) {
 
 	invalidatable := &FakeInvalidatable{}
 
-	fun := func(ctx context.Context, limits *SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
+	fun := func(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
 		return nil, ErrInvalidArguments
 	}
 
