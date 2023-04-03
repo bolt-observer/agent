@@ -71,7 +71,7 @@ func TestExecute(t *testing.T) {
 		db: &TestDB{data: map[interface{}]interface{}{
 			int32(42): target,
 		}},
-		Limits: &SwapLimits{
+		Limits: SwapLimits{
 			MaxAttempts: 10,
 		},
 	}

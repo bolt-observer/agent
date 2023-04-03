@@ -72,13 +72,13 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 	}
 
 	fee := float64(sats-response.OnchainAmount+minerFees+SafetyMargin) / float64(sats)
-	if fee*100 > s.BoltzPlugin.MaxFeePercentage {
-		return FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, s.BoltzPlugin.MaxFeePercentage)}
+	if fee*100 > in.SwapData.SwapLimits.MaxFeePercentage {
+		return FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
 	totalFee := float64(in.SwapData.FeesPaidSoFar+(sats-response.OnchainAmount)) / float64(in.SwapData.SatsSwappedSoFar+sats) * 100
-	if totalFee > s.BoltzPlugin.MaxFeePercentage {
-		return FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, s.BoltzPlugin.MaxFeePercentage)}
+	if totalFee > in.SwapData.SwapLimits.MaxFeePercentage {
+		return FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
 	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100))

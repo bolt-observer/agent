@@ -65,6 +65,12 @@ var PluginFlags = []cli.Flag{
 	cli.IntFlag{
 		Name: "maxswapattempts", Value: 3, Usage: "max swap attempts for bigger jobs", Hidden: true,
 	},
+	cli.StringFlag{
+		Name: "boltzapikey", Value: "", Usage: "boltz API key", Hidden: true,
+	},
+	cli.StringFlag{
+		Name: "boltzapisecret", Value: "", Usage: "boltz API secret", Hidden: true,
+	},
 }
 
 func init() {
@@ -81,16 +87,16 @@ func init() {
 
 // Plugin can save its data here
 type Plugin struct {
+	BoltzPrivateAPI     *BoltzPrivateAPI
 	BoltzAPI            *boltz.Boltz
 	ChainParams         *chaincfg.Params
 	LnAPI               lightning.NewAPICall
 	Filter              filter.FilteringInterface
-	MaxFeePercentage    float64
 	CryptoAPI           *CryptoAPI
 	SwapMachine         *SwapMachine
 	Redeemer            *Redeemer[FsmIn]
 	ReverseRedeemer     *Redeemer[FsmIn]
-	Limits              *SwapLimits
+	Limits              SwapLimits
 	NodeDataInvalidator agent_entities.Invalidatable
 	isDryRun            bool
 	db                  DB
@@ -109,11 +115,12 @@ type Entropy struct {
 }
 
 type SwapLimits struct {
-	AllowZeroConf bool
-	MinSwap       uint64
-	MaxSwap       uint64
-	DefaultSwap   uint64
-	MaxAttempts   int
+	MaxFeePercentage float64
+	AllowZeroConf    bool
+	MinSwap          uint64
+	MaxSwap          uint64
+	DefaultSwap      uint64
+	MaxAttempts      int
 }
 
 // NewPlugin creates new instance
@@ -153,15 +160,21 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		jobs:                make(map[int32]interface{}),
 		isDryRun:            cmdCtx.Bool("dryrun"),
 	}
-	resp.MaxFeePercentage = cmdCtx.Float64("maxfeepercentage")
 	resp.BoltzAPI.Init(Btc) // required
 
-	limits := &SwapLimits{
-		AllowZeroConf: !cmdCtx.Bool("disablezeroconf"),
-		MinSwap:       cmdCtx.Uint64("minswapsats"),
-		MaxSwap:       cmdCtx.Uint64("maxswapsats"),
-		DefaultSwap:   cmdCtx.Uint64("defaultswapsats"),
-		MaxAttempts:   cmdCtx.Int("maxswapattempts"),
+	if cmdCtx.String("boltzapikey") != "" && cmdCtx.String("boltzapisecret") != "" {
+		resp.BoltzPrivateAPI = NewBoltzPrivateAPI(cmdCtx.String("boltzurl"), &Credentials{Key: cmdCtx.String("boltzapikey"), Secret: cmdCtx.String("boltzapisecret")})
+	} else {
+		resp.BoltzPrivateAPI = NewBoltzPrivateAPIFake()
+	}
+
+	limits := SwapLimits{
+		MaxFeePercentage: cmdCtx.Float64("maxfeepercentage"),
+		AllowZeroConf:    !cmdCtx.Bool("disablezeroconf"),
+		MinSwap:          cmdCtx.Uint64("minswapsats"),
+		MaxSwap:          cmdCtx.Uint64("maxswapsats"),
+		DefaultSwap:      cmdCtx.Uint64("defaultswapsats"),
+		MaxAttempts:      cmdCtx.Int("maxswapattempts"),
 	}
 	resp.Limits = limits
 

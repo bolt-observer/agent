@@ -37,6 +37,8 @@ type SwapData struct {
 	ChanIdsToUse []uint64
 	ExpectedSats uint64
 
+	SwapLimits SwapLimits
+
 	IsDryRun        bool
 	OriginalJobData JobData // original job
 
@@ -46,11 +48,15 @@ type SwapData struct {
 	FeesPaidSoFar    uint64
 }
 
-type JobDataToSwapDataFn func(ctx context.Context, limits *SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error)
+type JobDataToSwapDataFn func(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error)
 
-func JobDataToSwapData(ctx context.Context, limits *SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
+func JobDataToSwapData(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
 	if jobData == nil {
 		return nil, fmt.Errorf("empty job data")
+	}
+
+	if jobData.MaxFeePercentage != 0 {
+		limits.MaxFeePercentage = jobData.MaxFeePercentage
 	}
 
 	switch jobData.Target {
@@ -99,7 +105,7 @@ func getLiquidity(ctx context.Context, jobData *JobData, msgCallback agent_entit
 	return liquidity
 }
 
-func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, limits *SwapLimits, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
+func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, limits SwapLimits, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
 	liquidity, total, err := GetChanLiquidity(ctx, jobData.ChannelId, 0, false, lnAPI, filter)
 	if err != nil {
 		glog.Infof("[Boltz] [%d] Could not get liquidity", jobData.ID)
@@ -142,10 +148,11 @@ func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, li
 		Attempt:          1,
 		FeesPaidSoFar:    0,
 		SatsSwappedSoFar: 0,
+		SwapLimits:       limits,
 	}, nil
 }
 
-func convertLiquidityNodePercent(jobData *JobData, limits *SwapLimits, liquidity *Liquidity, msgCallback agent_entities.MessageCallback, outbound bool) (*SwapData, error) {
+func convertLiquidityNodePercent(jobData *JobData, limits SwapLimits, liquidity *Liquidity, msgCallback agent_entities.MessageCallback, outbound bool) (*SwapData, error) {
 	val := liquidity.OutboundPercentage
 	name := "outbound"
 	if !outbound {
@@ -183,6 +190,7 @@ func convertLiquidityNodePercent(jobData *JobData, limits *SwapLimits, liquidity
 		OriginalJobData:  *jobData,
 		FeesPaidSoFar:    0,
 		SatsSwappedSoFar: 0,
+		SwapLimits:       limits,
 	}
 
 	if outbound {
