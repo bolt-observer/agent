@@ -17,10 +17,10 @@ type OnChainCommunicator interface {
 }
 
 type BoltzOnChainCommunicator struct {
-	API *boltz.Boltz
+	API *BoltzPrivateAPI
 }
 
-func NewBoltzOnChainCommunicator(api *boltz.Boltz) *BoltzOnChainCommunicator {
+func NewBoltzOnChainCommunicator(api *BoltzPrivateAPI) *BoltzOnChainCommunicator {
 	return &BoltzOnChainCommunicator{
 		API: api,
 	}

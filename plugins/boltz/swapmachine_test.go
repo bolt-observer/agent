@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BoltzExchange/boltz-lnd/boltz"
 	"github.com/bolt-observer/agent/entities"
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
@@ -59,7 +58,7 @@ func mkFakeLndAPI() api.NewAPICall {
 
 func TestNextRoundNotNeeded(t *testing.T) {
 	p := &Plugin{
-		BoltzAPI:    &boltz.Boltz{URL: "https://testapi.boltz.exchange"},
+		BoltzAPI:    NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
 		Limits: SwapLimits{
@@ -88,7 +87,7 @@ func TestNextRoundNotNeeded(t *testing.T) {
 
 func TestNextRoundNeeded(t *testing.T) {
 	p := &Plugin{
-		BoltzAPI:    &boltz.Boltz{URL: "https://testapi.boltz.exchange"},
+		BoltzAPI:    NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
 		Limits: SwapLimits{
@@ -136,7 +135,7 @@ func TestNextRoundNeeded(t *testing.T) {
 
 func TestNextRoundJobConversionFails(t *testing.T) {
 	p := &Plugin{
-		BoltzAPI:    &boltz.Boltz{URL: "https://testapi.boltz.exchange"},
+		BoltzAPI:    NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
 	}

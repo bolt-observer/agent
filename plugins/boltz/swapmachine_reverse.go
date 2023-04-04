@@ -66,7 +66,7 @@ func (s *SwapMachine) FsmInitialReverse(in FsmIn) FsmOut {
 		return FsmOut{Error: err}
 	}
 
-	response, err := CreateReverseSwapWithSanityCheck(s.BoltzPlugin.BoltzAPI, keys, sats, info.BlockHeight, s.BoltzPlugin.ChainParams)
+	response, err := CreateReverseSwapWithSanityCheck(s.BoltzPlugin.BoltzAPI, keys, sats, s.BoltzPlugin.ReferralCode, info.BlockHeight, s.BoltzPlugin.ChainParams)
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -259,17 +259,21 @@ func (s *SwapMachine) FsmSwapClaimed(in FsmIn) FsmOut {
 
 }
 
-func CreateReverseSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, sats uint64, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateReverseSwapResponse, error) {
+func CreateReverseSwapWithSanityCheck(api *BoltzPrivateAPI, keys *Keys, sats uint64, referralCode string, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateReverseSwapResponse, error) {
 	const BlockEps = 10
 
-	response, err := api.CreateReverseSwap(boltz.CreateReverseSwapRequest{
-		Type:           "reversesubmarine",
-		PairId:         BtcPair,
-		OrderSide:      "buy",
-		PreimageHash:   hex.EncodeToString(keys.Preimage.Hash),
-		InvoiceAmount:  sats,
-		ClaimPublicKey: hex.EncodeToString(keys.Keys.PublicKey.SerializeCompressed()),
-	})
+	response, err := api.CreateReverseSwap(CreateReverseSwapRequestOverride{
+		CreateReverseSwapRequest: boltz.CreateReverseSwapRequest{
+			Type:           "reversesubmarine",
+			PairId:         BtcPair,
+			OrderSide:      "buy",
+			PreimageHash:   hex.EncodeToString(keys.Preimage.Hash),
+			InvoiceAmount:  sats,
+			ClaimPublicKey: hex.EncodeToString(keys.Keys.PublicKey.SerializeCompressed()),
+		},
+		ReferralId: referralCode,
+	},
+	)
 
 	if err != nil {
 		return nil, err

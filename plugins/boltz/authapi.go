@@ -9,13 +9,18 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/BoltzExchange/boltz-lnd/boltz"
 )
+
+// This is a wrapper around boltz.Boltz API
 
 const Timeout = 5 * time.Second
 
@@ -24,28 +29,57 @@ type Credentials struct {
 	Secret string
 }
 
-func calcHmac(key string, message string) string {
-	sig := hmac.New(sha256.New, []byte(key))
-	sig.Write([]byte(message))
-
-	return strings.ToUpper(hex.EncodeToString(sig.Sum(nil)))
-}
-
 type BoltzPrivateAPI struct {
-	URL   string
 	Creds *Credentials
+	boltz.Boltz
 }
 
-func NewBoltzPrivateAPIFake() *BoltzPrivateAPI {
-	return &BoltzPrivateAPI{URL: ""}
+type CreateSwapRequestOverride struct {
+	ReferralId string `json:"referralId,omitempty"`
+	boltz.CreateSwapRequest
+}
+
+type CreateReverseSwapRequestOverride struct {
+	ReferralId string `json:"referralId,omitempty"`
+	boltz.CreateReverseSwapRequest
 }
 
 func NewBoltzPrivateAPI(url string, creds *Credentials) *BoltzPrivateAPI {
-	return &BoltzPrivateAPI{URL: url, Creds: creds}
+	ret := &BoltzPrivateAPI{Creds: creds}
+
+	ret.Boltz = boltz.Boltz{
+		URL: url,
+	}
+
+	ret.Boltz.Init(Btc) // required
+
+	return ret
 }
 
-func (b *BoltzPrivateAPI) SendGetRequest(endpoint string, response interface{}) error {
-	if b.URL == "" {
+func (b *BoltzPrivateAPI) CreateSwap(request CreateSwapRequestOverride) (*boltz.CreateSwapResponse, error) {
+	var response boltz.CreateSwapResponse
+	err := b.sendPostRequest("/createswap", request, &response)
+
+	if response.Error != "" {
+		return nil, errors.New(response.Error)
+	}
+
+	return &response, err
+}
+
+func (b *BoltzPrivateAPI) CreateReverseSwap(request CreateReverseSwapRequestOverride) (*boltz.CreateReverseSwapResponse, error) {
+	var response boltz.CreateReverseSwapResponse
+	err := b.sendPostRequest("/createswap", request, &response)
+
+	if response.Error != "" {
+		return nil, errors.New(response.Error)
+	}
+
+	return &response, err
+}
+
+func (b *BoltzPrivateAPI) sendGetRequestAuth(endpoint string, response interface{}) error {
+	if b.Creds == nil {
 		return fmt.Errorf("Disabled Boltz API endpoint")
 	}
 	req, err := http.NewRequest(http.MethodGet, b.URL+endpoint, nil)
@@ -70,8 +104,8 @@ func (b *BoltzPrivateAPI) SendGetRequest(endpoint string, response interface{}) 
 	return unmarshalJson(resp.Body, &response)
 }
 
-func (b *BoltzPrivateAPI) SendPostRequest(endpoint string, requestBody interface{}, response interface{}) error {
-	if b.URL == "" {
+func (b *BoltzPrivateAPI) sendPostRequestAuth(endpoint string, requestBody interface{}, response interface{}) error {
+	if b.Creds == nil {
 		return fmt.Errorf("Disabled Boltz API endpoint")
 	}
 
@@ -103,6 +137,32 @@ func (b *BoltzPrivateAPI) SendPostRequest(endpoint string, requestBody interface
 	return unmarshalJson(resp.Body, &response)
 }
 
+func (b *BoltzPrivateAPI) sendGetRequest(endpoint string, response interface{}) error {
+	res, err := http.Get(b.URL + endpoint)
+
+	if err != nil {
+		return err
+	}
+
+	return unmarshalJson(res.Body, &response)
+}
+
+func (b *BoltzPrivateAPI) sendPostRequest(endpoint string, requestBody interface{}, response interface{}) error {
+	rawBody, err := json.Marshal(requestBody)
+
+	if err != nil {
+		return err
+	}
+
+	res, err := http.Post(b.URL+endpoint, "application/json", bytes.NewBuffer(rawBody))
+
+	if err != nil {
+		return err
+	}
+
+	return unmarshalJson(res.Body, &response)
+}
+
 func unmarshalJson(body io.ReadCloser, response interface{}) error {
 	rawBody, err := io.ReadAll(body)
 
@@ -111,4 +171,11 @@ func unmarshalJson(body io.ReadCloser, response interface{}) error {
 	}
 
 	return json.Unmarshal(rawBody, &response)
+}
+
+func calcHmac(key string, message string) string {
+	sig := hmac.New(sha256.New, []byte(key))
+	sig.Write([]byte(message))
+
+	return strings.ToUpper(hex.EncodeToString(sig.Sum(nil)))
 }

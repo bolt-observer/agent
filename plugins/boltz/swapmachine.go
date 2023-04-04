@@ -153,7 +153,7 @@ func (s *SwapMachine) nextRound(in FsmIn) FsmOut {
 			in.MsgCallback(entities.PluginMessage{
 				JobID:      int32(in.GetJobID()),
 				Message:    message,
-				IsError:    true,
+				IsError:    false,
 				IsFinished: true,
 			})
 		}

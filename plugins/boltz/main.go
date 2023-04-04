@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/BoltzExchange/boltz-lnd/boltz"
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
 	"github.com/bolt-observer/agent/lightning"
@@ -66,10 +65,7 @@ var PluginFlags = []cli.Flag{
 		Name: "maxswapattempts", Value: 3, Usage: "max swap attempts for bigger jobs", Hidden: true,
 	},
 	cli.StringFlag{
-		Name: "boltzapikey", Value: "", Usage: "boltz API key", Hidden: true,
-	},
-	cli.StringFlag{
-		Name: "boltzapisecret", Value: "", Usage: "boltz API secret", Hidden: true,
+		Name: "boltzreferral", Value: "bolt-observer", Usage: "boltz API key", Hidden: true,
 	},
 }
 
@@ -87,8 +83,8 @@ func init() {
 
 // Plugin can save its data here
 type Plugin struct {
-	BoltzPrivateAPI     *BoltzPrivateAPI
-	BoltzAPI            *boltz.Boltz
+	BoltzAPI            *BoltzPrivateAPI
+	ReferralCode        string
 	ChainParams         *chaincfg.Params
 	LnAPI               lightning.NewAPICall
 	Filter              filter.FilteringInterface
@@ -148,10 +144,9 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	}
 
 	resp := &Plugin{
-		ChainParams: getChainParams(cmdCtx),
-		BoltzAPI: &boltz.Boltz{
-			URL: cmdCtx.String("boltzurl"),
-		},
+		ChainParams:         getChainParams(cmdCtx),
+		BoltzAPI:            NewBoltzPrivateAPI(cmdCtx.String("boltzurl"), nil),
+		ReferralCode:        cmdCtx.String("boltzreferral"),
 		CryptoAPI:           NewCryptoAPI(entropy),
 		Filter:              filter,
 		LnAPI:               lnAPI,
@@ -159,13 +154,6 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		db:                  db,
 		jobs:                make(map[int32]interface{}),
 		isDryRun:            cmdCtx.Bool("dryrun"),
-	}
-	resp.BoltzAPI.Init(Btc) // required
-
-	if cmdCtx.String("boltzapikey") != "" && cmdCtx.String("boltzapisecret") != "" {
-		resp.BoltzPrivateAPI = NewBoltzPrivateAPI(cmdCtx.String("boltzurl"), &Credentials{Key: cmdCtx.String("boltzapikey"), Secret: cmdCtx.String("boltzapisecret")})
-	} else {
-		resp.BoltzPrivateAPI = NewBoltzPrivateAPIFake()
 	}
 
 	limits := SwapLimits{

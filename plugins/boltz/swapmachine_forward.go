@@ -70,7 +70,7 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 		return FsmOut{Error: err}
 	}
 
-	response, err := CreateSwapWithSanityCheck(s.BoltzPlugin.BoltzAPI, keys, invoice, info.BlockHeight, s.BoltzPlugin.ChainParams)
+	response, err := CreateSwapWithSanityCheck(s.BoltzPlugin.BoltzAPI, keys, invoice, s.BoltzPlugin.ReferralCode, info.BlockHeight, s.BoltzPlugin.ChainParams)
 	if err != nil {
 		return FsmOut{Error: err}
 	}
@@ -302,16 +302,19 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
 	}
 }
 
-func CreateSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, invoice *lightning.InvoiceResp, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateSwapResponse, error) {
+func CreateSwapWithSanityCheck(api *BoltzPrivateAPI, keys *Keys, invoice *lightning.InvoiceResp, referralCode string, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateSwapResponse, error) {
 	const BlockEps = 10
 
-	response, err := api.CreateSwap(boltz.CreateSwapRequest{
-		Type:            "submarine",
-		PairId:          BtcPair,
-		OrderSide:       "buy",
-		PreimageHash:    hex.EncodeToString(keys.Preimage.Hash),
-		RefundPublicKey: hex.EncodeToString(keys.Keys.PublicKey.SerializeCompressed()),
-		Invoice:         invoice.PaymentRequest,
+	response, err := api.CreateSwap(CreateSwapRequestOverride{
+		CreateSwapRequest: boltz.CreateSwapRequest{
+			Type:            "submarine",
+			PairId:          BtcPair,
+			OrderSide:       "buy",
+			PreimageHash:    hex.EncodeToString(keys.Preimage.Hash),
+			RefundPublicKey: hex.EncodeToString(keys.Keys.PublicKey.SerializeCompressed()),
+			Invoice:         invoice.PaymentRequest,
+		},
+		ReferralId: referralCode,
 	})
 
 	if err != nil {
