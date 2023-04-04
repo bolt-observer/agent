@@ -128,7 +128,7 @@ func TestSwapCln(t *testing.T) {
 	p := newPlugin(t, ln, tempf.Name(), BoltzUrl, Regtest)
 
 	l := NewLogAggregator(t)
-	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "percentage": 90}`), l.Log)
+	err = p.Execute(1339, []byte(`{ "target": "InboundLiquidityNodePercent", "amount": 90}`), l.Log)
 	assert.NoError(t, err)
 
 	for i := 0; i < 20; i++ {

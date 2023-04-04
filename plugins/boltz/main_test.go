@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/BoltzExchange/boltz-lnd/boltz"
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/assert"
@@ -64,14 +63,14 @@ func TestExecute(t *testing.T) {
 	target := []byte(`{ "target": "DummyTarget" }`)
 
 	p := &Plugin{
-		BoltzAPI:    &boltz.Boltz{URL: "https://testapi.boltz.exchange"},
+		BoltzAPI:    NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
 		jobs:        make(map[int32]interface{}),
 		db: &TestDB{data: map[interface{}]interface{}{
 			int32(42): target,
 		}},
-		Limits: &SwapLimits{
+		Limits: SwapLimits{
 			MaxAttempts: 10,
 		},
 	}

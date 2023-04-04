@@ -10,7 +10,7 @@ import (
 )
 
 func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
-	limits := &SwapLimits{
+	limits := SwapLimits{
 		MinSwap:       100_000,
 		DefaultSwap:   100_000,
 		MaxSwap:       1_000_000,

@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/BoltzExchange/boltz-lnd/boltz"
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
 	"github.com/bolt-observer/agent/lightning"
@@ -65,6 +64,9 @@ var PluginFlags = []cli.Flag{
 	cli.IntFlag{
 		Name: "maxswapattempts", Value: 3, Usage: "max swap attempts for bigger jobs", Hidden: true,
 	},
+	cli.StringFlag{
+		Name: "boltzreferral", Value: "bolt-observer", Usage: "boltz referral code", Hidden: true,
+	},
 }
 
 func init() {
@@ -81,16 +83,16 @@ func init() {
 
 // Plugin can save its data here
 type Plugin struct {
-	BoltzAPI            *boltz.Boltz
+	BoltzAPI            *BoltzPrivateAPI
+	ReferralCode        string
 	ChainParams         *chaincfg.Params
 	LnAPI               lightning.NewAPICall
 	Filter              filter.FilteringInterface
-	MaxFeePercentage    float64
 	CryptoAPI           *CryptoAPI
 	SwapMachine         *SwapMachine
 	Redeemer            *Redeemer[FsmIn]
 	ReverseRedeemer     *Redeemer[FsmIn]
-	Limits              *SwapLimits
+	Limits              SwapLimits
 	NodeDataInvalidator agent_entities.Invalidatable
 	isDryRun            bool
 	db                  DB
@@ -109,11 +111,12 @@ type Entropy struct {
 }
 
 type SwapLimits struct {
-	AllowZeroConf bool
-	MinSwap       uint64
-	MaxSwap       uint64
-	DefaultSwap   uint64
-	MaxAttempts   int
+	MaxFeePercentage float64
+	AllowZeroConf    bool
+	MinSwap          uint64
+	MaxSwap          uint64
+	DefaultSwap      uint64
+	MaxAttempts      int
 }
 
 // NewPlugin creates new instance
@@ -141,10 +144,9 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	}
 
 	resp := &Plugin{
-		ChainParams: getChainParams(cmdCtx),
-		BoltzAPI: &boltz.Boltz{
-			URL: cmdCtx.String("boltzurl"),
-		},
+		ChainParams:         getChainParams(cmdCtx),
+		BoltzAPI:            NewBoltzPrivateAPI(cmdCtx.String("boltzurl"), nil),
+		ReferralCode:        cmdCtx.String("boltzreferral"),
 		CryptoAPI:           NewCryptoAPI(entropy),
 		Filter:              filter,
 		LnAPI:               lnAPI,
@@ -153,15 +155,14 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		jobs:                make(map[int32]interface{}),
 		isDryRun:            cmdCtx.Bool("dryrun"),
 	}
-	resp.MaxFeePercentage = cmdCtx.Float64("maxfeepercentage")
-	resp.BoltzAPI.Init(Btc) // required
 
-	limits := &SwapLimits{
-		AllowZeroConf: !cmdCtx.Bool("disablezeroconf"),
-		MinSwap:       cmdCtx.Uint64("minswapsats"),
-		MaxSwap:       cmdCtx.Uint64("maxswapsats"),
-		DefaultSwap:   cmdCtx.Uint64("defaultswapsats"),
-		MaxAttempts:   cmdCtx.Int("maxswapattempts"),
+	limits := SwapLimits{
+		MaxFeePercentage: cmdCtx.Float64("maxfeepercentage"),
+		AllowZeroConf:    !cmdCtx.Bool("disablezeroconf"),
+		MinSwap:          cmdCtx.Uint64("minswapsats"),
+		MaxSwap:          cmdCtx.Uint64("maxswapsats"),
+		DefaultSwap:      cmdCtx.Uint64("defaultswapsats"),
+		MaxAttempts:      cmdCtx.Int("maxswapattempts"),
 	}
 	resp.Limits = limits
 

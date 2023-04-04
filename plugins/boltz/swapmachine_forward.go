@@ -70,19 +70,19 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 		return FsmOut{Error: err}
 	}
 
-	response, err := CreateSwapWithSanityCheck(s.BoltzPlugin.BoltzAPI, keys, invoice, info.BlockHeight, s.BoltzPlugin.ChainParams)
+	response, err := CreateSwapWithSanityCheck(s.BoltzPlugin.BoltzAPI, keys, invoice, s.BoltzPlugin.ReferralCode, info.BlockHeight, s.BoltzPlugin.ChainParams)
 	if err != nil {
 		return FsmOut{Error: err}
 	}
 
 	fee := float64(response.ExpectedAmount-sats+minerFees) / float64(sats)
-	if fee*100 > s.BoltzPlugin.MaxFeePercentage {
-		return FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, s.BoltzPlugin.MaxFeePercentage)}
+	if fee*100 > in.SwapData.SwapLimits.MaxFeePercentage {
+		return FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
 	totalFee := float64(in.SwapData.FeesPaidSoFar+(response.ExpectedAmount-sats)) / float64(in.SwapData.SatsSwappedSoFar+response.ExpectedAmount) * 100
-	if totalFee > s.BoltzPlugin.MaxFeePercentage {
-		return FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, s.BoltzPlugin.MaxFeePercentage)}
+	if totalFee > in.SwapData.SwapLimits.MaxFeePercentage {
+		return FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
 	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100))
@@ -302,16 +302,19 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
 	}
 }
 
-func CreateSwapWithSanityCheck(api *boltz.Boltz, keys *Keys, invoice *lightning.InvoiceResp, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateSwapResponse, error) {
+func CreateSwapWithSanityCheck(api *BoltzPrivateAPI, keys *Keys, invoice *lightning.InvoiceResp, referralCode string, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateSwapResponse, error) {
 	const BlockEps = 10
 
-	response, err := api.CreateSwap(boltz.CreateSwapRequest{
-		Type:            "submarine",
-		PairId:          BtcPair,
-		OrderSide:       "buy",
-		PreimageHash:    hex.EncodeToString(keys.Preimage.Hash),
-		RefundPublicKey: hex.EncodeToString(keys.Keys.PublicKey.SerializeCompressed()),
-		Invoice:         invoice.PaymentRequest,
+	response, err := api.CreateSwap(CreateSwapRequestOverride{
+		CreateSwapRequest: boltz.CreateSwapRequest{
+			Type:            "submarine",
+			PairId:          BtcPair,
+			OrderSide:       "buy",
+			PreimageHash:    hex.EncodeToString(keys.Preimage.Hash),
+			RefundPublicKey: hex.EncodeToString(keys.Keys.PublicKey.SerializeCompressed()),
+			Invoice:         invoice.PaymentRequest,
+		},
+		ReferralId: referralCode,
 	})
 
 	if err != nil {

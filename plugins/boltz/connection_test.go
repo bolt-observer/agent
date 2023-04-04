@@ -81,6 +81,8 @@ func getMockCliCtx(boltzUrl string, dbFile string, network string) *cli.Context 
 	fs.Uint64("minswapsats", 100_000, "")
 	fs.Uint64("defaultswapsats", 100_000, "")
 	fs.Bool("disablezeroconf", false, "")
+	fs.Uint64("maxswapattempts", 1, "")
+	fs.String("boltzreferral", "bolt-observer", "")
 
 	return cli.NewContext(nil, fs, nil)
 }

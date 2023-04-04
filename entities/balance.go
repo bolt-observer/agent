@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/bolt-observer/agent/filter"
-	"github.com/bolt-observer/agent/lightning"
 )
 
 // Interval represents the enum of possible intervals
@@ -109,8 +108,7 @@ type ReportingSettings struct {
 
 // ClosedChannel struct
 type ClosedChannel struct {
-	ChannelID uint64              `json:"channel_id"`
-	CloseInfo lightning.CloseInfo `json:"close_info"`
+	ChannelID uint64 `json:"channel_id"`
 }
 
 // ChannelBalance struct

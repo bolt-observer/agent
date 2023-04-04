@@ -28,10 +28,11 @@ const (
 
 // JobData struct comes from the request.
 type JobData struct {
-	ID        int32      `json:"id,omitempty"`
-	Target    TargetType `json:"target"`
-	Amount    float64    `json:"amount,omitempty"`
-	ChannelId uint64     `json:"channel_id,omitempty"`
+	ID               int32      `json:"id,omitempty"`
+	Target           TargetType `json:"target"`
+	Amount           float64    `json:"amount,omitempty"`
+	ChannelId        uint64     `json:"channel_id,omitempty"`
+	MaxFeePercentage float64    `json:"max_fee_percentage,omitempty"`
 }
 
 // ParseJobData gets a new JobData from bytes
@@ -51,12 +52,18 @@ func ParseJobData(id int32, bytes []byte) (*JobData, error) {
 		if jd.Amount <= 0 || jd.Amount >= 100 {
 			return nil, ErrCouldNotParseJobData
 		}
+		if jd.MaxFeePercentage < 0 || jd.MaxFeePercentage > 100 {
+			return nil, ErrCouldNotParseJobData
+		}
 		return &jd, nil
 	case InboundLiquidityChannelPercent:
 		if jd.Amount <= 0 || jd.Amount >= 100 {
 			return nil, ErrCouldNotParseJobData
 		}
 		if jd.ChannelId == 0 {
+			return nil, ErrCouldNotParseJobData
+		}
+		if jd.MaxFeePercentage < 0 || jd.MaxFeePercentage > 100 {
 			return nil, ErrCouldNotParseJobData
 		}
 		return &jd, nil
