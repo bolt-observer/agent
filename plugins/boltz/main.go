@@ -65,7 +65,7 @@ var PluginFlags = []cli.Flag{
 		Name: "maxswapattempts", Value: 3, Usage: "max swap attempts for bigger jobs", Hidden: true,
 	},
 	cli.StringFlag{
-		Name: "boltzreferral", Value: "bolt-observer", Usage: "boltz API key", Hidden: true,
+		Name: "boltzreferral", Value: "bolt-observer", Usage: "boltz referral code", Hidden: true,
 	},
 }
 
