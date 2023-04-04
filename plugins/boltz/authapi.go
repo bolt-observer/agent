@@ -14,7 +14,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
@@ -43,6 +42,11 @@ type CreateReverseSwapRequestOverride struct {
 	ReferralId string `json:"referralId,omitempty"`
 	boltz.CreateReverseSwapRequest
 }
+
+type Month map[string]Token
+type Token map[string]Currency
+type Currency map[string]int
+type ReferralsResponse map[string]Month
 
 func NewBoltzPrivateAPI(url string, creds *Credentials) *BoltzPrivateAPI {
 	ret := &BoltzPrivateAPI{Creds: creds}
@@ -78,9 +82,20 @@ func (b *BoltzPrivateAPI) CreateReverseSwap(request CreateReverseSwapRequestOver
 	return &response, err
 }
 
+func (b *BoltzPrivateAPI) QueryReferrals() (*ReferralsResponse, error) {
+	var response ReferralsResponse
+	err := b.sendGetRequestAuth("/referrals/query", &response)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &response, err
+}
+
 func (b *BoltzPrivateAPI) sendGetRequestAuth(endpoint string, response interface{}) error {
 	if b.Creds == nil {
-		return fmt.Errorf("Disabled Boltz API endpoint")
+		return fmt.Errorf("no credentials")
 	}
 	req, err := http.NewRequest(http.MethodGet, b.URL+endpoint, nil)
 	if err != nil {
@@ -106,7 +121,7 @@ func (b *BoltzPrivateAPI) sendGetRequestAuth(endpoint string, response interface
 
 func (b *BoltzPrivateAPI) sendPostRequestAuth(endpoint string, requestBody interface{}, response interface{}) error {
 	if b.Creds == nil {
-		return fmt.Errorf("Disabled Boltz API endpoint")
+		return fmt.Errorf("no credentials")
 	}
 
 	rawBody, err := json.Marshal(requestBody)
@@ -177,5 +192,5 @@ func calcHmac(key string, message string) string {
 	sig := hmac.New(sha256.New, []byte(key))
 	sig.Write([]byte(message))
 
-	return strings.ToUpper(hex.EncodeToString(sig.Sum(nil)))
+	return hex.EncodeToString(sig.Sum(nil))
 }
