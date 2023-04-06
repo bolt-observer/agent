@@ -85,8 +85,8 @@ func nodeSanityCheck(t *testing.T, ln api.NewAPICall, name string) {
 	// Sanity check of node
 	ctx := context.Background()
 	lnAPI, err := ln()
-	assert.NotNil(t, lnAPI)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	require.NotNil(t, lnAPI)
 	info, err := lnAPI.GetInfo(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, name, info.Alias)

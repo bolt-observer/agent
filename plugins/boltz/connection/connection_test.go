@@ -15,11 +15,11 @@ import (
 
 func TestEnsureConnected(t *testing.T) {
 	api := common.GetAPI(t, "fixture.secret", api.LndRest)
-	lnAPI, err := api()
-	if lnAPI == nil || err != nil {
+	if api == nil {
 		return
 	}
-
+	lnAPI, err := api()
+	require.NoError(t, err)
 	err = EnsureConnected(context.Background(), lnAPI, bapi.NewBoltzPrivateAPI("http://127.0.0.1:9001", nil))
 	require.NoError(t, err)
 }
