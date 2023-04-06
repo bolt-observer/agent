@@ -13,6 +13,8 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
 )
 
 type CallbackStore struct {
@@ -63,14 +65,14 @@ func TestExecute(t *testing.T) {
 	target := []byte(`{ "target": "DummyTarget" }`)
 
 	p := &Plugin{
-		BoltzAPI:    NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
+		BoltzAPI:    bapi.NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
 		jobs:        make(map[int32]interface{}),
 		db: &TestDB{data: map[interface{}]interface{}{
 			int32(42): target,
 		}},
-		Limits: SwapLimits{
+		Limits: common.SwapLimits{
 			MaxAttempts: 10,
 		},
 	}
@@ -78,7 +80,7 @@ func TestExecute(t *testing.T) {
 	t.Run("Error on invalid data", func(t *testing.T) {
 		cs := &CallbackStore{}
 		err := p.Execute(123, []byte("invalid data"), cs.Callback)
-		require.ErrorIs(t, ErrCouldNotParseJobData, err)
+		require.ErrorIs(t, common.ErrCouldNotParseJobData, err)
 		// We now report the error back
 		assert.Equal(t, 1, len(cs.messages))
 	})

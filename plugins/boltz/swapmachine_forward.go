@@ -11,12 +11,15 @@ import (
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
 	"github.com/bolt-observer/agent/lightning"
+	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
+	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
 	"github.com/btcsuite/btcd/chaincfg"
 )
 
 // (submarine) swap finite state machine
 
-func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
+func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
 
 	sats := in.SwapData.Sats
@@ -25,25 +28,25 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 
 	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(in.GetUniqueJobID())
 	if err != nil {
-		return FsmOut{Error: err}
+		return common.FsmOut{Error: err}
 	}
 
 	pairs, err := s.BoltzPlugin.BoltzAPI.GetPairs()
 	if err != nil {
-		return FsmOut{Error: err}
+		return common.FsmOut{Error: err}
 	}
 
-	res, ok := pairs.Pairs[BtcPair]
+	res, ok := pairs.Pairs[common.BtcPair]
 	if !ok {
-		return FsmOut{Error: fmt.Errorf("pairs are not available")}
+		return common.FsmOut{Error: fmt.Errorf("pairs are not available")}
 	}
 
 	if sats < res.Limits.Minimal {
-		return FsmOut{Error: fmt.Errorf("below minimum amount")}
+		return common.FsmOut{Error: fmt.Errorf("below minimum amount")}
 	}
 
 	if sats > res.Limits.Maximal {
-		return FsmOut{Error: fmt.Errorf("above maximum amount")}
+		return common.FsmOut{Error: fmt.Errorf("above maximum amount")}
 	}
 
 	// times 2 is used as a safety margin
@@ -51,10 +54,10 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 
 	lnConnection, err := s.LnAPI()
 	if err != nil {
-		return FsmOut{Error: err}
+		return common.FsmOut{Error: err}
 	}
 	if lnConnection == nil {
-		return FsmOut{Error: fmt.Errorf("error getting lightning API")}
+		return common.FsmOut{Error: fmt.Errorf("error getting lightning API")}
 	}
 
 	defer lnConnection.Cleanup()
@@ -62,27 +65,27 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	invoice, err := lnConnection.CreateInvoice(ctx, int64(in.SwapData.Sats), hex.EncodeToString(keys.Preimage.Raw),
 		fmt.Sprintf("Automatic Swap Boltz %d", in.GetJobID()), 24*time.Hour) // assume boltz returns 144 blocks
 	if err != nil {
-		return FsmOut{Error: err}
+		return common.FsmOut{Error: err}
 	}
 
 	info, err := lnConnection.GetInfo(ctx)
 	if err != nil {
-		return FsmOut{Error: err}
+		return common.FsmOut{Error: err}
 	}
 
 	response, err := CreateSwapWithSanityCheck(s.BoltzPlugin.BoltzAPI, keys, invoice, s.BoltzPlugin.ReferralCode, info.BlockHeight, s.BoltzPlugin.ChainParams)
 	if err != nil {
-		return FsmOut{Error: err}
+		return common.FsmOut{Error: err}
 	}
 
 	fee := float64(response.ExpectedAmount-sats+minerFees) / float64(sats)
 	if fee*100 > in.SwapData.SwapLimits.MaxFeePercentage {
-		return FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, in.SwapData.SwapLimits.MaxFeePercentage)}
+		return common.FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
 	totalFee := float64(in.SwapData.FeesPaidSoFar+(response.ExpectedAmount-sats)) / float64(in.SwapData.SatsSwappedSoFar+response.ExpectedAmount) * 100
 	if totalFee > in.SwapData.SwapLimits.MaxFeePercentage {
-		return FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
+		return common.FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
 	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100))
@@ -90,11 +93,11 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	// Check funds
 	funds, err := lnConnection.GetOnChainFunds(ctx)
 	if err != nil {
-		return FsmOut{Error: err}
+		return common.FsmOut{Error: err}
 	}
 
 	if funds.ConfirmedBalance < int64(response.ExpectedAmount+minerFees) {
-		return FsmOut{Error: fmt.Errorf("we have %v sats on-chain but need %v sats", funds.ConfirmedBalance, response.ExpectedAmount+minerFees)}
+		return common.FsmOut{Error: fmt.Errorf("we have %v sats on-chain but need %v sats", funds.ConfirmedBalance, response.ExpectedAmount+minerFees)}
 	}
 
 	in.SwapData.BoltzID = response.Id
@@ -103,18 +106,18 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	in.SwapData.TimoutBlockHeight = response.TimeoutBlockHeight
 
 	if in.SwapData.IsDryRun {
-		return FsmOut{NextState: SwapSuccess}
+		return common.FsmOut{NextState: common.SwapSuccess}
 	}
 
 	// Explicitly first change state (in case we crash before sending)
-	err = s.BoltzPlugin.changeState(in, OnChainFundsSent)
+	err = s.BoltzPlugin.changeState(in, common.OnChainFundsSent)
 	if err != nil {
-		return FsmOut{Error: err}
+		return common.FsmOut{Error: err}
 	}
 
 	tx, err := lnConnection.SendToOnChainAddress(ctx, response.Address, int64(response.ExpectedAmount), false, lightning.Normal)
 	if err != nil {
-		return FsmOut{Error: err}
+		return common.FsmOut{Error: err}
 	}
 
 	log(in, fmt.Sprintf("Transaction ID for swap %v sats to %v is %v (invoice hash %v)", int64(response.ExpectedAmount), response.Address, tx, invoice.Hash))
@@ -123,16 +126,16 @@ func (s *SwapMachine) FsmInitialForward(in FsmIn) FsmOut {
 	in.SwapData.FeesPaidSoFar += (response.ExpectedAmount - sats)
 	in.SwapData.SatsSwappedSoFar += response.ExpectedAmount
 
-	return FsmOut{NextState: OnChainFundsSent}
+	return common.FsmOut{NextState: common.OnChainFundsSent}
 }
 
-func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
+func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
 
 	SleepTime := s.getSleepTime(in)
 
 	if in.SwapData.BoltzID == "" {
-		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
+		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
 	}
 
 	for {
@@ -173,12 +176,12 @@ func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 			swapTransactionResponse, err := s.BoltzPlugin.BoltzAPI.GetSwapTransaction(in.SwapData.BoltzID)
 			if err == nil {
 				in.SwapData.TransactionHex = swapTransactionResponse.TransactionHex
-				return FsmOut{NextState: RedeemLockedFunds}
+				return common.FsmOut{NextState: common.RedeemLockedFunds}
 			}
 		}
 
 		if status.IsCompletedStatus() || status == boltz.ChannelCreated || status == boltz.InvoicePaid {
-			return FsmOut{NextState: VerifyFundsReceived}
+			return common.FsmOut{NextState: common.VerifyFundsReceived}
 		}
 
 		info, err := lnAPI.GetInfo(ctx)
@@ -189,7 +192,7 @@ func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 		}
 
 		if uint32(info.BlockHeight) > in.SwapData.TimoutBlockHeight {
-			return FsmOut{NextState: RedeemLockedFunds}
+			return common.FsmOut{NextState: common.RedeemLockedFunds}
 		}
 
 		lnAPI.Cleanup()
@@ -197,19 +200,19 @@ func (s *SwapMachine) FsmOnChainFundsSent(in FsmIn) FsmOut {
 	}
 }
 
-func (s *SwapMachine) FsmRedeemLockedFunds(in FsmIn) FsmOut {
+func (s *SwapMachine) FsmRedeemLockedFunds(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
 
 	if in.SwapData.BoltzID == "" {
-		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
+		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
 	}
 
 	if in.SwapData.LockupTransactionId == "" {
-		return FsmOut{Error: fmt.Errorf("invalid state txid not set")}
+		return common.FsmOut{Error: fmt.Errorf("invalid state txid not set")}
 	}
 
 	if in.SwapData.TransactionHex == "" {
-		return FsmOut{Error: fmt.Errorf("invalid state transaction hex not set")}
+		return common.FsmOut{Error: fmt.Errorf("invalid state transaction hex not set")}
 	}
 
 	SleepTime := s.getSleepTime(in)
@@ -245,24 +248,24 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in FsmIn) FsmOut {
 		time.Sleep(SleepTime)
 	}
 
-	return FsmOut{NextState: RedeemingLockedFunds}
+	return common.FsmOut{NextState: common.RedeemingLockedFunds}
 }
 
-func (s *SwapMachine) FsmRedeemingLockedFunds(in FsmIn) FsmOut {
+func (s *SwapMachine) FsmRedeemingLockedFunds(in common.FsmIn) common.FsmOut {
 	// For state machine this is final state
 	if in.SwapData.BoltzID == "" {
-		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
+		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
 
 	}
 	s.BoltzPlugin.Redeemer.AddEntry(in)
-	return FsmOut{}
+	return common.FsmOut{}
 }
 
-func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
+func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
 
 	if in.SwapData.BoltzID == "" {
-		return FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
+		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
 	}
 
 	SleepTime := s.getSleepTime(in)
@@ -295,20 +298,20 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in FsmIn) FsmOut {
 		}
 
 		if paid {
-			return FsmOut{NextState: SwapSuccess}
+			return common.FsmOut{NextState: common.SwapSuccess}
 		} else {
-			return FsmOut{NextState: SwapFailed}
+			return common.FsmOut{NextState: common.SwapFailed}
 		}
 	}
 }
 
-func CreateSwapWithSanityCheck(api *BoltzPrivateAPI, keys *Keys, invoice *lightning.InvoiceResp, referralCode string, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateSwapResponse, error) {
+func CreateSwapWithSanityCheck(api *bapi.BoltzPrivateAPI, keys *crypto.Keys, invoice *lightning.InvoiceResp, referralCode string, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateSwapResponse, error) {
 	const BlockEps = 10
 
-	response, err := api.CreateSwap(CreateSwapRequestOverride{
+	response, err := api.CreateSwap(bapi.CreateSwapRequestOverride{
 		CreateSwapRequest: boltz.CreateSwapRequest{
 			Type:            "submarine",
-			PairId:          BtcPair,
+			PairId:          common.BtcPair,
 			OrderSide:       "buy",
 			PreimageHash:    hex.EncodeToString(keys.Preimage.Hash),
 			RefundPublicKey: hex.EncodeToString(keys.Keys.PublicKey.SerializeCompressed()),

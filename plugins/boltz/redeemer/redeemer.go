@@ -1,7 +1,7 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package redeemer
 
 import (
 	"context"
@@ -12,6 +12,8 @@ import (
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
 	api "github.com/bolt-observer/agent/lightning"
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
+	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
@@ -22,8 +24,6 @@ import (
 // Redeemer is an abstraction that periodically gathers "stuck" UTXOs and spends them to a new lightning node address.
 // It can combine failed forward submarine (swap-in) transactions (RedeemForward) and/or the outputs that need to be claimed for reverse submarine (swap-out) transactions (RedeemReverse)
 // Redeemer is supposed to work with any type that wraps SwapData (implements SwapDataGetter interface - generics in Go are a bit weird).
-
-type JobID int32
 
 // RedeemerType is a bitmask
 type RedeemerType int
@@ -39,24 +39,24 @@ type Redeemer[T SwapDataGetter] struct {
 	Ctx      context.Context
 	Callback RedeemedCallback[T]
 
-	Entries map[JobID]T
+	Entries map[common.JobID]T
 	lock    sync.Mutex
 	Timer   *time.Ticker
 
 	ChainParams         *chaincfg.Params
 	OnChainCommunicator OnChainCommunicator
 	LnAPI               api.NewAPICall
-	CryptoAPI           *CryptoAPI
+	CryptoAPI           *crypto.CryptoAPI
 }
 
 type SwapDataGetter interface {
-	GetSwapData() *SwapData
+	GetSwapData() *common.SwapData
 }
 
 type RedeemedCallback[T SwapDataGetter] func(data T, success bool)
 
 func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainParams *chaincfg.Params, OnChainCommunicator OnChainCommunicator, lnAPI api.NewAPICall,
-	interval time.Duration, cryptoAPI *CryptoAPI, callback RedeemedCallback[T]) *Redeemer[T] {
+	interval time.Duration, cryptoAPI *crypto.CryptoAPI, callback RedeemedCallback[T]) *Redeemer[T] {
 
 	if t == 0 {
 		glog.Warningf("Invalid nil redeemer does not make sense")
@@ -67,7 +67,7 @@ func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainPar
 		Ctx:                 ctx,
 		Type:                t,
 		Callback:            callback,
-		Entries:             make(map[JobID]T),
+		Entries:             make(map[common.JobID]T),
 		lock:                sync.Mutex{},
 		ChainParams:         chainParams,
 		OnChainCommunicator: OnChainCommunicator,
@@ -122,19 +122,19 @@ func (r *Redeemer[T]) redeem() bool {
 	}
 
 	outputs := make([]boltz.OutputDetails, 0)
-	used := make([]JobID, 0)
-	del := make([]JobID, 0)
+	used := make([]common.JobID, 0)
+	del := make([]common.JobID, 0)
 
 	for _, entry := range r.Entries {
 		var output *boltz.OutputDetails
 		sd := entry.GetSwapData()
-		if sd.State == RedeemingLockedFunds {
+		if sd.State == common.RedeemingLockedFunds {
 			if info.BlockHeight < int(sd.TimoutBlockHeight) {
 				continue
 			}
 
 			output = r.getRefundOutput(sd)
-		} else if sd.State == ClaimReverseFunds {
+		} else if sd.State == common.ClaimReverseFunds {
 			if info.BlockHeight > int(sd.TimoutBlockHeight) {
 				if r.Callback != nil {
 					r.Callback(entry, false)
@@ -190,13 +190,13 @@ func (r *Redeemer[T]) AddEntry(data T) error {
 	ok := false
 	sd := data.GetSwapData()
 	if r.Type&RedeemForward == RedeemForward {
-		if sd.State == RedeemingLockedFunds && sd.TransactionHex != "" {
+		if sd.State == common.RedeemingLockedFunds && sd.TransactionHex != "" {
 			ok = true
 		}
 	}
 
 	if r.Type&RedeemReverse == RedeemReverse {
-		if sd.State == ClaimReverseFunds && sd.TransactionHex != "" {
+		if sd.State == common.ClaimReverseFunds && sd.TransactionHex != "" {
 			ok = true
 		}
 	}
@@ -247,8 +247,8 @@ func (r *Redeemer[T]) doRedeem(outputs []boltz.OutputDetails) (string, error) {
 	return transaction.TxHash().String(), nil
 }
 
-func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
-	if data.State != ClaimReverseFunds {
+func (r *Redeemer[T]) getClaimOutput(data *common.SwapData) *boltz.OutputDetails {
+	if data.State != common.ClaimReverseFunds {
 		return nil
 	}
 
@@ -307,8 +307,8 @@ func (r *Redeemer[T]) getClaimOutput(data *SwapData) *boltz.OutputDetails {
 	}
 }
 
-func (r *Redeemer[T]) getRefundOutput(data *SwapData) *boltz.OutputDetails {
-	if data.State != RedeemingLockedFunds {
+func (r *Redeemer[T]) getRefundOutput(data *common.SwapData) *boltz.OutputDetails {
+	if data.State != common.RedeemingLockedFunds {
 		return nil
 	}
 

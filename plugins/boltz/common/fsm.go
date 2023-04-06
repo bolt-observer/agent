@@ -1,7 +1,7 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package common
 
 type FsmFn[I FsmInGetter, O FsmOutGetter] func(data I) O
 

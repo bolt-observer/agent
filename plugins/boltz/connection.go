@@ -8,11 +8,7 @@ import (
 	"fmt"
 
 	"github.com/bolt-observer/agent/lightning"
-)
-
-const (
-	// Symbol - we support only bitcoin
-	Symbol = "BTC"
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
 )
 
 // EnsureConnected - ensures node is connected with Boltz
@@ -37,14 +33,14 @@ func (b *Plugin) EnsureConnected(ctx context.Context, optLnAPI lightning.Lightin
 		defer lnAPI.Cleanup()
 	}
 
-	node, hasNode := nodes.Nodes[Symbol]
+	node, hasNode := nodes.Nodes[common.Btc]
 
 	if !hasNode {
-		return fmt.Errorf("could not find Boltz LND node for symbol %s", Symbol)
+		return fmt.Errorf("could not find Boltz LND node for symbol %s", common.Btc)
 	}
 
 	if len(node.URIs) == 0 {
-		return fmt.Errorf("could not find URIs for Boltz LND node for symbol %s", Symbol)
+		return fmt.Errorf("could not find URIs for Boltz LND node for symbol %s", common.Btc)
 	}
 
 	success := false

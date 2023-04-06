@@ -1,27 +1,18 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package crypto
 
 import (
 	"encoding/hex"
 	"math/rand"
 	"testing"
 
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/tyler-smith/go-bip39"
 )
-
-var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func randSeq(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
-}
 
 func TestCrypto(t *testing.T) {
 	const Max = 10000
@@ -31,7 +22,7 @@ func TestCrypto(t *testing.T) {
 		assert.NoError(t, err)
 
 		privKey, pubKey := btcec.PrivKeyFromBytes(entropy)
-		id := randSeq(10)
+		id := RandSeq(10)
 		fromPriv := hex.EncodeToString(DeterministicPrivateKey(id, privKey).PubKey().SerializeCompressed())
 		fromPub := hex.EncodeToString(DeterministicPublicKey(id, pubKey).SerializeCompressed())
 
@@ -48,7 +39,7 @@ func TestHmac(t *testing.T) {
 
 	m := make(map[string]struct{}, Max)
 	for i := 0; i < Max; i++ {
-		id := randSeq(10)
+		id := RandSeq(10)
 		b := DeterministicPreimage(id, entropy)
 		assert.Equal(t, 32, len(b))
 		result := string(b)
@@ -59,7 +50,7 @@ func TestHmac(t *testing.T) {
 }
 
 func TestGetKeys(t *testing.T) {
-	entropy, err := bip39.NewEntropy(SecretBitSize)
+	entropy, err := bip39.NewEntropy(common.SecretBitSize)
 	c := NewCryptoAPI(entropy)
 
 	assert.NoError(t, err)
@@ -68,7 +59,7 @@ func TestGetKeys(t *testing.T) {
 }
 
 func TestMnemonic(t *testing.T) {
-	entropy, err := bip39.NewEntropy(SecretBitSize)
+	entropy, err := bip39.NewEntropy(common.SecretBitSize)
 	assert.NoError(t, err)
 	mnemonic, err := bip39.NewMnemonic(entropy)
 	assert.NoError(t, err)

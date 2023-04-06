@@ -14,6 +14,7 @@ import (
 	agent_entities "github.com/bolt-observer/agent/entities"
 	filter "github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	bip39 "github.com/tyler-smith/go-bip39"
@@ -99,12 +100,12 @@ func newPlugin(t *testing.T, ln api.NewAPICall, dbName string, boltzUrl string, 
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	p, err := NewPlugin(ln, f, getMockCliCtx(boltzUrl, dbName, network), nil)
+	p, err := NewPlugin(ln, f, common.GetMockCliCtx(boltzUrl, dbName, network), nil)
 	assert.NoError(t, err)
 	_, err = p.BoltzAPI.GetNodes()
 	assert.NoError(t, err)
 
-	entropy, err := bip39.NewEntropy(SecretBitSize)
+	entropy, err := bip39.NewEntropy(common.SecretBitSize)
 	assert.NoError(t, err)
 	p.CryptoAPI.MasterSecret = entropy
 	return p
@@ -197,10 +198,10 @@ func TestStateMachineRecovery(t *testing.T) {
 	err = db.Connect(tempf.Name())
 	require.NoError(t, err)
 
-	sd := &SwapData{
-		JobID: JobID(1336),
+	sd := &common.SwapData{
+		JobID: common.JobID(1336),
 		Sats:  100000,
-		State: SwapSuccess,
+		State: common.SwapSuccess,
 	}
 
 	if err = db.Get(int32(sd.JobID), &sd); err != nil {

@@ -1,7 +1,7 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package api
 
 import (
 	"encoding/json"
@@ -14,6 +14,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
 )
 
 type Api struct {
@@ -22,7 +24,7 @@ type Api struct {
 }
 
 func TestQueryReferralsE2e(t *testing.T) {
-	id := randSeq(20)
+	id := crypto.RandSeq(20)
 
 	out, err := exec.Command("docker", "exec", "boltz-backend", "/opt/boltz-backend/bin/boltz-cli", "addreferral", id, "10").Output()
 	if err != nil {

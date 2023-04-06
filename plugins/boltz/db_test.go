@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,7 +20,7 @@ type Dummy struct {
 
 type ExtendedJobData struct {
 	Burek string
-	JobData
+	common.JobData
 }
 
 func TestBoltzDB(t *testing.T) {
@@ -53,11 +54,11 @@ func TestBoltzDB(t *testing.T) {
 		require.EqualError(t, err, "No data found for this key")
 	})
 	t.Run("Extended entities", func(t *testing.T) {
-		jd := &JobData{ID: 1337}
+		jd := &common.JobData{ID: 1337}
 		err = db.Insert(1337, jd)
 		assert.NoError(t, err)
 
-		var jd2 JobData
+		var jd2 common.JobData
 		err = db.Get(1337, &jd2)
 		assert.NoError(t, err)
 

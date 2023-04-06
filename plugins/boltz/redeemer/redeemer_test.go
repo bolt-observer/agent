@@ -1,7 +1,7 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package redeemer
 
 import (
 	"context"
@@ -15,6 +15,8 @@ import (
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
 	api "github.com/bolt-observer/agent/lightning"
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
+	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
@@ -32,10 +34,10 @@ const (
 )
 
 type DummyStruct struct {
-	Data *SwapData
+	Data *common.SwapData
 }
 
-func (d DummyStruct) GetSwapData() *SwapData {
+func (d DummyStruct) GetSwapData() *common.SwapData {
 	return d.Data
 }
 
@@ -71,8 +73,8 @@ func TestRedeemerTypes(t *testing.T) {
 	redeemerFail := NewRedeemer[DummyStruct](ctx, 0, &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil, nil)
 	assert.Nil(t, redeemerFail)
 
-	forwardSd := &SwapData{State: RedeemingLockedFunds, TransactionHex: "dummy"}
-	reverseSd := &SwapData{State: ClaimReverseFunds, TransactionHex: "dummy"}
+	forwardSd := &common.SwapData{State: common.RedeemingLockedFunds, TransactionHex: "dummy"}
+	reverseSd := &common.SwapData{State: common.ClaimReverseFunds, TransactionHex: "dummy"}
 
 	redeemerForward := NewRedeemer[DummyStruct](ctx, RedeemForward, &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil, nil)
 	require.NotNil(t, redeemerForward)
@@ -119,7 +121,7 @@ func TestRedeemLockedFunds(t *testing.T) {
 
 	// ARRANGE
 	entropy, err := bip39.NewEntropy(256)
-	c := NewCryptoAPI(entropy)
+	c := crypto.NewCryptoAPI(entropy)
 	blockNum := GetCurrentBlockNum(t)
 
 	sd := GenerateClaimSd(t, c, "dummy1", 1, int(blockNum+10), "0.1")
@@ -179,7 +181,7 @@ func TestRedeemLockedFundsTwoSources(t *testing.T) {
 
 	// ARRANGE
 	entropy, err := bip39.NewEntropy(256)
-	c := NewCryptoAPI(entropy)
+	c := crypto.NewCryptoAPI(entropy)
 	blockNum := GetCurrentBlockNum(t)
 
 	claimSd := GenerateClaimSd(t, c, "dummy2", 2, int(blockNum+10), "0.1")
@@ -250,13 +252,13 @@ func TestRedeemFailThatIsNotYetMature(t *testing.T) {
 
 	// ARRANGE
 	entropy, err := bip39.NewEntropy(256)
-	c := NewCryptoAPI(entropy)
+	c := crypto.NewCryptoAPI(entropy)
 	blockNum := GetCurrentBlockNum(t)
 
 	failSd := GenerateFailSd(t, c, "dummy1", 1, int(blockNum+1), "0.1")
 	notRedeemableSd := GenerateFailSd(t, c, "notredeemable", 2, int(blockNum+10), "0.1")
 	dummySd := GenerateFailSd(t, c, "notused", 3, int(blockNum+1), "0.1")
-	dummySd.State = RedeemLockedFunds
+	dummySd.State = common.RedeemLockedFunds
 
 	cnt := 0
 	cb := func(data DummyStruct, success bool) {
@@ -305,7 +307,7 @@ func TestRedeemFailThatIsNotYetMature(t *testing.T) {
 	t.Fatalf("Did not succeed")
 }
 
-func GenerateClaimSd(t *testing.T, c *CryptoAPI, name string, id int, blockNum int, funds string) *SwapData {
+func GenerateClaimSd(t *testing.T, c *crypto.CryptoAPI, name string, id int, blockNum int, funds string) *common.SwapData {
 	k, err := c.GetKeys(fmt.Sprintf("%d-%d", id, 1))
 	require.NoError(t, err)
 	dummyKey, err := secp256k1.GeneratePrivateKey()
@@ -318,10 +320,10 @@ func GenerateClaimSd(t *testing.T, c *CryptoAPI, name string, id int, blockNum i
 	tx := GetRawTx(t, txid)
 	t.Logf("Transaction was %v\n", tx)
 
-	return &SwapData{BoltzID: name, JobID: JobID(id), Attempt: 1, State: ClaimReverseFunds, TransactionHex: tx, Address: addr, TimoutBlockHeight: uint32(blockNum), Script: hex.EncodeToString(script)}
+	return &common.SwapData{BoltzID: name, JobID: common.JobID(id), Attempt: 1, State: common.ClaimReverseFunds, TransactionHex: tx, Address: addr, TimoutBlockHeight: uint32(blockNum), Script: hex.EncodeToString(script)}
 }
 
-func GenerateFailSd(t *testing.T, c *CryptoAPI, name string, id int, blockNum int, funds string) *SwapData {
+func GenerateFailSd(t *testing.T, c *crypto.CryptoAPI, name string, id int, blockNum int, funds string) *common.SwapData {
 	k, err := c.GetKeys(fmt.Sprintf("%d-%d", id, 1))
 	require.NoError(t, err)
 	dummyKey, err := secp256k1.GeneratePrivateKey()
@@ -334,7 +336,7 @@ func GenerateFailSd(t *testing.T, c *CryptoAPI, name string, id int, blockNum in
 	tx := GetRawTx(t, txid)
 	t.Logf("Transaction was %v\n", tx)
 
-	return &SwapData{BoltzID: name, JobID: JobID(id), Attempt: 1, State: RedeemingLockedFunds, TransactionHex: tx, Address: addr, TimoutBlockHeight: uint32(blockNum), Script: hex.EncodeToString(script)}
+	return &common.SwapData{BoltzID: name, JobID: common.JobID(id), Attempt: 1, State: common.RedeemingLockedFunds, TransactionHex: tx, Address: addr, TimoutBlockHeight: uint32(blockNum), Script: hex.EncodeToString(script)}
 }
 
 func GetAddress(t *testing.T, reverse bool, script []byte) string {

@@ -1,7 +1,7 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package redeemer
 
 import (
 	"fmt"
@@ -9,6 +9,8 @@ import (
 	"github.com/btcsuite/btcd/wire"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
+	authapi "github.com/bolt-observer/agent/plugins/boltz/api"
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
 )
 
 type OnChainCommunicator interface {
@@ -17,10 +19,10 @@ type OnChainCommunicator interface {
 }
 
 type BoltzOnChainCommunicator struct {
-	API *BoltzPrivateAPI
+	API *authapi.BoltzPrivateAPI
 }
 
-func NewBoltzOnChainCommunicator(api *BoltzPrivateAPI) *BoltzOnChainCommunicator {
+func NewBoltzOnChainCommunicator(api *authapi.BoltzPrivateAPI) *BoltzOnChainCommunicator {
 	return &BoltzOnChainCommunicator{
 		API: api,
 	}
@@ -50,7 +52,7 @@ func (c *BoltzOnChainCommunicator) GetFeeEstimation() (uint64, error) {
 
 	fee := *feeResp
 
-	satsPerVbyte, ok := fee[Btc]
+	satsPerVbyte, ok := fee[common.Btc]
 	if !ok {
 		return 0, fmt.Errorf("error getting fee estimate")
 	}

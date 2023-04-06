@@ -14,6 +14,8 @@ import (
 	"github.com/bolt-observer/agent/lightning"
 	api "github.com/bolt-observer/agent/lightning"
 	lnapi "github.com/bolt-observer/agent/lightning"
+	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/assert"
 )
@@ -29,23 +31,39 @@ func (f *FakeInvalidatable) Invalidate() error {
 
 type FakeSwapMachine struct {
 	SwapMachine
-	CurrentState State
-	In           FsmIn
+	CurrentState common.State
+	In           common.FsmIn
 }
 
-func NewFakeSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData JobDataToSwapDataFn, lnAPI api.NewAPICall) *FakeSwapMachine {
+func NewFakeSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData common.JobDataToSwapDataFn, lnAPI api.NewAPICall) *FakeSwapMachine {
 	s := &FakeSwapMachine{}
-	s.Machine = &Fsm[FsmIn, FsmOut, State]{States: make(map[State]func(data FsmIn) FsmOut)}
+	s.Machine = &common.Fsm[common.FsmIn, common.FsmOut, common.State]{States: make(map[common.State]func(data common.FsmIn) common.FsmOut)}
 	s.BoltzPlugin = plugin
 	s.NodeDataInvalidator = nodeDataInvalidator
 	s.JobDataToSwapData = jobDataToSwapData
 	s.LnAPI = lnAPI
 
-	s.Machine.States[SwapFailed] = func(in FsmIn) FsmOut { s.CurrentState = SwapFailed; s.In = in; return FsmOut{} }
-	s.Machine.States[SwapSuccess] = func(in FsmIn) FsmOut { s.CurrentState = SwapSuccess; s.In = in; return FsmOut{} }
+	s.Machine.States[common.SwapFailed] = func(in common.FsmIn) common.FsmOut {
+		s.CurrentState = common.SwapFailed
+		s.In = in
+		return common.FsmOut{}
+	}
+	s.Machine.States[common.SwapSuccess] = func(in common.FsmIn) common.FsmOut {
+		s.CurrentState = common.SwapSuccess
+		s.In = in
+		return common.FsmOut{}
+	}
 
-	s.Machine.States[InitialForward] = func(in FsmIn) FsmOut { s.CurrentState = InitialForward; s.In = in; return FsmOut{} }
-	s.Machine.States[InitialReverse] = func(in FsmIn) FsmOut { s.CurrentState = InitialReverse; s.In = in; return FsmOut{} }
+	s.Machine.States[common.InitialForward] = func(in common.FsmIn) common.FsmOut {
+		s.CurrentState = common.InitialForward
+		s.In = in
+		return common.FsmOut{}
+	}
+	s.Machine.States[common.InitialReverse] = func(in common.FsmIn) common.FsmOut {
+		s.CurrentState = common.InitialReverse
+		s.In = in
+		return common.FsmOut{}
+	}
 
 	return s
 }
@@ -58,22 +76,22 @@ func mkFakeLndAPI() api.NewAPICall {
 
 func TestNextRoundNotNeeded(t *testing.T) {
 	p := &Plugin{
-		BoltzAPI:    NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
+		BoltzAPI:    bapi.NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
-		Limits: SwapLimits{
+		Limits: common.SwapLimits{
 			MaxAttempts: 10,
 		},
 	}
 
 	invalidatable := &FakeInvalidatable{}
 
-	noFun := func(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
-		return nil, ErrNoNeedToDoAnything
+	noFun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*common.SwapData, error) {
+		return nil, common.ErrNoNeedToDoAnything
 	}
 
-	in := FsmIn{
-		SwapData: &SwapData{
+	in := common.FsmIn{
+		SwapData: &common.SwapData{
 			Attempt: 1,
 		},
 	}
@@ -87,27 +105,27 @@ func TestNextRoundNotNeeded(t *testing.T) {
 
 func TestNextRoundNeeded(t *testing.T) {
 	p := &Plugin{
-		BoltzAPI:    NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
+		BoltzAPI:    bapi.NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
-		Limits: SwapLimits{
+		Limits: common.SwapLimits{
 			MaxAttempts: 10,
 		},
 	}
 
-	sd := &SwapData{
+	sd := &common.SwapData{
 		Attempt: 1,
-		State:   SwapSuccess,
+		State:   common.SwapSuccess,
 	}
 
 	invalidatable := &FakeInvalidatable{}
 
-	fun := func(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
-		sd.State = InitialForward
+	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*common.SwapData, error) {
+		sd.State = common.InitialForward
 		return sd, nil
 	}
 
-	in := FsmIn{
+	in := common.FsmIn{
 		SwapData: sd,
 	}
 
@@ -119,11 +137,11 @@ func TestNextRoundNeeded(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	assert.Equal(t, 2, s.In.SwapData.Attempt)
-	assert.Equal(t, InitialForward, s.In.SwapData.State)
+	assert.Equal(t, common.InitialForward, s.In.SwapData.State)
 
 	// Now fast forward to last attempt
 
-	sd.State = SwapSuccess
+	sd.State = common.SwapSuccess
 	sd.Attempt = p.Limits.MaxAttempts
 	in.SwapData = sd
 
@@ -135,23 +153,23 @@ func TestNextRoundNeeded(t *testing.T) {
 
 func TestNextRoundJobConversionFails(t *testing.T) {
 	p := &Plugin{
-		BoltzAPI:    NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
+		BoltzAPI:    bapi.NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
 	}
 
-	sd := &SwapData{
+	sd := &common.SwapData{
 		Attempt: 1,
-		State:   SwapSuccess,
+		State:   common.SwapSuccess,
 	}
 
 	invalidatable := &FakeInvalidatable{}
 
-	fun := func(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
+	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*common.SwapData, error) {
 		return nil, ErrInvalidArguments
 	}
 
-	in := FsmIn{
+	in := common.FsmIn{
 		SwapData: sd,
 	}
 

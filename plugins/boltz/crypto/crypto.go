@@ -1,11 +1,12 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package crypto
 
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"math/rand"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -13,6 +14,7 @@ import (
 	bip32 "github.com/tyler-smith/go-bip32"
 	bip39 "github.com/tyler-smith/go-bip39"
 )
+
 
 // DeterministicPrivateKey - from private key x generated x + hash(id)
 func DeterministicPrivateKey(id string, orig *secp256k1.PrivateKey) *secp256k1.PrivateKey {
@@ -129,4 +131,14 @@ func (b *CryptoAPI) DumpMnemonic() string {
 	}
 
 	return mnemonic
+}
+
+var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func RandSeq(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }
