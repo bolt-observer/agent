@@ -1,7 +1,7 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package swapmachine
 
 import (
 	"context"
@@ -25,7 +25,8 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 
 	sats := in.SwapData.Sats
 
-	log(in, fmt.Sprintf("Will do a submarine swap with %v sats", sats))
+	log(in, fmt.Sprintf("Will do a submarine swap with %v sats", sats),
+		[]byte(fmt.Sprintf(`{ "id": %v, "type": "forwardswap", "sats": %v }`, in.GetJobID(), sats)))
 
 	keys, err := s.CryptoAPI.GetKeys(in.GetUniqueJobID())
 	if err != nil {
@@ -89,7 +90,8 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
-	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100))
+	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100),
+		[]byte(fmt.Sprintf(`{ "id": %v, "boltzID": %v, "type": "forwardswap", "fee": %v }`, in.GetJobID(), response.Id, fee*100)))
 
 	// Check funds
 	funds, err := lnConnection.GetOnChainFunds(ctx)
@@ -121,7 +123,8 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: err}
 	}
 
-	log(in, fmt.Sprintf("Transaction ID for swap %v sats to %v is %v (invoice hash %v)", int64(response.ExpectedAmount), response.Address, tx, invoice.Hash))
+	log(in, fmt.Sprintf("Transaction ID for swap %v sats to %v is %v (invoice hash %v)", int64(response.ExpectedAmount), response.Address, tx, invoice.Hash),
+		[]byte(fmt.Sprintf(`{ "id": %v, "type": "forwardswap", "sats": %v, "address": %v, "transaction": %v, "invoice": %v }`, in.GetJobID(), int64(response.ExpectedAmount), response.Address, tx, invoice.PaymentRequest)))
 	in.SwapData.LockupTransactionId = tx
 
 	in.SwapData.FeesPaidSoFar += (response.ExpectedAmount - sats)
@@ -142,24 +145,24 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 	for {
 		lnAPI, err := s.LnAPI()
 		if err != nil {
-			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err), nil)
 			time.Sleep(SleepTime)
 			continue
 		}
 		if lnAPI == nil {
-			log(in, "error getting LNAPI")
+			log(in, "error getting LNAPI", nil)
 			time.Sleep(SleepTime)
 			continue
 		}
 
 		err = connection.EnsureConnected(ctx, lnAPI, s.BoltzAPI)
 		if err != nil {
-			log(in, fmt.Sprintf("error ensuring we are connected: %v", err))
+			log(in, fmt.Sprintf("error ensuring we are connected: %v", err), nil)
 		}
 
 		stat, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
-			log(in, fmt.Sprintf("error communicating with BoltzAPI: %v", err))
+			log(in, fmt.Sprintf("error communicating with BoltzAPI: %v", err), nil)
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -187,7 +190,7 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 
 		info, err := lnAPI.GetInfo(ctx)
 		if err != nil {
-			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err))
+			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err), nil)
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -222,19 +225,19 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in common.FsmIn) common.FsmOut {
 	for {
 		lnConnection, err := s.LnAPI()
 		if err != nil {
-			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err), nil)
 			time.Sleep(SleepTime)
 			continue
 		}
 		if lnConnection == nil {
-			log(in, "error getting LNAPI")
+			log(in, "error getting LNAPI", nil)
 			time.Sleep(SleepTime)
 			continue
 		}
 
 		info, err := lnConnection.GetInfo(ctx)
 		if err != nil {
-			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err))
+			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err), nil)
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -243,7 +246,8 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in common.FsmIn) common.FsmOut {
 			break
 		}
 
-		log(in, fmt.Sprintf("Waiting for expiry %d < %d", info.BlockHeight, in.SwapData.TimoutBlockHeight))
+		log(in, fmt.Sprintf("Waiting for expiry %d < %d", info.BlockHeight, in.SwapData.TimoutBlockHeight),
+			[]byte(fmt.Sprintf(`{ "id": %v, "boltzID": %v, "type": "forwardswap", "current_height": %v, "timeout_height": %v }`, in.GetJobID(), in.SwapData.BoltzID, info.BlockHeight, in.SwapData.TimoutBlockHeight)))
 
 		lnConnection.Cleanup()
 		time.Sleep(SleepTime)
@@ -274,26 +278,26 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 	for {
 		lnConnection, err := s.LnAPI()
 		if err != nil {
-			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err), nil)
 			time.Sleep(SleepTime)
 			continue
 		}
 		if lnConnection == nil {
-			log(in, "error getting LNAPI")
+			log(in, "error getting LNAPI", nil)
 			time.Sleep(SleepTime)
 			continue
 		}
 
 		keys, err := s.CryptoAPI.GetKeys(in.GetUniqueJobID())
 		if err != nil {
-			log(in, "error getting keys")
+			log(in, "error getting keys", nil)
 			time.Sleep(SleepTime)
 			continue
 		}
 
 		paid, err := lnConnection.IsInvoicePaid(ctx, hex.EncodeToString(keys.Preimage.Hash))
 		if err != nil {
-			log(in, "error checking whether invoice is paid")
+			log(in, "error checking whether invoice is paid", nil)
 			time.Sleep(SleepTime)
 			continue
 		}

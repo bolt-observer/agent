@@ -1,7 +1,7 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package swapmachine
 
 import (
 	"context"
@@ -13,9 +13,11 @@ import (
 	"github.com/bolt-observer/agent/filter"
 	"github.com/bolt-observer/agent/lightning"
 	api "github.com/bolt-observer/agent/lightning"
+
 	lnapi "github.com/bolt-observer/agent/lightning"
 	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
 	common "github.com/bolt-observer/agent/plugins/boltz/common"
+	data "github.com/bolt-observer/agent/plugins/boltz/data"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,17 +37,18 @@ type FakeSwapMachine struct {
 	In           common.FsmIn
 }
 
-func NewFakeSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData common.JobDataToSwapDataFn, lnAPI api.NewAPICall) *FakeSwapMachine {
+func NewFakeSwapMachine(pd data.PluginData, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData common.JobDataToSwapDataFn, lnAPI api.NewAPICall) *FakeSwapMachine {
 	s := &FakeSwapMachine{}
 	s.Machine = &common.Fsm[common.FsmIn, common.FsmOut, common.State]{States: make(map[common.State]func(data common.FsmIn) common.FsmOut)}
-	s.ReferralCode = plugin.ReferralCode
-	s.ChainParams = plugin.ChainParams
-	s.Filter = plugin.Filter
-	s.CryptoAPI = plugin.CryptoAPI
-	s.Redeemer = plugin.Redeemer
-	s.ReverseRedeemer = plugin.ReverseRedeemer
-	s.Limits = plugin.Limits
-	s.BoltzAPI = plugin.BoltzAPI
+
+	s.ReferralCode = pd.ReferralCode
+	s.ChainParams = pd.ChainParams
+	s.Filter = pd.Filter
+	s.CryptoAPI = pd.CryptoAPI
+	s.Redeemer = pd.Redeemer
+	s.ReverseRedeemer = pd.ReverseRedeemer
+	s.Limits = pd.Limits
+	s.BoltzAPI = pd.BoltzAPI
 
 	s.NodeDataInvalidator = nodeDataInvalidator
 	s.JobDataToSwapData = jobDataToSwapData
@@ -83,13 +86,19 @@ func mkFakeLndAPI() api.NewAPICall {
 }
 
 func TestNextRoundNotNeeded(t *testing.T) {
-	p := &Plugin{
+	pd := data.PluginData{
 		BoltzAPI:    bapi.NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
-		LnAPI:       mkFakeLndAPI(),
 		Limits: common.SwapLimits{
 			MaxAttempts: 10,
 		},
+		ChangeStateFn: data.ChangeStateFn(func(in common.FsmIn, state common.State) error {
+			in.SwapData.State = state
+			return nil
+		}),
+		GetSleepTimeFn: data.GetSleepTimeFn(func(in common.FsmIn) time.Duration {
+			return 100 * time.Millisecond
+		}),
 	}
 
 	invalidatable := &FakeInvalidatable{}
@@ -104,7 +113,7 @@ func TestNextRoundNotNeeded(t *testing.T) {
 		},
 	}
 
-	s := NewFakeSwapMachine(p, invalidatable, noFun, p.LnAPI)
+	s := NewFakeSwapMachine(pd, invalidatable, noFun, mkFakeLndAPI())
 	o := s.nextRound(in)
 	assert.NoError(t, o.Error)
 
@@ -112,13 +121,19 @@ func TestNextRoundNotNeeded(t *testing.T) {
 }
 
 func TestNextRoundNeeded(t *testing.T) {
-	p := &Plugin{
+	pd := data.PluginData{
 		BoltzAPI:    bapi.NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
-		LnAPI:       mkFakeLndAPI(),
 		Limits: common.SwapLimits{
 			MaxAttempts: 10,
 		},
+		ChangeStateFn: data.ChangeStateFn(func(in common.FsmIn, state common.State) error {
+			in.SwapData.State = state
+			return nil
+		}),
+		GetSleepTimeFn: data.GetSleepTimeFn(func(in common.FsmIn) time.Duration {
+			return 100 * time.Millisecond
+		}),
 	}
 
 	sd := &common.SwapData{
@@ -137,7 +152,7 @@ func TestNextRoundNeeded(t *testing.T) {
 		SwapData: sd,
 	}
 
-	s := NewFakeSwapMachine(p, invalidatable, fun, p.LnAPI)
+	s := NewFakeSwapMachine(pd, invalidatable, fun, mkFakeLndAPI())
 	o := s.nextRound(in)
 	assert.NoError(t, o.Error)
 
@@ -150,7 +165,7 @@ func TestNextRoundNeeded(t *testing.T) {
 	// Now fast forward to last attempt
 
 	sd.State = common.SwapSuccess
-	sd.Attempt = p.Limits.MaxAttempts
+	sd.Attempt = pd.Limits.MaxAttempts
 	in.SwapData = sd
 
 	o = s.nextRound(in)
@@ -160,10 +175,19 @@ func TestNextRoundNeeded(t *testing.T) {
 }
 
 func TestNextRoundJobConversionFails(t *testing.T) {
-	p := &Plugin{
+	pd := data.PluginData{
 		BoltzAPI:    bapi.NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
-		LnAPI:       mkFakeLndAPI(),
+		Limits: common.SwapLimits{
+			MaxAttempts: 10,
+		},
+		ChangeStateFn: data.ChangeStateFn(func(in common.FsmIn, state common.State) error {
+			in.SwapData.State = state
+			return nil
+		}),
+		GetSleepTimeFn: data.GetSleepTimeFn(func(in common.FsmIn) time.Duration {
+			return 100 * time.Millisecond
+		}),
 	}
 
 	sd := &common.SwapData{
@@ -174,15 +198,15 @@ func TestNextRoundJobConversionFails(t *testing.T) {
 	invalidatable := &FakeInvalidatable{}
 
 	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*common.SwapData, error) {
-		return nil, ErrInvalidArguments
+		return nil, common.ErrInvalidArguments
 	}
 
 	in := common.FsmIn{
 		SwapData: sd,
 	}
 
-	s := NewFakeSwapMachine(p, invalidatable, fun, p.LnAPI)
+	s := NewFakeSwapMachine(pd, invalidatable, fun, mkFakeLndAPI())
 	o := s.nextRound(in)
 
-	assert.ErrorIs(t, o.Error, ErrInvalidArguments)
+	assert.ErrorIs(t, o.Error, common.ErrInvalidArguments)
 }

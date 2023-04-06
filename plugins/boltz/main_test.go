@@ -10,11 +10,12 @@ import (
 	"testing"
 
 	agent_entities "github.com/bolt-observer/agent/entities"
+	api "github.com/bolt-observer/agent/lightning"
+	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
-	common "github.com/bolt-observer/agent/plugins/boltz/common"
 )
 
 type CallbackStore struct {
@@ -61,6 +62,11 @@ func (t *TestDB) Connect(path string) error {
 	return nil
 }
 
+func mkFakeLndAPI() api.NewAPICall {
+	return func() (api.LightingAPICalls, error) {
+		return &api.MockLightningAPI{}, nil
+	}
+}
 func TestExecute(t *testing.T) {
 	target := []byte(`{ "target": "DummyTarget" }`)
 

@@ -1,12 +1,14 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package swapmachine
 
 import (
 	"context"
 	"fmt"
 	"time"
+
+	"encoding/json"
 
 	"github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
@@ -14,12 +16,18 @@ import (
 	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
 	common "github.com/bolt-observer/agent/plugins/boltz/common"
 	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
+	data "github.com/bolt-observer/agent/plugins/boltz/data"
 	redeemer "github.com/bolt-observer/agent/plugins/boltz/redeemer"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/golang/glog"
 )
 
-func log(in common.FsmIn, msg string) {
+func log(in common.FsmIn, msg string, data []byte) {
+	ret := data
+	if data != nil && !json.Valid(data) {
+		ret = nil
+	}
+
 	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), msg)
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
@@ -27,12 +35,13 @@ func log(in common.FsmIn, msg string) {
 			Message:    msg,
 			IsError:    false,
 			IsFinished: false,
+			Data:       ret,
 		})
 	}
 }
 
 func (s *SwapMachine) FsmNone(in common.FsmIn) common.FsmOut {
-	log(in, "Invalid state reached")
+	log(in, "Invalid state reached", nil)
 	panic("Invalid state reached")
 }
 
@@ -160,12 +169,12 @@ func (s *SwapMachine) RedeemedCallback(data common.FsmIn, success bool) {
 			go s.Eval(data, common.SwapFailed)
 		}
 	} else {
-		log(data, fmt.Sprintf("Received redeemed callback in wrong state %v", sd.State))
+		log(data, fmt.Sprintf("Received redeemed callback in wrong state %v", sd.State), nil)
 	}
 }
 
 // FsmWrap will just wrap a normal state machine function and give it the ability to transition states based on return values
-func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, ChangeStateFn ChangeStateFn) func(data I) O {
+func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, ChangeStateFn data.ChangeStateFn) func(data I) O {
 	return func(in I) O {
 
 		realIn := in.Get()
@@ -203,16 +212,12 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, Chan
 	}
 }
 
-type ChangeStateFn func(in common.FsmIn, state common.State) error
-type GetSleepTimeFn func(in common.FsmIn) time.Duration
-
 // Swapmachine is a finite state machine used for swaps.
 type SwapMachine struct {
 	Machine *common.Fsm[common.FsmIn, common.FsmOut, common.State]
 
 	// TODO: we should not be referencing plugin here
 	//BoltzPlugin *Plugin
-
 	ReferralCode    string
 	ChainParams     *chaincfg.Params
 	Filter          filter.FilteringInterface
@@ -221,16 +226,16 @@ type SwapMachine struct {
 	ReverseRedeemer *redeemer.Redeemer[common.FsmIn]
 	Limits          common.SwapLimits
 	BoltzAPI        *bapi.BoltzPrivateAPI
-	ChangeStateFn   ChangeStateFn
-	GetSleepTimeFn  GetSleepTimeFn
+	ChangeStateFn   data.ChangeStateFn
+	GetSleepTimeFn  data.GetSleepTimeFn
 
 	NodeDataInvalidator entities.Invalidatable
 	JobDataToSwapData   common.JobDataToSwapDataFn
 	LnAPI               api.NewAPICall
 }
 
-func NewSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData common.JobDataToSwapDataFn, lnAPI api.NewAPICall) *SwapMachine {
-	fn := ChangeStateFn(plugin.changeState)
+func NewSwapMachine(plugin data.PluginData, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData common.JobDataToSwapDataFn, lnAPI api.NewAPICall) *SwapMachine {
+	fn := plugin.ChangeStateFn
 
 	s := &SwapMachine{Machine: &common.Fsm[common.FsmIn, common.FsmOut, common.State]{States: make(map[common.State]func(data common.FsmIn) common.FsmOut)},
 		NodeDataInvalidator: nodeDataInvalidator,
@@ -245,9 +250,7 @@ func NewSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, 
 		Limits:              plugin.Limits,
 		BoltzAPI:            plugin.BoltzAPI,
 		ChangeStateFn:       fn,
-		GetSleepTimeFn: GetSleepTimeFn(func(in common.FsmIn) time.Duration {
-			return plugin.GetSleepTime()
-		}),
+		GetSleepTimeFn:      plugin.GetSleepTimeFn,
 	}
 
 	s.Machine.States[common.SwapFailed] = FsmWrap(s.FsmSwapFailed, fn)

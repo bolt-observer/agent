@@ -1,7 +1,7 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package swapmachine
 
 import (
 	"bytes"
@@ -26,7 +26,8 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 
 	sats := in.SwapData.Sats
 
-	log(in, fmt.Sprintf("Will do a reverse submarine swap with %v sats", sats))
+	log(in, fmt.Sprintf("Will do a reverse submarine swap with %v sats", sats),
+		[]byte(fmt.Sprintf(`{ "id": %v, "type": "reverseswap", "sats": %v }`, in.GetJobID(), sats)))
 
 	keys, err := s.CryptoAPI.GetKeys(in.GetUniqueJobID())
 	if err != nil {
@@ -84,7 +85,8 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
-	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100))
+	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100),
+		[]byte(fmt.Sprintf(`{ "id": %v, "boltzID": %v, "type": "reverseswap", "fee": %v }`, in.GetJobID(), response.Id, fee*100)))
 
 	in.SwapData.FeesPaidSoFar += (sats - response.OnchainAmount)
 	in.SwapData.SatsSwappedSoFar += sats
@@ -143,22 +145,23 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 	for {
 		lnConnection, err := s.LnAPI()
 		if err != nil {
-			log(in, fmt.Sprintf("error getting LNAPI: %v", err))
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err), nil)
 			time.Sleep(SleepTime)
 			continue
 		}
 		if lnConnection == nil {
-			log(in, "error getting LNAPI")
+			log(in, "error getting LNAPI", nil)
 			time.Sleep(SleepTime)
 			continue
 		}
 
 		if !paid {
-			log(in, fmt.Sprintf("Paying invoice %v %+v", in.SwapData.ReverseInvoice, in.SwapData.ChanIdsToUse))
+			log(in, fmt.Sprintf("Paying invoice %v %+v", in.SwapData.ReverseInvoice, in.SwapData.ChanIdsToUse),
+				[]byte(fmt.Sprintf(`{ "id": %v, "boltzID": %v, "type": "reverseswap", "invoice": %v }`, in.GetJobID(), in.SwapData.BoltzID, in.SwapData.ReverseInvoice)))
 
 			_, err = lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, in.SwapData.ChanIdsToUse)
 			if err != nil {
-				log(in, fmt.Sprintf("Failed paying invoice %v due to %v", in.SwapData.ReverseInvoice, err))
+				log(in, fmt.Sprintf("Failed paying invoice %v due to %v", in.SwapData.ReverseInvoice, err), nil)
 				if in.SwapData.ReverseChannelId == 0 {
 					// this means node level liquidity - if the hints worked that would be nice, but try without them too
 
@@ -174,13 +177,14 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 
 		s, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
-			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err))
+			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err), nil)
 			time.Sleep(SleepTime)
 			continue
 		}
 		status := boltz.ParseEvent(s.Status)
 
-		log(in, fmt.Sprintf("Swap status is: %v", status))
+		log(in, fmt.Sprintf("Swap status is: %v", status),
+			[]byte(fmt.Sprintf(`{ "id": %v, "boltzID": %v, "type": "reverseswap", "status": %v }`, in.GetJobID(), in.SwapData.BoltzID, status)))
 
 		if (in.SwapData.AllowZeroConf && status == boltz.TransactionMempool) || status == boltz.TransactionConfirmed {
 			if s.Transaction.Hex != "" {
@@ -195,7 +199,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 
 		info, err := lnConnection.GetInfo(ctx)
 		if err != nil {
-			log(in, fmt.Sprintf("Error communicating with LNAPI: %v", err))
+			log(in, fmt.Sprintf("Error communicating with LNAPI: %v", err), nil)
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -219,7 +223,7 @@ func (s *SwapMachine) FsmClaimReverseFunds(in common.FsmIn) common.FsmOut {
 	}
 
 	// debug
-	log(in, fmt.Sprintf("Adding entry %v to redeem locked funds", in.SwapData.JobID))
+	log(in, fmt.Sprintf("Adding entry %v to redeem locked funds", in.SwapData.JobID), nil)
 
 	s.ReverseRedeemer.AddEntry(in)
 	return common.FsmOut{}
@@ -229,13 +233,13 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 	// This just happpened while e2e testing, in practice we don't really care if
 	// Boltz does not claim their funds
 
-	log(in, fmt.Sprintf("Locked funds were claimed %v", in.SwapData.JobID))
+	log(in, fmt.Sprintf("Locked funds were claimed %v", in.SwapData.JobID), nil)
 
 	SleepTime := s.GetSleepTimeFn(in)
 	MaxWait := 2 * time.Minute // do we need to make this configurable?
 
 	start := time.Now()
-
+	alert := time.Now()
 	for {
 		now := time.Now()
 		if now.After(start.Add(MaxWait)) {
@@ -244,7 +248,7 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 
 		s, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
-			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err))
+			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err), nil)
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -254,7 +258,10 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 		if status == boltz.InvoiceSettled {
 			break
 		} else {
-			log(in, fmt.Sprintf("Boltz did not claim funds on their side %v, status is %v", in.SwapData.JobID, status))
+			if now.After(alert.Add(30 * time.Second)) {
+				log(in, fmt.Sprintf("Boltz did not claim funds on their side %v, status is %v", in.SwapData.JobID, status), nil)
+				alert = now
+			}
 		}
 	}
 
