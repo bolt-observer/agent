@@ -9,30 +9,15 @@ import (
 	"time"
 
 	"github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/filter"
 	api "github.com/bolt-observer/agent/lightning"
+	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
 	common "github.com/bolt-observer/agent/plugins/boltz/common"
+	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
+	redeemer "github.com/bolt-observer/agent/plugins/boltz/redeemer"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/golang/glog"
 )
-
-
-// changeState actually registers the state change
-func (b *Plugin) changeState(in common.FsmIn, state common.State) error {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-
-	in.SwapData.State = state
-	b.jobs[int32(in.SwapData.JobID)] = in.SwapData
-	err := b.db.Update(in.SwapData.JobID, in.SwapData)
-	if err != nil && in.MsgCallback != nil {
-		in.MsgCallback(entities.PluginMessage{
-			JobID:      int32(in.GetJobID()),
-			Message:    fmt.Sprintf("Could not change state to %v %v", state, err),
-			IsError:    true,
-			IsFinished: true,
-		})
-	}
-	return err
-}
 
 func log(in common.FsmIn, msg string) {
 	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), msg)
@@ -44,10 +29,6 @@ func log(in common.FsmIn, msg string) {
 			IsFinished: false,
 		})
 	}
-}
-
-func (s *SwapMachine) getSleepTime(in common.FsmIn) time.Duration {
-	return s.BoltzPlugin.getSleepTime()
 }
 
 func (s *SwapMachine) FsmNone(in common.FsmIn) common.FsmOut {
@@ -108,7 +89,7 @@ func (s *SwapMachine) nextRound(in common.FsmIn) common.FsmOut {
 
 	defer lnConnection.Cleanup()
 
-	sd, err := s.JobDataToSwapData(ctx, s.BoltzPlugin.Limits, &in.SwapData.OriginalJobData, in.MsgCallback, lnConnection, s.BoltzPlugin.Filter)
+	sd, err := s.JobDataToSwapData(ctx, s.Limits, &in.SwapData.OriginalJobData, in.MsgCallback, lnConnection, s.Filter)
 
 	if err == common.ErrNoNeedToDoAnything {
 		if in.MsgCallback != nil {
@@ -133,9 +114,9 @@ func (s *SwapMachine) nextRound(in common.FsmIn) common.FsmOut {
 
 	// TODO: does this make sense? Maybe we should start multiple swaps in parallel at the begining
 	sd.Attempt = in.SwapData.Attempt + 1
-	if sd.Attempt > s.BoltzPlugin.Limits.MaxAttempts {
+	if sd.Attempt > s.Limits.MaxAttempts {
 		if in.MsgCallback != nil {
-			message := fmt.Sprintf("Swap %d aborted after attempt %d/%d", in.GetJobID(), in.SwapData.Attempt, s.BoltzPlugin.Limits.MaxAttempts)
+			message := fmt.Sprintf("Swap %d aborted after attempt %d/%d", in.GetJobID(), in.SwapData.Attempt, s.Limits.MaxAttempts)
 			in.MsgCallback(entities.PluginMessage{
 				JobID:      int32(in.GetJobID()),
 				Message:    message,
@@ -168,7 +149,7 @@ func (s *SwapMachine) RedeemedCallback(data common.FsmIn, success bool) {
 			go s.Eval(data, common.SwapFailed)
 		} else {
 			go func() {
-				time.Sleep(s.getSleepTime(data))
+				time.Sleep(s.GetSleepTimeFn(data))
 				s.Eval(data, common.RedeemingLockedFunds)
 			}()
 		}
@@ -184,7 +165,7 @@ func (s *SwapMachine) RedeemedCallback(data common.FsmIn, success bool) {
 }
 
 // FsmWrap will just wrap a normal state machine function and give it the ability to transition states based on return values
-func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, b *Plugin) func(data I) O {
+func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, ChangeStateFn ChangeStateFn) func(data I) O {
 	return func(in I) O {
 
 		realIn := in.Get()
@@ -206,7 +187,7 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, b *P
 			return out
 		}
 		if realOut.NextState != common.None {
-			err := b.changeState(realIn, realOut.NextState)
+			err := ChangeStateFn(realIn, realOut.NextState)
 			realIn.MsgCallback(entities.PluginMessage{
 				JobID:      int32(realIn.GetJobID()),
 				Message:    fmt.Sprintf("Transitioning to state %v", realOut.NextState),
@@ -222,37 +203,66 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, b *P
 	}
 }
 
+type ChangeStateFn func(in common.FsmIn, state common.State) error
+type GetSleepTimeFn func(in common.FsmIn) time.Duration
+
 // Swapmachine is a finite state machine used for swaps.
 type SwapMachine struct {
 	Machine *common.Fsm[common.FsmIn, common.FsmOut, common.State]
+
 	// TODO: we should not be referencing plugin here
-	BoltzPlugin         *Plugin
+	//BoltzPlugin *Plugin
+
+	ReferralCode    string
+	ChainParams     *chaincfg.Params
+	Filter          filter.FilteringInterface
+	CryptoAPI       *crypto.CryptoAPI
+	Redeemer        *redeemer.Redeemer[common.FsmIn]
+	ReverseRedeemer *redeemer.Redeemer[common.FsmIn]
+	Limits          common.SwapLimits
+	BoltzAPI        *bapi.BoltzPrivateAPI
+	ChangeStateFn   ChangeStateFn
+	GetSleepTimeFn  GetSleepTimeFn
+
 	NodeDataInvalidator entities.Invalidatable
 	JobDataToSwapData   common.JobDataToSwapDataFn
 	LnAPI               api.NewAPICall
 }
 
 func NewSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData common.JobDataToSwapDataFn, lnAPI api.NewAPICall) *SwapMachine {
+	fn := ChangeStateFn(plugin.changeState)
+
 	s := &SwapMachine{Machine: &common.Fsm[common.FsmIn, common.FsmOut, common.State]{States: make(map[common.State]func(data common.FsmIn) common.FsmOut)},
-		BoltzPlugin:         plugin,
 		NodeDataInvalidator: nodeDataInvalidator,
 		JobDataToSwapData:   jobDataToSwapData,
 		LnAPI:               lnAPI,
+		ReferralCode:        plugin.ReferralCode,
+		ChainParams:         plugin.ChainParams,
+		Filter:              plugin.Filter,
+		CryptoAPI:           plugin.CryptoAPI,
+		Redeemer:            plugin.Redeemer,
+		ReverseRedeemer:     plugin.ReverseRedeemer,
+		Limits:              plugin.Limits,
+		BoltzAPI:            plugin.BoltzAPI,
+		ChangeStateFn:       fn,
+		GetSleepTimeFn: GetSleepTimeFn(func(in common.FsmIn) time.Duration {
+			return plugin.GetSleepTime()
+		}),
 	}
 
-	s.Machine.States[common.SwapFailed] = FsmWrap(s.FsmSwapFailed, plugin)
-	s.Machine.States[common.SwapSuccess] = FsmWrap(s.FsmSwapSuccess, plugin)
+	s.Machine.States[common.SwapFailed] = FsmWrap(s.FsmSwapFailed, fn)
+	s.Machine.States[common.SwapSuccess] = FsmWrap(s.FsmSwapSuccess, fn)
 
-	s.Machine.States[common.InitialForward] = FsmWrap(s.FsmInitialForward, plugin)
-	s.Machine.States[common.OnChainFundsSent] = FsmWrap(s.FsmOnChainFundsSent, plugin)
-	s.Machine.States[common.RedeemLockedFunds] = FsmWrap(s.FsmRedeemLockedFunds, plugin)
-	s.Machine.States[common.RedeemingLockedFunds] = FsmWrap(s.FsmRedeemingLockedFunds, plugin)
-	s.Machine.States[common.VerifyFundsReceived] = FsmWrap(s.FsmVerifyFundsReceived, plugin)
+	s.Machine.States[common.InitialForward] = FsmWrap(s.FsmInitialForward, fn)
+	s.Machine.States[common.OnChainFundsSent] = FsmWrap(s.FsmOnChainFundsSent, fn)
+	s.Machine.States[common.RedeemLockedFunds] = FsmWrap(s.FsmRedeemLockedFunds, fn)
+	s.Machine.States[common.RedeemingLockedFunds] = FsmWrap(s.FsmRedeemingLockedFunds, fn)
+	s.Machine.States[common.VerifyFundsReceived] = FsmWrap(s.FsmVerifyFundsReceived, fn)
 
-	s.Machine.States[common.InitialReverse] = FsmWrap(s.FsmInitialReverse, plugin)
-	s.Machine.States[common.ReverseSwapCreated] = FsmWrap(s.FsmReverseSwapCreated, plugin)
-	s.Machine.States[common.ClaimReverseFunds] = FsmWrap(s.FsmClaimReverseFunds, plugin)
-	s.Machine.States[common.SwapClaimed] = FsmWrap(s.FsmSwapClaimed, plugin)
+	s.Machine.States[common.InitialReverse] = FsmWrap(s.FsmInitialReverse, fn)
+	s.Machine.States[common.ReverseSwapCreated] = FsmWrap(s.FsmReverseSwapCreated, fn)
+	s.Machine.States[common.ClaimReverseFunds] = FsmWrap(s.FsmClaimReverseFunds, fn)
+	s.Machine.States[common.SwapClaimed] = FsmWrap(s.FsmSwapClaimed, fn)
 
 	return s
 }

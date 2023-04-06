@@ -165,7 +165,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	// Currently there is just one redeemer instance (perhaps split it)
 	resp.Redeemer = redeemer.NewRedeemer(context.Background(), (redeemer.RedeemForward | redeemer.RedeemReverse), resp.ChainParams,
 		redeemer.NewBoltzOnChainCommunicator(resp.BoltzAPI), resp.LnAPI,
-		resp.getSleepTime(), resp.CryptoAPI, resp.SwapMachine.RedeemedCallback)
+		resp.GetSleepTime(), resp.CryptoAPI, resp.SwapMachine.RedeemedCallback)
 	resp.ReverseRedeemer = resp.Redeemer // use reference to same instance
 
 	if cmdCtx.Bool("dumpmnemonic") {
@@ -175,7 +175,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	return resp, nil
 }
 
-func (b *Plugin) getSleepTime() time.Duration {
+func (b *Plugin) GetSleepTime() time.Duration {
 	interval := 5 * time.Second
 	if b.ChainParams.Name == "mainnet" {
 		interval = 1 * time.Minute

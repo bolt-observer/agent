@@ -1,36 +1,22 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package connection
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/bolt-observer/agent/lightning"
+	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
 	common "github.com/bolt-observer/agent/plugins/boltz/common"
 )
 
 // EnsureConnected - ensures node is connected with Boltz
-func (b *Plugin) EnsureConnected(ctx context.Context, optLnAPI lightning.LightingAPICalls) error {
-	nodes, err := b.BoltzAPI.GetNodes()
+func EnsureConnected(ctx context.Context, lnAPI lightning.LightingAPICalls, boltzAPI *bapi.BoltzPrivateAPI) error {
+	nodes, err := boltzAPI.GetNodes()
 	if err != nil {
 		return err
-	}
-
-	var lnAPI lightning.LightingAPICalls
-
-	if optLnAPI != nil {
-		lnAPI = optLnAPI
-	} else {
-		lnAPI, err = b.LnAPI()
-		if err != nil {
-			return err
-		}
-		if lnAPI == nil {
-			return fmt.Errorf("could not get lightning api")
-		}
-		defer lnAPI.Cleanup()
 	}
 
 	node, hasNode := nodes.Nodes[common.Btc]

@@ -38,7 +38,15 @@ type FakeSwapMachine struct {
 func NewFakeSwapMachine(plugin *Plugin, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData common.JobDataToSwapDataFn, lnAPI api.NewAPICall) *FakeSwapMachine {
 	s := &FakeSwapMachine{}
 	s.Machine = &common.Fsm[common.FsmIn, common.FsmOut, common.State]{States: make(map[common.State]func(data common.FsmIn) common.FsmOut)}
-	s.BoltzPlugin = plugin
+	s.ReferralCode = plugin.ReferralCode
+	s.ChainParams = plugin.ChainParams
+	s.Filter = plugin.Filter
+	s.CryptoAPI = plugin.CryptoAPI
+	s.Redeemer = plugin.Redeemer
+	s.ReverseRedeemer = plugin.ReverseRedeemer
+	s.Limits = plugin.Limits
+	s.BoltzAPI = plugin.BoltzAPI
+
 	s.NodeDataInvalidator = nodeDataInvalidator
 	s.JobDataToSwapData = jobDataToSwapData
 	s.LnAPI = lnAPI

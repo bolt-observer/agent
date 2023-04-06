@@ -13,6 +13,7 @@ import (
 	"github.com/bolt-observer/agent/lightning"
 	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
 	common "github.com/bolt-observer/agent/plugins/boltz/common"
+	connection "github.com/bolt-observer/agent/plugins/boltz/connection"
 	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
 	"github.com/btcsuite/btcd/chaincfg"
 )
@@ -26,12 +27,12 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 
 	log(in, fmt.Sprintf("Will do a submarine swap with %v sats", sats))
 
-	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(in.GetUniqueJobID())
+	keys, err := s.CryptoAPI.GetKeys(in.GetUniqueJobID())
 	if err != nil {
 		return common.FsmOut{Error: err}
 	}
 
-	pairs, err := s.BoltzPlugin.BoltzAPI.GetPairs()
+	pairs, err := s.BoltzAPI.GetPairs()
 	if err != nil {
 		return common.FsmOut{Error: err}
 	}
@@ -73,7 +74,7 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: err}
 	}
 
-	response, err := CreateSwapWithSanityCheck(s.BoltzPlugin.BoltzAPI, keys, invoice, s.BoltzPlugin.ReferralCode, info.BlockHeight, s.BoltzPlugin.ChainParams)
+	response, err := CreateSwapWithSanityCheck(s.BoltzAPI, keys, invoice, s.ReferralCode, info.BlockHeight, s.ChainParams)
 	if err != nil {
 		return common.FsmOut{Error: err}
 	}
@@ -110,7 +111,7 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 	}
 
 	// Explicitly first change state (in case we crash before sending)
-	err = s.BoltzPlugin.changeState(in, common.OnChainFundsSent)
+	err = s.ChangeStateFn(in, common.OnChainFundsSent)
 	if err != nil {
 		return common.FsmOut{Error: err}
 	}
@@ -132,7 +133,7 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
 
-	SleepTime := s.getSleepTime(in)
+	SleepTime := s.GetSleepTimeFn(in)
 
 	if in.SwapData.BoltzID == "" {
 		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
@@ -151,12 +152,12 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 			continue
 		}
 
-		err = s.BoltzPlugin.EnsureConnected(ctx, lnAPI)
+		err = connection.EnsureConnected(ctx, lnAPI, s.BoltzAPI)
 		if err != nil {
 			log(in, fmt.Sprintf("error ensuring we are connected: %v", err))
 		}
 
-		stat, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
+		stat, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
 			log(in, fmt.Sprintf("error communicating with BoltzAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -173,7 +174,7 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 		}
 
 		if status.IsFailedStatus() {
-			swapTransactionResponse, err := s.BoltzPlugin.BoltzAPI.GetSwapTransaction(in.SwapData.BoltzID)
+			swapTransactionResponse, err := s.BoltzAPI.GetSwapTransaction(in.SwapData.BoltzID)
 			if err == nil {
 				in.SwapData.TransactionHex = swapTransactionResponse.TransactionHex
 				return common.FsmOut{NextState: common.RedeemLockedFunds}
@@ -215,7 +216,7 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: fmt.Errorf("invalid state transaction hex not set")}
 	}
 
-	SleepTime := s.getSleepTime(in)
+	SleepTime := s.GetSleepTimeFn(in)
 
 	// Wait for expiry
 	for {
@@ -257,7 +258,7 @@ func (s *SwapMachine) FsmRedeemingLockedFunds(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
 
 	}
-	s.BoltzPlugin.Redeemer.AddEntry(in)
+	s.Redeemer.AddEntry(in)
 	return common.FsmOut{}
 }
 
@@ -268,7 +269,7 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
 	}
 
-	SleepTime := s.getSleepTime(in)
+	SleepTime := s.GetSleepTimeFn(in)
 
 	for {
 		lnConnection, err := s.LnAPI()
@@ -283,7 +284,7 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 			continue
 		}
 
-		keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(in.GetUniqueJobID())
+		keys, err := s.CryptoAPI.GetKeys(in.GetUniqueJobID())
 		if err != nil {
 			log(in, "error getting keys")
 			time.Sleep(SleepTime)

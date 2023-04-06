@@ -28,12 +28,12 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 
 	log(in, fmt.Sprintf("Will do a reverse submarine swap with %v sats", sats))
 
-	keys, err := s.BoltzPlugin.CryptoAPI.GetKeys(in.GetUniqueJobID())
+	keys, err := s.CryptoAPI.GetKeys(in.GetUniqueJobID())
 	if err != nil {
 		return common.FsmOut{Error: err}
 	}
 
-	pairs, err := s.BoltzPlugin.BoltzAPI.GetPairs()
+	pairs, err := s.BoltzAPI.GetPairs()
 	if err != nil {
 		return common.FsmOut{Error: err}
 	}
@@ -69,7 +69,7 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: err}
 	}
 
-	response, err := CreateReverseSwapWithSanityCheck(s.BoltzPlugin.BoltzAPI, keys, sats, s.BoltzPlugin.ReferralCode, info.BlockHeight, s.BoltzPlugin.ChainParams)
+	response, err := CreateReverseSwapWithSanityCheck(s.BoltzAPI, keys, sats, s.ReferralCode, info.BlockHeight, s.ChainParams)
 	if err != nil {
 		return common.FsmOut{Error: err}
 	}
@@ -91,7 +91,7 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 
 	// Check funds
 	if in.SwapData.ReverseChannelId == 0 {
-		capacity, err := common.GetByDescendingOutboundLiquidity(ctx, sats+SafetyMargin, lnConnection, s.BoltzPlugin.Filter)
+		capacity, err := common.GetByDescendingOutboundLiquidity(ctx, sats+SafetyMargin, lnConnection, s.Filter)
 		if err != nil {
 			return common.FsmOut{Error: err}
 		}
@@ -107,7 +107,7 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 		in.SwapData.ChanIdsToUse = chans
 	} else {
 		// Will error when sufficient funds are not available
-		_, _, err = common.GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, true, lnConnection, s.BoltzPlugin.Filter)
+		_, _, err = common.GetChanLiquidity(ctx, in.SwapData.ReverseChannelId, sats+SafetyMargin, true, lnConnection, s.Filter)
 		if err != nil {
 			return common.FsmOut{Error: err}
 		}
@@ -130,7 +130,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
 	paid := false
 
-	SleepTime := s.getSleepTime(in)
+	SleepTime := s.GetSleepTimeFn(in)
 
 	if in.SwapData.BoltzID == "" {
 		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
@@ -172,7 +172,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 			}
 		}
 
-		s, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
+		s, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
 			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err))
 			time.Sleep(SleepTime)
@@ -221,7 +221,7 @@ func (s *SwapMachine) FsmClaimReverseFunds(in common.FsmIn) common.FsmOut {
 	// debug
 	log(in, fmt.Sprintf("Adding entry %v to redeem locked funds", in.SwapData.JobID))
 
-	s.BoltzPlugin.ReverseRedeemer.AddEntry(in)
+	s.ReverseRedeemer.AddEntry(in)
 	return common.FsmOut{}
 }
 
@@ -231,7 +231,7 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 
 	log(in, fmt.Sprintf("Locked funds were claimed %v", in.SwapData.JobID))
 
-	SleepTime := s.getSleepTime(in)
+	SleepTime := s.GetSleepTimeFn(in)
 	MaxWait := 2 * time.Minute // do we need to make this configurable?
 
 	start := time.Now()
@@ -242,7 +242,7 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 			break
 		}
 
-		s, err := s.BoltzPlugin.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
+		s, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
 			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err))
 			time.Sleep(SleepTime)
