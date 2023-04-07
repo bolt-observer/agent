@@ -1,7 +1,7 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package common
 
 import (
 	"testing"

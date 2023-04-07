@@ -1,7 +1,7 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package api
 
 import (
 	"bytes"
@@ -21,7 +21,9 @@ import (
 
 // This is a wrapper around boltz.Boltz API
 
-const Timeout = 5 * time.Second
+const (
+	Timeout = 5 * time.Second
+)
 
 type Credentials struct {
 	Key    string
@@ -49,6 +51,7 @@ type Currency map[string]int
 type ReferralsResponse map[string]Month
 
 func NewBoltzPrivateAPI(url string, creds *Credentials) *BoltzPrivateAPI {
+	const Btc = "BTC"
 	ret := &BoltzPrivateAPI{Creds: creds}
 
 	ret.Boltz = boltz.Boltz{

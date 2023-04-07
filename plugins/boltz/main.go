@@ -17,6 +17,12 @@ import (
 	"github.com/bolt-observer/agent/lightning"
 	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/agent/plugins"
+	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
+	common "github.com/bolt-observer/agent/plugins/boltz/common"
+	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
+	data "github.com/bolt-observer/agent/plugins/boltz/data"
+	redeemer "github.com/bolt-observer/agent/plugins/boltz/redeemer"
+	swapmachine "github.com/bolt-observer/agent/plugins/boltz/swapmachine"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/golang/glog"
@@ -25,17 +31,13 @@ import (
 )
 
 const (
-	Name            = "boltz"
-	DefaultBoltzUrl = "https://boltz.exchange/api"
-	SecretBitSize   = 256
-	SecretDbKey     = "secret"
-
-	ErrInvalidArguments = Error("invalid arguments")
+	Name        = "boltz"
+	SecretDbKey = "secret"
 )
 
 var PluginFlags = []cli.Flag{
 	cli.StringFlag{
-		Name: "boltzurl", Value: DefaultBoltzUrl, Usage: "url of boltz api", Hidden: false,
+		Name: "boltzurl", Value: common.DefaultBoltzUrl, Usage: "url of boltz api", Hidden: false,
 	},
 	cli.StringFlag{
 		Name: "boltzdatabase", Value: btcutil.AppDataDir("bolt", false) + "/boltz.db", Usage: "full path to database file (file will be created if it does not exist yet)", Hidden: false,
@@ -83,16 +85,14 @@ func init() {
 
 // Plugin can save its data here
 type Plugin struct {
-	BoltzAPI            *BoltzPrivateAPI
-	ReferralCode        string
+	BoltzAPI            *bapi.BoltzPrivateAPI
+	Filter              filter.FilteringInterface
 	ChainParams         *chaincfg.Params
 	LnAPI               lightning.NewAPICall
-	Filter              filter.FilteringInterface
-	CryptoAPI           *CryptoAPI
-	SwapMachine         *SwapMachine
-	Redeemer            *Redeemer[FsmIn]
-	ReverseRedeemer     *Redeemer[FsmIn]
-	Limits              SwapLimits
+	CryptoAPI           *crypto.CryptoAPI
+	SwapMachine         *swapmachine.SwapMachine
+	Redeemer            *redeemer.Redeemer[common.FsmIn]
+	Limits              common.SwapLimits
 	NodeDataInvalidator agent_entities.Invalidatable
 	isDryRun            bool
 	db                  DB
@@ -110,19 +110,10 @@ type Entropy struct {
 	Data []byte
 }
 
-type SwapLimits struct {
-	MaxFeePercentage float64
-	AllowZeroConf    bool
-	MinSwap          uint64
-	MaxSwap          uint64
-	DefaultSwap      uint64
-	MaxAttempts      int
-}
-
 // NewPlugin creates new instance
 func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (*Plugin, error) {
 	if lnAPI == nil {
-		return nil, ErrInvalidArguments
+		return nil, common.ErrInvalidArguments
 	}
 
 	db := &BoltzDB{}
@@ -144,11 +135,9 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	}
 
 	resp := &Plugin{
-		ChainParams:         getChainParams(cmdCtx),
-		BoltzAPI:            NewBoltzPrivateAPI(cmdCtx.String("boltzurl"), nil),
-		ReferralCode:        cmdCtx.String("boltzreferral"),
-		CryptoAPI:           NewCryptoAPI(entropy),
 		Filter:              filter,
+		ChainParams:         getChainParams(cmdCtx),
+		CryptoAPI:           crypto.NewCryptoAPI(entropy),
 		LnAPI:               lnAPI,
 		NodeDataInvalidator: nodeDataInvalidator,
 		db:                  db,
@@ -156,7 +145,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		isDryRun:            cmdCtx.Bool("dryrun"),
 	}
 
-	limits := SwapLimits{
+	limits := common.SwapLimits{
 		MaxFeePercentage: cmdCtx.Float64("maxfeepercentage"),
 		AllowZeroConf:    !cmdCtx.Bool("disablezeroconf"),
 		MinSwap:          cmdCtx.Uint64("minswapsats"),
@@ -166,13 +155,27 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	}
 	resp.Limits = limits
 
-	// Swap machine is the finite state machine for doing the swap
-	resp.SwapMachine = NewSwapMachine(resp, nodeDataInvalidator, JobDataToSwapData, resp.LnAPI)
-
 	// Currently there is just one redeemer instance (perhaps split it)
-	resp.Redeemer = NewRedeemer(context.Background(), (RedeemForward | RedeemReverse), resp.ChainParams, NewBoltzOnChainCommunicator(resp.BoltzAPI), resp.LnAPI,
-		resp.getSleepTime(), resp.CryptoAPI, resp.SwapMachine.RedeemedCallback)
-	resp.ReverseRedeemer = resp.Redeemer // use reference to same instance
+	resp.Redeemer = redeemer.NewRedeemer(context.Background(), (redeemer.RedeemForward | redeemer.RedeemReverse), resp.ChainParams,
+		redeemer.NewBoltzOnChainCommunicator(resp.BoltzAPI), resp.LnAPI,
+		resp.GetSleepTime(), resp.CryptoAPI, resp.SwapMachine.RedeemedCallback)
+
+	// Swap machine is the finite state machine for doing the swap
+	resp.SwapMachine = swapmachine.NewSwapMachine(
+		data.PluginData{
+			ChainParams:     resp.ChainParams,
+			Filter:          filter,
+			CryptoAPI:       resp.CryptoAPI,
+			BoltzAPI:        bapi.NewBoltzPrivateAPI(cmdCtx.String("boltzurl"), nil),
+			ReferralCode:    cmdCtx.String("boltzreferral"),
+			Redeemer:        resp.Redeemer,
+			ReverseRedeemer: resp.Redeemer,
+			Limits:          resp.Limits,
+			ChangeStateFn:   data.ChangeStateFn(resp.changeState),
+			GetSleepTimeFn: data.GetSleepTimeFn(func(in common.FsmIn) time.Duration {
+				return resp.GetSleepTime()
+			}),
+		}, nodeDataInvalidator, common.JobDataToSwapData, resp.LnAPI)
 
 	if cmdCtx.Bool("dumpmnemonic") {
 		fmt.Printf("Your secret is %s\n", resp.CryptoAPI.DumpMnemonic())
@@ -181,7 +184,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	return resp, nil
 }
 
-func (b *Plugin) getSleepTime() time.Duration {
+func (b *Plugin) GetSleepTime() time.Duration {
 	interval := 5 * time.Second
 	if b.ChainParams.Name == "mainnet" {
 		interval = 1 * time.Minute
@@ -214,11 +217,11 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 		// job already exists and is running already
 		return nil
 	} else {
-		var sd SwapData
+		var sd common.SwapData
 
 		if err = b.db.Get(jobID, &sd); err != nil {
 			// create new job
-			jd, err := ParseJobData(jobID, data)
+			jd, err := common.ParseJobData(jobID, data)
 			if err != nil {
 				return b.handleError(jobID, msgCallback, err)
 			}
@@ -229,14 +232,14 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 			}
 			defer lnAPI.Cleanup()
 
-			data, err := JobDataToSwapData(ctx, b.Limits, jd, msgCallback, lnAPI, b.Filter)
+			data, err := common.JobDataToSwapData(ctx, b.Limits, jd, msgCallback, lnAPI, b.Filter)
 			if err != nil {
 				return b.handleError(jobID, msgCallback, err)
 			}
 
 			data.IsDryRun = b.isDryRun
 			sd = *data
-			sd.JobID = JobID(jobID)
+			sd.JobID = common.JobID(jobID)
 			b.db.Insert(jobID, sd)
 			b.jobs[jobID] = sd
 		} else {
@@ -251,8 +254,8 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 }
 
 // start or continue running job
-func (b *Plugin) runJob(jobID int32, jd *SwapData, msgCallback agent_entities.MessageCallback) {
-	in := FsmIn{
+func (b *Plugin) runJob(jobID int32, jd *common.SwapData, msgCallback agent_entities.MessageCallback) {
+	in := common.FsmIn{
 		SwapData:    jd,
 		MsgCallback: msgCallback,
 	}
@@ -307,7 +310,7 @@ func setMnemonic(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
 		entropy = dummy.Data
 
 		if err != nil {
-			entropy, err = bip39.NewEntropy(SecretBitSize)
+			entropy, err = bip39.NewEntropy(common.SecretBitSize)
 			if err != nil {
 				return entropy, err
 			}

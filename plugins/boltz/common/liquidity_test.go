@@ -1,7 +1,7 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package common
 
 import (
 	"context"
@@ -17,7 +17,7 @@ func TestGetNodeLiquidity(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	l := getAPI(t, "fixture.secret", api.LndGrpc)
+	l := GetAPI(t, "fixture.secret", api.LndGrpc)
 	if l == nil {
 		return
 	}
@@ -32,7 +32,7 @@ func TestGetByDescendingOutboundLiqudity(t *testing.T) {
 	f, err := filter.NewAllowAllFilter()
 	assert.NoError(t, err)
 
-	l := getAPI(t, "fixture.secret", api.LndGrpc)
+	l := GetAPI(t, "fixture.secret", api.LndGrpc)
 	if l == nil {
 		return
 	}

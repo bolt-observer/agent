@@ -1,10 +1,9 @@
 //go:build plugins
 // +build plugins
 
-package boltz
+package common
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -13,17 +12,22 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bolt-observer/agent/filter"
 	"github.com/bolt-observer/agent/lightning"
 	api "github.com/bolt-observer/agent/lightning"
 	common_entities "github.com/bolt-observer/go_common/entities"
-	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
 )
 
-const FailNoCredsBoltz = false
+const (
+	FailNoCredsBoltz    = false
+	DefaultBoltzUrl     = "https://boltz.exchange/api"
+	BtcPair             = "BTC/BTC"
+	Btc                 = "BTC"
+	SecretBitSize       = 256
+	ErrInvalidArguments = Error("invalid arguments")
+)
 
-func getAPI(t *testing.T, name string, typ api.APIType) api.NewAPICall {
+func GetAPI(t *testing.T, name string, typ api.APIType) api.NewAPICall {
 	var data common_entities.Data
 
 	if _, err := os.Stat(name); errors.Is(err, os.ErrNotExist) {
@@ -63,7 +67,7 @@ func getAPI(t *testing.T, name string, typ api.APIType) api.NewAPICall {
 	}
 }
 
-func getMockCliCtx(boltzUrl string, dbFile string, network string) *cli.Context {
+func GetMockCliCtx(boltzUrl string, dbFile string, network string) *cli.Context {
 	fs := &flag.FlagSet{}
 	if boltzUrl == "" {
 		fs.String("boltzurl", DefaultBoltzUrl, "")
@@ -85,20 +89,4 @@ func getMockCliCtx(boltzUrl string, dbFile string, network string) *cli.Context 
 	fs.String("boltzreferral", "bolt-observer", "")
 
 	return cli.NewContext(nil, fs, nil)
-}
-
-func TestEnsureConnected(t *testing.T) {
-	f, err := filter.NewAllowAllFilter()
-	require.NoError(t, err)
-
-	b, err := NewPlugin(getAPI(t, "fixture.secret", api.LndRest), f, getMockCliCtx("", "", "regtest"), nil)
-	if b == nil || b.LnAPI == nil {
-		if FailNoCredsBoltz {
-			t.Fail()
-		}
-		return
-	}
-	require.NoError(t, err)
-	err = b.EnsureConnected(context.Background(), nil)
-	require.NoError(t, err)
 }
