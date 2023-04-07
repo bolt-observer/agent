@@ -22,11 +22,12 @@ import (
 
 func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
+	logger := NewLogEntry(in.SwapData, Forward)
 
 	sats := in.SwapData.Sats
 
 	log(in, fmt.Sprintf("Will do a submarine swap with %v sats", sats),
-		[]byte(fmt.Sprintf(`{ "id": %v, "type": "forwardswap", "sats": %v }`, in.GetJobID(), sats)))
+		logger.Get("sats", sats))
 
 	keys, err := s.CryptoAPI.GetKeys(in.GetUniqueJobID())
 	if err != nil {
@@ -91,7 +92,7 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 	}
 
 	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100),
-		[]byte(fmt.Sprintf(`{ "id": %v, "boltzID": %v, "type": "forwardswap", "fee": %v }`, in.GetJobID(), response.Id, fee*100)))
+		logger.Get("fee", fee*100))
 
 	// Check funds
 	funds, err := lnConnection.GetOnChainFunds(ctx)
@@ -135,6 +136,7 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 
 func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
+	logger := NewLogEntry(in.SwapData, Forward)
 
 	SleepTime := s.GetSleepTimeFn(in)
 
@@ -190,7 +192,7 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 
 		info, err := lnAPI.GetInfo(ctx)
 		if err != nil {
-			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err), nil)
+			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err), logger.Get())
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -206,6 +208,7 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 
 func (s *SwapMachine) FsmRedeemLockedFunds(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
+	logger := NewLogEntry(in.SwapData, Forward)
 
 	if in.SwapData.BoltzID == "" {
 		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
@@ -225,7 +228,7 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in common.FsmIn) common.FsmOut {
 	for {
 		lnConnection, err := s.LnAPI()
 		if err != nil {
-			log(in, fmt.Sprintf("error getting LNAPI: %v", err), nil)
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err), logger.Get())
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -247,7 +250,7 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in common.FsmIn) common.FsmOut {
 		}
 
 		log(in, fmt.Sprintf("Waiting for expiry %d < %d", info.BlockHeight, in.SwapData.TimoutBlockHeight),
-			[]byte(fmt.Sprintf(`{ "id": %v, "boltzID": %v, "type": "forwardswap", "current_height": %v, "timeout_height": %v }`, in.GetJobID(), in.SwapData.BoltzID, info.BlockHeight, in.SwapData.TimoutBlockHeight)))
+			logger.Get("blockheight", info.BlockHeight, "timeout_blockheight", in.SwapData.TimoutBlockHeight))
 
 		lnConnection.Cleanup()
 		time.Sleep(SleepTime)
@@ -268,6 +271,7 @@ func (s *SwapMachine) FsmRedeemingLockedFunds(in common.FsmIn) common.FsmOut {
 
 func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
+	logger := NewLogEntry(in.SwapData, Forward)
 
 	if in.SwapData.BoltzID == "" {
 		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
@@ -278,26 +282,26 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 	for {
 		lnConnection, err := s.LnAPI()
 		if err != nil {
-			log(in, fmt.Sprintf("error getting LNAPI: %v", err), nil)
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err), logger.Get())
 			time.Sleep(SleepTime)
 			continue
 		}
 		if lnConnection == nil {
-			log(in, "error getting LNAPI", nil)
+			log(in, "error getting LNAPI", logger.Get())
 			time.Sleep(SleepTime)
 			continue
 		}
 
 		keys, err := s.CryptoAPI.GetKeys(in.GetUniqueJobID())
 		if err != nil {
-			log(in, "error getting keys", nil)
+			log(in, "error getting keys", logger.Get())
 			time.Sleep(SleepTime)
 			continue
 		}
 
 		paid, err := lnConnection.IsInvoicePaid(ctx, hex.EncodeToString(keys.Preimage.Hash))
 		if err != nil {
-			log(in, "error checking whether invoice is paid", nil)
+			log(in, "error checking whether invoice is paid", logger.Get())
 			time.Sleep(SleepTime)
 			continue
 		}
