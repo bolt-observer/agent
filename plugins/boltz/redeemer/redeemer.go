@@ -56,7 +56,7 @@ type SwapDataGetter interface {
 type RedeemedCallback[T SwapDataGetter] func(data T, success bool)
 
 func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainParams *chaincfg.Params, OnChainCommunicator OnChainCommunicator, lnAPI api.NewAPICall,
-	interval time.Duration, cryptoAPI *crypto.CryptoAPI, callback RedeemedCallback[T]) *Redeemer[T] {
+	interval time.Duration, cryptoAPI *crypto.CryptoAPI) *Redeemer[T] {
 
 	if t == 0 {
 		glog.Warningf("Invalid nil redeemer does not make sense")
@@ -66,7 +66,7 @@ func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainPar
 	r := &Redeemer[T]{
 		Ctx:                 ctx,
 		Type:                t,
-		Callback:            callback,
+		Callback:            nil,
 		Entries:             make(map[common.JobID]T),
 		lock:                sync.Mutex{},
 		ChainParams:         chainParams,
@@ -79,6 +79,10 @@ func NewRedeemer[T SwapDataGetter](ctx context.Context, t RedeemerType, chainPar
 	go r.eventLoop()
 
 	return r
+}
+
+func (r *Redeemer[T]) SetCallback(callback RedeemedCallback[T]) {
+	r.Callback = callback
 }
 
 func (r *Redeemer[T]) eventLoop() {

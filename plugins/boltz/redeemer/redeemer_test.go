@@ -70,13 +70,13 @@ func TestRedeemerTypes(t *testing.T) {
 	require.NoError(t, err)
 	defer lnAPI.Cleanup()
 
-	redeemerFail := NewRedeemer[DummyStruct](ctx, 0, &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil, nil)
+	redeemerFail := NewRedeemer[DummyStruct](ctx, 0, &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil)
 	assert.Nil(t, redeemerFail)
 
 	forwardSd := &common.SwapData{State: common.RedeemingLockedFunds, TransactionHex: "dummy"}
 	reverseSd := &common.SwapData{State: common.ClaimReverseFunds, TransactionHex: "dummy"}
 
-	redeemerForward := NewRedeemer[DummyStruct](ctx, RedeemForward, &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil, nil)
+	redeemerForward := NewRedeemer[DummyStruct](ctx, RedeemForward, &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil)
 	require.NotNil(t, redeemerForward)
 
 	err = redeemerForward.AddEntry(DummyStruct{Data: forwardSd})
@@ -84,7 +84,7 @@ func TestRedeemerTypes(t *testing.T) {
 	err = redeemerForward.AddEntry(DummyStruct{Data: reverseSd})
 	assert.Error(t, err)
 
-	redeemerReverse := NewRedeemer[DummyStruct](ctx, RedeemReverse, &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil, nil)
+	redeemerReverse := NewRedeemer[DummyStruct](ctx, RedeemReverse, &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil)
 	require.NotNil(t, redeemerReverse)
 
 	err = redeemerReverse.AddEntry(DummyStruct{Data: forwardSd})
@@ -92,7 +92,7 @@ func TestRedeemerTypes(t *testing.T) {
 	err = redeemerReverse.AddEntry(DummyStruct{Data: reverseSd})
 	assert.NoError(t, err)
 
-	redeemerBoth := NewRedeemer[DummyStruct](ctx, (RedeemReverse | RedeemForward), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil, nil)
+	redeemerBoth := NewRedeemer[DummyStruct](ctx, (RedeemReverse | RedeemForward), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, nil)
 	require.NotNil(t, redeemerBoth)
 
 	err = redeemerBoth.AddEntry(DummyStruct{Data: forwardSd})
@@ -144,7 +144,8 @@ func TestRedeemLockedFunds(t *testing.T) {
 		finished = true
 	}
 
-	redeemer := NewRedeemer(ctx, (RedeemForward | RedeemReverse), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, c, cb)
+	redeemer := NewRedeemer[DummyStruct](ctx, (RedeemForward | RedeemReverse), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, c)
+	redeemer.SetCallback(cb)
 
 	// ACT
 	err = redeemer.AddEntry(DummyStruct{Data: sd})
@@ -195,8 +196,8 @@ func TestRedeemLockedFundsTwoSources(t *testing.T) {
 		cnt++
 	}
 
-	redeemer := NewRedeemer(ctx, (RedeemForward | RedeemReverse), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, c, cb)
-
+	redeemer := NewRedeemer[DummyStruct](ctx, (RedeemForward | RedeemReverse), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, c)
+	redeemer.SetCallback(cb)
 	// ACT
 	err = redeemer.AddEntry(DummyStruct{Data: dummySd})
 	assert.NoError(t, err)
@@ -265,7 +266,8 @@ func TestRedeemFailThatIsNotYetMature(t *testing.T) {
 		cnt++
 	}
 
-	redeemer := NewRedeemer(ctx, (RedeemForward | RedeemReverse), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, c, cb)
+	redeemer := NewRedeemer[DummyStruct](ctx, (RedeemForward | RedeemReverse), &chaincfg.RegressionNetParams, NewTestBitcoinOnChainCommunicator(t), ln, 100*time.Millisecond, c)
+	redeemer.SetCallback(cb)
 
 	// ACT
 	err = redeemer.AddEntry(DummyStruct{Data: failSd})

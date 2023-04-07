@@ -135,6 +135,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	}
 
 	resp := &Plugin{
+		BoltzAPI:            bapi.NewBoltzPrivateAPI(cmdCtx.String("boltzurl"), nil),
 		Filter:              filter,
 		ChainParams:         getChainParams(cmdCtx),
 		CryptoAPI:           crypto.NewCryptoAPI(entropy),
@@ -156,9 +157,9 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	resp.Limits = limits
 
 	// Currently there is just one redeemer instance (perhaps split it)
-	resp.Redeemer = redeemer.NewRedeemer(context.Background(), (redeemer.RedeemForward | redeemer.RedeemReverse), resp.ChainParams,
+	resp.Redeemer = redeemer.NewRedeemer[common.FsmIn](context.Background(), (redeemer.RedeemForward | redeemer.RedeemReverse), resp.ChainParams,
 		redeemer.NewBoltzOnChainCommunicator(resp.BoltzAPI), resp.LnAPI,
-		resp.GetSleepTime(), resp.CryptoAPI, resp.SwapMachine.RedeemedCallback)
+		resp.GetSleepTime(), resp.CryptoAPI)
 
 	// Swap machine is the finite state machine for doing the swap
 	resp.SwapMachine = swapmachine.NewSwapMachine(
@@ -166,7 +167,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 			ChainParams:     resp.ChainParams,
 			Filter:          filter,
 			CryptoAPI:       resp.CryptoAPI,
-			BoltzAPI:        bapi.NewBoltzPrivateAPI(cmdCtx.String("boltzurl"), nil),
+			BoltzAPI:        resp.BoltzAPI,
 			ReferralCode:    cmdCtx.String("boltzreferral"),
 			Redeemer:        resp.Redeemer,
 			ReverseRedeemer: resp.Redeemer,
@@ -176,6 +177,8 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 				return resp.GetSleepTime()
 			}),
 		}, nodeDataInvalidator, common.JobDataToSwapData, resp.LnAPI)
+
+	resp.Redeemer.SetCallback(resp.SwapMachine.RedeemedCallback)
 
 	if cmdCtx.Bool("dumpmnemonic") {
 		fmt.Printf("Your secret is %s\n", resp.CryptoAPI.DumpMnemonic())
