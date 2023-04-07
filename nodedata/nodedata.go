@@ -558,12 +558,15 @@ func (c *NodeData) checkOne(
 		return nil, 0, fmt.Errorf("pubkey and reported pubkey are not the same")
 	}
 
+	funds_not_reported := true
 	funds := &lightning.Funds{}
 	if !c.noOnChainBalance {
 		funds, err = api.GetOnChainFunds(c.ctx)
 		if err != nil {
-			c.monitoring.MetricsReport("checkone", "failure", map[string]string{"pubkey": pubkey})
-			return nil, 0, fmt.Errorf("failed to get info: %v", err)
+			// Do not treat this as fatal
+			glog.Warningf("Could not get on-chain funds for %v - error: %v", info.IdentityPubkey, err)
+		} else {
+			funds_not_reported = false
 		}
 	}
 
@@ -609,7 +612,7 @@ func (c *NodeData) checkOne(
 		NodeVersion:               info.Version,
 		IsSyncedToChain:           info.IsSyncedToChain,
 		IsSyncedToGraph:           info.IsSyncedToGraph,
-		OnChainBalanceNotReported: c.noOnChainBalance,
+		OnChainBalanceNotReported: funds_not_reported,
 		OnChainBalanceConfirmed:   uint64(funds.ConfirmedBalance),
 		OnChainBalanceTotal:       uint64(funds.TotalBalance),
 	}
