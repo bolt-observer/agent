@@ -566,6 +566,7 @@ func (c *NodeData) checkOne(
 			// Do not treat this as fatal
 			glog.Warningf("Could not get on-chain funds for %v - error: %v", info.IdentityPubkey, err)
 		} else {
+			funds = &lightning.Funds{}
 			fundsNotReported = false
 		}
 	}
