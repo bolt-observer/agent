@@ -69,7 +69,7 @@ func TestCommunicate(t *testing.T) {
 		APIKey:     "test-key",
 		Plugins:    plugins,
 		LnAPI:      mkGetLndAPI(&cli.Context{}),
-		IsInsecure: true,
+		IsPlaintext: true,
 		IsDryRun:   false,
 	}
 
@@ -167,7 +167,7 @@ func TestCommunicate(t *testing.T) {
 			APIKey:     "test-key",
 			Plugins:    plugins,
 			LnAPI:      mkGetLndAPI(&cli.Context{}),
-			IsInsecure: true,
+			IsPlaintext: true,
 			IsDryRun:   false,
 		}
 

@@ -181,11 +181,15 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, Chan
 		out := f(in)
 		realOut := out.Get()
 
+		logger := NewLogEntry(in.Get().SwapData, Unknown)
+
 		if realOut.Error != nil {
 			realOut.NextState = common.SwapFailed
+
 			realIn.MsgCallback(entities.PluginMessage{
 				JobID:      int32(realIn.GetJobID()),
 				Message:    fmt.Sprintf("Error %v happened", realOut.Error),
+				Data:       logger.Get("error", realOut.Error.Error()),
 				IsError:    true,
 				IsFinished: true,
 			})
@@ -200,6 +204,7 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, Chan
 			realIn.MsgCallback(entities.PluginMessage{
 				JobID:      int32(realIn.GetJobID()),
 				Message:    fmt.Sprintf("Transitioning to state %v", realOut.NextState),
+				Data:       logger.Get("old_state", realIn.Get().SwapData.State, "new_state", realOut.NextState),
 				IsError:    false,
 				IsFinished: false,
 			})

@@ -13,6 +13,7 @@ import (
 type SwapType string
 
 const (
+	Unknown SwapType = "unknown"
 	Forward SwapType = "forward"
 	Reverse SwapType = "reverse"
 )

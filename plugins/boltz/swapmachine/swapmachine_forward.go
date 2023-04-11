@@ -192,7 +192,7 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 
 		info, err := lnAPI.GetInfo(ctx)
 		if err != nil {
-			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err), logger.Get())
+			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err), logger.Get("error", err.Error()))
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -228,7 +228,7 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in common.FsmIn) common.FsmOut {
 	for {
 		lnConnection, err := s.LnAPI()
 		if err != nil {
-			log(in, fmt.Sprintf("error getting LNAPI: %v", err), logger.Get())
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err), logger.Get("error", err.Error()))
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -240,7 +240,7 @@ func (s *SwapMachine) FsmRedeemLockedFunds(in common.FsmIn) common.FsmOut {
 
 		info, err := lnConnection.GetInfo(ctx)
 		if err != nil {
-			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err), nil)
+			log(in, fmt.Sprintf("error communicating with LNAPI: %v", err), logger.Get("error", err.Error()))
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -282,26 +282,26 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 	for {
 		lnConnection, err := s.LnAPI()
 		if err != nil {
-			log(in, fmt.Sprintf("error getting LNAPI: %v", err), logger.Get())
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err), logger.Get("error", err.Error()))
 			time.Sleep(SleepTime)
 			continue
 		}
 		if lnConnection == nil {
-			log(in, "error getting LNAPI", logger.Get())
+			log(in, "error getting LNAPI", logger.Get("error", "error getting LNAPI"))
 			time.Sleep(SleepTime)
 			continue
 		}
 
 		keys, err := s.CryptoAPI.GetKeys(in.GetUniqueJobID())
 		if err != nil {
-			log(in, "error getting keys", logger.Get())
+			log(in, "error getting keys", logger.Get("error", err.Error()))
 			time.Sleep(SleepTime)
 			continue
 		}
 
 		paid, err := lnConnection.IsInvoicePaid(ctx, hex.EncodeToString(keys.Preimage.Hash))
 		if err != nil {
-			log(in, "error checking whether invoice is paid", logger.Get())
+			log(in, "error checking whether invoice is paid", logger.Get("error", err.Error()))
 			time.Sleep(SleepTime)
 			continue
 		}

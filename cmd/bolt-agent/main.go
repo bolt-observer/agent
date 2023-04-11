@@ -64,6 +64,7 @@ var (
 	private     bool
 	timeout     = 15 * time.Second
 	preferipv4  = false
+	noplugins   = false
 )
 
 func findUnixSocket(paths ...string) string {
@@ -330,7 +331,12 @@ func getApp() *cli.App {
 		},
 		&cli.BoolFlag{
 			Name:   "insecure",
-			Usage:  "allow insecure connections to the api. Can be usefull for debugging purposes",
+			Usage:  "allow insecure connections to the api. Can be useful for debugging purposes",
+			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:   "plaintext",
+			Usage:  "allow plaintext connections to the api. Can be useful for debugging purposes",
 			Hidden: true,
 		},
 		&cli.BoolFlag{
@@ -416,13 +422,25 @@ func shouldCrash(status int, body string) {
 	}
 }
 
+func getVersion() string {
+	all := make([]string, 0)
+
+	if !noplugins {
+		for key := range plugins.Plugins {
+			all = append(all, key)
+		}
+	}
+
+	return fmt.Sprintf("bolt-agent/%s+%s", GitRevision, strings.Join(all, ","))
+}
+
 func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport) bool {
 	if report == nil {
 		return true
 	}
 	if report.NodeDetails != nil {
 		// a bit cumbersome but we don't want to put GitRevision into the checker
-		report.NodeDetails.AgentVersion = fmt.Sprintf("bolt-agent/%s", GitRevision)
+		report.NodeDetails.AgentVersion = getVersion()
 	}
 
 	rep, err := json.Marshal(report)
@@ -445,7 +463,7 @@ func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport
 		return false
 	}
 
-	req.Header.Set("User-Agent", fmt.Sprintf("bolt-agent/%s", GitRevision))
+	req.Header.Set("User-Agent", getVersion())
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -547,6 +565,7 @@ func runAgent(cmdCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
+	noplugins = cmdCtx.Bool("noplugins")
 	ct := context.Background()
 
 	var err error
@@ -635,7 +654,7 @@ func runAgent(cmdCtx *cli.Context) error {
 
 	if cmdCtx.Bool("actions") {
 		fn := mkGetLndAPI(cmdCtx)
-		if !cmdCtx.Bool("noplugins") {
+		if !noplugins {
 			// Need this due to https://stackoverflow.com/questions/43059653/golang-interfacenil-is-nil-or-not
 			var invalidatable agent_entities.Invalidatable
 			if nodeDataChecker == nil {
@@ -647,12 +666,13 @@ func runAgent(cmdCtx *cli.Context) error {
 		}
 		g.Go(func() error {
 			ac := &actions.Connector{
-				Address:    cmdCtx.String("datastore-url"),
-				APIKey:     cmdCtx.String("apikey"),
-				Plugins:    plugins.Plugins,
-				LnAPI:      fn,
-				IsInsecure: cmdCtx.Bool("insecure"),
-				IsDryRun:   cmdCtx.Bool("dryrun"),
+				Address:     cmdCtx.String("datastore-url"),
+				APIKey:      cmdCtx.String("apikey"),
+				Plugins:     plugins.Plugins,
+				LnAPI:       fn,
+				IsPlaintext: cmdCtx.Bool("plaintext"),
+				IsInsecure:  cmdCtx.Bool("insecure"),
+				IsDryRun:    cmdCtx.Bool("dryrun"),
 			}
 			// exponential backoff is used to reconnect if api is down
 			b := backoff.NewExponentialBackOff()
