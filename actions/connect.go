@@ -16,13 +16,14 @@ import (
 
 // Connector handles gRPC connection and communication with the server and route message to/from the plugins
 type Connector struct {
-	Address    string
-	APIKey     string
-	LnAPI      lightning.NewAPICall
-	Plugins    map[string]entities.Plugin
-	IsInsecure bool
-	IsDryRun   bool
-	client     api.ActionAPI_SubscribeClient
+	Address     string
+	APIKey      string
+	LnAPI       lightning.NewAPICall
+	Plugins     map[string]entities.Plugin
+	IsPlaintext bool
+	IsInsecure  bool
+	IsDryRun    bool
+	client      api.ActionAPI_SubscribeClient
 }
 
 // Run connects to the server and start communication.
@@ -43,7 +44,7 @@ func (c *Connector) Run(ctx context.Context, resetBackOffFn func()) error {
 
 	clientType := fmt.Sprint(lnAPI.GetAPIType())
 
-	client, connection, err := NewAPIClient(ctx, c.Address, pubkey, c.APIKey, c.IsInsecure)
+	client, connection, err := NewAPIClient(ctx, c.Address, pubkey, c.APIKey, c.IsPlaintext, c.IsInsecure)
 	if err != nil {
 		return err
 	}

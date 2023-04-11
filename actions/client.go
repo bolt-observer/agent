@@ -14,14 +14,14 @@ import (
 )
 
 // NewAPIClient creates a new gRPC ActionAPIClient
-func NewAPIClient(ctx context.Context, endpoint, pubKey, authToken string, isInsecure bool) (api.ActionAPIClient, *grpc.ClientConn, error) {
+func NewAPIClient(ctx context.Context, endpoint, pubKey, authToken string, isPlaintext bool, isInsecure bool) (api.ActionAPIClient, *grpc.ClientConn, error) {
 	opts := []grpc.DialOption{}
-	if isInsecure {
+	if isPlaintext {
 		opts = append(opts, grpc.WithTransportCredentials(insecureGRPC.NewCredentials()))
 	} else {
 		cp, _ := x509.SystemCertPool()
 		minVersion := uint16(tls.VersionTLS11)
-		conf := &tls.Config{RootCAs: cp, MinVersion: minVersion}
+		conf := &tls.Config{RootCAs: cp, MinVersion: minVersion, InsecureSkipVerify: isInsecure}
 		opts = append(opts, []grpc.DialOption{
 			grpc.WithTransportCredentials(credentials.NewTLS(conf)),
 			grpc.WithContextDialer(func(ctx context.Context,

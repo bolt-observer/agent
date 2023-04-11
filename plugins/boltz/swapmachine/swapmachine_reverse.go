@@ -147,12 +147,12 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 	for {
 		lnConnection, err := s.LnAPI()
 		if err != nil {
-			log(in, fmt.Sprintf("error getting LNAPI: %v", err), logger.Get())
+			log(in, fmt.Sprintf("error getting LNAPI: %v", err), logger.Get("error", err.Error()))
 			time.Sleep(SleepTime)
 			continue
 		}
 		if lnConnection == nil {
-			log(in, "error getting LNAPI", logger.Get())
+			log(in, "error getting LNAPI", logger.Get("error", "error getting LNAPI"))
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -163,7 +163,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 
 			_, err = lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, in.SwapData.ChanIdsToUse)
 			if err != nil {
-				log(in, fmt.Sprintf("Failed paying invoice %v due to %v", in.SwapData.ReverseInvoice, err), nil)
+				log(in, fmt.Sprintf("Failed paying invoice %v due to %v", in.SwapData.ReverseInvoice, err), logger.Get("error", err.Error()))
 				if in.SwapData.ReverseChannelId == 0 {
 					// this means node level liquidity - if the hints worked that would be nice, but try without them too
 
@@ -179,7 +179,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 
 		s, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
-			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err), logger.Get())
+			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err), logger.Get("error", err.Error()))
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -201,7 +201,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 
 		info, err := lnConnection.GetInfo(ctx)
 		if err != nil {
-			log(in, fmt.Sprintf("Error communicating with LNAPI: %v", err), logger.Get())
+			log(in, fmt.Sprintf("Error communicating with LNAPI: %v", err), logger.Get("error", err.Error()))
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -227,7 +227,7 @@ func (s *SwapMachine) FsmClaimReverseFunds(in common.FsmIn) common.FsmOut {
 	}
 
 	// debug
-	log(in, fmt.Sprintf("Adding entry %v to redeem locked funds", in.SwapData.JobID), logger.Get())
+	log(in, fmt.Sprintf("Adding entry %v to redeem locked funds", in.SwapData.JobID), logger.Get("state", in.SwapData.State))
 
 	s.ReverseRedeemer.AddEntry(in)
 	return common.FsmOut{}
@@ -239,7 +239,7 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 
 	logger := NewLogEntry(in.SwapData, Reverse)
 
-	log(in, fmt.Sprintf("Locked funds were claimed %v", in.SwapData.JobID), logger.Get())
+	log(in, fmt.Sprintf("Locked funds were claimed %v", in.SwapData.JobID), logger.Get("state", in.SwapData.State))
 
 	SleepTime := s.GetSleepTimeFn(in)
 	MaxWait := 2 * time.Minute // do we need to make this configurable?
@@ -254,7 +254,7 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 
 		s, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
-			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err), nil)
+			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err), logger.Get("error", err.Error()))
 			time.Sleep(SleepTime)
 			continue
 		}
