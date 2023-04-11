@@ -667,7 +667,7 @@ func runAgent(cmdCtx *cli.Context) error {
 		g.Go(func() error {
 			ac := &actions.Connector{
 				Address:     cmdCtx.String("datastore-url"),
-				APIKey:      cmdCtx.String("apikey"),
+				APIKey:      apiKey,
 				Plugins:     plugins.Plugins,
 				LnAPI:       fn,
 				IsPlaintext: cmdCtx.Bool("plaintext"),
