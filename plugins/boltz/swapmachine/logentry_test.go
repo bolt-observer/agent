@@ -13,7 +13,7 @@ import (
 func TestLog(t *testing.T) {
 	sd := &common.SwapData{JobID: 1}
 
-	l := NewLogEntry(sd, Forward)
+	l := NewLogEntry(sd)
 	json := l.Get()
 	assert.NotNil(t, json)
 	t.Logf(string(json))

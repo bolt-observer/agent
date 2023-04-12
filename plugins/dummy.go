@@ -14,9 +14,19 @@ import (
 
 var (
 	// AllPluginFlags hold the extra flags for plugins
-	AllPluginFlags []cli.Flag
-	Plugins        map[string]agent_entities.Plugin
+	AllPluginFlags    []cli.Flag
+	Plugins           map[string]agent_entities.Plugin
+	RegisteredPlugins []PluginData
 )
+
+// InitPluginFn signature of init plugin function
+type InitPluginFn func(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (agent_entities.Plugin, error)
+
+// PluginData structure
+type PluginData struct {
+	Name string
+	Init InitPluginFn
+}
 
 func InitPlugins(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) error {
 	return nil
