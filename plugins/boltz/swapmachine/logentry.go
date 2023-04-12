@@ -9,26 +9,18 @@ import (
 	common "github.com/bolt-observer/agent/plugins/boltz/common"
 )
 
-// SwapType enum.
-type SwapType string
-
-const (
-	Unknown SwapType = "unknown"
-	Forward SwapType = "forward"
-	Reverse SwapType = "reverse"
-)
-
 // Log entry
 type LogEntry map[string]any
 
-func NewLogEntry(sd *common.SwapData, typ SwapType) LogEntry {
+func NewLogEntry(sd *common.SwapData) LogEntry {
 	ret := make(map[string]any)
 
 	ret["id"] = int(sd.JobID)
 	if sd.BoltzID != "" {
 		ret["boltz_id"] = sd.BoltzID
 	}
-	ret["swap_type"] = typ
+	ret["state"] = sd.State
+	ret["swap_type"] = sd.State.ToSwapType()
 	return ret
 }
 

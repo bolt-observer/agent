@@ -22,7 +22,7 @@ import (
 
 func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
-	logger := NewLogEntry(in.SwapData, Forward)
+	logger := NewLogEntry(in.SwapData)
 
 	sats := in.SwapData.Sats
 
@@ -136,7 +136,7 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 
 func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
-	logger := NewLogEntry(in.SwapData, Forward)
+	logger := NewLogEntry(in.SwapData)
 
 	SleepTime := s.GetSleepTimeFn(in)
 
@@ -208,7 +208,7 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 
 func (s *SwapMachine) FsmRedeemLockedFunds(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
-	logger := NewLogEntry(in.SwapData, Forward)
+	logger := NewLogEntry(in.SwapData)
 
 	if in.SwapData.BoltzID == "" {
 		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}
@@ -271,7 +271,7 @@ func (s *SwapMachine) FsmRedeemingLockedFunds(in common.FsmIn) common.FsmOut {
 
 func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
-	logger := NewLogEntry(in.SwapData, Forward)
+	logger := NewLogEntry(in.SwapData)
 
 	if in.SwapData.BoltzID == "" {
 		return common.FsmOut{Error: fmt.Errorf("invalid state boltzID not set")}

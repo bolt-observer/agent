@@ -426,12 +426,15 @@ func getVersion() string {
 	all := make([]string, 0)
 
 	if !noplugins {
-		for key := range plugins.Plugins {
-			all = append(all, key)
+		for _, val := range plugins.RegisteredPlugins {
+			all = append(all, val.Name)
 		}
 	}
-
-	return fmt.Sprintf("bolt-agent/%s+%s", GitRevision, strings.Join(all, ","))
+	if len(all) > 0 {
+		return fmt.Sprintf("bolt-agent/%s+%s", GitRevision, strings.Join(all, ","))
+	} else {
+		return fmt.Sprintf("bolt-agent/%s", GitRevision)
+	}
 }
 
 func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport) bool {

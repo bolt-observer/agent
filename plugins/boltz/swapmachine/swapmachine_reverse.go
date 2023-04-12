@@ -22,7 +22,7 @@ import (
 
 func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
-	logger := NewLogEntry(in.SwapData, Reverse)
+	logger := NewLogEntry(in.SwapData)
 	const SafetyMargin = 1000 // sats
 
 	sats := in.SwapData.Sats
@@ -131,7 +131,7 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 
 func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 	ctx := context.Background()
-	logger := NewLogEntry(in.SwapData, Reverse)
+	logger := NewLogEntry(in.SwapData)
 	paid := false
 
 	SleepTime := s.GetSleepTimeFn(in)
@@ -216,7 +216,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 }
 
 func (s *SwapMachine) FsmClaimReverseFunds(in common.FsmIn) common.FsmOut {
-	logger := NewLogEntry(in.SwapData, Reverse)
+	logger := NewLogEntry(in.SwapData)
 
 	// For state machine this is final state
 	if in.SwapData.BoltzID == "" {
@@ -237,7 +237,7 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 	// This just happpened while e2e testing, in practice we don't really care if
 	// Boltz does not claim their funds
 
-	logger := NewLogEntry(in.SwapData, Reverse)
+	logger := NewLogEntry(in.SwapData)
 
 	log(in, fmt.Sprintf("Locked funds were claimed %v", in.SwapData.JobID), logger.Get("state", in.SwapData.State))
 
