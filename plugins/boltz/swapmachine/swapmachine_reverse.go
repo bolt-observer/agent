@@ -188,7 +188,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 		log(in, fmt.Sprintf("Swap status is: %v", status),
 			logger.Get("status", status))
 
-		if (in.SwapData.AllowZeroConf && status == boltz.TransactionMempool) || status == boltz.TransactionConfirmed {
+		if (in.SwapData.SwapLimits.AllowZeroConf && status == boltz.TransactionMempool) || status == boltz.TransactionConfirmed {
 			if s.Transaction.Hex != "" {
 				in.SwapData.TransactionHex = s.Transaction.Hex
 				return common.FsmOut{NextState: common.ClaimReverseFunds}

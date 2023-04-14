@@ -186,13 +186,16 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, Chan
 		if realOut.Error != nil {
 			realOut.NextState = common.SwapFailed
 
-			realIn.MsgCallback(entities.PluginMessage{
-				JobID:      int32(realIn.GetJobID()),
-				Message:    fmt.Sprintf("Error %v happened", realOut.Error),
-				Data:       logger.Get("error", realOut.Error.Error()),
-				IsError:    true,
-				IsFinished: true,
-			})
+			glog.Infof("[Boltz] [%d] Error %v happened", realIn.GetJobID(), realOut.Error)
+			if realIn.MsgCallback != nil {
+				realIn.MsgCallback(entities.PluginMessage{
+					JobID:      int32(realIn.GetJobID()),
+					Message:    fmt.Sprintf("Error %v happened", realOut.Error),
+					Data:       logger.Get("error", realOut.Error.Error()),
+					IsError:    true,
+					IsFinished: true,
+				})
+			}
 			return out
 		}
 
@@ -201,13 +204,16 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, Chan
 		}
 		if realOut.NextState != common.None {
 			err := ChangeStateFn(realIn, realOut.NextState)
-			realIn.MsgCallback(entities.PluginMessage{
-				JobID:      int32(realIn.GetJobID()),
-				Message:    fmt.Sprintf("Transitioning to state %v", realOut.NextState),
-				Data:       logger.Get("new_state", realOut.NextState),
-				IsError:    false,
-				IsFinished: false,
-			})
+			glog.Infof("[Boltz] [%d] Transitioning to state %v", realIn.GetJobID(), realOut.NextState)
+			if realIn.MsgCallback != nil {
+				realIn.MsgCallback(entities.PluginMessage{
+					JobID:      int32(realIn.GetJobID()),
+					Message:    fmt.Sprintf("Transitioning to state %v", realOut.NextState),
+					Data:       logger.Get("new_state", realOut.NextState),
+					IsError:    false,
+					IsFinished: false,
+				})
+			}
 			if err != nil {
 				realOut.NextState = common.SwapFailed
 			}

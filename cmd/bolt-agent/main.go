@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,12 +24,10 @@ import (
 	"github.com/bolt-observer/agent/actions"
 	"github.com/bolt-observer/agent/checkermonitoring"
 	raw "github.com/bolt-observer/agent/data-upload"
+	"github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
-	"github.com/bolt-observer/agent/lightning"
-	api "github.com/bolt-observer/agent/lightning"
 	"github.com/bolt-observer/agent/nodedata"
 	"github.com/bolt-observer/agent/plugins"
-	entities "github.com/bolt-observer/go_common/entities"
 	utils "github.com/bolt-observer/go_common/utils"
 
 	agent_entities "github.com/bolt-observer/agent/entities"
@@ -52,13 +48,12 @@ const (
 )
 
 var (
-	defaultLightningDir = btcutil.AppDataDir("lightning", false)
-	defaultLndDir       = btcutil.AppDataDir("lnd", false)
-	defaultTLSCertPath  = filepath.Join(defaultLndDir, defaultTLSCertFilename)
-	defaultRPCPort      = utils.GetEnvWithDefault("DEFAULT_GRPC_PORT", "10009")
-	defaultRPCHostPort  = "localhost:" + defaultRPCPort
-	apiKey              string
-	url                 string
+	defaultLndDir      = btcutil.AppDataDir("lnd", false)
+	defaultTLSCertPath = filepath.Join(defaultLndDir, defaultTLSCertFilename)
+	defaultRPCPort     = utils.GetEnvWithDefault("DEFAULT_GRPC_PORT", "10009")
+	defaultRPCHostPort = "localhost:" + defaultRPCPort
+	apiKey             string
+	url                string
 	// GitRevision is set with build
 	GitRevision = "unknownVersion"
 	private     bool
@@ -66,131 +61,6 @@ var (
 	preferipv4  = false
 	noplugins   = false
 )
-
-func findUnixSocket(paths ...string) string {
-	for _, path := range paths {
-		fs, err := os.Stat(path)
-		if errors.Is(err, os.ErrNotExist) || fs.Mode()&os.ModeSocket != os.ModeSocket {
-			continue
-		} else {
-			return path
-		}
-	}
-
-	return ""
-}
-
-func intPtr(i int) *int {
-	return &i
-}
-
-func getData(cmdCtx *cli.Context) (*entities.Data, error) {
-	resp := &entities.Data{}
-	resp.Endpoint = cmdCtx.String("rpcserver")
-	resp.ApiType = nil
-
-	// Assume CLN first (shouldn't really matter unless you have CLN and LND on the same machine, then you can select LND through "ignorecln")
-	if !cmdCtx.Bool("ignorecln") {
-		path := findUnixSocket(filepath.Join(defaultLightningDir, cmdCtx.String("chain"), "lightning-rpc"), resp.Endpoint)
-		if path != "" {
-			resp.Endpoint = path
-			resp.ApiType = intPtr(int(api.ClnSocket))
-		}
-	}
-
-	if resp.ApiType == nil {
-		if cmdCtx.Bool("userest") {
-			resp.ApiType = intPtr(int(api.LndRest))
-		} else {
-			resp.ApiType = intPtr(int(api.LndGrpc))
-		}
-	}
-
-	if resp.ApiType != nil && *resp.ApiType == int(api.ClnSocket) {
-		// CLN socket connections do not need anything else
-		return resp, nil
-	}
-
-	tlsCertPath, macPath, err := extractPathArgs(cmdCtx)
-	if err != nil {
-		return nil, fmt.Errorf("could not extractPathArgs %v", err)
-	}
-
-	content, err := os.ReadFile(tlsCertPath)
-	if err != nil {
-		return nil, fmt.Errorf("could not read certificate file %s", tlsCertPath)
-	}
-
-	resp.CertificateBase64 = base64.StdEncoding.EncodeToString(content)
-
-	macBytes, err := os.ReadFile(macPath)
-	if err != nil {
-		return nil, fmt.Errorf("could not read macaroon file %s", macPath)
-	}
-
-	resp.MacaroonHex = hex.EncodeToString(macBytes)
-
-	return resp, nil
-}
-
-func extractPathArgs(ctx *cli.Context) (string, string, error) {
-	// We'll start off by parsing the active chain and network. These are
-	// needed to determine the correct path to the macaroon when not
-	// specified.
-	chain := strings.ToLower(ctx.String("chain"))
-	switch chain {
-	case "bitcoin", "litecoin":
-	default:
-		return "", "", fmt.Errorf("unknown chain: %v", chain)
-	}
-
-	network := strings.ToLower(ctx.String("network"))
-	switch network {
-	case "mainnet", "testnet", "regtest", "simnet":
-	default:
-		return "", "", fmt.Errorf("unknown network: %v", network)
-	}
-
-	// We'll now fetch the lnddir so we can make a decision  on how to
-	// properly read the macaroons (if needed) and also the cert. This will
-	// either be the default, or will have been overwritten by the end
-	// user.
-	lndDir := agent_entities.CleanAndExpandPath(ctx.String("lnddir"))
-
-	// If the macaroon path as been manually provided, then we'll only
-	// target the specified file.
-	var macPath string
-	if ctx.String("macaroonpath") != "" {
-		macPath = agent_entities.CleanAndExpandPath(ctx.String("macaroonpath"))
-	} else {
-		// Otherwise, we'll go into the path:
-		// lnddir/data/chain/<chain>/<network> in order to fetch the
-		// macaroon that we need.
-
-		name := defaultReadMacaroonFilename
-		if ctx.Bool("actions") {
-			name = defaultAdminMacaroonFilename
-		}
-
-		macPath = filepath.Join(
-			lndDir, defaultDataDir, defaultChainSubDir, chain,
-			network, name,
-		)
-	}
-
-	tlsCertPath := agent_entities.CleanAndExpandPath(ctx.String("tlscertpath"))
-
-	// If a custom lnd directory was set, we'll also check if custom paths
-	// for the TLS cert and macaroon file were set as well. If not, we'll
-	// override their paths so they can be found within the custom lnd
-	// directory set. This allows us to set a custom lnd directory, along
-	// with custom paths to the TLS cert and macaroon file.
-	if _, err := os.Stat(tlsCertPath); errors.Is(err, os.ErrNotExist) {
-		tlsCertPath = filepath.Join(lndDir, defaultTLSCertFilename)
-	}
-
-	return tlsCertPath, macPath, nil
-}
 
 func getApp() *cli.App {
 	app := cli.NewApp()
@@ -351,8 +221,9 @@ func getApp() *cli.App {
 		},
 	}
 
-	app.Flags = append(app.Flags, glogFlags...)
+	app.Flags = append(app.Flags, entities.GlogFlags...)
 	app.Flags = append(app.Flags, plugins.AllPluginFlags...)
+	app.Commands = append(app.Commands, plugins.AllPluginCommands...)
 
 	return app
 }
@@ -501,14 +372,6 @@ func nodeDataCallback(ctx context.Context, report *agent_entities.NodeDataReport
 	return true
 }
 
-func mkGetLndAPI(cmdCtx *cli.Context) lightning.NewAPICall {
-	return func() (api.LightingAPICalls, error) {
-		return api.NewAPI(api.LndGrpc, func() (*entities.Data, error) {
-			return getData(cmdCtx)
-		})
-	}
-}
-
 func reloadConfig(ctx context.Context, f *filter.FileFilter) {
 	glog.Info("Reloading configuration...")
 
@@ -626,11 +489,11 @@ func runAgent(cmdCtx *cli.Context) error {
 		settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
 
 		if settings.PollInterval == agent_entities.ManualRequest {
-			nodeDataChecker.GetState("", cmdCtx.String("uniqueid"), mkGetLndAPI(cmdCtx), settings, nodeDataCallback)
+			nodeDataChecker.GetState("", cmdCtx.String("uniqueid"), entities.MkGetLndAPI(cmdCtx), settings, nodeDataCallback)
 		} else {
 			err = nodeDataChecker.Subscribe(
 				nodeDataCallback,
-				mkGetLndAPI(cmdCtx),
+				entities.MkGetLndAPI(cmdCtx),
 				"",
 				settings,
 				cmdCtx.String("uniqueid"),
@@ -656,7 +519,7 @@ func runAgent(cmdCtx *cli.Context) error {
 	}
 
 	if cmdCtx.Bool("actions") {
-		fn := mkGetLndAPI(cmdCtx)
+		fn := entities.MkGetLndAPI(cmdCtx)
 		if !noplugins {
 			// Need this due to https://stackoverflow.com/questions/43059653/golang-interfacenil-is-nil-or-not
 			var invalidatable agent_entities.Invalidatable
@@ -736,7 +599,7 @@ func sender(ctx context.Context, cmdCtx *cli.Context, apiKey string) error {
 func senderWithRetries(ctx context.Context, cmdCtx *cli.Context, apiKey string) error {
 	var permanent *backoff.PermanentError
 
-	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), mkGetLndAPI(cmdCtx), cmdCtx.Bool("insecure"))
+	sender, err := raw.MakeSender(ctx, apiKey, cmdCtx.String("datastore-url"), entities.MkGetLndAPI(cmdCtx), cmdCtx.Bool("insecure"))
 	if err != nil {
 		if permanent.Is(err) {
 			return backoff.Permanent(fmt.Errorf("get GRPC fetcher failure %v", err))
@@ -770,7 +633,7 @@ func main() {
 	app.Name = "bolt-agent"
 	app.Usage = "Utility to monitor and manage lightning node"
 	app.Action = func(cmdCtx *cli.Context) error {
-		glogShim(cmdCtx)
+		entities.GlogShim(cmdCtx)
 		if err := runAgent(cmdCtx); err != nil {
 			return err
 		}

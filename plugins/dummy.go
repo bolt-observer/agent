@@ -14,7 +14,9 @@ import (
 
 var (
 	// AllPluginFlags hold the extra flags for plugins
-	AllPluginFlags    []cli.Flag
+	AllPluginFlags []cli.Flag
+	// AllPluginCommands hold the extra commands for plugins
+	AllPluginCommands []cli.Command
 	Plugins           map[string]agent_entities.Plugin
 	RegisteredPlugins []PluginData
 )

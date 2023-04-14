@@ -20,7 +20,6 @@ type SwapData struct {
 	Attempt           int
 	BoltzID           string
 	State             State
-	AllowZeroConf     bool
 	TimoutBlockHeight uint32
 	Script            string
 	Sats              uint64
@@ -142,7 +141,6 @@ func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, li
 		JobID:            JobID(jobData.ID),
 		Sats:             uint64(math.Round(sats)),
 		State:            InitialReverse,
-		AllowZeroConf:    limits.AllowZeroConf,
 		ReverseChannelId: jobData.ChannelId,
 		OriginalJobData:  *jobData,
 		Attempt:          1,
@@ -185,7 +183,6 @@ func convertLiquidityNodePercent(jobData *JobData, limits SwapLimits, liquidity 
 		JobID:            JobID(jobData.ID),
 		Sats:             uint64(math.Round(sats)),
 		ReverseChannelId: 0,
-		AllowZeroConf:    limits.AllowZeroConf,
 		Attempt:          1,
 		OriginalJobData:  *jobData,
 		FeesPaidSoFar:    0,
