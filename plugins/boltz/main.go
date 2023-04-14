@@ -154,6 +154,12 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		DefaultSwap:      cmdCtx.Uint64("defaultswapsats"),
 		MaxAttempts:      cmdCtx.Int("maxswapattempts"),
 	}
+
+	err = fixLimits(&limits, resp.BoltzAPI)
+	if err != nil {
+		return nil, err
+	}
+
 	resp.Limits = limits
 
 	// Currently there is just one redeemer instance (perhaps split it)
@@ -185,6 +191,31 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	}
 
 	return resp, nil
+}
+
+func fixLimits(limits *common.SwapLimits, api *bapi.BoltzPrivateAPI) error {
+	// zero limits get resolved via boltz API
+	if limits.MinSwap == 0 || limits.MaxSwap == 0 {
+		pairs, err := api.GetPairs()
+		if err != nil {
+			return err
+		}
+
+		res, ok := pairs.Pairs[common.BtcPair]
+		if !ok {
+			return fmt.Errorf("pairs are not available")
+		}
+
+		if limits.MinSwap == 0 {
+			limits.MinSwap = res.Limits.Minimal
+		}
+
+		if limits.MaxSwap == 0 {
+			limits.MaxSwap = res.Limits.Maximal
+		}
+	}
+
+	return nil
 }
 
 func (b *Plugin) GetSleepTime() time.Duration {

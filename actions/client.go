@@ -6,11 +6,13 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net"
+	"time"
 
 	api "github.com/bolt-observer/agent/actions/bolt-observer-api"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	insecureGRPC "google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 )
 
 // NewAPIClient creates a new gRPC ActionAPIClient
@@ -33,6 +35,13 @@ func NewAPIClient(ctx context.Context, endpoint, pubKey, authToken string, isPla
 			}),
 		}...)
 	}
+
+	kasp := keepalive.ClientParameters{
+		Time:    30 * time.Second,
+		Timeout: 1 * time.Hour,
+	}
+
+	opts = append(opts, grpc.WithKeepaliveParams(kasp))
 
 	conn, err := grpc.DialContext(ctx, endpoint, opts...)
 	if err != nil {
