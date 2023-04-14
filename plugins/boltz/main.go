@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 	"os"
 	"path"
 	"sync"
@@ -34,12 +36,11 @@ import (
 const (
 	Name        = "boltz"
 	SecretDbKey = "secret"
-	DummyId     = 0 // make sure this cannot come from actions API
 )
 
 var PluginFlags = []cli.Flag{
 	cli.StringFlag{
-		Name: "boltzurl", Value: common.DefaultBoltzUrl, Usage: "url of boltz api", Hidden: false,
+		Name: "boltzurl", Value: "", Usage: "url of boltz api - empty means default", Hidden: false,
 	},
 	cli.StringFlag{
 		Name: "boltzdatabase", Value: btcutil.AppDataDir("bolt", false) + "/boltz.db", Usage: "full path to database file (file will be created if it does not exist yet)", Hidden: false,
@@ -83,6 +84,9 @@ var PluginCommands = []cli.Command{
 				Usage:  "invoke submarine swap aka swap-in (on-chain -> off-chain)",
 				Action: swap,
 				Flags: []cli.Flag{
+					cli.Int64Flag{
+						Name: "id", Value: 0, Usage: "id", Hidden: true,
+					},
 					cli.Uint64Flag{
 						Name: "sats", Value: 0, Usage: "satoshis to swap", Hidden: false,
 					},
@@ -93,6 +97,9 @@ var PluginCommands = []cli.Command{
 				Usage:  "invoke reverse submarine swap aka swap-out (off-chain -> on-chain)",
 				Action: reverseSwap,
 				Flags: []cli.Flag{
+					cli.Int64Flag{
+						Name: "id", Value: 0, Usage: "id", Hidden: true,
+					},
 					cli.Uint64Flag{
 						Name: "sats", Value: 0, Usage: "satoshis to swap", Hidden: false,
 					},
@@ -169,8 +176,17 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		return nil, err
 	}
 
+	url := common.DefaultBoltzUrl
+	if cmdCtx.String("boltzurl") == "" {
+		if cmdCtx.String("network") == "testnet" {
+			url = common.DefaultBoltzTestnetUrl
+		}
+	} else {
+		url = cmdCtx.String("boltzurl")
+	}
+
 	resp := &Plugin{
-		BoltzAPI:            bapi.NewBoltzPrivateAPI(cmdCtx.String("boltzurl"), nil),
+		BoltzAPI:            bapi.NewBoltzPrivateAPI(url, nil),
 		Filter:              filter,
 		ChainParams:         getChainParams(cmdCtx),
 		CryptoAPI:           crypto.NewCryptoAPI(entropy),
@@ -323,7 +339,7 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 }
 
 // start or continue running job
-func (b *Plugin) runJob(jobID int32, jd *common.SwapData, msgCallback agent_entities.MessageCallback) {
+func (b *Plugin) runJob(jobID int32, jd *common.SwapData, msgCallback agent_entities.MessageCallback) common.FsmOut {
 	in := common.FsmIn{
 		SwapData:    jd,
 		MsgCallback: msgCallback,
@@ -331,8 +347,11 @@ func (b *Plugin) runJob(jobID int32, jd *common.SwapData, msgCallback agent_enti
 
 	// Running the job just means going through the state machine starting with jd.State
 	if b.SwapMachine != nil {
-		b.SwapMachine.Eval(in, jd.State)
+		resp := b.SwapMachine.Eval(in, jd.State)
+		return resp
 	}
+
+	return common.FsmOut{}
 }
 
 func getChainParams(cmdCtx *cli.Context) *chaincfg.Params {
@@ -394,10 +413,20 @@ func setMnemonic(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
 
 // The methods below are invoked via boltz command directly
 
+func getRandomId() int32 {
+	// Generates a random negative integer - so it does not clash with actions api
+	n := int64(rand.Int31n(math.MaxInt32))
+	x := n | (1 << 31)
+
+	return int32(x)
+}
+
 func getPlugin(c *cli.Context) (*Plugin, error) {
 	entities.GlogShim(c)
 
 	parentCtx := c.Parent().Parent()
+	// Need this so admin macaroon is used
+	parentCtx.Set("actions", "true")
 
 	f, err := filter.NewAllowAllFilter()
 	if err != nil {
@@ -413,6 +442,7 @@ func getPlugin(c *cli.Context) (*Plugin, error) {
 }
 
 func swap(c *cli.Context) error {
+	var sd common.SwapData
 
 	plugin, err := getPlugin(c)
 	if err != nil {
@@ -423,44 +453,117 @@ func swap(c *cli.Context) error {
 		return fmt.Errorf("need to specify positive amount of satoshis to swap")
 	}
 
-	sd := &common.SwapData{
-		JobID:            DummyId,
-		Attempt:          plugin.Limits.MaxAttempts + 1,
-		Sats:             c.Uint64("sats"),
-		ReverseChannelId: 0,
-		OriginalJobData:  common.JobData{},
-		FeesPaidSoFar:    0,
-		SatsSwappedSoFar: 0,
-		SwapLimits:       plugin.Limits,
-		State:            common.InitialForward,
+	id := int32(c.Int64("id"))
+	if id == 0 {
+		id = getRandomId()
 	}
 
-	plugin.runJob(int32(sd.JobID), sd, nil)
+	glog.Infof("In case you need to resume job specify --id %d", id)
+
+	if err = plugin.db.Get(id, &sd); err != nil {
+		if c.Uint64("sats") == 0 {
+			return fmt.Errorf("need to specify positive amount of satoshis to swap")
+		}
+
+		sd = common.SwapData{
+			JobID:            common.JobID(id),
+			Attempt:          1,
+			Sats:             c.Uint64("sats"),
+			ReverseChannelId: 0,
+			OriginalJobData:  common.DummyJobData,
+			FeesPaidSoFar:    0,
+			SatsSwappedSoFar: 0,
+			SwapLimits:       plugin.Limits,
+			State:            common.InitialForward,
+			IsDryRun:         plugin.isDryRun,
+		}
+
+		plugin.db.Insert(id, sd)
+		plugin.jobs[id] = sd
+
+	} else {
+		if sd.State.ToSwapType() == common.Reverse {
+			return fmt.Errorf("use reversesubmarineswap")
+		}
+
+		plugin.jobs[id] = sd
+	}
+
+	go func() {
+		resp := plugin.runJob(int32(sd.JobID), &sd, nil)
+		if resp.Error != nil {
+			os.Exit(1)
+		}
+	}()
+	waitForJob(plugin, id)
+
 	return nil
 }
 
 func reverseSwap(c *cli.Context) error {
+	var sd common.SwapData
+
 	plugin, err := getPlugin(c)
 	if err != nil {
 		return err
 	}
 
-	if c.Uint64("sats") == 0 {
-		return fmt.Errorf("need to specify positive amount of satoshis to swap")
+	id := int32(c.Int64("id"))
+	if id == 0 {
+		id = getRandomId()
 	}
 
-	sd := &common.SwapData{
-		JobID:            DummyId,
-		Attempt:          plugin.Limits.MaxAttempts + 1,
-		Sats:             c.Uint64("sats"),
-		ReverseChannelId: c.Uint64("channelid"),
-		OriginalJobData:  common.JobData{},
-		FeesPaidSoFar:    0,
-		SatsSwappedSoFar: 0,
-		SwapLimits:       plugin.Limits,
-		State:            common.InitialReverse,
+	glog.Infof("In case you need to resume job specify --id %d", id)
+
+	if err = plugin.db.Get(id, &sd); err != nil {
+		if c.Uint64("sats") == 0 {
+			return fmt.Errorf("need to specify positive amount of satoshis to swap")
+		}
+
+		sd = common.SwapData{
+			JobID:            common.JobID(id),
+			Attempt:          1,
+			Sats:             c.Uint64("sats"),
+			ReverseChannelId: c.Uint64("channelid"),
+			OriginalJobData:  common.DummyJobData,
+			FeesPaidSoFar:    0,
+			SatsSwappedSoFar: 0,
+			SwapLimits:       plugin.Limits,
+			State:            common.InitialReverse,
+			IsDryRun:         plugin.isDryRun,
+		}
+
+		plugin.db.Insert(id, sd)
+		plugin.jobs[id] = sd
+
+	} else {
+		if sd.State.ToSwapType() == common.Forward {
+			return fmt.Errorf("use submarineswap")
+		}
+
+		plugin.jobs[id] = sd
 	}
 
-	plugin.runJob(int32(sd.JobID), sd, nil)
+	go func() {
+		resp := plugin.runJob(int32(sd.JobID), &sd, nil)
+		if resp.Error != nil {
+			os.Exit(1)
+		}
+	}()
+	waitForJob(plugin, id)
+
 	return nil
+}
+
+func waitForJob(plugin *Plugin, id int32) {
+	for {
+		x, ok := plugin.jobs[id].(common.SwapData)
+		if !ok {
+			break
+		}
+		if x.State.IsFinal() {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
 }

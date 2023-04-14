@@ -19,8 +19,8 @@ func (b *Plugin) changeState(in common.FsmIn, state common.State) error {
 
 	_, ok := b.jobs[int32(in.SwapData.JobID)]
 	if ok {
-		b.jobs[int32(in.SwapData.JobID)] = in.SwapData
-		err := b.db.Update(in.SwapData.JobID, in.SwapData)
+		b.jobs[int32(in.SwapData.JobID)] = *in.SwapData
+		err := b.db.Update(in.SwapData.JobID, *in.SwapData)
 		if err != nil && in.MsgCallback != nil {
 			in.MsgCallback(entities.PluginMessage{
 				JobID:      int32(in.GetJobID()),
