@@ -449,10 +449,6 @@ func swap(c *cli.Context) error {
 		return err
 	}
 
-	if c.Uint64("sats") == 0 {
-		return fmt.Errorf("need to specify positive amount of satoshis to swap")
-	}
-
 	id := int32(c.Int64("id"))
 	if id == 0 {
 		id = getRandomId()
