@@ -220,10 +220,13 @@ func getApp() *cli.App {
 			Hidden: true,
 		},
 		&cli.DurationFlag{
-			Name:   "syncedtochain-cooldown",
+			Name: "syncedtochain-cooldown",
+			// With lnd it might take a while for ZMQ data to be up-to-date, while block number has already increased
+			// we want to avoid flappy alerts and wait for this amount of time until `is_synced_to_chain` is reported
+			// as false.
 			Usage:  "how long to wait before reporting node is not synced to chain",
 			Hidden: true,
-			Value:  10 * time.Minute,
+			Value:  5 * time.Minute,
 		},
 	}
 

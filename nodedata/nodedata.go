@@ -142,16 +142,16 @@ func (c *NodeData) Subscribe(
 	}
 
 	c.perNodeSettings.Set(info.IdentityPubkey+uniqueID, Settings{
-		nodeDataCallback:     nodeDataCallback,
-		hash:                 0,
-		identifier:           entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID},
-		lastGraphCheck:       time.Time{},
-		lastReport:           time.Time{},
-		lastCheck:            time.Time{},
-		lastNodeReport:       time.Time{},
-		lastNotSyncedToChain: time.Now(),
-		settings:             settings,
-		getAPI:               getAPI,
+		nodeDataCallback:  nodeDataCallback,
+		hash:              0,
+		identifier:        entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID},
+		lastGraphCheck:    time.Time{},
+		lastReport:        time.Time{},
+		lastCheck:         time.Time{},
+		lastNodeReport:    time.Time{},
+		lastSyncedToChain: time.Now(), // assume it is synced on start
+		settings:          settings,
+		getAPI:            getAPI,
 	})
 
 	return nil
@@ -180,8 +180,7 @@ func (c *NodeData) GetState(
 		settings.Filter = f
 	}
 
-	// min time so not synced to chain will immediately trigger
-	t := time.Time{}
+	t := time.Time{} // GetState() is called just once, we want to report correct `is_synced_to_chain`, thus setting lastSyncedTime to -inf
 	resp, _, err := c.checkOne(entities.NodeIdentifier{Identifier: pubKey, UniqueID: uniqueID}, getAPI, settings, 0, true, true, true, &t)
 	if err != nil {
 		return nil, err
@@ -441,7 +440,7 @@ func (c *NodeData) checkAll() bool {
 
 			// Subscribe will set lastCheck to min value and you expect update in such a case
 			ignoreCache := toBeCheckedBy.Year() <= 1
-			resp, hash, err := c.checkOne(s.identifier, s.getAPI, s.settings, s.hash, ignoreCache, reportAnyway, reportNodeAnyway, &s.lastNotSyncedToChain)
+			resp, hash, err := c.checkOne(s.identifier, s.getAPI, s.settings, s.hash, ignoreCache, reportAnyway, reportNodeAnyway, &s.lastSyncedToChain)
 			if err != nil {
 				glog.Warningf("Failed to check %v: %v", s.identifier.GetID(), err)
 				continue
@@ -526,7 +525,7 @@ func (c *NodeData) checkOne(
 	ignoreCache bool,
 	reportAnyway bool,
 	reportNodeAnyway bool,
-	lastNotSyncedToChain *time.Time,
+	lastSyncedToChain *time.Time,
 ) (*entities.NodeDataReport, uint64, error) {
 
 	pubkey := identifier.GetID()
@@ -614,11 +613,9 @@ func (c *NodeData) checkOne(
 		nodeInfo.NumChannels = uint32(len(nodeInfo.Channels))
 	}
 
-	syncedToChain := c.syncedToChainLogic(info.IsSyncedToChain, lastNotSyncedToChain, settings)
-
 	nodeInfoFull := &entities.NodeDetails{
 		NodeVersion:               info.Version,
-		IsSyncedToChain:           syncedToChain,
+		IsSyncedToChain:           c.isSyncedToChain(info.IsSyncedToChain, lastSyncedToChain, settings),
 		IsSyncedToGraph:           info.IsSyncedToGraph,
 		OnChainBalanceNotReported: fundsNotReported,
 		OnChainBalanceConfirmed:   uint64(funds.ConfirmedBalance),
@@ -657,16 +654,17 @@ func (c *NodeData) checkOne(
 	return nodeData, hash, nil
 }
 
-func (c *NodeData) syncedToChainLogic(synced bool, lastNotSynced *time.Time, settings entities.ReportingSettings) bool {
+func (c *NodeData) isSyncedToChain(synced bool, lastSyncedTime *time.Time, settings entities.ReportingSettings) bool {
+	// This method implements the syncedtochain-cooldown logic
 	ret := true
 	now := time.Now()
 
 	if !synced {
-		if lastNotSynced.Add(settings.NotSyncedToChainCoolDown).Before(now) {
+		if lastSyncedTime.Add(settings.NotSyncedToChainCoolDown).Before(now) {
 			ret = false
 		}
 	} else {
-		lastNotSynced = &now
+		lastSyncedTime = &now
 	}
 
 	return ret

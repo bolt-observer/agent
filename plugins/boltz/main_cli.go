@@ -17,6 +17,7 @@ import (
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
 	common "github.com/bolt-observer/agent/plugins/boltz/common"
+	"github.com/tyler-smith/go-bip39"
 
 	"github.com/golang/glog"
 	"github.com/urfave/cli"
@@ -69,6 +70,21 @@ var PluginCommands = []cli.Command{
 					},
 					cli.StringFlag{
 						Name: "file", Value: "", Usage: "file to write", Hidden: false,
+					},
+				},
+			},
+			{
+				Name:   "dumpmnemonic",
+				Usage:  "print master secret as mnemonic phrase (dangerous)",
+				Action: dumpMnemonic,
+			},
+			{
+				Name:   "setmnemonic",
+				Usage:  "set a new secret from mnemonic phrase (dangerous)",
+				Action: setNewMnemonic,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name: "mnemonic", Value: "", Usage: "mnemonic phrase (12 words)", Hidden: false,
 					},
 				},
 			},
@@ -290,4 +306,47 @@ func waitForJob(plugin *Plugin, id int32) {
 		}
 		time.Sleep(1 * time.Second)
 	}
+}
+
+func dumpMnemonic(c *cli.Context) error {
+	plugin, err := getPlugin(c)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Your mnemonic phrase is: %s\n", plugin.CryptoAPI.DumpMnemonic())
+	return nil
+}
+
+func setNewMnemonic(c *cli.Context) error {
+	var (
+		entropy []byte
+		dummy   Entropy
+	)
+
+	plugin, err := getPlugin(c)
+	if err != nil {
+		return err
+	}
+
+	mnemonic := c.String("mnemonic")
+	if mnemonic == "" {
+		return fmt.Errorf("mnemonic missing")
+	}
+
+	entropy, err = bip39.MnemonicToByteArray(mnemonic, true)
+	if err != nil {
+		return err
+	}
+
+	if err = plugin.db.Get(SecretDbKey, &dummy); err != nil {
+		err = plugin.db.Insert(SecretDbKey, &Entropy{Data: entropy})
+	} else {
+		err = plugin.db.Update(SecretDbKey, &Entropy{Data: entropy})
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -37,16 +37,10 @@ const (
 
 var PluginFlags = []cli.Flag{
 	cli.StringFlag{
-		Name: "boltzurl", Value: "", Usage: "url of boltz api - empty means default", Hidden: false,
+		Name: "boltzurl", Value: "", Usage: fmt.Sprintf("url of boltz api - empty means default - %s or %s", common.DefaultBoltzUrl, common.DefaultBoltzTestnetUrl), Hidden: false,
 	},
 	cli.StringFlag{
 		Name: "boltzdatabase", Value: btcutil.AppDataDir("bolt", false) + "/boltz.db", Usage: "full path to database file (file will be created if it does not exist yet)", Hidden: false,
-	},
-	cli.BoolFlag{
-		Name: "dumpmnemonic", Usage: "should we print master secret as mnemonic phrase (dangerous)", Hidden: false,
-	},
-	cli.StringFlag{
-		Name: "setmnemonic", Value: "", Usage: "update saved secret with this key material (dangerous)", Hidden: false,
 	},
 	cli.Float64Flag{
 		Name: "maxfeepercentage", Value: 5.0, Usage: "maximum fee in percentage that is still acceptable", Hidden: false,
@@ -130,7 +124,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		return nil, err
 	}
 
-	entropy, err := setMnemonic(cmdCtx, db)
+	entropy, err := getEntropy(cmdCtx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -195,10 +189,6 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		}, nodeDataInvalidator, common.JobDataToSwapData, resp.LnAPI)
 
 	resp.Redeemer.SetCallback(resp.SwapMachine.RedeemedCallback)
-
-	if cmdCtx.Bool("dumpmnemonic") {
-		fmt.Printf("Your secret is %s\n", resp.CryptoAPI.DumpMnemonic())
-	}
 
 	return resp, nil
 }
@@ -331,41 +321,25 @@ func getChainParams(cmdCtx *cli.Context) *chaincfg.Params {
 	return &params
 }
 
-func setMnemonic(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
+func getEntropy(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
 	var (
 		entropy []byte
 		dummy   Entropy
 	)
 
-	mnemonic := cmdCtx.String("setmnemonic")
-	if mnemonic != "" {
-		entropy, err := bip39.MnemonicToByteArray(mnemonic, true)
+	err := db.Get(SecretDbKey, &dummy)
+	entropy = dummy.Data
+
+	if err != nil {
+		entropy, err = bip39.NewEntropy(common.SecretBitSize)
 		if err != nil {
 			return entropy, err
 		}
-
-		if err = db.Get(SecretDbKey, &dummy); err != nil {
-			err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
-		} else {
-			err = db.Update(SecretDbKey, &Entropy{Data: entropy})
-		}
+		err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
 		if err != nil {
 			return entropy, err
-		}
-	} else {
-		err := db.Get(SecretDbKey, &dummy)
-		entropy = dummy.Data
-
-		if err != nil {
-			entropy, err = bip39.NewEntropy(common.SecretBitSize)
-			if err != nil {
-				return entropy, err
-			}
-			err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
-			if err != nil {
-				return entropy, err
-			}
 		}
 	}
+
 	return entropy, nil
 }

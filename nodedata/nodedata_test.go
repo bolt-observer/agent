@@ -1537,43 +1537,43 @@ func TestSyncedToChain(t *testing.T) {
 
 	clock.TimeElapsed(0 * time.Minute)
 	t.Logf("now %v\n", time.Now())
-	ret := c.syncedToChainLogic(true, &last, settings)
+	ret := c.isSyncedToChain(true, &last, settings)
 	assert.Equal(t, true, ret)
 
 	clock.TimeElapsed(0 * time.Minute)
 	t.Logf("now %v\n", time.Now())
-	ret = c.syncedToChainLogic(false, &last, settings)
+	ret = c.isSyncedToChain(false, &last, settings)
 	assert.Equal(t, true, ret)
 	assert.NotEqual(t, now, last)
 
 	clock.TimeElapsed(2 * time.Minute)
 	t.Logf("now %v\n", time.Now())
-	ret = c.syncedToChainLogic(false, &last, settings)
+	ret = c.isSyncedToChain(false, &last, settings)
 	assert.Equal(t, true, ret)
 
 	clock.TimeElapsed(9 * time.Minute)
 	t.Logf("now %v\n", time.Now())
-	ret = c.syncedToChainLogic(false, &last, settings)
+	ret = c.isSyncedToChain(false, &last, settings)
 	assert.Equal(t, false, ret)
 
 	clock.TimeElapsed(1 * time.Minute)
 	t.Logf("now %v\n", time.Now())
-	ret = c.syncedToChainLogic(false, &last, settings)
+	ret = c.isSyncedToChain(false, &last, settings)
 	assert.Equal(t, false, ret)
 
 	clock.TimeElapsed(1 * time.Minute)
 	t.Logf("now %v\n", time.Now())
-	ret = c.syncedToChainLogic(true, &last, settings)
+	ret = c.isSyncedToChain(true, &last, settings)
 	assert.Equal(t, true, ret)
 
 	last = clock.GetTime()
 
 	clock.TimeElapsed(1 * time.Minute)
 	t.Logf("now %v\n", time.Now())
-	ret = c.syncedToChainLogic(false, &last, settings)
+	ret = c.isSyncedToChain(false, &last, settings)
 	assert.Equal(t, true, ret)
 
 	last = time.Time{}
-	ret = c.syncedToChainLogic(false, &last, settings)
+	ret = c.isSyncedToChain(false, &last, settings)
 	assert.Equal(t, false, ret)
 }
