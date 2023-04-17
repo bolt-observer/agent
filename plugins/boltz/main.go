@@ -37,16 +37,10 @@ const (
 
 var PluginFlags = []cli.Flag{
 	cli.StringFlag{
-		Name: "boltzurl", Value: common.DefaultBoltzUrl, Usage: "url of boltz api", Hidden: false,
+		Name: "boltzurl", Value: "", Usage: fmt.Sprintf("url of boltz api - empty means default - %s or %s", common.DefaultBoltzUrl, common.DefaultBoltzTestnetUrl), Hidden: false,
 	},
 	cli.StringFlag{
 		Name: "boltzdatabase", Value: btcutil.AppDataDir("bolt", false) + "/boltz.db", Usage: "full path to database file (file will be created if it does not exist yet)", Hidden: false,
-	},
-	cli.BoolFlag{
-		Name: "dumpmnemonic", Usage: "should we print master secret as mnemonic phrase (dangerous)", Hidden: false,
-	},
-	cli.StringFlag{
-		Name: "setmnemonic", Value: "", Usage: "update saved secret with this key material (dangerous)", Hidden: false,
 	},
 	cli.Float64Flag{
 		Name: "maxfeepercentage", Value: 5.0, Usage: "maximum fee in percentage that is still acceptable", Hidden: false,
@@ -74,6 +68,7 @@ var PluginFlags = []cli.Flag{
 func init() {
 	// Register ourselves with plugins
 	plugins.AllPluginFlags = append(plugins.AllPluginFlags, PluginFlags...)
+	plugins.AllPluginCommands = append(plugins.AllPluginCommands, PluginCommands...)
 	plugins.RegisteredPlugins = append(plugins.RegisteredPlugins, plugins.PluginData{
 		Name: Name,
 		Init: func(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (agent_entities.Plugin, error) {
@@ -129,13 +124,22 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		return nil, err
 	}
 
-	entropy, err := setMnemonic(cmdCtx, db)
+	entropy, err := getEntropy(cmdCtx, db)
 	if err != nil {
 		return nil, err
 	}
 
+	url := common.DefaultBoltzUrl
+	if cmdCtx.String("boltzurl") == "" {
+		if cmdCtx.String("network") == "testnet" {
+			url = common.DefaultBoltzTestnetUrl
+		}
+	} else {
+		url = cmdCtx.String("boltzurl")
+	}
+
 	resp := &Plugin{
-		BoltzAPI:            bapi.NewBoltzPrivateAPI(cmdCtx.String("boltzurl"), nil),
+		BoltzAPI:            bapi.NewBoltzPrivateAPI(url, nil),
 		Filter:              filter,
 		ChainParams:         getChainParams(cmdCtx),
 		CryptoAPI:           crypto.NewCryptoAPI(entropy),
@@ -154,6 +158,12 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		DefaultSwap:      cmdCtx.Uint64("defaultswapsats"),
 		MaxAttempts:      cmdCtx.Int("maxswapattempts"),
 	}
+
+	err = fixLimits(&limits, resp.BoltzAPI)
+	if err != nil {
+		return nil, err
+	}
+
 	resp.Limits = limits
 
 	// Currently there is just one redeemer instance (perhaps split it)
@@ -180,11 +190,32 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 
 	resp.Redeemer.SetCallback(resp.SwapMachine.RedeemedCallback)
 
-	if cmdCtx.Bool("dumpmnemonic") {
-		fmt.Printf("Your secret is %s\n", resp.CryptoAPI.DumpMnemonic())
+	return resp, nil
+}
+
+func fixLimits(limits *common.SwapLimits, api *bapi.BoltzPrivateAPI) error {
+	// zero limits get resolved via boltz API
+	if limits.MinSwap == 0 || limits.MaxSwap == 0 {
+		pairs, err := api.GetPairs()
+		if err != nil {
+			return err
+		}
+
+		res, ok := pairs.Pairs[common.BtcPair]
+		if !ok {
+			return fmt.Errorf("pairs are not available")
+		}
+
+		if limits.MinSwap == 0 {
+			limits.MinSwap = res.Limits.Minimal
+		}
+
+		if limits.MaxSwap == 0 {
+			limits.MaxSwap = res.Limits.Maximal
+		}
 	}
 
-	return resp, nil
+	return nil
 }
 
 func (b *Plugin) GetSleepTime() time.Duration {
@@ -257,7 +288,7 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 }
 
 // start or continue running job
-func (b *Plugin) runJob(jobID int32, jd *common.SwapData, msgCallback agent_entities.MessageCallback) {
+func (b *Plugin) runJob(jobID int32, jd *common.SwapData, msgCallback agent_entities.MessageCallback) common.FsmOut {
 	in := common.FsmIn{
 		SwapData:    jd,
 		MsgCallback: msgCallback,
@@ -265,8 +296,11 @@ func (b *Plugin) runJob(jobID int32, jd *common.SwapData, msgCallback agent_enti
 
 	// Running the job just means going through the state machine starting with jd.State
 	if b.SwapMachine != nil {
-		b.SwapMachine.Eval(in, jd.State)
+		resp := b.SwapMachine.Eval(in, jd.State)
+		return resp
 	}
+
+	return common.FsmOut{}
 }
 
 func getChainParams(cmdCtx *cli.Context) *chaincfg.Params {
@@ -287,41 +321,25 @@ func getChainParams(cmdCtx *cli.Context) *chaincfg.Params {
 	return &params
 }
 
-func setMnemonic(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
+func getEntropy(cmdCtx *cli.Context, db *BoltzDB) ([]byte, error) {
 	var (
 		entropy []byte
 		dummy   Entropy
 	)
 
-	mnemonic := cmdCtx.String("setmnemonic")
-	if mnemonic != "" {
-		entropy, err := bip39.MnemonicToByteArray(mnemonic, true)
+	err := db.Get(SecretDbKey, &dummy)
+	entropy = dummy.Data
+
+	if err != nil {
+		entropy, err = bip39.NewEntropy(common.SecretBitSize)
 		if err != nil {
 			return entropy, err
 		}
-
-		if err = db.Get(SecretDbKey, &dummy); err != nil {
-			err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
-		} else {
-			err = db.Update(SecretDbKey, &Entropy{Data: entropy})
-		}
+		err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
 		if err != nil {
 			return entropy, err
-		}
-	} else {
-		err := db.Get(SecretDbKey, &dummy)
-		entropy = dummy.Data
-
-		if err != nil {
-			entropy, err = bip39.NewEntropy(common.SecretBitSize)
-			if err != nil {
-				return entropy, err
-			}
-			err = db.Insert(SecretDbKey, &Entropy{Data: entropy})
-			if err != nil {
-				return entropy, err
-			}
 		}
 	}
+
 	return entropy, nil
 }

@@ -1,4 +1,4 @@
-package main
+package entities
 
 import (
 	"flag"
@@ -15,7 +15,7 @@ func glogFlagShim(fakeVals map[string]string) {
 	})
 }
 
-func glogShim(c *cli.Context) {
+func GlogShim(c *cli.Context) {
 	_ = flag.CommandLine.Parse([]string{})
 	glogFlagShim(map[string]string{
 		"v":                fmt.Sprint(c.Int("verbosity")),
@@ -28,7 +28,7 @@ func glogShim(c *cli.Context) {
 	})
 }
 
-var glogFlags = []cli.Flag{
+var GlogFlags = []cli.Flag{
 	cli.IntFlag{
 		Name: "verbosity", Value: 0, Usage: "log level for V logs", Hidden: false,
 	},

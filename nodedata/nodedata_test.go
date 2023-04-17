@@ -19,6 +19,7 @@ import (
 	"github.com/bolt-observer/go_common/entities"
 	"github.com/bolt-observer/go_common/utils"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/procodr/monkey"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1509,4 +1510,70 @@ func TestBasicFlowFilterTwo(t *testing.T) {
 			t.Fatalf("Callback was not correctly invoked")
 		}
 	}
+}
+
+type Clock struct {
+	time time.Time
+}
+
+func (c *Clock) GetTime() time.Time {
+	return c.time
+}
+func (c *Clock) TimeElapsed(d time.Duration) {
+	c.time = c.time.Add(d)
+}
+
+func TestSyncedToChain(t *testing.T) {
+	c := NewDefaultNodeData(context.Background(), time.Duration(0), true, false, false, nil)
+	settings := agent_entities.ReportingSettings{NotSyncedToChainCoolDown: 10 * time.Minute}
+
+	now := time.Now()
+	last := time.Now()
+
+	clock := &Clock{time: now}
+	monkey.Patch(time.Now, func() time.Time {
+		return clock.GetTime()
+	})
+
+	clock.TimeElapsed(0 * time.Minute)
+	t.Logf("now %v\n", time.Now())
+	ret := c.isSyncedToChain(true, &last, settings)
+	assert.Equal(t, true, ret)
+
+	clock.TimeElapsed(0 * time.Minute)
+	t.Logf("now %v\n", time.Now())
+	ret = c.isSyncedToChain(false, &last, settings)
+	assert.Equal(t, true, ret)
+	assert.NotEqual(t, now, last)
+
+	clock.TimeElapsed(2 * time.Minute)
+	t.Logf("now %v\n", time.Now())
+	ret = c.isSyncedToChain(false, &last, settings)
+	assert.Equal(t, true, ret)
+
+	clock.TimeElapsed(9 * time.Minute)
+	t.Logf("now %v\n", time.Now())
+	ret = c.isSyncedToChain(false, &last, settings)
+	assert.Equal(t, false, ret)
+
+	clock.TimeElapsed(1 * time.Minute)
+	t.Logf("now %v\n", time.Now())
+	ret = c.isSyncedToChain(false, &last, settings)
+	assert.Equal(t, false, ret)
+
+	clock.TimeElapsed(1 * time.Minute)
+	t.Logf("now %v\n", time.Now())
+	ret = c.isSyncedToChain(true, &last, settings)
+	assert.Equal(t, true, ret)
+
+	last = clock.GetTime()
+
+	clock.TimeElapsed(1 * time.Minute)
+	t.Logf("now %v\n", time.Now())
+	ret = c.isSyncedToChain(false, &last, settings)
+	assert.Equal(t, true, ret)
+
+	last = time.Time{}
+	ret = c.isSyncedToChain(false, &last, settings)
+	assert.Equal(t, false, ret)
 }

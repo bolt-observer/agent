@@ -57,13 +57,14 @@ func (s *PerNodeSettings) Delete(key string) {
 
 // Settings struct
 type Settings struct {
-	nodeDataCallback entities.NodeDataReportCallback
-	getAPI           api.NewAPICall
-	hash             uint64
-	identifier       entities.NodeIdentifier
-	lastGraphCheck   time.Time
-	lastReport       time.Time
-	lastNodeReport   time.Time
-	lastCheck        time.Time
-	settings         entities.ReportingSettings
+	nodeDataCallback  entities.NodeDataReportCallback
+	getAPI            api.NewAPICall
+	hash              uint64
+	identifier        entities.NodeIdentifier
+	lastGraphCheck    time.Time
+	lastReport        time.Time
+	lastNodeReport    time.Time
+	lastCheck         time.Time
+	lastSyncedToChain time.Time
+	settings          entities.ReportingSettings
 }

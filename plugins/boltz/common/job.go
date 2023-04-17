@@ -35,6 +35,10 @@ type JobData struct {
 	MaxFeePercentage float64    `json:"max_fee_percentage,omitempty"`
 }
 
+var DummyJobData = JobData{
+	Target: DummyTarget,
+}
+
 // ParseJobData gets a new JobData from bytes
 func ParseJobData(id int32, bytes []byte) (*JobData, error) {
 	var jd JobData
