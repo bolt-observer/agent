@@ -32,13 +32,14 @@ const (
 	VerifyFundsReceived
 
 	ReverseSwapCreated
+	SwapInvoiceCouldNotBePaid
 	ClaimReverseFunds
 	SwapClaimed
 )
 
 func (s State) String() string {
 	return []string{"None", "InitialForward", "InitialReverse", "SwapFaied", "SwapSuccess", "OnChainFundsSent",
-		"RedeemLockedFunds", "RedeemingLockedFunds", "VerifyFundsReceived", "ReverseSwapCreated", "ClaimReverseFunds", "SwapClaimed"}[s]
+		"RedeemLockedFunds", "RedeemingLockedFunds", "VerifyFundsReceived", "ReverseSwapCreated", "SwapInvoiceCouldNotBePaid", "ClaimReverseFunds", "SwapClaimed"}[s]
 }
 
 func (s State) IsFinal() bool {
@@ -55,6 +56,7 @@ func (s State) ToSwapType() SwapType {
 		return Forward
 	case InitialReverse:
 	case ReverseSwapCreated:
+	case SwapInvoiceCouldNotBePaid:
 	case ClaimReverseFunds:
 	case SwapClaimed:
 		return Reverse

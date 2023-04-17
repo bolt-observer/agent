@@ -8,13 +8,16 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
+	"github.com/bolt-observer/agent/entities"
 	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
 	common "github.com/bolt-observer/agent/plugins/boltz/common"
 	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/golang/glog"
 	"github.com/lightningnetwork/lnd/zpay32"
 )
 
@@ -130,6 +133,8 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 }
 
 func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
+	const PayRetries = 5
+
 	ctx := context.Background()
 	logger := NewLogEntry(in.SwapData)
 	paid := false
@@ -143,6 +148,8 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 	if in.SwapData.IsDryRun {
 		return common.FsmOut{NextState: common.SwapSuccess}
 	}
+
+	payAttempt := 0
 
 	for {
 		lnConnection, err := s.LnAPI()
@@ -158,6 +165,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 		}
 
 		if !paid {
+			payAttempt++
 			log(in, fmt.Sprintf("Paying invoice %v %+v", in.SwapData.ReverseInvoice, in.SwapData.ChanIdsToUse),
 				logger.Get("invoice", in.SwapData.ReverseInvoice))
 
@@ -174,6 +182,10 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 				}
 			} else {
 				paid = true
+			}
+
+			if !paid && payAttempt > PayRetries {
+				return common.FsmOut{NextState: common.SwapInvoiceCouldNotBePaid}
 			}
 		}
 
@@ -213,6 +225,47 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 		lnConnection.Cleanup()
 		time.Sleep(SleepTime)
 	}
+}
+
+func (s *SwapMachine) FsmSwapInvoiceCouldNotBePaid(in common.FsmIn) common.FsmOut {
+	logger := NewLogEntry(in.SwapData)
+
+	message := fmt.Sprintf("Swap %d (attempt %d) failed since invoice for %v sats could not be paid", in.GetJobID(), in.SwapData.Attempt, in.SwapData.ExpectedSats)
+	if in.SwapData.IsDryRun {
+		// Probably not reachable anyway, since we never try to pay an invoice
+		message = fmt.Sprintf("Swap %d failed in dry-run mode (no funds were used)", in.GetJobID())
+	}
+
+	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), message)
+	if in.MsgCallback != nil {
+		in.MsgCallback(entities.PluginMessage{
+			JobID:      int32(in.GetJobID()),
+			Message:    message,
+			IsError:    false,
+			IsFinished: in.SwapData.IsDryRun,
+		})
+	}
+
+	if in.SwapData.IsDryRun {
+		return common.FsmOut{}
+	}
+
+	newMax := uint64(math.Round(float64(in.SwapData.ExpectedSats) / 2.0)) // currently we just take half of the invoice amount that was tried previously
+	if newMax < s.Limits.MaxSwap {
+		// Try with lower limit, newMax MUST be lower so we converge to 0 in order to prevent infinite loop
+		log(in, fmt.Sprintf("Retrying with new maximum swap size %v sats", newMax), logger.Get("new_max", newMax))
+
+		s.Limits.MaxSwap = newMax
+		if s.Limits.MinSwap > s.Limits.MaxSwap {
+			s.Limits.MinSwap = s.Limits.MaxSwap
+		}
+		if s.Limits.DefaultSwap > s.Limits.MaxSwap {
+			s.Limits.DefaultSwap = s.Limits.MaxSwap
+		}
+		return s.nextRound(in)
+	}
+
+	return common.FsmOut{Error: fmt.Errorf("invoice could not be paid and no backup plan")}
 }
 
 func (s *SwapMachine) FsmClaimReverseFunds(in common.FsmIn) common.FsmOut {

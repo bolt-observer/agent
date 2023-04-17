@@ -58,7 +58,7 @@ var PluginFlags = []cli.Flag{
 		Name: "disablezeroconf", Usage: "disable zeroconfirmation for swaps", Hidden: false,
 	},
 	cli.IntFlag{
-		Name: "maxswapattempts", Value: 3, Usage: "max swap attempts for bigger jobs", Hidden: true,
+		Name: "maxswapattempts", Value: 20, Usage: "max swap attempts for bigger jobs", Hidden: true,
 	},
 	cli.StringFlag{
 		Name: "boltzreferral", Value: "bolt-observer", Usage: "boltz referral code", Hidden: true,
@@ -157,6 +157,18 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		MaxSwap:          cmdCtx.Uint64("maxswapsats"),
 		DefaultSwap:      cmdCtx.Uint64("defaultswapsats"),
 		MaxAttempts:      cmdCtx.Int("maxswapattempts"),
+	}
+
+	if limits.MinSwap > limits.MaxSwap || limits.DefaultSwap < limits.MinSwap || limits.DefaultSwap > limits.MaxSwap {
+		return nil, fmt.Errorf("invalid limits")
+	}
+
+	if limits.MaxAttempts < 0 {
+		return nil, fmt.Errorf("invalid maxattempts")
+	}
+
+	if limits.MaxFeePercentage <= 0 || limits.MaxFeePercentage >= 100 {
+		return nil, fmt.Errorf("invalid maxfeepercentage")
 	}
 
 	err = fixLimits(&limits, resp.BoltzAPI)

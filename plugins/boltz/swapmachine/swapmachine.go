@@ -278,6 +278,7 @@ func NewSwapMachine(plugin data.PluginData, nodeDataInvalidator entities.Invalid
 
 	s.Machine.States[common.InitialReverse] = FsmWrap(s.FsmInitialReverse, fn)
 	s.Machine.States[common.ReverseSwapCreated] = FsmWrap(s.FsmReverseSwapCreated, fn)
+	s.Machine.States[common.SwapInvoiceCouldNotBePaid] = FsmWrap(s.FsmSwapInvoiceCouldNotBePaid, fn)
 	s.Machine.States[common.ClaimReverseFunds] = FsmWrap(s.FsmClaimReverseFunds, fn)
 	s.Machine.States[common.SwapClaimed] = FsmWrap(s.FsmSwapClaimed, fn)
 
