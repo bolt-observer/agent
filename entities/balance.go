@@ -92,7 +92,7 @@ func (i *Interval) UnmarshalJSON(s []byte) (err error) {
 
 // ReportingSettings struct
 type ReportingSettings struct {
-	// GraphPollInterval - intervl for graph polling
+	// GraphPollInterval - interval for graph polling
 	GraphPollInterval time.Duration `json:"-"`
 	// NoopInterval - send keepalive also when no changes happened
 	NoopInterval time.Duration `json:"-"`
@@ -104,6 +104,8 @@ type ReportingSettings struct {
 	AllowedEntropy int `json:"allowed_entropy"` // 64 bits is the default
 	// AllowPrivateChannels - whether private channels were allowed (fitering will set this to true too)
 	AllowPrivateChannels bool `json:"allow_private_channels"` // default is false
+	// NotSyncedToChainCoolDown - how long to wait before reporting node as not synced to chain
+	NotSyncedToChainCoolDown time.Duration `json:"-"`
 }
 
 // ClosedChannel struct

@@ -219,6 +219,12 @@ func getApp() *cli.App {
 			Usage:  "do not report on-chain balance",
 			Hidden: true,
 		},
+		&cli.DurationFlag{
+			Name:   "syncedtochain-cooldown",
+			Usage:  "how long to wait before reporting node is not synced to chain",
+			Hidden: true,
+			Value:  10 * time.Minute,
+		},
 	}
 
 	app.Flags = append(app.Flags, entities.GlogFlags...)
@@ -486,7 +492,7 @@ func runAgent(cmdCtx *cli.Context) error {
 
 	if periodicSend {
 		nodeDataChecker = nodedata.NewDefaultNodeData(ct, cmdCtx.Duration("keepalive"), cmdCtx.Bool("smooth"), cmdCtx.Bool("checkgraph"), cmdCtx.Bool("noonchainbalance"), checkermonitoring.NewNopCheckerMonitoring("nodedata checker"))
-		settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f}
+		settings := agent_entities.ReportingSettings{PollInterval: interval, AllowedEntropy: cmdCtx.Int("allowedentropy"), AllowPrivateChannels: private, Filter: f, NotSyncedToChainCoolDown: cmdCtx.Duration("syncedtochain-cooldown")}
 
 		if settings.PollInterval == agent_entities.ManualRequest {
 			nodeDataChecker.GetState("", cmdCtx.String("uniqueid"), entities.MkGetLndAPI(cmdCtx), settings, nodeDataCallback)
