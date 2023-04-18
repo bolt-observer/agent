@@ -247,6 +247,10 @@ You might want to read about [boltz plugin](./plugins/boltz/README.md).
 
 This code depends on some [common code](https://github.com/bolt-observer/go_common).
 
+## Documentation
+
+Read more on: [https://docs.bolt.observer](https://docs.bolt.observer).
+
 ## Troubleshooting
 
 Do:

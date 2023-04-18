@@ -58,7 +58,7 @@ var PluginFlags = []cli.Flag{
 		Name: "disablezeroconf", Usage: "disable zeroconfirmation for swaps", Hidden: false,
 	},
 	cli.IntFlag{
-		Name: "maxswapattempts", Value: 3, Usage: "max swap attempts for bigger jobs", Hidden: true,
+		Name: "maxswapattempts", Value: 20, Usage: "maximum number of swaps to bring liquidity to desired state", Hidden: true,
 	},
 	cli.StringFlag{
 		Name: "boltzreferral", Value: "bolt-observer", Usage: "boltz referral code", Hidden: true,

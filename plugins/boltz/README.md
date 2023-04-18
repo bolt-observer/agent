@@ -70,14 +70,17 @@ Then same ID should result in same secrets and you can for instance use `submari
 
 ## Options
 
+This section lists all configuration options. Most of them are hidden since they are changing implementation details not relevant for an average user. Even the ones which are mentioned in `--help` like
+`--boltzurl` do not have to be changed.
+
 ```
    --boltzurl value           url of boltz api - empty means default - https://boltz.exchange/api or https://testnet.boltz.exchange/api
    --boltzdatabase value      full path to database file (file will be created if it does not exist yet) (default: "/home/user/.bolt/boltz.db")
    --boltzreferral value      boltz referral code (default: bolt-observer)
    --disablezeroconf          disable zeroconfirmation for swaps (default: false)
    --maxfeepercentage value   maximum fee in percentage that is still acceptable (default: 5)
-   --maxswapsats value        maximum swap to perform in sats (default: 10000000)
-   --minswapsats value        minimum swap to perform in sats (default: 100000)
-   --maxswapattempts value    max swap attempts for bigger jobs (default 3)
-   --defaultswapsats value    default swap to perform in sats (default: 100000)
+   --maxswapsats value        maximum swap to perform in sats (default: 0)
+   --minswapsats value        minimum swap to perform in sats (default: 0)
+   --maxswapattempts value    maximum number of swaps to bring liquidity to desired state (default 20)
+   --defaultswapsats value    default swap to perform in sats (default: 0)
 ```
