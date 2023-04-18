@@ -234,7 +234,6 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 func (s *SwapMachine) FsmSwapInvoiceCouldNotBePaid(in common.FsmIn) common.FsmOut {
 	logger := NewLogEntry(in.SwapData)
 
-	fmt.Printf("FsmSwapInvoiceCouldNotBePaid\n")
 	message := fmt.Sprintf("Swap %d (attempt %d) failed since invoice for %v sats could not be paid", in.GetJobID(), in.SwapData.Attempt, in.SwapData.ExpectedSats)
 	if in.SwapData.IsDryRun {
 		// Probably not reachable anyway, since we never try to pay an invoice in dry mode
