@@ -30,7 +30,7 @@ var PluginCommands = []cli.Command{
 		Subcommands: []cli.Command{
 			{
 				Name:   "submarineswap",
-				Usage:  "invoke submarine swap aka swap-in (on-chain -> off-chain)",
+				Usage:  "invoke exactly one submarine swap aka swap-in (on-chain -> off-chain)",
 				Action: swap,
 				Flags: []cli.Flag{
 					cli.Int64Flag{
@@ -43,7 +43,7 @@ var PluginCommands = []cli.Command{
 			},
 			{
 				Name:   "reversesubmarineswap",
-				Usage:  "invoke reverse submarine swap aka swap-out (off-chain -> on-chain)",
+				Usage:  "invoke exactly one reverse submarine swap aka swap-out (off-chain -> on-chain)",
 				Action: reverseSwap,
 				Flags: []cli.Flag{
 					cli.Int64Flag{
@@ -146,8 +146,8 @@ func swap(c *cli.Context) error {
 			Sats:             c.Uint64("sats"),
 			ReverseChannelId: 0,
 			OriginalJobData:  common.DummyJobData,
-			FeesPaidSoFar:    0,
-			SatsSwappedSoFar: 0,
+			FeesSoFar:        common.Fees{},
+			FeesPending:      common.Fees{},
 			SwapLimits:       plugin.Limits,
 			State:            common.InitialForward,
 			IsDryRun:         plugin.isDryRun,
@@ -201,8 +201,8 @@ func reverseSwap(c *cli.Context) error {
 			Sats:             c.Uint64("sats"),
 			ReverseChannelId: c.Uint64("channelid"),
 			OriginalJobData:  common.DummyJobData,
-			FeesPaidSoFar:    0,
-			SatsSwappedSoFar: 0,
+			FeesSoFar:        common.Fees{},
+			FeesPending:      common.Fees{},
 			SwapLimits:       plugin.Limits,
 			State:            common.InitialReverse,
 			IsDryRun:         plugin.isDryRun,

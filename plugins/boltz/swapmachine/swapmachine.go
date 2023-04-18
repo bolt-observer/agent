@@ -101,7 +101,7 @@ func (s *SwapMachine) nextRound(in common.FsmIn) common.FsmOut {
 
 	defer lnConnection.Cleanup()
 
-	sd, err := s.JobDataToSwapData(ctx, s.Limits, &in.SwapData.OriginalJobData, in.MsgCallback, lnConnection, s.Filter)
+	sd, err := s.JobDataToSwapData(ctx, in.SwapData.SwapLimits, &in.SwapData.OriginalJobData, in.MsgCallback, lnConnection, s.Filter)
 
 	if err == common.ErrNoNeedToDoAnything {
 		if in.MsgCallback != nil {
@@ -126,9 +126,9 @@ func (s *SwapMachine) nextRound(in common.FsmIn) common.FsmOut {
 
 	// TODO: does this make sense? Maybe we should start multiple swaps in parallel at the begining
 	sd.Attempt = in.SwapData.Attempt + 1
-	if sd.Attempt > s.Limits.MaxAttempts {
+	if sd.Attempt > in.SwapData.SwapLimits.MaxAttempts {
 		if in.MsgCallback != nil {
-			message := fmt.Sprintf("Swap %d aborted after attempt %d/%d", in.GetJobID(), in.SwapData.Attempt, s.Limits.MaxAttempts)
+			message := fmt.Sprintf("Swap %d aborted after attempt %d/%d", in.GetJobID(), in.SwapData.Attempt, in.SwapData.SwapLimits.MaxAttempts)
 			in.MsgCallback(entities.PluginMessage{
 				JobID:      int32(in.GetJobID()),
 				Message:    message,
@@ -230,15 +230,12 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, Chan
 type SwapMachine struct {
 	Machine *common.Fsm[common.FsmIn, common.FsmOut, common.State]
 
-	// TODO: we should not be referencing plugin here
-	//BoltzPlugin *Plugin
 	ReferralCode    string
 	ChainParams     *chaincfg.Params
 	Filter          filter.FilteringInterface
 	CryptoAPI       *crypto.CryptoAPI
 	Redeemer        *redeemer.Redeemer[common.FsmIn]
 	ReverseRedeemer *redeemer.Redeemer[common.FsmIn]
-	Limits          common.SwapLimits
 	BoltzAPI        *bapi.BoltzPrivateAPI
 	ChangeStateFn   data.ChangeStateFn
 	GetSleepTimeFn  data.GetSleepTimeFn
@@ -261,7 +258,6 @@ func NewSwapMachine(plugin data.PluginData, nodeDataInvalidator entities.Invalid
 		CryptoAPI:           plugin.CryptoAPI,
 		Redeemer:            plugin.Redeemer,
 		ReverseRedeemer:     plugin.ReverseRedeemer,
-		Limits:              plugin.Limits,
 		BoltzAPI:            plugin.BoltzAPI,
 		ChangeStateFn:       fn,
 		GetSleepTimeFn:      plugin.GetSleepTimeFn,
@@ -278,6 +274,7 @@ func NewSwapMachine(plugin data.PluginData, nodeDataInvalidator entities.Invalid
 
 	s.Machine.States[common.InitialReverse] = FsmWrap(s.FsmInitialReverse, fn)
 	s.Machine.States[common.ReverseSwapCreated] = FsmWrap(s.FsmReverseSwapCreated, fn)
+	s.Machine.States[common.SwapInvoiceCouldNotBePaid] = FsmWrap(s.FsmSwapInvoiceCouldNotBePaid, fn)
 	s.Machine.States[common.ClaimReverseFunds] = FsmWrap(s.FsmClaimReverseFunds, fn)
 	s.Machine.States[common.SwapClaimed] = FsmWrap(s.FsmSwapClaimed, fn)
 

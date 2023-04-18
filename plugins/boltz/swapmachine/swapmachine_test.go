@@ -47,7 +47,6 @@ func NewFakeSwapMachine(pd data.PluginData, nodeDataInvalidator entities.Invalid
 	s.CryptoAPI = pd.CryptoAPI
 	s.Redeemer = pd.Redeemer
 	s.ReverseRedeemer = pd.ReverseRedeemer
-	s.Limits = pd.Limits
 	s.BoltzAPI = pd.BoltzAPI
 
 	s.NodeDataInvalidator = nodeDataInvalidator
@@ -75,6 +74,7 @@ func NewFakeSwapMachine(pd data.PluginData, nodeDataInvalidator entities.Invalid
 		s.In = in
 		return common.FsmOut{}
 	}
+	s.Machine.States[common.SwapInvoiceCouldNotBePaid] = s.FsmSwapInvoiceCouldNotBePaid
 
 	return s
 }
@@ -137,14 +137,16 @@ func TestNextRoundNeeded(t *testing.T) {
 	}
 
 	sd := &common.SwapData{
-		Attempt: 1,
-		State:   common.SwapSuccess,
+		SwapLimits: pd.Limits,
+		Attempt:    1,
+		State:      common.SwapSuccess,
 	}
 
 	invalidatable := &FakeInvalidatable{}
 
 	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*common.SwapData, error) {
 		sd.State = common.InitialForward
+		sd.SwapLimits = limits
 		return sd, nil
 	}
 
@@ -209,4 +211,56 @@ func TestNextRoundJobConversionFails(t *testing.T) {
 	o := s.nextRound(in)
 
 	assert.ErrorIs(t, o.Error, common.ErrInvalidArguments)
+}
+
+func TestSwapCouldNotBePaid(t *testing.T) {
+	pd := data.PluginData{
+		BoltzAPI:    bapi.NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
+		ChainParams: &chaincfg.TestNet3Params,
+		Limits: common.SwapLimits{
+			MaxAttempts: 10,
+		},
+		ChangeStateFn: data.ChangeStateFn(func(in common.FsmIn, state common.State) error {
+			in.SwapData.State = state
+			return nil
+		}),
+		GetSleepTimeFn: data.GetSleepTimeFn(func(in common.FsmIn) time.Duration {
+			return 100 * time.Millisecond
+		}),
+	}
+
+	sd := &common.SwapData{
+		Attempt:      1,
+		State:        common.SwapInvoiceCouldNotBePaid,
+		ExpectedSats: 100000,
+		SwapLimits: common.SwapLimits{
+			BackOffAmount: 0.8,
+			MaxSwap:       200000,
+			MinSwap:       10000,
+			DefaultSwap:   10000,
+			MaxAttempts:   10,
+		},
+		OriginalJobData: common.DummyJobData,
+	}
+
+	invalidatable := &FakeInvalidatable{}
+
+	called := false
+	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*common.SwapData, error) {
+		assert.Equal(t, uint64(80000), limits.MaxSwap)
+		called = true
+		return &common.SwapData{
+			Attempt:    2,
+			SwapLimits: limits,
+		}, nil
+	}
+
+	in := common.FsmIn{
+		SwapData: sd,
+	}
+
+	s := NewFakeSwapMachine(pd, invalidatable, fun, mkFakeLndAPI())
+	s.Eval(in, sd.State)
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, true, called)
 }

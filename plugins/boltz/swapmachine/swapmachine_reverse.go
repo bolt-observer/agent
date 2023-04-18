@@ -8,13 +8,16 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
+	"github.com/bolt-observer/agent/entities"
 	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
 	common "github.com/bolt-observer/agent/plugins/boltz/common"
 	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/golang/glog"
 	"github.com/lightningnetwork/lnd/zpay32"
 )
 
@@ -81,7 +84,7 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
-	totalFee := float64(in.SwapData.FeesPaidSoFar+(sats-response.OnchainAmount)) / float64(in.SwapData.SatsSwappedSoFar+sats) * 100
+	totalFee := float64(in.SwapData.FeesSoFar.FeesPaid+(sats-response.OnchainAmount)) / float64(in.SwapData.FeesSoFar.SatsSwapped+sats) * 100
 	if totalFee > in.SwapData.SwapLimits.MaxFeePercentage {
 		return common.FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
@@ -89,8 +92,10 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100),
 		logger.Get("fee", fee*100))
 
-	in.SwapData.FeesPaidSoFar += (sats - response.OnchainAmount)
-	in.SwapData.SatsSwappedSoFar += sats
+	in.SwapData.FeesPending = common.Fees{
+		FeesPaid:    (sats - response.OnchainAmount),
+		SatsSwapped: sats,
+	}
 
 	// Check funds
 	if in.SwapData.ReverseChannelId == 0 {
@@ -130,6 +135,8 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 }
 
 func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
+	const PayRetries = 5
+
 	ctx := context.Background()
 	logger := NewLogEntry(in.SwapData)
 	paid := false
@@ -143,6 +150,8 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 	if in.SwapData.IsDryRun {
 		return common.FsmOut{NextState: common.SwapSuccess}
 	}
+
+	payAttempt := 0
 
 	for {
 		lnConnection, err := s.LnAPI()
@@ -158,6 +167,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 		}
 
 		if !paid {
+			payAttempt++
 			log(in, fmt.Sprintf("Paying invoice %v %+v", in.SwapData.ReverseInvoice, in.SwapData.ChanIdsToUse),
 				logger.Get("invoice", in.SwapData.ReverseInvoice))
 
@@ -170,10 +180,16 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 					_, err = lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, nil)
 					if err == nil {
 						paid = true
+						in.SwapData.CommitFees()
 					}
 				}
 			} else {
 				paid = true
+				in.SwapData.CommitFees()
+			}
+
+			if !paid && payAttempt > PayRetries {
+				return common.FsmOut{NextState: common.SwapInvoiceCouldNotBePaid}
 			}
 		}
 
@@ -213,6 +229,49 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 		lnConnection.Cleanup()
 		time.Sleep(SleepTime)
 	}
+}
+
+func (s *SwapMachine) FsmSwapInvoiceCouldNotBePaid(in common.FsmIn) common.FsmOut {
+	logger := NewLogEntry(in.SwapData)
+
+	message := fmt.Sprintf("Swap %d (attempt %d) failed since invoice for %v sats could not be paid", in.GetJobID(), in.SwapData.Attempt, in.SwapData.ExpectedSats)
+	if in.SwapData.IsDryRun {
+		// Probably not reachable anyway, since we never try to pay an invoice in dry mode
+		message = fmt.Sprintf("Swap %d failed in dry-run mode (no funds were used)", in.GetJobID())
+	}
+
+	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), message)
+	if in.MsgCallback != nil {
+		in.MsgCallback(entities.PluginMessage{
+			JobID:      int32(in.GetJobID()),
+			Message:    message,
+			IsError:    false,
+			IsFinished: in.SwapData.IsDryRun,
+		})
+	}
+
+	if in.SwapData.IsDryRun {
+		return common.FsmOut{}
+	}
+
+	in.SwapData.RevertFees()
+
+	newMax := uint64(math.Round(float64(in.SwapData.ExpectedSats) * in.SwapData.SwapLimits.BackOffAmount))
+	if newMax < in.SwapData.SwapLimits.MaxSwap {
+		// Try with lower limit, newMax MUST be lower so we converge to 0 in order to prevent infinite loop
+		log(in, fmt.Sprintf("Retrying with new maximum swap size %v sats", newMax), logger.Get("new_max", newMax))
+
+		in.SwapData.SwapLimits.MaxSwap = newMax
+		if in.SwapData.SwapLimits.MinSwap > in.SwapData.SwapLimits.MaxSwap {
+			in.SwapData.SwapLimits.MinSwap = in.SwapData.SwapLimits.MaxSwap
+		}
+		if in.SwapData.SwapLimits.DefaultSwap > in.SwapData.SwapLimits.MaxSwap {
+			in.SwapData.SwapLimits.DefaultSwap = in.SwapData.SwapLimits.MaxSwap
+		}
+		return s.nextRound(in)
+	}
+
+	return common.FsmOut{Error: fmt.Errorf("invoice could not be paid and no backup plan")}
 }
 
 func (s *SwapMachine) FsmClaimReverseFunds(in common.FsmIn) common.FsmOut {
