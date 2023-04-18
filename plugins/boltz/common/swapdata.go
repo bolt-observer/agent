@@ -43,8 +43,27 @@ type SwapData struct {
 
 	TransactionHex string
 
-	SatsSwappedSoFar uint64
-	FeesPaidSoFar    uint64
+	FeesSoFar   Fees
+	FeesPending Fees
+}
+
+func (s *SwapData) CommitFees() {
+	s.FeesSoFar.FeesPaid += s.FeesPending.FeesPaid
+	s.FeesSoFar.SatsSwapped += s.FeesPending.SatsSwapped
+
+	s.FeesPending.FeesPaid = 0
+	s.FeesPending.SatsSwapped = 0
+}
+
+func (s *SwapData) RevertFees() {
+	s.FeesPending.FeesPaid = 0
+	s.FeesPending.SatsSwapped = 0
+}
+
+// Fees struct
+type Fees struct {
+	SatsSwapped uint64
+	FeesPaid    uint64
 }
 
 type JobDataToSwapDataFn func(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error)
@@ -144,8 +163,8 @@ func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, li
 		ReverseChannelId: jobData.ChannelId,
 		OriginalJobData:  *jobData,
 		Attempt:          1,
-		FeesPaidSoFar:    0,
-		SatsSwappedSoFar: 0,
+		FeesSoFar:        Fees{},
+		FeesPending:      Fees{},
 		SwapLimits:       limits,
 	}, nil
 }
@@ -185,8 +204,8 @@ func convertLiquidityNodePercent(jobData *JobData, limits SwapLimits, liquidity 
 		ReverseChannelId: 0,
 		Attempt:          1,
 		OriginalJobData:  *jobData,
-		FeesPaidSoFar:    0,
-		SatsSwappedSoFar: 0,
+		FeesSoFar:        Fees{},
+		FeesPending:      Fees{},
 		SwapLimits:       limits,
 	}
 

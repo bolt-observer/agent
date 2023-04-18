@@ -86,7 +86,7 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
-	totalFee := float64(in.SwapData.FeesPaidSoFar+(response.ExpectedAmount-sats)) / float64(in.SwapData.SatsSwappedSoFar+response.ExpectedAmount) * 100
+	totalFee := float64(in.SwapData.FeesSoFar.FeesPaid+(response.ExpectedAmount-sats)) / float64(in.SwapData.FeesSoFar.SatsSwapped+response.ExpectedAmount) * 100
 	if totalFee > in.SwapData.SwapLimits.MaxFeePercentage {
 		return common.FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
@@ -128,8 +128,11 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 		[]byte(fmt.Sprintf(`{ "id": %v, "type": "forwardswap", "sats": %v, "address": %v, "transaction": %v, "invoice": %v }`, in.GetJobID(), int64(response.ExpectedAmount), response.Address, tx, invoice.PaymentRequest)))
 	in.SwapData.LockupTransactionId = tx
 
-	in.SwapData.FeesPaidSoFar += (response.ExpectedAmount - sats)
-	in.SwapData.SatsSwappedSoFar += response.ExpectedAmount
+	in.SwapData.FeesPending = common.Fees{
+		FeesPaid:    (response.ExpectedAmount - sats),
+		SatsSwapped: response.ExpectedAmount,
+	}
+	in.SwapData.CommitFees()
 
 	return common.FsmOut{NextState: common.OnChainFundsSent}
 }

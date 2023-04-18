@@ -47,7 +47,6 @@ func NewFakeSwapMachine(pd data.PluginData, nodeDataInvalidator entities.Invalid
 	s.CryptoAPI = pd.CryptoAPI
 	s.Redeemer = pd.Redeemer
 	s.ReverseRedeemer = pd.ReverseRedeemer
-	s.Limits = pd.Limits
 	s.BoltzAPI = pd.BoltzAPI
 
 	s.NodeDataInvalidator = nodeDataInvalidator
@@ -137,14 +136,16 @@ func TestNextRoundNeeded(t *testing.T) {
 	}
 
 	sd := &common.SwapData{
-		Attempt: 1,
-		State:   common.SwapSuccess,
+		SwapLimits: pd.Limits,
+		Attempt:    1,
+		State:      common.SwapSuccess,
 	}
 
 	invalidatable := &FakeInvalidatable{}
 
 	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*common.SwapData, error) {
 		sd.State = common.InitialForward
+		sd.SwapLimits = limits
 		return sd, nil
 	}
 
