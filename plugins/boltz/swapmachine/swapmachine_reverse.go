@@ -234,6 +234,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 func (s *SwapMachine) FsmSwapInvoiceCouldNotBePaid(in common.FsmIn) common.FsmOut {
 	logger := NewLogEntry(in.SwapData)
 
+	fmt.Printf("FsmSwapInvoiceCouldNotBePaid\n")
 	message := fmt.Sprintf("Swap %d (attempt %d) failed since invoice for %v sats could not be paid", in.GetJobID(), in.SwapData.Attempt, in.SwapData.ExpectedSats)
 	if in.SwapData.IsDryRun {
 		// Probably not reachable anyway, since we never try to pay an invoice in dry mode
@@ -256,7 +257,7 @@ func (s *SwapMachine) FsmSwapInvoiceCouldNotBePaid(in common.FsmIn) common.FsmOu
 
 	in.SwapData.RevertFees()
 
-	newMax := uint64(math.Round(float64(in.SwapData.ExpectedSats) * 0.8))
+	newMax := uint64(math.Round(float64(in.SwapData.ExpectedSats) * in.SwapData.SwapLimits.BackOffAmount))
 	if newMax < in.SwapData.SwapLimits.MaxSwap {
 		// Try with lower limit, newMax MUST be lower so we converge to 0 in order to prevent infinite loop
 		log(in, fmt.Sprintf("Retrying with new maximum swap size %v sats", newMax), logger.Get("new_max", newMax))

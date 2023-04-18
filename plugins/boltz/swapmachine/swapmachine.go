@@ -230,8 +230,6 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, Chan
 type SwapMachine struct {
 	Machine *common.Fsm[common.FsmIn, common.FsmOut, common.State]
 
-	// TODO: we should not be referencing plugin here
-	//BoltzPlugin *Plugin
 	ReferralCode    string
 	ChainParams     *chaincfg.Params
 	Filter          filter.FilteringInterface

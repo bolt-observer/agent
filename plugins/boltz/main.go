@@ -45,14 +45,17 @@ var PluginFlags = []cli.Flag{
 	cli.Float64Flag{
 		Name: "maxfeepercentage", Value: 5.0, Usage: "maximum fee in percentage that is still acceptable", Hidden: false,
 	},
-	cli.Uint64Flag{
-		Name: "maxswapsats", Value: 10_000_000, Usage: "maximum swap to perform in sats", Hidden: false,
+	cli.Float64Flag{
+		Name: "backoffamount", Value: 0.8, Usage: "if invoice coold not be paid try with backoffamount * original amount", Hidden: true,
 	},
 	cli.Uint64Flag{
-		Name: "minswapsats", Value: 100_000, Usage: "minimum swap to perform in sats", Hidden: false,
+		Name: "maxswapsats", Value: 0, Usage: "maximum swap to perform in sats", Hidden: true,
 	},
 	cli.Uint64Flag{
-		Name: "defaultswapsats", Value: 100_000, Usage: "default swap to perform in sats", Hidden: false,
+		Name: "minswapsats", Value: 0, Usage: "minimum swap to perform in sats", Hidden: true,
+	},
+	cli.Uint64Flag{
+		Name: "defaultswapsats", Value: 0, Usage: "default swap to perform in sats", Hidden: true,
 	},
 	cli.BoolFlag{
 		Name: "disablezeroconf", Usage: "disable zeroconfirmation for swaps", Hidden: false,
@@ -157,6 +160,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		MaxSwap:          cmdCtx.Uint64("maxswapsats"),
 		DefaultSwap:      cmdCtx.Uint64("defaultswapsats"),
 		MaxAttempts:      cmdCtx.Int("maxswapattempts"),
+		BackOffAmount:    cmdCtx.Float64("backoffamount"),
 	}
 
 	if limits.MinSwap > limits.MaxSwap || limits.DefaultSwap < limits.MinSwap || limits.DefaultSwap > limits.MaxSwap {
@@ -169,6 +173,10 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 
 	if limits.MaxFeePercentage <= 0 || limits.MaxFeePercentage >= 100 {
 		return nil, fmt.Errorf("invalid maxfeepercentage")
+	}
+
+	if limits.BackOffAmount <= 0 || limits.BackOffAmount >= 1.0 {
+		return nil, fmt.Errorf("invalid backoffamount")
 	}
 
 	err = fixLimits(&limits, resp.BoltzAPI)
@@ -220,6 +228,10 @@ func fixLimits(limits *common.SwapLimits, api *bapi.BoltzPrivateAPI) error {
 
 		if limits.MinSwap == 0 {
 			limits.MinSwap = res.Limits.Minimal
+		}
+
+		if limits.DefaultSwap == 0 {
+			limits.DefaultSwap = limits.MinSwap
 		}
 
 		if limits.MaxSwap == 0 {

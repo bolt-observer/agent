@@ -15,6 +15,7 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 		DefaultSwap:   100_000,
 		MaxSwap:       1_000_000,
 		AllowZeroConf: true,
+		BackOffAmount: 0.8,
 	}
 
 	t.Run("Everything on inbound side want everyting outbound", func(t *testing.T) {

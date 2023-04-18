@@ -10,6 +10,7 @@ type SwapLimits struct {
 	MaxSwap          uint64
 	DefaultSwap      uint64
 	MaxAttempts      int
+	BackOffAmount    float64
 }
 
 type JobID int32
