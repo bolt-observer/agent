@@ -42,7 +42,14 @@ func getData(cmdCtx *cli.Context) (*entities.Data, error) {
 
 	// Assume CLN first (shouldn't really matter unless you have CLN and LND on the same machine, then you can select LND through "ignorecln")
 	if !cmdCtx.Bool("ignorecln") {
-		path := findUnixSocket(filepath.Join(defaultLightningDir, cmdCtx.String("chain"), "lightning-rpc"), resp.Endpoint)
+		network := strings.ToLower(cmdCtx.String("network"))
+		if network == "" {
+			network = "bitcoin"
+		} else if network == "mainnet" {
+			network = "bitcoin"
+		}
+
+		path := findUnixSocket(filepath.Join(defaultLightningDir, network, "lightning-rpc"), resp.Endpoint)
 		if path != "" {
 			resp.Endpoint = path
 			resp.ApiType = intPtr(int(api.ClnSocket))

@@ -119,7 +119,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	dir := path.Dir(dbFile)
 	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
 		// ignore error on purpose
-		os.Mkdir(dir, 0o640)
+		os.Mkdir(dir, 0o750)
 	}
 
 	err := db.Connect(dbFile)
