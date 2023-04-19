@@ -192,9 +192,13 @@ func (l *ClnRawLightningAPI) GetChannels(ctx context.Context) (*ChannelsAPI, err
 	var listChanReply ClnListChanResp
 
 	for _, one := range fundsReply.Channels {
+		if one.ShortChannelID == "" {
+			continue
+		}
 		err = l.connection.Call(ctx, ListChannels, []string{one.ShortChannelID}, &listChanReply, DefaultDuration)
 		if err != nil {
-			return nil, err
+			// skip bad response
+			continue
 		}
 		for _, two := range listChanReply.Channels {
 			if two.Destination != one.PeerID {
@@ -249,12 +253,11 @@ func (l *ClnRawLightningAPI) getMyChannels(ctx context.Context) ([]NodeChannelAP
 	var listChanReply ClnListChanResp
 
 	for _, one := range fundsReply.Channels {
+		if one.ShortChannelID == "" {
+			continue
+		}
 		err = l.connection.Call(ctx, ListChannels, []string{one.ShortChannelID}, &listChanReply, DefaultDuration)
 		if err != nil {
-			return nil, err
-		}
-
-		if one.ShortChannelID == "" {
 			continue
 		}
 
