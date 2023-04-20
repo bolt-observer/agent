@@ -3,7 +3,9 @@
 
 package common
 
-import "github.com/bolt-observer/agent/entities"
+import (
+	"github.com/bolt-observer/agent/entities"
+)
 
 // SwapType enum.
 type SwapType string
@@ -48,17 +50,9 @@ func (s State) IsFinal() bool {
 
 func (s State) ToSwapType() SwapType {
 	switch s {
-	case InitialForward:
-	case OnChainFundsSent:
-	case RedeemLockedFunds:
-	case RedeemingLockedFunds:
-	case VerifyFundsReceived:
+	case InitialForward, OnChainFundsSent, RedeemLockedFunds, RedeemingLockedFunds, VerifyFundsReceived:
 		return Forward
-	case InitialReverse:
-	case ReverseSwapCreated:
-	case SwapInvoiceCouldNotBePaid:
-	case ClaimReverseFunds:
-	case SwapClaimed:
+	case InitialReverse, ReverseSwapCreated, SwapInvoiceCouldNotBePaid, ClaimReverseFunds, SwapClaimed:
 		return Reverse
 	}
 
