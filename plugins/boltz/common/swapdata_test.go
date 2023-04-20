@@ -90,3 +90,9 @@ func TestConvertOutBoundLiqudityNodePercent(t *testing.T) {
 		assert.Equal(t, *jd, result.OriginalJobData)
 	})
 }
+
+func TestState(t *testing.T) {
+	s := InitialForward
+	a := &s
+	assert.Equal(t, Forward, a.ToSwapType())
+}
