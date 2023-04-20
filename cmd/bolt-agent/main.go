@@ -552,11 +552,17 @@ func runAgent(cmdCtx *cli.Context) error {
 			// exponential backoff is used to reconnect if api is down
 			b := backoff.NewExponentialBackOff()
 			b.MaxElapsedTime = 0
-			return backoff.RetryNotify(func() error {
+			err := backoff.RetryNotify(func() error {
 				return ac.Run(gctx, b.Reset)
 			}, b, func(err error, d time.Duration) {
 				glog.Errorf("Could not connect to actions gRPC: %v", err)
 			})
+			if err != nil {
+				// glog.Fatal includes backtrace and looks ugly
+				glog.Errorf("Fatal actions error: %v", err)
+				os.Exit(1)
+			}
+			return err
 		})
 	}
 	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
