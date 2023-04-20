@@ -330,9 +330,6 @@ func CreateSwapWithSanityCheck(api *bapi.BoltzPrivateAPI, keys *crypto.Keys, inv
 			Invoice:         invoice.PaymentRequest,
 		},
 		ReferralId: referralCode,
-		Channel: bapi.CreateSwapRequestChannel{
-			Auto: true,
-		},
 	})
 
 	if err != nil {

@@ -37,13 +37,13 @@ type BoltzPrivateAPI struct {
 
 type CreateSwapRequestChannel struct {
 	Auto             bool `json:"auto"`
-	Private          bool `json:"private,omitempty"`
-	InboundLiquidity int  `json:"inboundLiquidity,omitempty"`
+	Private          bool `json:"private"`
+	InboundLiquidity int  `json:"inboundLiquidity"` // 10 - 50 %
 }
 
 type CreateSwapRequestOverride struct {
-	ReferralId string                   `json:"referralId,omitempty"`
-	Channel    CreateSwapRequestChannel `json:"channel"`
+	ReferralId string `json:"referralId,omitempty"`
+	//Channel    CreateSwapRequestChannel `json:"channel"`
 	boltz.CreateSwapRequest
 }
 
