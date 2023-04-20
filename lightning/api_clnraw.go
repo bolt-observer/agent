@@ -102,7 +102,7 @@ func (l *ClnRawLightningAPI) DescribeGraph(ctx context.Context, unannounced bool
 // ConvertChannelInternal - convert CLN channel to internal format.
 func ConvertChannelInternal(chans []ClnListChan, id uint64, chanpoint string) (*NodeChannelAPIExtended, error) {
 	if len(chans) == 0 {
-		return nil, fmt.Errorf("invalid channels")
+		return nil, fmt.Errorf("invalid channels %d", id)
 	}
 
 	ret := &NodeChannelAPIExtended{
@@ -263,13 +263,12 @@ func (l *ClnRawLightningAPI) getMyChannels(ctx context.Context) ([]NodeChannelAP
 
 		lnd, err := ToLndChanID(one.ShortChannelID)
 		if err != nil {
-			glog.Warningf("Could not convert %v", one.ShortChannelID)
 			continue
 		}
 
 		ret, err := ConvertChannelInternal(listChanReply.Channels, lnd, fmt.Sprintf("%s:%d", one.FundingTxID, one.FundingOutput))
 		if err != nil {
-			return nil, err
+			continue
 		}
 
 		channels = append(channels, *ret)
