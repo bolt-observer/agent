@@ -8,6 +8,7 @@ import (
 
 	api "github.com/bolt-observer/agent/actions/bolt-observer-api"
 	"github.com/bolt-observer/agent/lightning"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/golang/glog"
 	"google.golang.org/grpc/metadata"
 
@@ -29,6 +30,10 @@ type Connector struct {
 // Run connects to the server and start communication.
 // It is blocking and should be run in a goroutine
 func (c *Connector) Run(ctx context.Context, resetBackOffFn func()) error {
+	if len(c.Plugins) == 0 {
+		return backoff.Permanent(errors.New("no plugins are initialized, no sense to run actions"))
+	}
+
 	lnAPI, err := c.LnAPI()
 	if err != nil {
 		return err
