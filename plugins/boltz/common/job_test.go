@@ -32,4 +32,7 @@ func TestParseJobData(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint64(128642860515328), jd.ChannelId)
 	assert.Equal(t, float64(50), jd.Amount)
+
+	jd, err = ParseJobData(1, []byte(`"amount": 20, "target": "OutboundLiquidityChannelPercent", "channel_id": 862898924665962497}`))
+	require.ErrorIs(t, err, ErrCouldNotParseJobData)
 }
