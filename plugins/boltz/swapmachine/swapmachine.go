@@ -31,7 +31,7 @@ func log(in common.FsmIn, msg string, data []byte) {
 	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), msg)
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
-			JobID:      int32(in.GetJobID()),
+			JobID:      int64(in.GetJobID()),
 			Message:    msg,
 			IsError:    false,
 			IsFinished: false,
@@ -48,7 +48,7 @@ func (s *SwapMachine) FsmNone(in common.FsmIn) common.FsmOut {
 func (s *SwapMachine) FsmSwapFailed(in common.FsmIn) common.FsmOut {
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
-			JobID:      int32(in.GetJobID()),
+			JobID:      int64(in.GetJobID()),
 			Message:    fmt.Sprintf("Swap %d failed", in.GetJobID()),
 			IsError:    true,
 			IsFinished: true,
@@ -74,7 +74,7 @@ func (s *SwapMachine) FsmSwapSuccess(in common.FsmIn) common.FsmOut {
 	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), message)
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
-			JobID:      int32(in.GetJobID()),
+			JobID:      int64(in.GetJobID()),
 			Message:    message,
 			IsError:    false,
 			IsFinished: in.SwapData.IsDryRun,
@@ -107,7 +107,7 @@ func (s *SwapMachine) nextRound(in common.FsmIn) common.FsmOut {
 		if in.MsgCallback != nil {
 			message := fmt.Sprintf("Swap %d overall finished in attempt %d", in.GetJobID(), in.SwapData.Attempt)
 			in.MsgCallback(entities.PluginMessage{
-				JobID:      int32(in.GetJobID()),
+				JobID:      int64(in.GetJobID()),
 				Message:    message,
 				IsError:    false,
 				IsFinished: true,
@@ -130,7 +130,7 @@ func (s *SwapMachine) nextRound(in common.FsmIn) common.FsmOut {
 		if in.MsgCallback != nil {
 			message := fmt.Sprintf("Swap %d aborted after attempt %d/%d", in.GetJobID(), in.SwapData.Attempt, in.SwapData.SwapLimits.MaxAttempts)
 			in.MsgCallback(entities.PluginMessage{
-				JobID:      int32(in.GetJobID()),
+				JobID:      int64(in.GetJobID()),
 				Message:    message,
 				IsError:    false,
 				IsFinished: true,
@@ -192,7 +192,7 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, Chan
 			glog.Infof("[Boltz] [%d] Error %v happened", realIn.GetJobID(), realOut.Error)
 			if realIn.MsgCallback != nil {
 				realIn.MsgCallback(entities.PluginMessage{
-					JobID:      int32(realIn.GetJobID()),
+					JobID:      int64(realIn.GetJobID()),
 					Message:    fmt.Sprintf("Error %v happened", realOut.Error),
 					Data:       logger.Get("error", realOut.Error.Error()),
 					IsError:    true,
@@ -210,9 +210,9 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, Chan
 			glog.Infof("[Boltz] [%d] Transitioning to state %v", realIn.GetJobID(), realOut.NextState)
 			if realIn.MsgCallback != nil {
 				realIn.MsgCallback(entities.PluginMessage{
-					JobID:      int32(realIn.GetJobID()),
+					JobID:      int64(realIn.GetJobID()),
 					Message:    fmt.Sprintf("Transitioning to state %v", realOut.NextState),
-					Data:       logger.Get("new_state", realOut.NextState),
+					Data:       logger.Get(),
 					IsError:    false,
 					IsFinished: false,
 				})

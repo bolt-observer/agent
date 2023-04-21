@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bolt-observer/agent/plugins/boltz/common"
 	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
 )
 
@@ -107,4 +108,19 @@ func TestNoCredentials(t *testing.T) {
 	_, err = itf.QueryReferrals()
 	assert.Error(t, err)
 	assert.Equal(t, NoCredentials, err.Error())
+}
+
+func TestGetTransaction(t *testing.T) {
+	return // do not do http requests to testnet from unit test
+	id := "1a07ecae07ad96187017ad030fa7130519a6fbee2d8387173ec1737c830caef1"
+	hex := "0100000000010114e6f93bec215f3ae47059e2ce5255fc41ad214469661ef659ddb8a3d39df9b50000000000ffffffff02cc96110000000000225120a8510fdaeafedcc7f29144590df9f953e102a410fc7c80c2d60fbe9aff34102a080801000000000017a914a9ada294de4419f1bc932f5b00ebd22f20d6fd498702483045022100ebbbfdfabac276b5f7244b93d6dbad4b788eb47105de7f1393e7ba877f34f30902200e2c127beedee620438a0ec413f71d0e99532b23a40c7f79d361457f05c45d8d01210207a677b40f09768d6db074283742ae050bee970e0fc72f62cd20a22b957871ad00000000"
+
+	itf := NewBoltzPrivateAPI("https://testnet.boltz.exchange/api", nil)
+	resp, err := itf.GetTransaction(GetTransactionRequest{
+		Currency:      common.Btc,
+		TransactionId: id,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, hex, resp.TransactionHex)
 }

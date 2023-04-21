@@ -19,7 +19,8 @@ func NewLogEntry(sd *common.SwapData) LogEntry {
 	if sd.BoltzID != "" {
 		ret["boltz_id"] = sd.BoltzID
 	}
-	ret["state"] = sd.State
+	ret["state"] = sd.State.String()
+	ret["state_id"] = sd.State
 	ret["swap_type"] = sd.State.ToSwapType()
 	return ret
 }

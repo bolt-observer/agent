@@ -25,7 +25,7 @@ type BoltzDB struct {
 }
 
 func (b *BoltzDB) Connect(dbPath string) error {
-	db, err := bolthold.Open(dbPath, 0666, &bolthold.Options{
+	db, err := bolthold.Open(dbPath, 0664, &bolthold.Options{
 		Options: &bolt.Options{Timeout: 3 * time.Second},
 	})
 	if err != nil {

@@ -243,7 +243,7 @@ func (s *SwapMachine) FsmSwapInvoiceCouldNotBePaid(in common.FsmIn) common.FsmOu
 	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), message)
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
-			JobID:      int32(in.GetJobID()),
+			JobID:      int64(in.GetJobID()),
 			Message:    message,
 			IsError:    false,
 			IsFinished: in.SwapData.IsDryRun,

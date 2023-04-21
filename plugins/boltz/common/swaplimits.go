@@ -13,4 +13,4 @@ type SwapLimits struct {
 	BackOffAmount    float64
 }
 
-type JobID int32
+type JobID int64

@@ -17,13 +17,13 @@ func (b *Plugin) changeState(in common.FsmIn, state common.State) error {
 
 	in.SwapData.State = state
 
-	_, ok := b.jobs[int32(in.SwapData.JobID)]
+	_, ok := b.jobs[int64(in.SwapData.JobID)]
 	if ok {
-		b.jobs[int32(in.SwapData.JobID)] = *in.SwapData
+		b.jobs[int64(in.SwapData.JobID)] = *in.SwapData
 		err := b.db.Update(in.SwapData.JobID, *in.SwapData)
 		if err != nil && in.MsgCallback != nil {
 			in.MsgCallback(entities.PluginMessage{
-				JobID:      int32(in.GetJobID()),
+				JobID:      int64(in.GetJobID()),
 				Message:    fmt.Sprintf("Could not change state to %v %v", state, err),
 				IsError:    true,
 				IsFinished: true,

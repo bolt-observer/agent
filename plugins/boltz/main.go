@@ -94,13 +94,13 @@ type Plugin struct {
 	NodeDataInvalidator agent_entities.Invalidatable
 	isDryRun            bool
 	db                  DB
-	jobs                map[int32]interface{}
+	jobs                map[int64]interface{}
 	mutex               sync.Mutex
 	agent_entities.Plugin
 }
 
 type JobModel struct {
-	ID   int32 `boltholdUnique:"UniqueID"`
+	ID   int64 `boltholdUnique:"UniqueID"`
 	Data []byte
 }
 
@@ -149,7 +149,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		LnAPI:               lnAPI,
 		NodeDataInvalidator: nodeDataInvalidator,
 		db:                  db,
-		jobs:                make(map[int32]interface{}),
+		jobs:                make(map[int64]interface{}),
 		isDryRun:            cmdCtx.Bool("dryrun"),
 	}
 
@@ -250,11 +250,11 @@ func (b *Plugin) GetSleepTime() time.Duration {
 	return interval
 }
 
-func (b *Plugin) handleError(jobID int32, msgCallback agent_entities.MessageCallback, err error) error {
+func (b *Plugin) handleError(jobID int64, msgCallback agent_entities.MessageCallback, err error) error {
 	glog.Infof("[Boltz] [%v] Error %v", jobID, err)
 	if msgCallback != nil {
 		msgCallback(agent_entities.PluginMessage{
-			JobID:      int32(jobID),
+			JobID:      jobID,
 			Message:    fmt.Sprintf("Error %v", err),
 			IsError:    true,
 			IsFinished: true,
@@ -263,7 +263,7 @@ func (b *Plugin) handleError(jobID int32, msgCallback agent_entities.MessageCall
 	return err
 }
 
-func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.MessageCallback) error {
+func (b *Plugin) Execute(jobID int64, data []byte, msgCallback agent_entities.MessageCallback) error {
 	var err error
 
 	ctx := context.Background()
@@ -312,7 +312,7 @@ func (b *Plugin) Execute(jobID int32, data []byte, msgCallback agent_entities.Me
 }
 
 // start or continue running job
-func (b *Plugin) runJob(jobID int32, jd *common.SwapData, msgCallback agent_entities.MessageCallback) common.FsmOut {
+func (b *Plugin) runJob(jobID int64, jd *common.SwapData, msgCallback agent_entities.MessageCallback) common.FsmOut {
 	in := common.FsmIn{
 		SwapData:    jd,
 		MsgCallback: msgCallback,

@@ -62,7 +62,7 @@ func TestBoltzDB(t *testing.T) {
 		err = db.Get(1337, &jd2)
 		assert.NoError(t, err)
 
-		assert.Equal(t, int32(1337), jd.ID)
+		assert.Equal(t, int64(1337), jd.ID)
 
 		ejd := &ExtendedJobData{Burek: "mesni", JobData: *jd}
 		err = db.Insert(1337, ejd)

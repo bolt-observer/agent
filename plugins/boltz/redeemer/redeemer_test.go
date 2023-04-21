@@ -483,3 +483,16 @@ func (c *TestBitcoinOnChainCommunicator) BroadcastTransaction(transaction *wire.
 func (c *TestBitcoinOnChainCommunicator) GetFeeEstimation() (uint64, error) {
 	return 10, nil
 }
+
+func TestSwapRedeemScriptToAddr(t *testing.T) {
+	script := "a91404ea436acef6809e51881b00c96542cec83b3a1f876321031eaf7e597ba5ff427350dcf6cc5f9c2925bf2d89c02befcc92ecf2700a0513246703511325b1752103659a587a801dc66b115d0f62e096909e099cceda53f753ca08c232b5066279f368ac"
+
+	bytes, err := hex.DecodeString(script)
+	require.NoError(t, err)
+
+	addr, err := boltz.NestedScriptHashAddress(&chaincfg.TestNet3Params, bytes)
+	require.NoError(t, err)
+
+	t.Logf("Address: %v", addr)
+	//t.Fail()
+}
