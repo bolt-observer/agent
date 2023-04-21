@@ -271,7 +271,10 @@ func (b *Plugin) DeleteJob(jobID int64) error {
 	defer b.mutex.Unlock()
 
 	if err := b.db.Get(jobID, &sd); err == nil {
-		delete(b.jobs, jobID)
+		if _, ok := b.jobs[jobID]; ok {
+			delete(b.jobs, jobID)
+		}
+
 		return b.db.Delete(jobID, sd)
 	} else {
 		return err

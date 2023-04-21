@@ -178,7 +178,9 @@ func (r *Redeemer[T]) redeem() bool {
 					r.Callback(data, true)
 				}
 			}
-			delete(r.Entries, one)
+			if _, ok := r.Entries[one]; ok {
+				delete(r.Entries, one)
+			}
 		}
 	} else {
 		if strings.Contains(err.Error(), "bad-txns-inputs-missingorspent") {
@@ -189,7 +191,9 @@ func (r *Redeemer[T]) redeem() bool {
 						r.Callback(data, false)
 					}
 				}
-				delete(r.Entries, one)
+				if _, ok := r.Entries[one]; ok {
+					delete(r.Entries, one)
+				}
 			}
 		} else {
 			glog.Warningf("Redeeming failed due to %v\n", err)
