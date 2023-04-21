@@ -358,9 +358,14 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 }
 
 func CreateSwapWithSanityCheck(api *bapi.BoltzPrivateAPI, keys *crypto.Keys, invoice *lightning.InvoiceResp, referralCode string, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateSwapResponse, error) {
-	const BlockEps = 10
+	const (
+		AllowChanCreation = true
+		BlockEps          = 10
+		// We do submarine swap when we want to increase outbound liquidity
+		LowestInboundLiqudity = 10 // 10 %
+	)
 
-	response, err := api.CreateSwap(bapi.CreateSwapRequestOverride{
+	req := bapi.CreateSwapRequestOverride{
 		CreateSwapRequest: boltz.CreateSwapRequest{
 			Type:            "submarine",
 			PairId:          common.BtcPair,
@@ -370,7 +375,16 @@ func CreateSwapWithSanityCheck(api *bapi.BoltzPrivateAPI, keys *crypto.Keys, inv
 			Invoice:         invoice.PaymentRequest,
 		},
 		ReferralId: referralCode,
-	})
+	}
+	if AllowChanCreation {
+		req.Channel = &bapi.CreateSwapRequestChannel{
+			Auto:             true,
+			Private:          false, // TODO: do we need this?
+			InboundLiquidity: LowestInboundLiqudity,
+		}
+	}
+
+	response, err := api.CreateSwap(req)
 
 	if err != nil {
 		return nil, err
