@@ -99,7 +99,7 @@ func (c *Connector) communicate(ctx context.Context, stream actionStreamer, rese
 						Type:     api.ReplyType_ERROR,
 						Message:  fmt.Sprintf("Plugin %s not found on agent", msg.Action),
 					})
-				} else if err = plugin.Execute(msg.JobId, msg.Data, c.ForwardJobMessages); err != nil {
+				} else if err = plugin.Execute(int64(msg.JobId), msg.Data, c.ForwardJobMessages); err != nil {
 					glog.Errorf("Could not execute action: %v", err)
 					err = stream.Send(&api.AgentReply{
 						JobId:    msg.JobId,
@@ -140,7 +140,7 @@ func (c *Connector) ForwardJobMessages(msg entities.PluginMessage) error {
 	}
 
 	if err := c.client.SendMsg(&api.AgentReply{
-		JobId:    msg.JobID,
+		JobId:    int32(msg.JobID),
 		Sequence: sequence,
 		Type:     replyType,
 		Message:  msg.Message,

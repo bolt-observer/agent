@@ -125,8 +125,16 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 	}
 
 	log(in, fmt.Sprintf("Transaction ID for swap %v sats to %v is %v (invoice hash %v)", int64(response.ExpectedAmount), response.Address, tx, invoice.Hash),
-		[]byte(fmt.Sprintf(`{ "id": %v, "type": "forwardswap", "sats": %v, "address": %v, "transaction": %v, "invoice": %v }`, in.GetJobID(), int64(response.ExpectedAmount), response.Address, tx, invoice.PaymentRequest)))
+		logger.Get("sats", int64(response.ExpectedAmount), "address", response.Address, "transaction", tx, "invoice", invoice.PaymentRequest))
 	in.SwapData.LockupTransactionId = tx
+
+	txResp, err := s.BoltzAPI.GetTransaction(bapi.GetTransactionRequest{Currency: common.Btc, TransactionId: tx})
+	if err == nil && txResp.TransactionHex != "" {
+		log(in, fmt.Sprintf("Transaction hex for swap %v sats to %v is %v (invoice hash %v)", int64(response.ExpectedAmount), response.Address, txResp.TransactionHex, invoice.Hash),
+			logger.Get("sats", int64(response.ExpectedAmount), "address", response.Address, "transaction_hex", txResp.TransactionHex, "invoice", invoice.PaymentRequest))
+
+		in.SwapData.TransactionHex = txResp.TransactionHex
+	}
 
 	in.SwapData.FeesPending = common.Fees{
 		FeesPaid:    (response.ExpectedAmount - sats),
@@ -182,10 +190,14 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 		}
 
 		if status.IsFailedStatus() {
-			swapTransactionResponse, err := s.BoltzAPI.GetSwapTransaction(in.SwapData.BoltzID)
-			if err == nil {
-				in.SwapData.TransactionHex = swapTransactionResponse.TransactionHex
+			if in.SwapData.TransactionHex != "" {
 				return common.FsmOut{NextState: common.RedeemLockedFunds}
+			} else {
+				swapTransactionResponse, err := s.BoltzAPI.GetSwapTransaction(in.SwapData.BoltzID)
+				if err == nil && swapTransactionResponse.TransactionHex != "" {
+					in.SwapData.TransactionHex = swapTransactionResponse.TransactionHex
+					return common.FsmOut{NextState: common.RedeemLockedFunds}
+				}
 			}
 		}
 
@@ -201,7 +213,17 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 		}
 
 		if uint32(info.BlockHeight) > in.SwapData.TimoutBlockHeight {
-			return common.FsmOut{NextState: common.RedeemLockedFunds}
+			if in.SwapData.TransactionHex != "" {
+				return common.FsmOut{NextState: common.RedeemLockedFunds}
+			} else {
+				swapTransactionResponse, err := s.BoltzAPI.GetSwapTransaction(in.SwapData.BoltzID)
+				if err == nil && swapTransactionResponse.TransactionHex != "" {
+					in.SwapData.TransactionHex = swapTransactionResponse.TransactionHex
+					return common.FsmOut{NextState: common.RedeemLockedFunds}
+				} else {
+					return common.FsmOut{Error: fmt.Errorf("transaction hex not found for swap")}
+				}
+			}
 		}
 
 		lnAPI.Cleanup()

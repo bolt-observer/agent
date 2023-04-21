@@ -28,7 +28,7 @@ const (
 
 // JobData struct comes from the request.
 type JobData struct {
-	ID               int32      `json:"id,omitempty"`
+	ID               int64      `json:"id,omitempty"`
 	Target           TargetType `json:"target"`
 	Amount           float64    `json:"amount,omitempty"`
 	ChannelId        uint64     `json:"channel_id,omitempty"`
@@ -40,7 +40,7 @@ var DummyJobData = JobData{
 }
 
 // ParseJobData gets a new JobData from bytes
-func ParseJobData(id int32, bytes []byte) (*JobData, error) {
+func ParseJobData(id int64, bytes []byte) (*JobData, error) {
 	var jd JobData
 
 	err := json.Unmarshal(bytes, &jd)

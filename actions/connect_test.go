@@ -19,7 +19,7 @@ type testPlugin struct {
 	shouldFail bool
 }
 
-func (tp *testPlugin) Execute(jobID int32, data []byte, msg entities.MessageCallback) error {
+func (tp *testPlugin) Execute(jobID int64, data []byte, msg entities.MessageCallback) error {
 	if tp.shouldFail {
 		return errors.New("Could not execute")
 	}
@@ -65,12 +65,12 @@ func TestCommunicate(t *testing.T) {
 		"fail": &testPlugin{shouldFail: true},
 	}
 	cc := Connector{
-		Address:    "http://some.url/",
-		APIKey:     "test-key",
-		Plugins:    plugins,
-		LnAPI:      mkGetLndAPI(&cli.Context{}),
+		Address:     "http://some.url/",
+		APIKey:      "test-key",
+		Plugins:     plugins,
+		LnAPI:       mkGetLndAPI(&cli.Context{}),
 		IsPlaintext: true,
-		IsDryRun:   false,
+		IsDryRun:    false,
 	}
 
 	t.Run("Test execute unknown plugin", func(t *testing.T) {
@@ -163,12 +163,12 @@ func TestCommunicate(t *testing.T) {
 			receiveError: errors.New("some error"),
 		}
 		c := Connector{
-			Address:    "http://some.url/",
-			APIKey:     "test-key",
-			Plugins:    plugins,
-			LnAPI:      mkGetLndAPI(&cli.Context{}),
+			Address:     "http://some.url/",
+			APIKey:      "test-key",
+			Plugins:     plugins,
+			LnAPI:       mkGetLndAPI(&cli.Context{}),
 			IsPlaintext: true,
-			IsDryRun:   false,
+			IsDryRun:    false,
 		}
 
 		go c.communicate(ctx, &bs, sc.call)

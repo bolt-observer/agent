@@ -74,7 +74,7 @@ func TestExecute(t *testing.T) {
 		BoltzAPI:    bapi.NewBoltzPrivateAPI("https://testapi.boltz.exchange", nil),
 		ChainParams: &chaincfg.TestNet3Params,
 		LnAPI:       mkFakeLndAPI(),
-		jobs:        make(map[int32]interface{}),
+		jobs:        make(map[int64]interface{}),
 		db: &TestDB{data: map[interface{}]interface{}{
 			int32(42): target,
 		}},
@@ -129,7 +129,7 @@ func TestExecute(t *testing.T) {
 		err := p.Execute(42, target, cs.Callback)
 		require.NoError(t, err)
 
-		_, ok := p.jobs[int32(42)]
+		_, ok := p.jobs[int64(42)]
 		assert.True(t, ok)
 	})
 }

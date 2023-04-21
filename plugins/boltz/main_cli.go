@@ -88,16 +88,27 @@ var PluginCommands = []cli.Command{
 					},
 				},
 			},
+			{
+				Name:   "updatestate",
+				Usage:  "update state of an existing swap (dangerous)",
+				Action: updateState,
+				Flags: []cli.Flag{
+					cli.Int64Flag{
+						Name: "id", Value: 0, Usage: "id", Hidden: false,
+					},
+					cli.IntFlag{
+						Name: "status", Value: 0, Usage: "status", Hidden: false,
+					},
+				},
+			},
 		},
 	},
 }
 
-func getRandomId() int32 {
+func getRandomId() int64 {
 	// Generates a random negative integer - so it does not clash with actions api
-	n := int64(rand.Int31n(math.MaxInt32))
-	x := n | (1 << 31)
-
-	return int32(x)
+	n := rand.Int63n(math.MaxInt64)
+	return -n
 }
 
 func getPlugin(c *cli.Context) (*Plugin, error) {
@@ -128,7 +139,7 @@ func swap(c *cli.Context) error {
 		return err
 	}
 
-	id := int32(c.Int64("id"))
+	id := c.Int64("id")
 	if id == 0 {
 		id = getRandomId()
 	}
@@ -165,7 +176,7 @@ func swap(c *cli.Context) error {
 	}
 
 	go func() {
-		resp := plugin.runJob(int32(sd.JobID), &sd, nil)
+		resp := plugin.runJob(int64(sd.JobID), &sd, nil)
 		if resp.Error != nil {
 			os.Exit(1)
 		}
@@ -183,7 +194,7 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
-	id := int32(c.Int64("id"))
+	id := c.Int64("id")
 	if id == 0 {
 		id = getRandomId()
 	}
@@ -220,7 +231,7 @@ func reverseSwap(c *cli.Context) error {
 	}
 
 	go func() {
-		resp := plugin.runJob(int32(sd.JobID), &sd, nil)
+		resp := plugin.runJob(int64(sd.JobID), &sd, nil)
 		if resp.Error != nil {
 			os.Exit(1)
 		}
@@ -246,7 +257,7 @@ func generateRefund(c *cli.Context) error {
 		return err
 	}
 
-	id := int32(c.Int64("id"))
+	id := c.Int64("id")
 	if id == 0 {
 		return fmt.Errorf("specify id")
 	}
@@ -295,7 +306,7 @@ func generateRefund(c *cli.Context) error {
 	return nil
 }
 
-func waitForJob(plugin *Plugin, id int32) {
+func waitForJob(plugin *Plugin, id int64) {
 	for {
 		x, ok := plugin.jobs[id].(common.SwapData)
 		if !ok {
@@ -347,6 +358,47 @@ func setNewMnemonic(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func updateState(c *cli.Context) error {
+	var sd common.SwapData
+
+	plugin, err := getPlugin(c)
+	if err != nil {
+		return err
+	}
+
+	id := c.Int64("id")
+	if id == 0 {
+		return fmt.Errorf("specify id")
+	}
+
+	state := c.Int("state")
+	if state == 0 {
+		return fmt.Errorf("specify state")
+	}
+
+	if err = plugin.db.Get(id, &sd); err != nil {
+		return err
+	}
+
+	ns := common.State(state)
+	if ns.String() == "" {
+		return fmt.Errorf("state incorrect")
+	}
+
+	glog.Infof("Changing job %d state from %d (%s) to %d (%s)",
+		id, sd.State, sd.State.String(), ns, ns.String())
+
+	sd.State = ns
+	if err = plugin.db.Update(id, &sd); err != nil {
+		return err
+	}
+
+	glog.Infof("Changed job %d state from %d (%s) to %d (%s)",
+		id, sd.State, sd.State.String(), ns, ns.String())
 
 	return nil
 }

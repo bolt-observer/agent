@@ -52,6 +52,15 @@ type CreateReverseSwapRequestOverride struct {
 	boltz.CreateReverseSwapRequest
 }
 
+type GetTransactionRequest struct {
+	Currency      string `json:"currency"`
+	TransactionId string `json:"transactionId"`
+}
+
+type GetTransactionResponse struct {
+	TransactionHex string `json:"transactionHex"`
+}
+
 type Month map[string]Token
 type Token map[string]Currency
 type Currency map[string]int
@@ -87,6 +96,17 @@ func (b *BoltzPrivateAPI) CreateReverseSwap(request CreateReverseSwapRequestOver
 
 	if response.Error != "" {
 		return nil, errors.New(response.Error)
+	}
+
+	return &response, err
+}
+
+func (b *BoltzPrivateAPI) GetTransaction(request GetTransactionRequest) (*GetTransactionResponse, error) {
+	var response GetTransactionResponse
+	err := b.sendPostRequest("/gettransaction", request, &response)
+
+	if err != nil {
+		return nil, err
 	}
 
 	return &response, err

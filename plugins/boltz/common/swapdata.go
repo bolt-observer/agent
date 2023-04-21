@@ -111,7 +111,7 @@ func getLiquidity(ctx context.Context, jobData *JobData, msgCallback agent_entit
 		glog.Infof("[Boltz] [%d] Could not get liquidity", jobData.ID)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
-				JobID:      int32(jobData.ID),
+				JobID:      jobData.ID,
 				Message:    "Could not get liquidity",
 				IsError:    true,
 				IsFinished: true,
@@ -129,7 +129,7 @@ func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, li
 		glog.Infof("[Boltz] [%d] Could not get liquidity", jobData.ID)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
-				JobID:      int32(jobData.ID),
+				JobID:      jobData.ID,
 				Message:    "Could not get liquidity",
 				IsError:    true,
 				IsFinished: true,
@@ -143,7 +143,7 @@ func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, li
 		glog.Infof("[Boltz] [%v] No need to do anything - current inbound liquidity %v %% for channel %v", jobData.ID, ratio*100, jobData.ChannelId)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
-				JobID:      int32(jobData.ID),
+				JobID:      jobData.ID,
 				Message:    fmt.Sprintf("No need to do anything - current inbound liquidity %v %% for channel %v", ratio*100, jobData.ChannelId),
 				IsError:    false,
 				IsFinished: true,
@@ -181,7 +181,7 @@ func convertLiquidityNodePercent(jobData *JobData, limits SwapLimits, liquidity 
 		glog.Infof("[Boltz] [%v] No need to do anything - current %s liquidity %v %%", jobData.ID, name, val)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
-				JobID:      int32(jobData.ID),
+				JobID:      jobData.ID,
 				Message:    fmt.Sprintf("No need to do anything - current %s liquidity %v %%", name, val),
 				IsError:    false,
 				IsFinished: true,
