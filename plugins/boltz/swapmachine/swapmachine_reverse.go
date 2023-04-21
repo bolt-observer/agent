@@ -262,7 +262,7 @@ func (s *SwapMachine) FsmSwapInvoiceCouldNotBePaid(in common.FsmIn) common.FsmOu
 
 	if err == nil {
 		// Only if we got minVal (if API timeouts or anything do not adjust size)
-		if minVal < newMax {
+		if minVal > newMax {
 			newMax = minVal
 		}
 	}
