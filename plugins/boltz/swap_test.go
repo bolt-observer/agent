@@ -299,3 +299,32 @@ func TestPayInvoice(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("Invoice %v", resp)
 }
+
+func TestPayHodlInvoiceGrpc(t *testing.T) {
+	return
+	const Node = "F"
+
+	ln := api.GetLocalLndByName(t, Node)
+	if ln == nil {
+		fmt.Printf("Ignoring swap test since regtest network is not available\n")
+		return
+	}
+
+	api, err := ln()
+	require.NoError(t, err)
+
+	request := "lnbcrt1200n1pjy9dsxpp52nwgn5e2z5cxkccwwlcsr53mn66elv6dum6xd346r5k3xrnwlqzsdqqcqzpgxqyz5vqsp5s7rndl282gtcqn86t5zv2rak4qe2ma0n0dn45saxwajszhkps36s9qyyssqudjn4pan0lrucj0rq82x8e48u9p7lh8nmgjtsn3vs3qeqcwqh7spdsd0tps9erthgydtrgpx8dg8yk5q3nwdp6dglh5c9823fj5tmlqq3rvctw"
+	channel := uint64(178120883765248)
+
+	resp, err := api.PayInvoice(context.Background(), request, 0, []uint64{channel})
+	assert.NoError(t, err)
+
+	fmt.Printf("%+v\n", resp)
+
+	resp2, err := api.PayInvoice(context.Background(), request, 0, []uint64{})
+	assert.NoError(t, err)
+
+	fmt.Printf("%+v\n", resp2)
+
+	t.Fail()
+}
