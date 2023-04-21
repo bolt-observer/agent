@@ -76,7 +76,7 @@ func TestExecute(t *testing.T) {
 		LnAPI:       mkFakeLndAPI(),
 		jobs:        make(map[int64]interface{}),
 		db: &TestDB{data: map[interface{}]interface{}{
-			int32(42): target,
+			int64(42): target,
 		}},
 		Limits: common.SwapLimits{
 			MaxAttempts: 10,
@@ -116,7 +116,7 @@ func TestExecute(t *testing.T) {
 		assert.True(t, ok)
 
 		fmt.Printf("%+v\n", p.db.(*TestDB).data)
-		_, ok = p.db.(*TestDB).data[int32(123)]
+		_, ok = p.db.(*TestDB).data[int64(123)]
 		assert.True(t, ok)
 	})
 
