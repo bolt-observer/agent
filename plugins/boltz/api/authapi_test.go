@@ -9,9 +9,11 @@ import (
 	"net/http/httptest"
 	"os/exec"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/BoltzExchange/boltz-lnd/boltz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -108,6 +110,36 @@ func TestNoCredentials(t *testing.T) {
 	_, err = itf.QueryReferrals()
 	assert.Error(t, err)
 	assert.Equal(t, NoCredentials, err.Error())
+}
+
+func TestChanCreationSerialization(t *testing.T) {
+	req := CreateSwapRequestOverride{
+		CreateSwapRequest: boltz.CreateSwapRequest{
+			Type:            "submarine",
+			PairId:          common.BtcPair,
+			OrderSide:       "buy",
+			PreimageHash:    "a",
+			RefundPublicKey: "b",
+			Invoice:         "c",
+		},
+		ReferralId: "d",
+	}
+
+	b, err := json.Marshal(req)
+	require.NoError(t, err)
+	t.Logf("Serialization 1: %s", string(b))
+	assert.True(t, !strings.Contains(string(b), "auto"))
+
+	req.Channel = &CreateSwapRequestChannel{
+		Auto:             true,
+		Private:          false, // TODO: do we need this?
+		InboundLiquidity: 10,
+	}
+
+	b, err = json.Marshal(req)
+	require.NoError(t, err)
+	t.Logf("Serialization 2: %s", string(b))
+	assert.True(t, strings.Contains(string(b), "auto"))
 }
 
 func TestGetTransaction(t *testing.T) {

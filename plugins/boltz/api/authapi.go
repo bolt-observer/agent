@@ -42,8 +42,8 @@ type CreateSwapRequestChannel struct {
 }
 
 type CreateSwapRequestOverride struct {
-	ReferralId string `json:"referralId,omitempty"`
-	//Channel    CreateSwapRequestChannel `json:"channel"`
+	ReferralId string                    `json:"referralId,omitempty"`
+	Channel    *CreateSwapRequestChannel `json:"channel,omitempty"`
 	boltz.CreateSwapRequest
 }
 
