@@ -10,14 +10,14 @@ service ActionAPI {
 }
 
 message Action {
-  int32 jobId = 1;
+  int64 jobId = 1;
   Sequence sequence = 2;
   string action = 3;
   bytes data = 4;
 }
 
 message AgentReply {
-  int32 jobId = 1;
+  int64 jobId = 1;
   Sequence sequence = 2;
   ReplyType type = 3;
   string message = 4;

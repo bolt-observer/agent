@@ -140,7 +140,7 @@ func (c *Connector) ForwardJobMessages(msg entities.PluginMessage) error {
 	}
 
 	if err := c.client.SendMsg(&api.AgentReply{
-		JobId:    int32(msg.JobID),
+		JobId:    msg.JobID,
 		Sequence: sequence,
 		Type:     replyType,
 		Message:  msg.Message,
