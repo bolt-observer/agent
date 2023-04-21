@@ -252,14 +252,26 @@ func (b *Plugin) GetSleepTime() time.Duration {
 }
 
 func (b *Plugin) handleError(jobID int64, msgCallback agent_entities.MessageCallback, err error) error {
-	glog.Infof("[Boltz] [%v] Error %v", jobID, err)
-	if msgCallback != nil {
-		msgCallback(agent_entities.PluginMessage{
-			JobID:      jobID,
-			Message:    fmt.Sprintf("Error %v", err),
-			IsError:    true,
-			IsFinished: true,
-		})
+	if err == common.ErrNoNeedToDoAnything {
+		glog.Infof("[Boltz] [%v] Nothing to do %v", jobID, err)
+		if msgCallback != nil {
+			msgCallback(agent_entities.PluginMessage{
+				JobID:      jobID,
+				Message:    "No need to do anything",
+				IsError:    false,
+				IsFinished: true,
+			})
+		}
+	} else {
+		glog.Infof("[Boltz] [%v] Error %v", jobID, err)
+		if msgCallback != nil {
+			msgCallback(agent_entities.PluginMessage{
+				JobID:      jobID,
+				Message:    fmt.Sprintf("Error %v", err),
+				IsError:    true,
+				IsFinished: true,
+			})
+		}
 	}
 	return err
 }

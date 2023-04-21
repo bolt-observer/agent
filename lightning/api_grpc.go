@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -855,6 +856,10 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 	req.PaymentRequest = paymentRequest
 	if sats > 0 {
 		req.Amt = sats
+		req.FeeLimitSat = int64(math.Max(100, math.Round(float64(sats)*0.01)))
+	} else {
+		// TODO: parse paymentRequest and get amount
+		req.FeeLimitSat = 3000
 	}
 
 	if outgoingChanIds != nil {
@@ -867,15 +872,19 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 	}
 
 	// TODO: this is mandatory field but timeout could be configurable
-	req.TimeoutSeconds = 10
+	req.TimeoutSeconds = 20
 
 	resp, err := l.RouterClient.SendPaymentV2(ctx, req)
 
 	if err != nil {
+		// TODO: we don't know the hash here, else we could return l.GetPaymentStatus()
 		if strings.Contains(err.Error(), "invoice is already paid") {
-			// TODO: we don't know the hash here, else we could return l.GetPaymentStatus()
+			return nil, nil
+
+		} else if strings.Contains(err.Error(), "AlreadyExists desc = payment is in transition") {
 			return nil, nil
 		}
+
 		return nil, err
 	}
 
@@ -886,6 +895,10 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 		event, err := resp.Recv()
 
 		if err != nil {
+			if strings.Contains(err.Error(), "AlreadyExists desc = payment is in transition") {
+				return nil, nil
+			}
+
 			return nil, err
 		}
 
