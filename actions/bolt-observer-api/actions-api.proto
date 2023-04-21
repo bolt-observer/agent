@@ -34,4 +34,5 @@ enum Sequence {
   EXECUTE = 1;
   LOG = 2;
   FINISHED = 3;
+  PING = 4;
 }

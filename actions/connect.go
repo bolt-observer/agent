@@ -119,6 +119,9 @@ func (c *Connector) communicate(ctx context.Context, stream actionStreamer, rese
 					glog.Errorf("Error while sending message: %v", err)
 				}
 				break
+			case msg.Sequence == api.Sequence_PING:
+				glog.Info("Received keep-alive ping from server")
+				break
 			default:
 				glog.Errorf("Ignoring received message: %v", msg)
 			}
