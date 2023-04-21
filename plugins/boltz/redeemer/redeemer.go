@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -177,10 +178,26 @@ func (r *Redeemer[T]) redeem() bool {
 					r.Callback(data, true)
 				}
 			}
-			delete(r.Entries, one)
+			if _, ok := r.Entries[one]; ok {
+				delete(r.Entries, one)
+			}
 		}
 	} else {
-		glog.Warningf("Redeeming failed due to %v\n", err)
+		if strings.Contains(err.Error(), "bad-txns-inputs-missingorspent") {
+			for _, one := range used {
+				if r.Callback != nil {
+					data, ok := r.Entries[one]
+					if ok {
+						r.Callback(data, false)
+					}
+				}
+				if _, ok := r.Entries[one]; ok {
+					delete(r.Entries, one)
+				}
+			}
+		} else {
+			glog.Warningf("Redeeming failed due to %v\n", err)
+		}
 	}
 
 	return true

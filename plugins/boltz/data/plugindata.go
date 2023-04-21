@@ -17,6 +17,7 @@ import (
 
 type ChangeStateFn func(in common.FsmIn, state common.State) error
 type GetSleepTimeFn func(in common.FsmIn) time.Duration
+type DeleteJobFn func(jobID int64) error
 
 type PluginData struct {
 	ReferralCode    string
@@ -29,4 +30,5 @@ type PluginData struct {
 	BoltzAPI        *bapi.BoltzPrivateAPI
 	ChangeStateFn   ChangeStateFn
 	GetSleepTimeFn  GetSleepTimeFn
+	DeleteJobFn     DeleteJobFn
 }

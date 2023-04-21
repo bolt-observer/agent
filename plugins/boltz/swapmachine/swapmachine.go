@@ -59,10 +59,24 @@ func (s *SwapMachine) FsmSwapFailed(in common.FsmIn) common.FsmOut {
 	if s.NodeDataInvalidator != nil {
 		s.NodeDataInvalidator.Invalidate()
 	}
+
+	// When a failure happens state machine is left in whatever state it was, failure is a final state
+	if s.DeleteJobFn != nil {
+		s.DeleteJobFn(int64(in.SwapData.JobID))
+	}
+
 	return common.FsmOut{}
 }
 
 func (s *SwapMachine) FsmSwapSuccess(in common.FsmIn) common.FsmOut {
+	if s.DeleteJobFn != nil {
+		s.DeleteJobFn(int64(in.SwapData.JobID))
+	}
+
+	return common.FsmOut{}
+}
+
+func (s *SwapMachine) FsmSwapSuccessOne(in common.FsmIn) common.FsmOut {
 	// TODO: it would be great if we could calculate how much the swap actually cost us, but it is hard to do precisely
 	// because redeemer might have claimed multiple funds
 
@@ -82,7 +96,7 @@ func (s *SwapMachine) FsmSwapSuccess(in common.FsmIn) common.FsmOut {
 	}
 
 	if in.SwapData.IsDryRun {
-		return common.FsmOut{}
+		return common.FsmOut{NextState: common.SwapSuccess}
 	}
 
 	return s.nextRound(in)
@@ -119,7 +133,7 @@ func (s *SwapMachine) nextRound(in common.FsmIn) common.FsmOut {
 			s.NodeDataInvalidator.Invalidate()
 		}
 
-		return common.FsmOut{}
+		return common.FsmOut{NextState: common.SwapSuccess}
 	} else if err != nil {
 		return common.FsmOut{Error: err}
 	}
@@ -142,7 +156,7 @@ func (s *SwapMachine) nextRound(in common.FsmIn) common.FsmOut {
 			s.NodeDataInvalidator.Invalidate()
 		}
 
-		return common.FsmOut{}
+		return common.FsmOut{NextState: common.SwapSuccess}
 	}
 
 	in.SwapData = sd
@@ -239,6 +253,7 @@ type SwapMachine struct {
 	BoltzAPI        *bapi.BoltzPrivateAPI
 	ChangeStateFn   data.ChangeStateFn
 	GetSleepTimeFn  data.GetSleepTimeFn
+	DeleteJobFn     data.DeleteJobFn
 
 	NodeDataInvalidator entities.Invalidatable
 	JobDataToSwapData   common.JobDataToSwapDataFn
@@ -261,10 +276,12 @@ func NewSwapMachine(plugin data.PluginData, nodeDataInvalidator entities.Invalid
 		BoltzAPI:            plugin.BoltzAPI,
 		ChangeStateFn:       fn,
 		GetSleepTimeFn:      plugin.GetSleepTimeFn,
+		DeleteJobFn:         plugin.DeleteJobFn,
 	}
 
 	s.Machine.States[common.SwapFailed] = FsmWrap(s.FsmSwapFailed, fn)
 	s.Machine.States[common.SwapSuccess] = FsmWrap(s.FsmSwapSuccess, fn)
+	s.Machine.States[common.SwapSuccessOne] = FsmWrap(s.FsmSwapSuccessOne, fn)
 
 	s.Machine.States[common.InitialForward] = FsmWrap(s.FsmInitialForward, fn)
 	s.Machine.States[common.OnChainFundsSent] = FsmWrap(s.FsmOnChainFundsSent, fn)

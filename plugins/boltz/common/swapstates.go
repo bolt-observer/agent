@@ -28,6 +28,8 @@ const (
 	SwapFailed
 	SwapSuccess
 
+	SwapSuccessOne
+
 	OnChainFundsSent
 	RedeemLockedFunds
 	RedeemingLockedFunds
@@ -40,7 +42,7 @@ const (
 )
 
 func (s State) String() string {
-	return []string{"None", "InitialForward", "InitialReverse", "SwapFaied", "SwapSuccess", "OnChainFundsSent",
+	return []string{"None", "InitialForward", "InitialReverse", "SwapFailed", "SwapSuccess", "SwapSuccessOne", "OnChainFundsSent",
 		"RedeemLockedFunds", "RedeemingLockedFunds", "VerifyFundsReceived", "ReverseSwapCreated", "SwapInvoiceCouldNotBePaid", "ClaimReverseFunds", "SwapClaimed"}[s]
 }
 

@@ -58,6 +58,11 @@ func (t *TestDB) Update(key, data interface{}) error {
 	return nil
 }
 
+func (t *TestDB) Delete(key, data interface{}) error {
+	delete(t.data, key)
+	return nil
+}
+
 func (t *TestDB) Connect(path string) error {
 	return nil
 }

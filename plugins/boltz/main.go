@@ -206,6 +206,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 			GetSleepTimeFn: data.GetSleepTimeFn(func(in common.FsmIn) time.Duration {
 				return resp.GetSleepTime()
 			}),
+			DeleteJobFn: resp.DeleteJob,
 		}, nodeDataInvalidator, common.JobDataToSwapData, resp.LnAPI)
 
 	resp.Redeemer.SetCallback(resp.SwapMachine.RedeemedCallback)
@@ -261,6 +262,23 @@ func (b *Plugin) handleError(jobID int64, msgCallback agent_entities.MessageCall
 		})
 	}
 	return err
+}
+
+func (b *Plugin) DeleteJob(jobID int64) error {
+	var sd common.SwapData
+
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	if err := b.db.Get(jobID, &sd); err == nil {
+		if _, ok := b.jobs[jobID]; ok {
+			delete(b.jobs, jobID)
+		}
+
+		return b.db.Delete(jobID, sd)
+	} else {
+		return err
+	}
 }
 
 func (b *Plugin) Execute(jobID int64, data []byte, msgCallback agent_entities.MessageCallback) error {

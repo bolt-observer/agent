@@ -437,6 +437,7 @@ func runAgent(cmdCtx *cli.Context) error {
 	if apiKey == "" {
 		// We don't return error here since we don't want glog to handle it
 		fmt.Fprintf(os.Stderr, "missing API key (use --apikey or set API_KEY environment variable)\n")
+		cli.ShowAppHelp(cmdCtx)
 		os.Exit(1)
 	}
 
