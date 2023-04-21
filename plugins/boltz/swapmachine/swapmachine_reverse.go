@@ -251,12 +251,22 @@ func (s *SwapMachine) FsmSwapInvoiceCouldNotBePaid(in common.FsmIn) common.FsmOu
 	}
 
 	if in.SwapData.IsDryRun {
-		return common.FsmOut{}
+		return common.FsmOut{NextState: common.SwapFailed}
 	}
 
 	in.SwapData.RevertFees()
 
-	newMax := uint64(math.Round(float64(in.SwapData.ExpectedSats) * in.SwapData.SwapLimits.BackOffAmount))
+	amt := uint64(math.Round(float64(in.SwapData.ExpectedSats) * in.SwapData.SwapLimits.BackOffAmount))
+	newMax := amt
+	minVal, err := s.GetMinSwapSize()
+
+	if err == nil {
+		// Only if we got minVal (if API timeouts or anything do not adjust size)
+		if minVal < newMax {
+			newMax = minVal
+		}
+	}
+
 	if newMax < in.SwapData.SwapLimits.MaxSwap {
 		// Try with lower limit, newMax MUST be lower so we converge to 0 in order to prevent infinite loop
 		log(in, fmt.Sprintf("Retrying with new maximum swap size %v sats", newMax), logger.Get("new_max", newMax))
@@ -272,6 +282,20 @@ func (s *SwapMachine) FsmSwapInvoiceCouldNotBePaid(in common.FsmIn) common.FsmOu
 	}
 
 	return common.FsmOut{Error: fmt.Errorf("invoice could not be paid and no backup plan")}
+}
+
+func (s *SwapMachine) GetMinSwapSize() (uint64, error) {
+	pairs, err := s.BoltzAPI.GetPairs()
+	if err != nil {
+		return 0, err
+	}
+
+	res, ok := pairs.Pairs[common.BtcPair]
+	if !ok {
+		return 0, fmt.Errorf("pairs are not available")
+	}
+
+	return res.Limits.Minimal, nil
 }
 
 func (s *SwapMachine) FsmClaimReverseFunds(in common.FsmIn) common.FsmOut {

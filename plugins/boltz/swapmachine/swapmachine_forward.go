@@ -197,6 +197,15 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 				if err == nil && swapTransactionResponse.TransactionHex != "" {
 					in.SwapData.TransactionHex = swapTransactionResponse.TransactionHex
 					return common.FsmOut{NextState: common.RedeemLockedFunds}
+				} else {
+					txHex, err := s.BoltzAPI.GetTransaction(bapi.GetTransactionRequest{
+						Currency:      common.Btc,
+						TransactionId: in.SwapData.LockupTransactionId,
+					})
+					if err == nil && txHex.TransactionHex != "" {
+						in.SwapData.TransactionHex = txHex.TransactionHex
+						return common.FsmOut{NextState: common.RedeemLockedFunds}
+					}
 				}
 			}
 		}
@@ -221,7 +230,16 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 					in.SwapData.TransactionHex = swapTransactionResponse.TransactionHex
 					return common.FsmOut{NextState: common.RedeemLockedFunds}
 				} else {
-					return common.FsmOut{Error: fmt.Errorf("transaction hex not found for swap")}
+					txHex, err := s.BoltzAPI.GetTransaction(bapi.GetTransactionRequest{
+						Currency:      common.Btc,
+						TransactionId: in.SwapData.LockupTransactionId,
+					})
+					if err == nil && txHex.TransactionHex != "" {
+						in.SwapData.TransactionHex = txHex.TransactionHex
+						return common.FsmOut{NextState: common.RedeemLockedFunds}
+					} else {
+						return common.FsmOut{Error: fmt.Errorf("transaction hex not found for swap")}
+					}
 				}
 			}
 		}

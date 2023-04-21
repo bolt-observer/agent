@@ -97,7 +97,7 @@ var PluginCommands = []cli.Command{
 						Name: "id", Value: 0, Usage: "id", Hidden: false,
 					},
 					cli.IntFlag{
-						Name: "status", Value: 0, Usage: "status", Hidden: false,
+						Name: "state", Value: 0, Usage: "state", Hidden: false,
 					},
 				},
 			},
@@ -397,8 +397,7 @@ func updateState(c *cli.Context) error {
 		return err
 	}
 
-	glog.Infof("Changed job %d state from %d (%s) to %d (%s)",
-		id, sd.State, sd.State.String(), ns, ns.String())
+	glog.Infof("Changed job %d state", id)
 
 	return nil
 }

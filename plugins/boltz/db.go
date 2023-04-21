@@ -17,6 +17,7 @@ type DB interface {
 	Get(key, result interface{}) error
 	Insert(key, data interface{}) error
 	Update(key, data interface{}) error
+	Delete(key, data interface{}) error
 }
 
 // BoltzDB is a wrapper around bolthold implementing DB interface
@@ -45,4 +46,8 @@ func (b *BoltzDB) Insert(key, data interface{}) error {
 
 func (b *BoltzDB) Update(key, data interface{}) error {
 	return b.db.Update(key, data)
+}
+
+func (b *BoltzDB) Delete(key, data interface{}) error {
+	return b.db.Delete(key, data)
 }
