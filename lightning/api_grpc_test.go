@@ -659,3 +659,10 @@ func TestGetChannelCloseInfoGrpc(t *testing.T) {
 	assert.Equal(t, Unknown, resp[1].Closer)
 	assert.Equal(t, uint64(0), resp[1].ChanID)
 }
+
+func TestGetMsatsFromInvoice(t *testing.T) {
+	expected := uint64(100000 * 1000)
+	assert.Equal(t, expected, GetMsatsFromInvoice("lntb1m1pjyxysnpp5x24d0yvj0c7atwhf88l8c7xu7l80xnymhhuaz7j5u4yp6dfcgqcqdqqcqzpgxqyz5vqsp5uq3c68sh2fqrdwl2l90ccxw7qpfn65cgs3n5lrd8nwu3f2hrxk8q9qyyssqzdr5gqj35u30fra74d02utsq3gljkhfj9zpvxp8ljhaclz49zkjpy2gxha53ejyu8am8m0q97ql7algt068tze8p8wwfquc4e7m3z8cp6a2mp9"))
+	assert.Equal(t, expected, GetMsatsFromInvoice("lnbc1m1pjyxyw7pp5ftl92yhqxnp925ppl7tr7txze2px38ccgr5msekvgru0v9fthzcqdqqcqzpgxqyz5vqsp5xa4zr56xw6fkprpc9w75cyyv4zdv0hxw7em770qetxsuz9ywsy6s9qyyssqpuyv9ft83utw87wv0xlan4r4wju7rd4ktk6cyls9da6w0qjjagn94x5hjlaez0l5tfw9ttkhezh2jw9hgd0vpncfyrpspzatww57pvsq4cx0cg"))
+	assert.Equal(t, uint64(0), GetMsatsFromInvoice("lnbc"))
+}

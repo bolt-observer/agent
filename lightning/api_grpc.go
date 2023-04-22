@@ -12,9 +12,11 @@ import (
 	"time"
 
 	"github.com/bolt-observer/go_common/entities"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/golang/glog"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
+	"github.com/lightningnetwork/lnd/zpay32"
 )
 
 // LndGrpcLightningAPI struct.
@@ -850,17 +852,48 @@ func (l *LndGrpcLightningAPI) SendToOnChainAddress(ctx context.Context, address 
 	return resp.Txid, nil
 }
 
+// GetMsatsFromInvoice - tries to get msat amount from an invoice, upon error it returns 0
+func GetMsatsFromInvoice(bolt11 string) uint64 {
+	if len(bolt11) < 2 {
+		return 0
+	}
+
+	firstNumber := strings.IndexAny(bolt11, "1234567890")
+	if firstNumber == -1 {
+		return 0
+	}
+
+	chainPrefix := bolt11[2:firstNumber]
+	chain := &chaincfg.Params{
+		Bech32HRPSegwit: chainPrefix,
+	}
+
+	inv, err := zpay32.Decode(bolt11, chain)
+	if err != nil {
+		return 0
+	}
+
+	if inv.MilliSat != nil {
+		return uint64(*inv.MilliSat)
+	}
+
+	return 0
+}
+
 // PayInvoice API.
 func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error) {
 	req := &routerrpc.SendPaymentRequest{}
 	req.PaymentRequest = paymentRequest
-	if sats > 0 {
+	satoshis := sats
+	if satoshis > 0 {
 		req.Amt = sats
-		req.FeeLimitSat = int64(math.Max(100, math.Round(float64(sats)*0.01)))
 	} else {
-		// TODO: parse paymentRequest and get amount
-		req.FeeLimitSat = 3000
+		// Parse amount from invoice in a best effort manner, in case of error result is 0...
+		satoshis = int64(GetMsatsFromInvoice(paymentRequest) * 1000)
 	}
+
+	// ...therefore we do a max with 100 sats (and 100 is a good low bound too). Use 1 % limit.
+	req.FeeLimitSat = int64(math.Max(100, math.Round(float64(satoshis)*0.01)))
 
 	if outgoingChanIds != nil {
 		req.OutgoingChanIds = make([]uint64, 0)
