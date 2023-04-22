@@ -354,7 +354,7 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 		}
 	}
 
-	return common.FsmOut{NextState: common.SwapSuccess}
+	return common.FsmOut{NextState: common.SwapSuccessOne}
 
 }
 

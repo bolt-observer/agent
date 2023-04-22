@@ -60,25 +60,16 @@ func (s *SwapMachine) FsmSwapFailed(in common.FsmIn) common.FsmOut {
 		s.NodeDataInvalidator.Invalidate()
 	}
 
-	// When a failure happens state machine is left in whatever state it was, failure is a final state
-	if s.DeleteJobFn != nil {
-		s.DeleteJobFn(int64(in.SwapData.JobID))
-	}
-
 	return common.FsmOut{}
 }
 
 func (s *SwapMachine) FsmSwapSuccess(in common.FsmIn) common.FsmOut {
-	if s.DeleteJobFn != nil {
-		s.DeleteJobFn(int64(in.SwapData.JobID))
-	}
-
 	return common.FsmOut{}
 }
 
 func (s *SwapMachine) FsmSwapSuccessOne(in common.FsmIn) common.FsmOut {
 	// TODO: it would be great if we could calculate how much the swap actually cost us, but it is hard to do precisely
-	// because redeemer might have claimed multiple funds
+	// because redeemer might have claimed multiple funds at once.
 
 	message := fmt.Sprintf("Swap %d (attempt %d) succeeded", in.GetJobID(), in.SwapData.Attempt)
 	if in.SwapData.IsDryRun {
