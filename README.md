@@ -149,7 +149,7 @@ wget https://github.com/bolt-observer/agent/releases/download/v0.1.2/bolt-agent-
 * verify integrity
 
 ```
-wget -qO- https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/fiksn.asc | gpg --import
+wget -qO- https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/developers.asc | gpg --import
 gpg --verify manifest-v0.1.2.txt.asc manifest-v0.1.2.txt
 ```
 
@@ -157,6 +157,13 @@ and you should see:
 ```
 gpg:                using RSA key F4B8B3B59C1E5AA39A1B9636E897355718E1DBF4
 gpg: Good signature from "Gregor Pogacnik <gregor@bolt.observer>" [ultimate]
+```
+
+or
+
+```
+gpg:                using RSA key 04AC8A162C036B650A271A6360886AC6567069C5
+gpg: Good signature from "bolt <tomaz@bolt.observer>" [ultimate]
 ```
 
 * unpack the compressed binary

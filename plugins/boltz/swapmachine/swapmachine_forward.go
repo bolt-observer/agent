@@ -352,7 +352,7 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 		}
 
 		if paid {
-			return common.FsmOut{NextState: common.SwapSuccess}
+			return common.FsmOut{NextState: common.SwapSuccessOne}
 		} else {
 			return common.FsmOut{NextState: common.SwapFailed}
 		}
