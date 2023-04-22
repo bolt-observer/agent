@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -682,11 +683,19 @@ func (l *LndRestLightningAPI) SendToOnChainAddress(ctx context.Context, address 
 // PayInvoice API.
 func (l *LndRestLightningAPI) PayInvoice(ctx context.Context, paymentRequest string, sats int64, outgoingChanIds []uint64) (*PaymentResp, error) {
 	req := &SendPaymentRequestOverride{}
-
 	req.PaymentRequest = paymentRequest
-	if sats > 0 {
+	// TODO: this is mandatory field but timeout could be configurable
+	req.TimeoutSeconds = 20
+
+	satoshis := sats
+	if satoshis > 0 {
 		req.Amt = fmt.Sprintf("%d", sats)
+	} else {
+		// Parse amount from invoice in a best effort manner, upon error result is 0...
+		satoshis = int64(GetMsatsFromInvoice(paymentRequest) * 1000)
 	}
+
+	req.FeeLimitSat = fmt.Sprintf("%d", int64(math.Max(100, math.Round(float64(satoshis)*0.01))))
 
 	req.OutgoingChanIds = make([]string, 0)
 	for _, one := range outgoingChanIds {

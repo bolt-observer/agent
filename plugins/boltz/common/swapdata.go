@@ -154,6 +154,18 @@ func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, li
 
 	factor := ((jobData.Amount / 100) - ratio)
 	sats := float64(total) * factor
+	if sats < float64(limits.MinSwap) && limits.BelowMinAmountIsSuccess {
+		glog.Infof("[Boltz] [%v] Cannot do anything - current inbound liquidity %v %% for channel %v we would swap %v which is below lower amount", jobData.ID, ratio*100, jobData.ChannelId, sats)
+		if msgCallback != nil {
+			msgCallback(agent_entities.PluginMessage{
+				JobID:      jobData.ID,
+				Message:    fmt.Sprintf("Cannot do anything - current inbound liquidity %v %% for channel %v we would swap %v which is below lower amount", ratio*100, jobData.ChannelId, sats),
+				IsError:    false,
+				IsFinished: true,
+			})
+		}
+		return nil, ErrNoNeedToDoAnything
+	}
 	sats = math.Min(math.Max(sats, float64(limits.MinSwap)), float64(limits.MaxSwap))
 
 	return &SwapData{
@@ -194,6 +206,18 @@ func convertLiquidityNodePercent(jobData *JobData, limits SwapLimits, liquidity 
 	if liquidity.Capacity != 0 {
 		factor := (jobData.Amount - val) / float64(100)
 		sats = float64(liquidity.Capacity) * factor
+		if sats < float64(limits.MinSwap) && limits.BelowMinAmountIsSuccess {
+			glog.Infof("[Boltz] [%v] Cannot do anything - we would swap %v sat which is below lower amount", jobData.ID, sats)
+			if msgCallback != nil {
+				msgCallback(agent_entities.PluginMessage{
+					JobID:      jobData.ID,
+					Message:    fmt.Sprintf("Cannot do anything - we would swap %v sats which is below lower amount", sats),
+					IsError:    false,
+					IsFinished: true,
+				})
+			}
+			return nil, ErrNoNeedToDoAnything
+		}
 
 		sats = math.Min(math.Max(sats, float64(limits.MinSwap)), float64(limits.MaxSwap))
 	}

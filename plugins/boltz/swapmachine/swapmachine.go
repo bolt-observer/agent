@@ -115,6 +115,8 @@ func (s *SwapMachine) nextRound(in common.FsmIn) common.FsmOut {
 
 	defer lnConnection.Cleanup()
 
+	// When we do another round automatically treat a swap < min limit as success
+	in.SwapData.SwapLimits.BelowMinAmountIsSuccess = true
 	sd, err := s.JobDataToSwapData(ctx, in.SwapData.SwapLimits, &in.SwapData.OriginalJobData, in.MsgCallback, lnConnection, s.Filter)
 
 	if err == common.ErrNoNeedToDoAnything {
@@ -172,6 +174,7 @@ func (s *SwapMachine) RedeemedCallback(data common.FsmIn, success bool) {
 		// so when redeemer was able to recover the funds we can transition to final state
 		// else we stay in RedeemingLockedFunds and continue with it until eternity
 		if success {
+			log(data, fmt.Sprintf("Successfully redeemed locked funds"), nil)
 			go s.Eval(data, common.SwapFailed)
 		} else {
 			go func() {
@@ -181,6 +184,7 @@ func (s *SwapMachine) RedeemedCallback(data common.FsmIn, success bool) {
 		}
 	} else if sd.State == common.ClaimReverseFunds {
 		if success {
+			log(data, fmt.Sprintf("Successfully claimed swap"), nil)
 			go s.Eval(data, common.SwapClaimed)
 		} else {
 			go s.Eval(data, common.SwapFailed)
@@ -258,6 +262,9 @@ type SwapMachine struct {
 	NodeDataInvalidator entities.Invalidatable
 	JobDataToSwapData   common.JobDataToSwapDataFn
 	LnAPI               api.NewAPICall
+
+	AllowChanCreation   bool
+	PrivateChanCreation bool
 }
 
 func NewSwapMachine(plugin data.PluginData, nodeDataInvalidator entities.Invalidatable, jobDataToSwapData common.JobDataToSwapDataFn, lnAPI api.NewAPICall) *SwapMachine {
@@ -277,6 +284,8 @@ func NewSwapMachine(plugin data.PluginData, nodeDataInvalidator entities.Invalid
 		ChangeStateFn:       fn,
 		GetSleepTimeFn:      plugin.GetSleepTimeFn,
 		DeleteJobFn:         plugin.DeleteJobFn,
+		AllowChanCreation:   plugin.AllowChanCreation,
+		PrivateChanCreation: plugin.PrivateChanCreation,
 	}
 
 	s.Machine.States[common.SwapFailed] = FsmWrap(s.FsmSwapFailed, fn)

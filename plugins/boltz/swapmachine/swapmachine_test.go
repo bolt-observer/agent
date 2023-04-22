@@ -52,6 +52,8 @@ func NewFakeSwapMachine(pd data.PluginData, nodeDataInvalidator entities.Invalid
 	s.NodeDataInvalidator = nodeDataInvalidator
 	s.JobDataToSwapData = jobDataToSwapData
 	s.LnAPI = lnAPI
+	s.AllowChanCreation = true
+	s.PrivateChanCreation = false
 
 	s.Machine.States[common.SwapFailed] = func(in common.FsmIn) common.FsmOut {
 		s.CurrentState = common.SwapFailed

@@ -57,14 +57,20 @@ var PluginFlags = []cli.Flag{
 	cli.Uint64Flag{
 		Name: "defaultswapsats", Value: 0, Usage: "default swap to perform in sats", Hidden: true,
 	},
-	cli.BoolFlag{
-		Name: "disablezeroconf", Usage: "disable zeroconfirmation for swaps", Hidden: false,
+	cli.BoolTFlag{
+		Name: "zeroconf", Usage: "enable zero-confirmation for swaps", Hidden: false,
 	},
 	cli.IntFlag{
 		Name: "maxswapattempts", Value: 20, Usage: "max swap attempts for bigger jobs", Hidden: true,
 	},
 	cli.StringFlag{
 		Name: "boltzreferral", Value: "bolt-observer", Usage: "boltz referral code", Hidden: true,
+	},
+	cli.BoolTFlag{
+		Name: "boltzopenchannel", Usage: "whether boltz should open channnels if it cannot pay invoice", Hidden: true,
+	},
+	cli.BoolTFlag{
+		Name: "boltzbelowminsuccess", Usage: "whether when you want to swap an amount below min is treated as success", Hidden: true,
 	},
 }
 
@@ -154,13 +160,14 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 	}
 
 	limits := common.SwapLimits{
-		MaxFeePercentage: cmdCtx.Float64("maxfeepercentage"),
-		AllowZeroConf:    !cmdCtx.Bool("disablezeroconf"),
-		MinSwap:          cmdCtx.Uint64("minswapsats"),
-		MaxSwap:          cmdCtx.Uint64("maxswapsats"),
-		DefaultSwap:      cmdCtx.Uint64("defaultswapsats"),
-		MaxAttempts:      cmdCtx.Int("maxswapattempts"),
-		BackOffAmount:    cmdCtx.Float64("backoffamount"),
+		MaxFeePercentage:        cmdCtx.Float64("maxfeepercentage"),
+		AllowZeroConf:           cmdCtx.BoolT("zeroconf"),
+		MinSwap:                 cmdCtx.Uint64("minswapsats"),
+		MaxSwap:                 cmdCtx.Uint64("maxswapsats"),
+		DefaultSwap:             cmdCtx.Uint64("defaultswapsats"),
+		MaxAttempts:             cmdCtx.Int("maxswapattempts"),
+		BackOffAmount:           cmdCtx.Float64("backoffamount"),
+		BelowMinAmountIsSuccess: cmdCtx.BoolT("boltzbelowminsuccess"),
 	}
 
 	if limits.MinSwap > limits.MaxSwap || limits.DefaultSwap < limits.MinSwap || limits.DefaultSwap > limits.MaxSwap {
@@ -206,7 +213,9 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 			GetSleepTimeFn: data.GetSleepTimeFn(func(in common.FsmIn) time.Duration {
 				return resp.GetSleepTime()
 			}),
-			DeleteJobFn: resp.DeleteJob,
+			DeleteJobFn:         resp.DeleteJob,
+			AllowChanCreation:   cmdCtx.BoolT("boltzopenchannel"),
+			PrivateChanCreation: false,
 		}, nodeDataInvalidator, common.JobDataToSwapData, resp.LnAPI)
 
 	resp.Redeemer.SetCallback(resp.SwapMachine.RedeemedCallback)

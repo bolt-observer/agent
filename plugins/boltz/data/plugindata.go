@@ -20,15 +20,17 @@ type GetSleepTimeFn func(in common.FsmIn) time.Duration
 type DeleteJobFn func(jobID int64) error
 
 type PluginData struct {
-	ReferralCode    string
-	ChainParams     *chaincfg.Params
-	Filter          filter.FilteringInterface
-	CryptoAPI       *crypto.CryptoAPI
-	Redeemer        *redeemer.Redeemer[common.FsmIn]
-	ReverseRedeemer *redeemer.Redeemer[common.FsmIn]
-	Limits          common.SwapLimits
-	BoltzAPI        *bapi.BoltzPrivateAPI
-	ChangeStateFn   ChangeStateFn
-	GetSleepTimeFn  GetSleepTimeFn
-	DeleteJobFn     DeleteJobFn
+	ReferralCode        string
+	ChainParams         *chaincfg.Params
+	Filter              filter.FilteringInterface
+	CryptoAPI           *crypto.CryptoAPI
+	Redeemer            *redeemer.Redeemer[common.FsmIn]
+	ReverseRedeemer     *redeemer.Redeemer[common.FsmIn]
+	Limits              common.SwapLimits
+	BoltzAPI            *bapi.BoltzPrivateAPI
+	ChangeStateFn       ChangeStateFn
+	GetSleepTimeFn      GetSleepTimeFn
+	DeleteJobFn         DeleteJobFn
+	AllowChanCreation   bool
+	PrivateChanCreation bool
 }

@@ -76,7 +76,7 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: err}
 	}
 
-	response, err := CreateSwapWithSanityCheck(s.BoltzAPI, keys, invoice, s.ReferralCode, info.BlockHeight, s.ChainParams)
+	response, err := CreateSwapWithSanityCheck(s.BoltzAPI, keys, invoice, s.ReferralCode, info.BlockHeight, s.ChainParams, s.AllowChanCreation, s.PrivateChanCreation)
 	if err != nil {
 		return common.FsmOut{Error: err}
 	}
@@ -168,9 +168,11 @@ func (s *SwapMachine) FsmOnChainFundsSent(in common.FsmIn) common.FsmOut {
 			continue
 		}
 
-		err = connection.EnsureConnected(ctx, lnAPI, s.BoltzAPI)
-		if err != nil {
-			log(in, fmt.Sprintf("error ensuring we are connected: %v", err), nil)
+		if s.AllowChanCreation {
+			err = connection.EnsureConnected(ctx, lnAPI, s.BoltzAPI)
+			if err != nil {
+				log(in, fmt.Sprintf("error ensuring we are connected: %v", err), nil)
+			}
 		}
 
 		stat, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
@@ -357,10 +359,10 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 	}
 }
 
-func CreateSwapWithSanityCheck(api *bapi.BoltzPrivateAPI, keys *crypto.Keys, invoice *lightning.InvoiceResp, referralCode string, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateSwapResponse, error) {
+func CreateSwapWithSanityCheck(api *bapi.BoltzPrivateAPI, keys *crypto.Keys, invoice *lightning.InvoiceResp, referralCode string, currentBlockHeight int, chainparams *chaincfg.Params,
+	allowChanCreation bool, privateChan bool) (*boltz.CreateSwapResponse, error) {
 	const (
-		AllowChanCreation = true
-		BlockEps          = 10
+		BlockEps = 10
 		// We do submarine swap when we want to increase outbound liquidity
 		LowestInboundLiqudity = 10 // 10 %
 	)
@@ -376,10 +378,10 @@ func CreateSwapWithSanityCheck(api *bapi.BoltzPrivateAPI, keys *crypto.Keys, inv
 		},
 		ReferralId: referralCode,
 	}
-	if AllowChanCreation {
+	if allowChanCreation {
 		req.Channel = &bapi.CreateSwapRequestChannel{
 			Auto:             true,
-			Private:          false, // TODO: do we need this?
+			Private:          privateChan,
 			InboundLiquidity: LowestInboundLiqudity,
 		}
 	}
