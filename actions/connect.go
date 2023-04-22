@@ -41,6 +41,7 @@ func (c *Connector) Run(ctx context.Context, resetBackOffFn func()) error {
 	if lnAPI == nil {
 		return errors.New("lightning API not obtained")
 	}
+	defer lnAPI.Cleanup()
 
 	pubkey, err := c.getPubKey(ctx, lnAPI)
 	if err != nil {
