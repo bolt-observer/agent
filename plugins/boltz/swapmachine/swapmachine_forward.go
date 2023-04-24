@@ -354,7 +354,20 @@ func (s *SwapMachine) FsmVerifyFundsReceived(in common.FsmIn) common.FsmOut {
 		if paid {
 			return common.FsmOut{NextState: common.SwapSuccessOne}
 		} else {
-			return common.FsmOut{NextState: common.SwapFailed}
+			stat, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
+			if err != nil {
+				log(in, fmt.Sprintf("error communicating with BoltzAPI: %v", err), nil)
+				time.Sleep(SleepTime)
+				continue
+			}
+			status := boltz.ParseEvent(stat.Status)
+
+			if status != boltz.ChannelCreated {
+				return common.FsmOut{NextState: common.SwapFailed}
+			} else {
+				time.Sleep(SleepTime)
+				continue
+			}
 		}
 	}
 }
