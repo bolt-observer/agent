@@ -355,7 +355,6 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 	}
 
 	return common.FsmOut{NextState: common.SwapSuccessOne}
-
 }
 
 func CreateReverseSwapWithSanityCheck(api *bapi.BoltzPrivateAPI, keys *crypto.Keys, sats uint64, referralCode string, currentBlockHeight int, chainparams *chaincfg.Params) (*boltz.CreateReverseSwapResponse, error) {

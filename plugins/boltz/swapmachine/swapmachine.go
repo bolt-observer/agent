@@ -90,6 +90,9 @@ func (s *SwapMachine) FsmSwapSuccessOne(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{NextState: common.SwapSuccess}
 	}
 
+	//TODO: to prevent race-condition with channel status not getting update, despite swap finished
+	time.Sleep(30 * time.Second)
+
 	return s.nextRound(in)
 }
 
