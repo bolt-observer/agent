@@ -91,7 +91,7 @@ func JobDataToSwapData(ctx context.Context, limits SwapLimits, jobData *JobData,
 		}
 		return convertLiquidityNodePercent(jobData, limits, liquidity, msgCallback, false)
 	case InboundLiquidityChannelPercent:
-		return convertInboundLiqudityChanPercent(ctx, jobData, limits, msgCallback, lnAPI, filter)
+		return convertInboundLiquidityChanPercent(ctx, jobData, limits, msgCallback, lnAPI, filter)
 	case DummyTarget:
 		return &SwapData{Attempt: limits.MaxAttempts + 1}, nil
 	default:
@@ -123,7 +123,7 @@ func getLiquidity(ctx context.Context, jobData *JobData, msgCallback agent_entit
 	return liquidity
 }
 
-func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, limits SwapLimits, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
+func convertInboundLiquidityChanPercent(ctx context.Context, jobData *JobData, limits SwapLimits, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
 	liquidity, total, err := GetChanLiquidity(ctx, jobData.ChannelId, 0, false, lnAPI, filter)
 	if err != nil {
 		glog.Infof("[Boltz] [%d] Could not get liquidity", jobData.ID)
@@ -139,6 +139,9 @@ func convertInboundLiqudityChanPercent(ctx context.Context, jobData *JobData, li
 	}
 
 	ratio := float64(liquidity.Capacity) / float64(total)
+
+	glog.Infof("[Boltz] [%d] Ratio for channel %d is %f", jobData.ID, jobData.ChannelId, ratio)
+
 	if ratio*100 > jobData.Amount || jobData.Amount < 0 || jobData.Amount > 100 {
 		glog.Infof("[Boltz] [%v] No need to do anything - current inbound liquidity %v %% for channel %v", jobData.ID, ratio*100, jobData.ChannelId)
 		if msgCallback != nil {
@@ -205,6 +208,7 @@ func convertLiquidityNodePercent(jobData *JobData, limits SwapLimits, liquidity 
 	sats := float64(limits.DefaultSwap)
 	if liquidity.Capacity != 0 {
 		factor := (jobData.Amount - val) / float64(100)
+		glog.Infof("[Boltz] [%d] Factor for node is %f", jobData.ID, factor)
 		sats = float64(liquidity.Capacity) * factor
 		if sats < float64(limits.MinSwap) && limits.BelowMinAmountIsSuccess {
 			glog.Infof("[Boltz] [%v] Cannot do anything - we would swap %v sat which is below lower amount", jobData.ID, sats)
