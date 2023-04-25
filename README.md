@@ -18,7 +18,7 @@ USAGE:
    bolt-agent [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.1.2
+   v0.1.7
 
 COMMANDS:
    help, h  Shows a list of commands or help for one command
@@ -143,14 +143,14 @@ Script will execute same steps that you can invoke manually:
 * fetch latest revision from https://github.com/bolt-observer/agent/releases
 
 ```
-wget https://github.com/bolt-observer/agent/releases/download/v0.1.2/bolt-agent-v0.1.2-linux.zip https://github.com/bolt-observer/agent/releases/download/v0.1.2/manifest-v0.1.2.txt.asc https://github.com/bolt-observer/agent/releases/download/v0.1.2/manifest-v0.1.2.txt
+wget https://github.com/bolt-observer/agent/releases/download/v0.1.7/bolt-agent-v0.1.7-linux.zip https://github.com/bolt-observer/agent/releases/download/v0.1.7/manifest-v0.1.7.txt.asc https://github.com/bolt-observer/agent/releases/download/v0.1.7/manifest-v0.1.7.txt
 ```
 
 * verify integrity
 
 ```
-wget -qO- https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/developers.asc | gpg --import
-gpg --verify manifest-v0.1.2.txt.asc manifest-v0.1.2.txt
+wget -qO- https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/fiksn.asc | gpg --import
+gpg --verify manifest-v0.1.7.txt.asc manifest-v0.1.7.txt
 ```
 
 and you should see:
@@ -169,13 +169,13 @@ gpg: Good signature from "bolt <tomaz@bolt.observer>" [ultimate]
 * unpack the compressed binary
 
 ```
-unzip bolt-agent-v0.1.2-linux.zip
+unzip bolt-agent-v0.1.7-linux.zip
 ```
 
 * copy the binary to a common place
 
 ```
-cp bolt-agent-v0.1.2-linux /usr/local/bin/bolt-agent
+cp bolt-agent-v0.1.7-linux /usr/local/bin/bolt-agent
 ```
 
 * start the binary
@@ -204,7 +204,7 @@ You can use the docker image from GitHub:
 Usage:
 
 ```
-docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.1.2
+docker run -v /tmp:/tmp -e API_KEY=changeme ghcr.io/bolt-observer/agent:v0.1.7
 ```
 
 ## Filtering on agent side
@@ -248,9 +248,15 @@ Internally we use:
 * [raw](./raw): is the connection between [agent](./agent) API and [lightning](./lightning) API
 * [plugins](./plugins): contains the plugins
 
+You might want to read about [boltz plugin](./plugins/boltz/README.md).
+
 ## Dependencies
 
 This code depends on some [common code](https://github.com/bolt-observer/go_common).
+
+## Documentation
+
+Read complete documentation on: [https://docs.bolt.observer](https://docs.bolt.observer).
 
 ## Troubleshooting
 

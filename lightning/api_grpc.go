@@ -899,7 +899,6 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 		req.OutgoingChanIds = make([]uint64, 0)
 		req.OutgoingChanIds = append(req.OutgoingChanIds, outgoingChanIds...)
 		if len(outgoingChanIds) > 1 {
-			req.Amp = true
 			req.MaxParts = uint32(len(outgoingChanIds))
 		}
 	}

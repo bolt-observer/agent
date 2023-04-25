@@ -15,3 +15,7 @@ To make everything work in Visual Studio Code, go to Settings / Settings / Gopls
     "build.buildFlags": ["-tags=plugins"]
 }
 ```
+
+# Run-time control
+
+There is an option `--noplugins` to disable all plugins even though you might have them compiled in the release.
