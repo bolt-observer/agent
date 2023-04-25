@@ -19,3 +19,5 @@ In order to do submarine swaps you must have an on-chain balance.
    --defaultswapsats value    default swap to perform in sats (default: 100000)
    --disablezeroconf          disable zeroconfirmation for swaps
 ```
+
+To learn more read: https://docs.bolt.observer/readme/liquidops/node-and-liquidity-automation
