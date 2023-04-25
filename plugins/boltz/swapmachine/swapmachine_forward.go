@@ -91,7 +91,7 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
-	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100),
+	log(in, fmt.Sprintf("Swap fee for %v will be approximately %.2f %%", response.Id, fee*100),
 		logger.Get("fee", fee*100))
 
 	// Check funds
@@ -124,13 +124,13 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: err}
 	}
 
-	log(in, fmt.Sprintf("Transaction ID for swap %v sats to %v is %v (invoice hash %v)", int64(response.ExpectedAmount), response.Address, tx, invoice.Hash),
+	log(in, fmt.Sprintf("Transaction ID for swap of %v sats to %v is %v (invoice hash %v)", int64(response.ExpectedAmount), response.Address, tx, invoice.Hash),
 		logger.Get("sats", int64(response.ExpectedAmount), "address", response.Address, "transaction", tx, "invoice", invoice.PaymentRequest))
 	in.SwapData.LockupTransactionId = tx
 
 	txResp, err := s.BoltzAPI.GetTransaction(bapi.GetTransactionRequest{Currency: common.Btc, TransactionId: tx})
 	if err == nil && txResp.TransactionHex != "" {
-		log(in, fmt.Sprintf("Transaction hex for swap %v sats to %v is %v (invoice hash %v)", int64(response.ExpectedAmount), response.Address, txResp.TransactionHex, invoice.Hash),
+		log(in, fmt.Sprintf("Transaction hex for swap of %v sats to %v is %v (invoice hash %v)", int64(response.ExpectedAmount), response.Address, txResp.TransactionHex, invoice.Hash),
 			logger.Get("sats", int64(response.ExpectedAmount), "address", response.Address, "transaction_hex", txResp.TransactionHex, "invoice", invoice.PaymentRequest))
 
 		in.SwapData.TransactionHex = txResp.TransactionHex

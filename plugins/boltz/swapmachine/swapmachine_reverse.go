@@ -89,7 +89,7 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
-	log(in, fmt.Sprintf("Swap fee for %v will be approximately %v %%", response.Id, fee*100),
+	log(in, fmt.Sprintf("Swap fee for %v will be approximately %.2f %%", response.Id, fee*100),
 		logger.Get("fee", fee*100))
 
 	in.SwapData.FeesPending = common.Fees{

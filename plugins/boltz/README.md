@@ -84,3 +84,5 @@ This section lists all configuration options. Most of them are hidden since they
    --maxswapattempts value    maximum number of swaps to bring liquidity to desired state (default 20)
    --defaultswapsats value    default swap to perform in sats (default: 0)
 ```
+
+To learn more read: https://docs.bolt.observer/readme/liquidops/node-and-liquidity-automation
