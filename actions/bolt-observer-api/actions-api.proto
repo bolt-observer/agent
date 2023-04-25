@@ -35,4 +35,5 @@ enum Sequence {
   LOG = 2;
   FINISHED = 3;
   PING = 4;
+  PONG = 5;
 }

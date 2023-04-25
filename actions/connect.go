@@ -122,7 +122,7 @@ func (c *Connector) communicate(ctx context.Context, stream actionStreamer, rese
 				break
 			case msg.Sequence == api.Sequence_PING:
 				glog.V(4).Info("Received keep-alive ping from server")
-				err = stream.Send(&api.AgentReply{Sequence: api.Sequence_PING})
+				err = stream.Send(&api.AgentReply{Sequence: api.Sequence_PONG})
 				if err != nil {
 					glog.Errorf("Error while sending ping message: %v", err)
 				}
