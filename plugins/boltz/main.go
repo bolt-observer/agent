@@ -61,12 +61,12 @@ var PluginFlags = []cli.Flag{
 		Name: "zeroconf", Usage: "enable zero-confirmation for swaps", Hidden: false,
 	},
 	cli.IntFlag{
-		Name: "maxswapattempts", Value: 20, Usage: "max swap attempts for bigger jobs", Hidden: true,
+		Name: "maxswapattempts", Value: 20, Usage: "maximum number of individual boltz swaps to bring liquidity to desired state", Hidden: true,
 	},
 	cli.StringFlag{
 		Name: "boltzreferral", Value: "bolt-observer", Usage: "boltz referral code", Hidden: true,
 	},
-	cli.BoolTFlag{
+	cli.BoolFlag{
 		Name: "boltzopenchannel", Usage: "whether boltz should open channnels if it cannot pay invoice", Hidden: true,
 	},
 	cli.BoolTFlag{
@@ -214,7 +214,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 				return resp.GetSleepTime()
 			}),
 			DeleteJobFn:         resp.DeleteJob,
-			AllowChanCreation:   cmdCtx.BoolT("boltzopenchannel"),
+			AllowChanCreation:   cmdCtx.Bool("boltzopenchannel"),
 			PrivateChanCreation: false,
 		}, nodeDataInvalidator, common.JobDataToSwapData, resp.LnAPI)
 
