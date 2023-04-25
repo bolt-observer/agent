@@ -11,11 +11,9 @@ In order to do submarine swaps you must have an on-chain balance.
 ```
    --boltzurl value           url of boltz api (default: "https://boltz.exchange/api")
    --boltzdatabase value      full path to database file (file will be created if it does not exist yet) (default: "/home/user/.bolt/boltz.db")
-   --dumpmnemonic             should we print master secret as mnemonic phrase (dangerous)
-   --setmnemonic value        update saved secret with this key material (dangerous)
    --maxfeepercentage value   maximum fee in percentage that is still acceptable (default: 5)
    --maxswapsats value        maximum swap to perform in sats (default: 1000000)
    --minswapsats value        minimum swap to perform in sats (default: 100000)
    --defaultswapsats value    default swap to perform in sats (default: 100000)
-   --disablezeroconf          disable zeroconfirmation for swaps
+   --zeroconf                 enablle zeroconfirmation for swaps (default: true)
 ```

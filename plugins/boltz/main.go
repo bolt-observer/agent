@@ -66,7 +66,7 @@ var PluginFlags = []cli.Flag{
 	cli.StringFlag{
 		Name: "boltzreferral", Value: "bolt-observer", Usage: "boltz referral code", Hidden: true,
 	},
-	cli.BoolTFlag{
+	cli.BoolFlag{
 		Name: "boltzopenchannel", Usage: "whether boltz should open channnels if it cannot pay invoice", Hidden: true,
 	},
 	cli.BoolTFlag{
@@ -214,7 +214,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 				return resp.GetSleepTime()
 			}),
 			DeleteJobFn:         resp.DeleteJob,
-			AllowChanCreation:   cmdCtx.BoolT("boltzopenchannel"),
+			AllowChanCreation:   cmdCtx.Bool("boltzopenchannel"),
 			PrivateChanCreation: false,
 		}, nodeDataInvalidator, common.JobDataToSwapData, resp.LnAPI)
 
