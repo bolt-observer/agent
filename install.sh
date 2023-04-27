@@ -61,7 +61,7 @@ fetch "$url" "$tmpDir/manifest.txt" || oops "failed to download '$url'"
 url="https://github.com/bolt-observer/agent/releases/download/${latest}/manifest-${latest}.txt.asc"
 echo "downloading manifest.asc from '$url' to '$tmpDir'..."
 fetch "$url" "$tmpDir/manifest.txt.asc" || oops "failed to download '$url'"
-url="https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/fiksn.asc"
+url="https://raw.githubusercontent.com/bolt-observer/agent/main/scripts/keys/developers.asc"
 echo "downloading key from '$url' to '$tmpDir'..."
 fetch "$url" "$tmpDir/key" || oops "failed to download '$url'"
 cat "$tmpDir/key" | gpg --import || true
@@ -71,12 +71,12 @@ if [ -d "/etc/systemd/system" ]; then
   url="https://raw.githubusercontent.com/bolt-observer/agent/main/${agent}.service"
   echo "downloading key from '$url' to '$tmpDir'..."
   fetch "$url" "$tmpDir/service" || oops "failed to download '$url'"
-  if [ ! -f "/etc/systemd/system/${agent}" ]; then
+  if [ ! -f "/etc/systemd/system/${agent}.service" ]; then
     echo "Will use sudo to install systemd service, you will probably need to enter credentials"
     if [ -z ${apikey+x} ]; then
       read -p "Enter API key for your node shown on bolt.observer website: " apikey
     fi
-    ${sudo} cat "$tmpDir/service" | ${sudo} sed "s/changeme/${apikey}/g" > /etc/systemd/system/${agent}.service
+    cat "$tmpDir/service" | sed "s/changeme/${apikey}/g" | ${sudo} tee /etc/systemd/system/${agent}.service >/dev/null
     ${sudo} systemctl daemon-reload
     ${sudo} systemctl enable ${agent}.service
     ${sudo} systemctl start ${agent}.service
@@ -87,7 +87,7 @@ if [ -d "/etc/systemd/system" ]; then
   fi
 fi
 
-cd $tmpDir >/dev/null
+cd $tmpDir >/dev/null || oops "Cannot change directory"
 
 # Checksum
 gpg --verify manifest.txt.asc manifest.txt || { echo "GPG signature incorrect"; exit 1; }
@@ -109,7 +109,7 @@ if [ -d "/etc/systemd/system" ] && [ "$restart" = "1" ]; then
   ${sudo} systemctl restart ${agent}.service
 fi
 
-cd - >/dev/null
+cd - >/dev/null || oops "Cannot change directory"
 
 echo "Agent ${latest} installed to ${bin_dir}"
 
