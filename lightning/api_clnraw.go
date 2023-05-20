@@ -2,7 +2,6 @@ package lightning
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -953,21 +952,16 @@ func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentReques
 
 	var (
 		err         error
-		paymentHash []byte
+		paymentHash string
 	)
 
 	if strings.HasPrefix(paymentRequest, "ln") {
-		hash := GetHashFromInvoice(paymentRequest)
-		if hash == "" {
-			return nil, fmt.Errorf("bad payment request")
-		}
-
-		paymentHash, err = hex.DecodeString(hash)
-		if err != nil {
+		paymentHash = GetHashFromInvoice(paymentRequest)
+		if paymentHash == "" {
 			return nil, fmt.Errorf("bad payment request")
 		}
 	} else {
-		paymentHash = []byte(paymentRequest)
+		paymentHash = paymentRequest
 	}
 
 	err = l.connection.Call(ctx, ListPays, []interface{}{nil, paymentHash}, &reply, DefaultDuration)
@@ -981,7 +975,7 @@ func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentReques
 
 	hash := reply.Entries[0].PaymentHash
 
-	if hash != hex.EncodeToString(paymentHash) {
+	if hash != paymentHash {
 		return nil, fmt.Errorf("invalid response")
 	}
 
