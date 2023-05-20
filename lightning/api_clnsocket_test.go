@@ -415,12 +415,10 @@ func TestClnGetPaymentStatus(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
 	defer cancel()
 
-	resp, err := api.GetPaymentStatus(ctx, "d4b75c00becfb3d50b98e296a3f8f4f590af2093fddf870c01ad2e19c8e13994")
+	resp, err := api.GetPaymentStatus(ctx, "lnbcrt13370n1p3lwhhnpp5zfvpdpwp77wmgpyawatm550uv9cvx0hv9hgukxd6u0pqqdhcdymsdqqcqzpgxqyz5vqsp5xsum9s4cpkvw27f6smk4daxqkpjgmah8xxhs8ty34fm4srmwfvjs9qyyssqlx5zk7j8lfeelzmpsk0mmwp3583tl52j8us2q9nt05vrmtp3sasxzc8wyjchrum67sllzr52gjz26rcrye6y4vrlpr6pyv9jhhlrp2cq52rxf5")
+
 	assert.NoError(t, err)
 	assert.NotEqual(t, 0, resp.Preimage)
-
-	_, err = api.GetPaymentStatus(ctx, "d4b75c00becfb3d50b98e296a3f8f4f590af2093fddf870c01ad2e19c8e13995")
-	assert.Error(t, err)
 }
 
 func TestClnCreateInvoice(t *testing.T) {

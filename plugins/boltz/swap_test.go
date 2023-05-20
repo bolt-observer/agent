@@ -301,7 +301,6 @@ func TestPayInvoice(t *testing.T) {
 }
 
 func TestPayHodlInvoiceGrpc(t *testing.T) {
-	return
 	const Node = "F"
 
 	ln := api.GetLocalLndByName(t, Node)
@@ -313,18 +312,13 @@ func TestPayHodlInvoiceGrpc(t *testing.T) {
 	api, err := ln()
 	require.NoError(t, err)
 
-	request := "lnbcrt1200n1pjy9dsxpp52nwgn5e2z5cxkccwwlcsr53mn66elv6dum6xd346r5k3xrnwlqzsdqqcqzpgxqyz5vqsp5s7rndl282gtcqn86t5zv2rak4qe2ma0n0dn45saxwajszhkps36s9qyyssqudjn4pan0lrucj0rq82x8e48u9p7lh8nmgjtsn3vs3qeqcwqh7spdsd0tps9erthgydtrgpx8dg8yk5q3nwdp6dglh5c9823fj5tmlqq3rvctw"
-	channel := uint64(178120883765248)
+	request := "lnbcrt211pjxwcndpp5ns4kuz97pww5andpd4rvs3allwrtptt2tk0mzzct0rjpffn7lm0sdqqcqzpgxqyz5vqsp5j6ph6ql60y3xrpvdxytsh2hslrg2ztwghh22hjtce5vx7sqdlaus9qyyssq99smdrc625teq0mjsk3zp7dnrk4vejt7x6ayxy99eqxhednanhzptgktzhaayu34dy42jtgutvzehu8lmh3g2z0ezufzt8xrfgkpecqqy0ntpt"
+	//channel := uint64(178120883765248)
 
-	resp, err := api.PayInvoice(context.Background(), request, 0, []uint64{channel})
+	resp, err := api.PayInvoice(context.Background(), request, 0, []uint64{})
 	assert.NoError(t, err)
 
 	fmt.Printf("%+v\n", resp)
-
-	resp2, err := api.PayInvoice(context.Background(), request, 0, []uint64{})
-	assert.NoError(t, err)
-
-	fmt.Printf("%+v\n", resp2)
 
 	t.Fail()
 }

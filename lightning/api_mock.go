@@ -94,7 +94,7 @@ func (m *MockLightningAPI) PayInvoice(ctx context.Context, paymentRequest string
 	panic("not implemented")
 }
 
-func (m *MockLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
+func (m *MockLightningAPI) GetPaymentStatus(ctx context.Context, paymentRequest string) (*PaymentResp, error) {
 	panic("not implemented")
 }
 

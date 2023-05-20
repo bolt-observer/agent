@@ -2,6 +2,7 @@ package lightning
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -943,9 +944,33 @@ func (l *ClnRawLightningAPI) calculateExclusions(ctx context.Context, outgoingCh
 }
 
 // GetPaymentStatus - API call.
-func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
+func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentRequest string) (*PaymentResp, error) {
 	var reply ClnPaymentEntries
-	err := l.connection.Call(ctx, ListPays, []interface{}{nil, paymentHash}, &reply, DefaultDuration)
+
+	if paymentRequest == "" {
+		return nil, fmt.Errorf("missing payment request")
+	}
+
+	var (
+		err         error
+		paymentHash []byte
+	)
+
+	if strings.HasPrefix(paymentRequest, "ln") {
+		hash := GetHashFromInvoice(paymentRequest)
+		if hash == "" {
+			return nil, fmt.Errorf("bad payment request")
+		}
+
+		paymentHash, err = hex.DecodeString(hash)
+		if err != nil {
+			return nil, fmt.Errorf("bad payment request")
+		}
+	} else {
+		paymentHash = []byte(paymentRequest)
+	}
+
+	err = l.connection.Call(ctx, ListPays, []interface{}{nil, paymentHash}, &reply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -956,7 +981,7 @@ func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash s
 
 	hash := reply.Entries[0].PaymentHash
 
-	if hash != paymentHash {
+	if hash != hex.EncodeToString(paymentHash) {
 		return nil, fmt.Errorf("invalid response")
 	}
 

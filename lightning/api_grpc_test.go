@@ -543,7 +543,7 @@ func TestGetPaymentStatusGrpc(t *testing.T) {
 		TrackPaymentV2(gomock.Any(), gomock.Any()).
 		Return(c, nil)
 
-	resp, err := api.GetPaymentStatus(context.Background(), "12581685c1f79db4049d7757ba51fc6170c33eec2dd1cb19bae3c20036f86937")
+	resp, err := api.GetPaymentStatus(context.Background(), "lnbcrt13370n1p3lwhhnpp5zfvpdpwp77wmgpyawatm550uv9cvx0hv9hgukxd6u0pqqdhcdymsdqqcqzpgxqyz5vqsp5xsum9s4cpkvw27f6smk4daxqkpjgmah8xxhs8ty34fm4srmwfvjs9qyyssqlx5zk7j8lfeelzmpsk0mmwp3583tl52j8us2q9nt05vrmtp3sasxzc8wyjchrum67sllzr52gjz26rcrye6y4vrlpr6pyv9jhhlrp2cq52rxf5")
 	assert.NoError(t, err)
 	assert.Equal(t, Success, resp.Status)
 }
@@ -665,4 +665,6 @@ func TestGetMsatsFromInvoice(t *testing.T) {
 	assert.Equal(t, expected, GetMsatsFromInvoice("lntb1m1pjyxysnpp5x24d0yvj0c7atwhf88l8c7xu7l80xnymhhuaz7j5u4yp6dfcgqcqdqqcqzpgxqyz5vqsp5uq3c68sh2fqrdwl2l90ccxw7qpfn65cgs3n5lrd8nwu3f2hrxk8q9qyyssqzdr5gqj35u30fra74d02utsq3gljkhfj9zpvxp8ljhaclz49zkjpy2gxha53ejyu8am8m0q97ql7algt068tze8p8wwfquc4e7m3z8cp6a2mp9"))
 	assert.Equal(t, expected, GetMsatsFromInvoice("lnbc1m1pjyxyw7pp5ftl92yhqxnp925ppl7tr7txze2px38ccgr5msekvgru0v9fthzcqdqqcqzpgxqyz5vqsp5xa4zr56xw6fkprpc9w75cyyv4zdv0hxw7em770qetxsuz9ywsy6s9qyyssqpuyv9ft83utw87wv0xlan4r4wju7rd4ktk6cyls9da6w0qjjagn94x5hjlaez0l5tfw9ttkhezh2jw9hgd0vpncfyrpspzatww57pvsq4cx0cg"))
 	assert.Equal(t, uint64(0), GetMsatsFromInvoice("lnbc"))
+
+	assert.Equal(t, uint64(806246000), GetMsatsFromInvoice("lnbc8062460n1pjxgfldpp5e96fqfeahqdlvse0mmmfl3vnv90huhl96cnuwxp7w90nrzdzhe2sdql2djkuepqw3hjqsj5gvsxzerywfjhxuccqzynxqrrsssp5ha03x05dx2s0gyf69dvk2rh0gma7xr009znr9m06tlnqwcf0xweq9qyyssqe5glksza37wee3lgtpste2yt3xgrjwj8en5au0sf28qfhpffmkprnppwk3vl2m6mcumxx9v84jh974a4jqs2a2a92g2mguwt22xpkgqq43qyfs"))
 }
