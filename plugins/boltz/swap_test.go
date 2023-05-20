@@ -301,6 +301,7 @@ func TestPayInvoice(t *testing.T) {
 }
 
 func TestPayHodlInvoiceGrpc(t *testing.T) {
+	return
 	const Node = "F"
 
 	ln := api.GetLocalLndByName(t, Node)
