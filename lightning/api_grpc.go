@@ -859,7 +859,7 @@ func GetMsatsFromInvoice(bolt11 string) uint64 {
 	}
 
 	firstNumber := strings.IndexAny(bolt11, "1234567890")
-	if firstNumber == -1 {
+	if firstNumber <= 2 {
 		return 0
 	}
 
@@ -886,7 +886,7 @@ func GetHashFromInvoice(bolt11 string) string {
 	}
 
 	firstNumber := strings.IndexAny(bolt11, "1234567890")
-	if firstNumber == -1 {
+	if firstNumber <= 2 {
 		return ""
 	}
 

@@ -475,7 +475,8 @@ type PayInvoiceRespFunc func(resp *PaymentResp, err error)
 func TestPayInvoiceGrpc(t *testing.T) {
 	for _, currentCase := range []Pair[string, PayInvoiceRespFunc]{
 		{First: "payinvoice_noroute", Second: func(resp *PaymentResp, err error) {
-			assert.Error(t, err)
+			assert.NoError(t, err)
+			assert.Equal(t, Failed, resp.Status)
 		}},
 		{First: "payinvoice_inflight", Second: func(resp *PaymentResp, err error) {
 			assert.NoError(t, err)
