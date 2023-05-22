@@ -228,6 +228,11 @@ func getApp() *cli.App {
 			Hidden: true,
 			Value:  5 * time.Minute,
 		},
+		&cli.BoolFlag{
+			Name:   "smooth",
+			Usage:  "smooth htlcs",
+			Hidden: true,
+		},
 	}
 
 	app.Flags = append(app.Flags, entities.GlogFlags...)

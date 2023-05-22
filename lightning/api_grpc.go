@@ -859,7 +859,7 @@ func GetMsatsFromInvoice(bolt11 string) uint64 {
 	}
 
 	firstNumber := strings.IndexAny(bolt11, "1234567890")
-	if firstNumber == -1 {
+	if firstNumber <= 2 {
 		return 0
 	}
 
@@ -878,6 +878,33 @@ func GetMsatsFromInvoice(bolt11 string) uint64 {
 	}
 
 	return 0
+}
+
+func GetHashFromInvoice(bolt11 string) string {
+	if len(bolt11) < 2 {
+		return ""
+	}
+
+	firstNumber := strings.IndexAny(bolt11, "1234567890")
+	if firstNumber <= 2 {
+		return ""
+	}
+
+	chainPrefix := bolt11[2:firstNumber]
+	chain := &chaincfg.Params{
+		Bech32HRPSegwit: chainPrefix,
+	}
+
+	inv, err := zpay32.Decode(bolt11, chain)
+	if err != nil {
+		return ""
+	}
+
+	if inv.PaymentHash == nil {
+		return ""
+	}
+
+	return hex.EncodeToString(inv.PaymentHash[:])
 }
 
 // PayInvoice API.
@@ -909,14 +936,6 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 	resp, err := l.RouterClient.SendPaymentV2(ctx, req)
 
 	if err != nil {
-		// TODO: we don't know the hash here, else we could return l.GetPaymentStatus()
-		if strings.Contains(err.Error(), "invoice is already paid") {
-			return nil, nil
-
-		} else if strings.Contains(err.Error(), "AlreadyExists desc = payment is in transition") {
-			return nil, nil
-		}
-
 		return nil, err
 	}
 
@@ -925,12 +944,11 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 			return nil, ctx.Err()
 		}
 		event, err := resp.Recv()
+		if err == io.EOF {
+			break
+		}
 
 		if err != nil {
-			if strings.Contains(err.Error(), "AlreadyExists desc = payment is in transition") {
-				return nil, nil
-			}
-
 			return nil, err
 		}
 
@@ -958,16 +976,37 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 			}
 
 		case lnrpc.Payment_FAILED:
-			return nil, fmt.Errorf("failed payment")
+			return &PaymentResp{
+				Hash:   event.PaymentHash,
+				Status: Failed,
+			}, nil
 		}
 	}
+
+	return nil, fmt.Errorf("eof")
 }
 
 // GetPaymentStatus API.
-func (l *LndGrpcLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
+func (l *LndGrpcLightningAPI) GetPaymentStatus(ctx context.Context, paymentRequest string) (*PaymentResp, error) {
 	var err error
 	req := &routerrpc.TrackPaymentRequest{}
-	req.PaymentHash, err = hex.DecodeString(paymentHash)
+	if paymentRequest == "" {
+		return nil, fmt.Errorf("missing payment request")
+	}
+
+	if strings.HasPrefix(paymentRequest, "ln") {
+		paymentHash := GetHashFromInvoice(paymentRequest)
+		if paymentHash == "" {
+			return nil, fmt.Errorf("bad payment request")
+		}
+
+		req.PaymentHash, err = hex.DecodeString(paymentHash)
+		if err != nil {
+			return nil, fmt.Errorf("bad payment request")
+		}
+	} else {
+		req.PaymentHash = []byte(paymentRequest)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -985,6 +1024,9 @@ func (l *LndGrpcLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash 
 		}
 
 		event, err := resp.Recv()
+		if err == io.EOF {
+			break
+		}
 
 		if err != nil {
 			return nil, err
@@ -1011,6 +1053,8 @@ func (l *LndGrpcLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash 
 			}, nil
 		}
 	}
+
+	return nil, fmt.Errorf("eof")
 }
 
 // CreateInvoice API.

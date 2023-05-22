@@ -943,9 +943,28 @@ func (l *ClnRawLightningAPI) calculateExclusions(ctx context.Context, outgoingCh
 }
 
 // GetPaymentStatus - API call.
-func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
+func (l *ClnRawLightningAPI) GetPaymentStatus(ctx context.Context, paymentRequest string) (*PaymentResp, error) {
 	var reply ClnPaymentEntries
-	err := l.connection.Call(ctx, ListPays, []interface{}{nil, paymentHash}, &reply, DefaultDuration)
+
+	if paymentRequest == "" {
+		return nil, fmt.Errorf("missing payment request")
+	}
+
+	var (
+		err         error
+		paymentHash string
+	)
+
+	if strings.HasPrefix(paymentRequest, "ln") {
+		paymentHash = GetHashFromInvoice(paymentRequest)
+		if paymentHash == "" {
+			return nil, fmt.Errorf("bad payment request")
+		}
+	} else {
+		paymentHash = paymentRequest
+	}
+
+	err = l.connection.Call(ctx, ListPays, []interface{}{nil, paymentHash}, &reply, DefaultDuration)
 	if err != nil {
 		return nil, err
 	}

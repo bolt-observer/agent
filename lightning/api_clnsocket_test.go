@@ -415,12 +415,27 @@ func TestClnGetPaymentStatus(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
 	defer cancel()
 
-	resp, err := api.GetPaymentStatus(ctx, "d4b75c00becfb3d50b98e296a3f8f4f590af2093fddf870c01ad2e19c8e13994")
+	resp, err := api.GetPaymentStatus(ctx, "lnbc13370n1pjx3794pp56jm4cq97e7ea2zucu2t287857kg27gynlh0cwrqp45hpnj8p8x2qdqqcqzzsxqyz5vqsp57587usq4ph5axdvjgvxhfqh64p295utlarcn88tna6q73audza0q9qyyssq6584t5datgf0kgw3thk5ny85dd3wjgmckrqs9w7ja03l8pqd643rt6zdlhc5pf6ktc6m6mrgn2d3tjesw6ups2yr96g4jp0dm9s4tmgp359yyu")
+
 	assert.NoError(t, err)
 	assert.NotEqual(t, 0, resp.Preimage)
+}
 
-	_, err = api.GetPaymentStatus(ctx, "d4b75c00becfb3d50b98e296a3f8f4f590af2093fddf870c01ad2e19c8e13995")
-	assert.Error(t, err)
+func TestClnGetPaymentStatusLegacy(t *testing.T) {
+	data := clnData(t, "cln_listpay")
+
+	_, api, closer := clnCommon(t, func(c net.Conn) {
+		clnCannedResponse(t, c, "listpay", data)
+	})
+	defer closer()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(Deadline))
+	defer cancel()
+
+	resp, err := api.GetPaymentStatus(ctx, "d4b75c00becfb3d50b98e296a3f8f4f590af2093fddf870c01ad2e19c8e13994")
+
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, resp.Preimage)
 }
 
 func TestClnCreateInvoice(t *testing.T) {

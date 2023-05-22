@@ -716,10 +716,24 @@ func (l *LndRestLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 }
 
 // GetPaymentStatus API.
-func (l *LndRestLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash string) (*PaymentResp, error) {
+func (l *LndRestLightningAPI) GetPaymentStatus(ctx context.Context, paymentRequest string) (*PaymentResp, error) {
 	req := &TrackPaymentRequestOverride{}
-	req.PaymentHash = paymentHash
 	req.NoInflightUpdates = true
+
+	if paymentRequest == "" {
+		return nil, fmt.Errorf("missing payment request")
+	}
+
+	if strings.HasPrefix(paymentRequest, "ln") {
+		paymentHash := GetHashFromInvoice(paymentRequest)
+		if paymentHash == "" {
+			return nil, fmt.Errorf("bad payment request")
+		}
+
+		req.PaymentHash = paymentHash
+	} else {
+		req.PaymentHash = paymentRequest
+	}
 
 	resp, err := l.HTTPAPI.HTTPTrackPayment(ctx, l.Request, req)
 	if err != nil {
@@ -730,19 +744,19 @@ func (l *LndRestLightningAPI) GetPaymentStatus(ctx context.Context, paymentHash 
 	case "succeeded":
 		return &PaymentResp{
 			Preimage: resp.PaymentPreimage,
-			Hash:     paymentHash,
+			Hash:     req.PaymentHash,
 			Status:   Success,
 		}, nil
 	case "failed":
 		return &PaymentResp{
 			Preimage: "",
-			Hash:     paymentHash,
+			Hash:     req.PaymentHash,
 			Status:   Failed,
 		}, nil
 	default:
 		return &PaymentResp{
 			Preimage: "",
-			Hash:     paymentHash,
+			Hash:     req.PaymentHash,
 			Status:   Pending,
 		}, nil
 	}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/BoltzExchange/boltz-lnd/boltz"
 	"github.com/bolt-observer/agent/entities"
+	"github.com/bolt-observer/agent/lightning"
 	bapi "github.com/bolt-observer/agent/plugins/boltz/api"
 	common "github.com/bolt-observer/agent/plugins/boltz/common"
 	crypto "github.com/bolt-observer/agent/plugins/boltz/crypto"
@@ -134,12 +135,48 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 	return common.FsmOut{NextState: common.ReverseSwapCreated}
 }
 
+func ensureInvoiceIsPaid(ctx context.Context, ln lightning.LightingAPICalls, invoice string, chanIdsToUse []uint64, logger LogEntry, in common.FsmIn) bool {
+	log(in, fmt.Sprintf("Ensuring invoice %v is paid [%+v]", invoice, chanIdsToUse),
+		logger.Get("invoice", invoice))
+
+	status, err := ln.GetPaymentStatus(ctx, invoice)
+	if err != nil {
+		log(in, fmt.Sprintf("Failed to get payment status for %v - %v", invoice, err),
+			logger.Get("invoice", invoice, "error", err))
+		// but still continue
+	} else {
+		if status != nil && (status.Status == lightning.Pending || status.Status == lightning.Success) {
+			log(in, fmt.Sprintf("Payment status for %v - %v", invoice, status),
+				logger.Get("invoice", invoice))
+
+			in.SwapData.CommitFees()
+			return true
+		}
+	}
+
+	pay, err := ln.PayInvoice(ctx, invoice, 0, chanIdsToUse)
+	if err != nil {
+		log(in, fmt.Sprintf("Failed to pay invoice %v - %v", invoice, err),
+			logger.Get("invoice", invoice, "error", err))
+		return false
+	}
+
+	if pay != nil && (pay.Status == lightning.Pending || pay.Status == lightning.Success) {
+		log(in, fmt.Sprintf("Paid invoice %v - %v", invoice, status),
+			logger.Get("invoice", invoice))
+
+		in.SwapData.CommitFees()
+		return true
+	}
+
+	return false
+}
+
 func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 	const PayRetries = 5
 
 	ctx := context.Background()
 	logger := NewLogEntry(in.SwapData)
-	paid := false
 
 	SleepTime := s.GetSleepTimeFn(in)
 
@@ -166,31 +203,17 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 			continue
 		}
 
-		if !paid {
-			payAttempt++
-			log(in, fmt.Sprintf("Paying invoice %v %+v", in.SwapData.ReverseInvoice, in.SwapData.ChanIdsToUse),
-				logger.Get("invoice", in.SwapData.ReverseInvoice))
-
-			_, err = lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, in.SwapData.ChanIdsToUse)
-			if err != nil {
-				log(in, fmt.Sprintf("Failed paying invoice %v due to %v", in.SwapData.ReverseInvoice, err), logger.Get("error", err.Error()))
-				if in.SwapData.ReverseChannelId == 0 {
-					// this means node level liquidity - if the hints worked that would be nice, but try without them too
-
-					_, err = lnConnection.PayInvoice(ctx, in.SwapData.ReverseInvoice, 0, nil)
-					if err == nil {
-						paid = true
-						in.SwapData.CommitFees()
-					}
-				}
+		if payAttempt < PayRetries*1 {
+			ensureInvoiceIsPaid(ctx, lnConnection, in.SwapData.ReverseInvoice, in.SwapData.ChanIdsToUse, logger, in)
+		} else if payAttempt >= PayRetries*1 {
+			if in.SwapData.ReverseChannelId == 0 {
+				// this means node level liquidity - if the hints worked that would be nice, but try without them too
+				ensureInvoiceIsPaid(ctx, lnConnection, in.SwapData.ReverseInvoice, nil, logger, in)
 			} else {
-				paid = true
-				in.SwapData.CommitFees()
+				ensureInvoiceIsPaid(ctx, lnConnection, in.SwapData.ReverseInvoice, in.SwapData.ChanIdsToUse, logger, in)
 			}
-
-			if !paid && payAttempt > PayRetries {
-				return common.FsmOut{NextState: common.SwapInvoiceCouldNotBePaid}
-			}
+		} else if payAttempt > PayRetries*2 {
+			return common.FsmOut{NextState: common.SwapInvoiceCouldNotBePaid}
 		}
 
 		s, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
