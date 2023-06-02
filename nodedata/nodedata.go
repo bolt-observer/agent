@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -29,13 +30,18 @@ type SetOfChanIds map[uint64]struct{}
 
 // NodeData struct
 type NodeData struct {
-	ctx               context.Context
-	perNodeSettings   *PerNodeSettings
-	channelCache      ChannelCache
-	nodeChanIds       map[string]SetOfChanIds
-	nodeChanIdsNew    map[string]SetOfChanIds
+	ctx             context.Context
+	perNodeSettings *PerNodeSettings
+	channelCache    ChannelCache
+
+	nodeChanIdsMutex sync.Mutex
+	nodeChanIds      map[string]SetOfChanIds
+	nodeChanIdsNew   map[string]SetOfChanIds
+
+	chanDisabledMutex sync.Mutex
 	locallyDisabled   SetOfChanIds
 	remotelyDisabled  SetOfChanIds
+
 	smooth            bool          // Should we smooth out fluctuations due to HTLCs
 	keepAliveInterval time.Duration // Keepalive interval
 	checkGraph        bool          // Should we check gossip
@@ -376,6 +382,8 @@ func (c *NodeData) fetchGraph(
 		return fmt.Errorf("failed to get graph: %v", err)
 	}
 
+	c.chanDisabledMutex.Lock()
+
 	locallyDisabled := make(SetOfChanIds)
 	remotlyDisabled := make(SetOfChanIds)
 
@@ -403,6 +411,8 @@ func (c *NodeData) fetchGraph(
 
 	c.locallyDisabled = locallyDisabled
 	c.remotelyDisabled = remotlyDisabled
+
+	c.chanDisabledMutex.Unlock()
 
 	return nil
 }
@@ -585,6 +595,7 @@ func (c *NodeData) checkOne(
 
 	closedChannels := make([]entities.ClosedChannel, 0)
 
+	c.nodeChanIdsMutex.Lock()
 	if len(c.nodeChanIds[identifier.GetID()]) > 0 {
 		// We must have some old channel set
 
@@ -597,6 +608,7 @@ func (c *NodeData) checkOne(
 	}
 
 	c.nodeChanIdsNew[identifier.GetID()] = set
+	c.nodeChanIdsMutex.Unlock()
 
 	channelList = c.filterList(identifier, channelList, ignoreCache)
 
@@ -732,6 +744,9 @@ func (c *NodeData) revertAllChanges() {
 }
 
 func (c *NodeData) commitChanIDChanges() {
+	c.nodeChanIdsMutex.Lock()
+	defer c.nodeChanIdsMutex.Unlock()
+
 	for k, v := range c.nodeChanIdsNew {
 		c.nodeChanIds[k] = v
 	}
@@ -742,6 +757,9 @@ func (c *NodeData) commitChanIDChanges() {
 }
 
 func (c *NodeData) revertChanIDChanges() {
+	c.nodeChanIdsMutex.Lock()
+	defer c.nodeChanIdsMutex.Unlock()
+
 	for k := range c.nodeChanIdsNew {
 		delete(c.nodeChanIdsNew, k)
 	}
