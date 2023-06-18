@@ -8,7 +8,7 @@ Bolt-agent is a tool for workflow based node management automation through [bolt
 
 utility to monitor and manage lightning node
 
-The usage should be pretty self expanatory:
+The usage should be pretty self explanatory:
 
 ```
 NAME:
