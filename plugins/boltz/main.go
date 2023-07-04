@@ -25,6 +25,7 @@ import (
 	swapmachine "github.com/bolt-observer/agent/plugins/boltz/swapmachine"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/golang/glog"
 	"github.com/tyler-smith/go-bip39"
 	"github.com/urfave/cli"
@@ -186,8 +187,14 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		return nil, fmt.Errorf("invalid backoffamount")
 	}
 
-	err = fixLimits(&limits, resp.BoltzAPI)
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 3 * time.Second
+	err = backoff.Retry(func() error {
+		return fixLimits(&limits, resp.BoltzAPI)
+	}, b)
+
 	if err != nil {
+		glog.Errorf("Could not get limits from Boltz API: %v, try specifying --minswapsats and --maxswapsats or make sure --boltzurl is valid", err)
 		return nil, err
 	}
 
