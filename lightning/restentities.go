@@ -67,6 +67,7 @@ type ChannelOverride struct {
 
 	AliasScids            []string `json:"alias_scids,omitempty"`
 	ZeroConfConfirmedScid string   `json:"zero_conf_confirmed_scid,omitempty"`
+	PeerScidAlias         string   `json:"peer_scid_alias,omitempty"`
 
 	lnrpc.Channel
 }

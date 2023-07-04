@@ -8,9 +8,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	routerrpc "github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	gomock "github.com/golang/mock/gomock"
 	lnrpc "github.com/lightningnetwork/lnd/lnrpc"
+	routerrpc "github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	grpc "google.golang.org/grpc"
 	metadata "google.golang.org/grpc/metadata"
 )
@@ -338,6 +338,26 @@ func (mr *MockRouterClientMockRecorder) TrackPaymentV2(ctx, in interface{}, opts
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TrackPaymentV2", reflect.TypeOf((*MockRouterClient)(nil).TrackPaymentV2), varargs...)
 }
 
+// TrackPayments mocks base method.
+func (m *MockRouterClient) TrackPayments(ctx context.Context, in *routerrpc.TrackPaymentsRequest, opts ...grpc.CallOption) (routerrpc.Router_TrackPaymentsClient, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "TrackPayments", varargs...)
+	ret0, _ := ret[0].(routerrpc.Router_TrackPaymentsClient)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// TrackPayments indicates an expected call of TrackPayments.
+func (mr *MockRouterClientMockRecorder) TrackPayments(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TrackPayments", reflect.TypeOf((*MockRouterClient)(nil).TrackPayments), varargs...)
+}
+
 // UpdateChanStatus mocks base method.
 func (m *MockRouterClient) UpdateChanStatus(ctx context.Context, in *routerrpc.UpdateChanStatusRequest, opts ...grpc.CallOption) (*routerrpc.UpdateChanStatusResponse, error) {
 	m.ctrl.T.Helper()
@@ -622,6 +642,129 @@ func (m *MockRouter_TrackPaymentV2Client) Trailer() metadata.MD {
 func (mr *MockRouter_TrackPaymentV2ClientMockRecorder) Trailer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trailer", reflect.TypeOf((*MockRouter_TrackPaymentV2Client)(nil).Trailer))
+}
+
+// MockRouter_TrackPaymentsClient is a mock of Router_TrackPaymentsClient interface.
+type MockRouter_TrackPaymentsClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockRouter_TrackPaymentsClientMockRecorder
+}
+
+// MockRouter_TrackPaymentsClientMockRecorder is the mock recorder for MockRouter_TrackPaymentsClient.
+type MockRouter_TrackPaymentsClientMockRecorder struct {
+	mock *MockRouter_TrackPaymentsClient
+}
+
+// NewMockRouter_TrackPaymentsClient creates a new mock instance.
+func NewMockRouter_TrackPaymentsClient(ctrl *gomock.Controller) *MockRouter_TrackPaymentsClient {
+	mock := &MockRouter_TrackPaymentsClient{ctrl: ctrl}
+	mock.recorder = &MockRouter_TrackPaymentsClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockRouter_TrackPaymentsClient) EXPECT() *MockRouter_TrackPaymentsClientMockRecorder {
+	return m.recorder
+}
+
+// CloseSend mocks base method.
+func (m *MockRouter_TrackPaymentsClient) CloseSend() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CloseSend")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CloseSend indicates an expected call of CloseSend.
+func (mr *MockRouter_TrackPaymentsClientMockRecorder) CloseSend() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseSend", reflect.TypeOf((*MockRouter_TrackPaymentsClient)(nil).CloseSend))
+}
+
+// Context mocks base method.
+func (m *MockRouter_TrackPaymentsClient) Context() context.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Context")
+	ret0, _ := ret[0].(context.Context)
+	return ret0
+}
+
+// Context indicates an expected call of Context.
+func (mr *MockRouter_TrackPaymentsClientMockRecorder) Context() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Context", reflect.TypeOf((*MockRouter_TrackPaymentsClient)(nil).Context))
+}
+
+// Header mocks base method.
+func (m *MockRouter_TrackPaymentsClient) Header() (metadata.MD, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Header")
+	ret0, _ := ret[0].(metadata.MD)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Header indicates an expected call of Header.
+func (mr *MockRouter_TrackPaymentsClientMockRecorder) Header() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Header", reflect.TypeOf((*MockRouter_TrackPaymentsClient)(nil).Header))
+}
+
+// Recv mocks base method.
+func (m *MockRouter_TrackPaymentsClient) Recv() (*lnrpc.Payment, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Recv")
+	ret0, _ := ret[0].(*lnrpc.Payment)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Recv indicates an expected call of Recv.
+func (mr *MockRouter_TrackPaymentsClientMockRecorder) Recv() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recv", reflect.TypeOf((*MockRouter_TrackPaymentsClient)(nil).Recv))
+}
+
+// RecvMsg mocks base method.
+func (m_2 *MockRouter_TrackPaymentsClient) RecvMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RecvMsg indicates an expected call of RecvMsg.
+func (mr *MockRouter_TrackPaymentsClientMockRecorder) RecvMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecvMsg", reflect.TypeOf((*MockRouter_TrackPaymentsClient)(nil).RecvMsg), m)
+}
+
+// SendMsg mocks base method.
+func (m_2 *MockRouter_TrackPaymentsClient) SendMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendMsg indicates an expected call of SendMsg.
+func (mr *MockRouter_TrackPaymentsClientMockRecorder) SendMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockRouter_TrackPaymentsClient)(nil).SendMsg), m)
+}
+
+// Trailer mocks base method.
+func (m *MockRouter_TrackPaymentsClient) Trailer() metadata.MD {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Trailer")
+	ret0, _ := ret[0].(metadata.MD)
+	return ret0
+}
+
+// Trailer indicates an expected call of Trailer.
+func (mr *MockRouter_TrackPaymentsClientMockRecorder) Trailer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trailer", reflect.TypeOf((*MockRouter_TrackPaymentsClient)(nil).Trailer))
 }
 
 // MockRouter_SubscribeHtlcEventsClient is a mock of Router_SubscribeHtlcEventsClient interface.
@@ -1372,6 +1515,20 @@ func (mr *MockRouterServerMockRecorder) TrackPaymentV2(arg0, arg1 interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TrackPaymentV2", reflect.TypeOf((*MockRouterServer)(nil).TrackPaymentV2), arg0, arg1)
 }
 
+// TrackPayments mocks base method.
+func (m *MockRouterServer) TrackPayments(arg0 *routerrpc.TrackPaymentsRequest, arg1 routerrpc.Router_TrackPaymentsServer) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TrackPayments", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// TrackPayments indicates an expected call of TrackPayments.
+func (mr *MockRouterServerMockRecorder) TrackPayments(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TrackPayments", reflect.TypeOf((*MockRouterServer)(nil).TrackPayments), arg0, arg1)
+}
+
 // UpdateChanStatus mocks base method.
 func (m *MockRouterServer) UpdateChanStatus(arg0 context.Context, arg1 *routerrpc.UpdateChanStatusRequest) (*routerrpc.UpdateChanStatusResponse, error) {
 	m.ctrl.T.Helper()
@@ -1685,6 +1842,125 @@ func (m *MockRouter_TrackPaymentV2Server) SetTrailer(arg0 metadata.MD) {
 func (mr *MockRouter_TrackPaymentV2ServerMockRecorder) SetTrailer(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTrailer", reflect.TypeOf((*MockRouter_TrackPaymentV2Server)(nil).SetTrailer), arg0)
+}
+
+// MockRouter_TrackPaymentsServer is a mock of Router_TrackPaymentsServer interface.
+type MockRouter_TrackPaymentsServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockRouter_TrackPaymentsServerMockRecorder
+}
+
+// MockRouter_TrackPaymentsServerMockRecorder is the mock recorder for MockRouter_TrackPaymentsServer.
+type MockRouter_TrackPaymentsServerMockRecorder struct {
+	mock *MockRouter_TrackPaymentsServer
+}
+
+// NewMockRouter_TrackPaymentsServer creates a new mock instance.
+func NewMockRouter_TrackPaymentsServer(ctrl *gomock.Controller) *MockRouter_TrackPaymentsServer {
+	mock := &MockRouter_TrackPaymentsServer{ctrl: ctrl}
+	mock.recorder = &MockRouter_TrackPaymentsServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockRouter_TrackPaymentsServer) EXPECT() *MockRouter_TrackPaymentsServerMockRecorder {
+	return m.recorder
+}
+
+// Context mocks base method.
+func (m *MockRouter_TrackPaymentsServer) Context() context.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Context")
+	ret0, _ := ret[0].(context.Context)
+	return ret0
+}
+
+// Context indicates an expected call of Context.
+func (mr *MockRouter_TrackPaymentsServerMockRecorder) Context() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Context", reflect.TypeOf((*MockRouter_TrackPaymentsServer)(nil).Context))
+}
+
+// RecvMsg mocks base method.
+func (m_2 *MockRouter_TrackPaymentsServer) RecvMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RecvMsg indicates an expected call of RecvMsg.
+func (mr *MockRouter_TrackPaymentsServerMockRecorder) RecvMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecvMsg", reflect.TypeOf((*MockRouter_TrackPaymentsServer)(nil).RecvMsg), m)
+}
+
+// Send mocks base method.
+func (m *MockRouter_TrackPaymentsServer) Send(arg0 *lnrpc.Payment) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Send", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Send indicates an expected call of Send.
+func (mr *MockRouter_TrackPaymentsServerMockRecorder) Send(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockRouter_TrackPaymentsServer)(nil).Send), arg0)
+}
+
+// SendHeader mocks base method.
+func (m *MockRouter_TrackPaymentsServer) SendHeader(arg0 metadata.MD) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendHeader", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendHeader indicates an expected call of SendHeader.
+func (mr *MockRouter_TrackPaymentsServerMockRecorder) SendHeader(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHeader", reflect.TypeOf((*MockRouter_TrackPaymentsServer)(nil).SendHeader), arg0)
+}
+
+// SendMsg mocks base method.
+func (m_2 *MockRouter_TrackPaymentsServer) SendMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendMsg indicates an expected call of SendMsg.
+func (mr *MockRouter_TrackPaymentsServerMockRecorder) SendMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockRouter_TrackPaymentsServer)(nil).SendMsg), m)
+}
+
+// SetHeader mocks base method.
+func (m *MockRouter_TrackPaymentsServer) SetHeader(arg0 metadata.MD) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetHeader", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetHeader indicates an expected call of SetHeader.
+func (mr *MockRouter_TrackPaymentsServerMockRecorder) SetHeader(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetHeader", reflect.TypeOf((*MockRouter_TrackPaymentsServer)(nil).SetHeader), arg0)
+}
+
+// SetTrailer mocks base method.
+func (m *MockRouter_TrackPaymentsServer) SetTrailer(arg0 metadata.MD) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetTrailer", arg0)
+}
+
+// SetTrailer indicates an expected call of SetTrailer.
+func (mr *MockRouter_TrackPaymentsServerMockRecorder) SetTrailer(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTrailer", reflect.TypeOf((*MockRouter_TrackPaymentsServer)(nil).SetTrailer), arg0)
 }
 
 // MockRouter_SubscribeHtlcEventsServer is a mock of Router_SubscribeHtlcEventsServer interface.

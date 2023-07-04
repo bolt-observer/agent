@@ -797,6 +797,26 @@ func (mr *MockLightningClientMockRecorder) ListUnspent(ctx, in interface{}, opts
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListUnspent", reflect.TypeOf((*MockLightningClient)(nil).ListUnspent), varargs...)
 }
 
+// LookupHtlcResolution mocks base method.
+func (m *MockLightningClient) LookupHtlcResolution(ctx context.Context, in *lnrpc.LookupHtlcResolutionRequest, opts ...grpc.CallOption) (*lnrpc.LookupHtlcResolutionResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "LookupHtlcResolution", varargs...)
+	ret0, _ := ret[0].(*lnrpc.LookupHtlcResolutionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LookupHtlcResolution indicates an expected call of LookupHtlcResolution.
+func (mr *MockLightningClientMockRecorder) LookupHtlcResolution(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LookupHtlcResolution", reflect.TypeOf((*MockLightningClient)(nil).LookupHtlcResolution), varargs...)
+}
+
 // LookupInvoice mocks base method.
 func (m *MockLightningClient) LookupInvoice(ctx context.Context, in *lnrpc.PaymentHash, opts ...grpc.CallOption) (*lnrpc.Invoice, error) {
 	m.ctrl.T.Helper()
@@ -3601,6 +3621,21 @@ func (m *MockLightningServer) ListUnspent(arg0 context.Context, arg1 *lnrpc.List
 func (mr *MockLightningServerMockRecorder) ListUnspent(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListUnspent", reflect.TypeOf((*MockLightningServer)(nil).ListUnspent), arg0, arg1)
+}
+
+// LookupHtlcResolution mocks base method.
+func (m *MockLightningServer) LookupHtlcResolution(arg0 context.Context, arg1 *lnrpc.LookupHtlcResolutionRequest) (*lnrpc.LookupHtlcResolutionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LookupHtlcResolution", arg0, arg1)
+	ret0, _ := ret[0].(*lnrpc.LookupHtlcResolutionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LookupHtlcResolution indicates an expected call of LookupHtlcResolution.
+func (mr *MockLightningServerMockRecorder) LookupHtlcResolution(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LookupHtlcResolution", reflect.TypeOf((*MockLightningServer)(nil).LookupHtlcResolution), arg0, arg1)
 }
 
 // LookupInvoice mocks base method.
