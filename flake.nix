@@ -1,6 +1,6 @@
 {
   description = "bolt.observer agent";
-  inputs.nixpkgs.url = "nixpkgs/nixos-22.11";
+  inputs.nixpkgs.url = "nixpkgs/nixos-23.05";
 
   outputs = { self, nixpkgs }:
     let
@@ -12,7 +12,7 @@
       packages = forAllSystems
         (system:
           let
-            version = "v0.1.2";
+            version = "v0.2.1";
             pkgs = nixpkgsFor.${system};
             ldflags = ''-ldflags "-X main.GitRevision=${version} -extldflags '-static'"'';
           in
@@ -22,7 +22,7 @@
                 name = "bolt-agent";
                 inherit version;
                 src = ./.;
-                vendorHash = "sha256-Svg2m39/m2G5tSliFpOtGxMdTHrtfPIoQ3LD0R8LAdQ=";
+                vendorHash = "sha256-Vy/87OwiDAF4sQ6c8GfTSlYcXvuuF7h4zcjIKNMp5Vo=";
                 doCheck = false;
                 doInstallCheck = false;
 
