@@ -81,12 +81,12 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: err}
 	}
 
-	fee := float64(response.ExpectedAmount-sats+minerFees) / float64(sats)
+	fee := float64(int64(response.ExpectedAmount)-int64(sats)+int64(minerFees)) / float64(sats)
 	if fee*100 > in.SwapData.SwapLimits.MaxFeePercentage {
 		return common.FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
-	totalFee := float64(in.SwapData.FeesSoFar.FeesPaid+(response.ExpectedAmount-sats)) / float64(in.SwapData.FeesSoFar.SatsSwapped+response.ExpectedAmount) * 100
+	totalFee := float64(in.SwapData.FeesSoFar.FeesPaid+(int64(response.ExpectedAmount)-int64(sats))) / float64(in.SwapData.FeesSoFar.SatsSwapped+response.ExpectedAmount) * 100
 	if totalFee > in.SwapData.SwapLimits.MaxFeePercentage {
 		return common.FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
@@ -100,8 +100,8 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: err}
 	}
 
-	if funds.ConfirmedBalance < int64(response.ExpectedAmount+minerFees) {
-		return common.FsmOut{Error: fmt.Errorf("we have %v sats on-chain but need %v sats", funds.ConfirmedBalance, response.ExpectedAmount+minerFees)}
+	if funds.ConfirmedBalance < (int64(response.ExpectedAmount) + int64(minerFees)) {
+		return common.FsmOut{Error: fmt.Errorf("we have %v sats on-chain but need %v sats", funds.ConfirmedBalance, int64(response.ExpectedAmount)+int64(minerFees))}
 	}
 
 	in.SwapData.BoltzID = response.Id
@@ -137,7 +137,7 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 	}
 
 	in.SwapData.FeesPending = common.Fees{
-		FeesPaid:    (response.ExpectedAmount - sats),
+		FeesPaid:    (int64(response.ExpectedAmount) - int64(sats)),
 		SatsSwapped: response.ExpectedAmount,
 	}
 	in.SwapData.CommitFees()

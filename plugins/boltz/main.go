@@ -47,7 +47,7 @@ var PluginFlags = []cli.Flag{
 		Name: "maxfeepercentage", Value: 5.0, Usage: "maximum fee in percentage that is still acceptable", Hidden: false,
 	},
 	cli.Float64Flag{
-		Name: "backoffamount", Value: 0.8, Usage: "if invoice coold not be paid try with backoffamount * original amount", Hidden: true,
+		Name: "backoffamount", Value: 0.8, Usage: "if invoice could not be paid try with backoffamount * original amount", Hidden: true,
 	},
 	cli.Uint64Flag{
 		Name: "maxswapsats", Value: 0, Usage: "maximum swap to perform in sats", Hidden: true,
@@ -179,7 +179,8 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		return nil, fmt.Errorf("invalid maxattempts")
 	}
 
-	if limits.MaxFeePercentage <= 0 || limits.MaxFeePercentage >= 100 {
+	// we don't check for negative values since fees can actually be negative with DH
+	if limits.MaxFeePercentage >= 100 {
 		return nil, fmt.Errorf("invalid maxfeepercentage")
 	}
 
