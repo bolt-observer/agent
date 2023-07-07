@@ -63,7 +63,7 @@ func (s *SwapData) RevertFees() {
 // Fees struct
 type Fees struct {
 	SatsSwapped uint64
-	FeesPaid    uint64
+	FeesPaid    int64
 }
 
 type JobDataToSwapDataFn func(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error)

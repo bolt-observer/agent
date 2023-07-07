@@ -80,12 +80,12 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 		return common.FsmOut{Error: err}
 	}
 
-	fee := float64(sats-response.OnchainAmount+minerFees+SafetyMargin) / float64(sats)
+	fee := float64(int64(sats)-int64(response.OnchainAmount)+int64(minerFees)+SafetyMargin) / float64(sats)
 	if fee*100 > in.SwapData.SwapLimits.MaxFeePercentage {
 		return common.FsmOut{Error: fmt.Errorf("fee was calculated to be %.2f %%, max allowed is %.2f %%", fee*100, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
 
-	totalFee := float64(in.SwapData.FeesSoFar.FeesPaid+(sats-response.OnchainAmount)) / float64(in.SwapData.FeesSoFar.SatsSwapped+sats) * 100
+	totalFee := float64(in.SwapData.FeesSoFar.FeesPaid+(int64(sats)-int64(response.OnchainAmount))) / float64(in.SwapData.FeesSoFar.SatsSwapped+sats) * 100
 	if totalFee > in.SwapData.SwapLimits.MaxFeePercentage {
 		return common.FsmOut{Error: fmt.Errorf("total fee was calculated to be %.2f %%, max allowed is %.2f %%", totalFee, in.SwapData.SwapLimits.MaxFeePercentage)}
 	}
@@ -94,7 +94,7 @@ func (s *SwapMachine) FsmInitialReverse(in common.FsmIn) common.FsmOut {
 		logger.Get("fee", fee*100))
 
 	in.SwapData.FeesPending = common.Fees{
-		FeesPaid:    (sats - response.OnchainAmount),
+		FeesPaid:    (int64(sats) - int64(response.OnchainAmount)),
 		SatsSwapped: sats,
 	}
 
