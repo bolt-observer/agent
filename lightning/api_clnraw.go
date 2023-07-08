@@ -1199,3 +1199,8 @@ func (l *ClnRawLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []
 
 	return ret, nil
 }
+
+// GetRoute - API call.
+func (l *ClnRawLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error) {
+	return nil, nil
+}

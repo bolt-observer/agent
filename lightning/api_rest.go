@@ -876,3 +876,8 @@ func (l *LndRestLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs [
 
 	return ret, nil
 }
+
+// GetRoute API.
+func (l *LndRestLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error) {
+	return nil, nil
+}

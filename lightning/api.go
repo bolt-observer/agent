@@ -547,6 +547,28 @@ type ErrorData struct {
 	IsStillRunning bool
 }
 
+// RouteElement struct.
+type RouteElement struct {
+	PubKey    string
+	ChannelId uint64
+}
+
+// Route alias.
+type DeterminedRoute []RouteElement
+
+type Exclusion struct {
+}
+
+type ExclusedNode struct {
+	PubKey string
+	Exclusion
+}
+
+type ExclusedEdge struct {
+	ChannelId uint64
+	Exclusion
+}
+
 // LightingAPICalls is the interface for lightning API.
 type LightingAPICalls interface {
 	Cleanup()
@@ -577,6 +599,9 @@ type LightingAPICalls interface {
 	IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error)
 
 	GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error)
+
+	// Includes source but NOT destination addreses in response
+	GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error)
 }
 
 // GetDataCall - signature of function for retrieving data.

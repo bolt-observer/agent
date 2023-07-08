@@ -1168,3 +1168,15 @@ func (l *LndGrpcLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs [
 
 	return ret, nil
 }
+
+func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error) {
+	resp, err := l.Client.QueryRoutes(ctx, &lnrpc.QueryRoutesRequest{
+		SourcePubKey: source,
+		PubKey: destination,
+		AmtMsat: msats,
+		// TODO: exclusions
+	})
+
+	if resp.Rout
+	return nil, nil
+}
