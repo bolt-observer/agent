@@ -45,6 +45,8 @@ type SwapData struct {
 
 	FeesSoFar   Fees
 	FeesPending Fees
+
+	Name string
 }
 
 func (s *SwapData) CommitFees() {
@@ -66,9 +68,9 @@ type Fees struct {
 	FeesPaid    int64
 }
 
-type JobDataToSwapDataFn func(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error)
+type JobDataToSwapDataFn func(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface, name string) (*SwapData, error)
 
-func JobDataToSwapData(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
+func JobDataToSwapData(ctx context.Context, limits SwapLimits, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface, name string) (*SwapData, error) {
 	if jobData == nil {
 		return nil, fmt.Errorf("empty job data")
 	}
@@ -79,19 +81,19 @@ func JobDataToSwapData(ctx context.Context, limits SwapLimits, jobData *JobData,
 
 	switch jobData.Target {
 	case OutboundLiquidityNodePercent:
-		liquidity := getLiquidity(ctx, jobData, msgCallback, lnAPI, filter)
+		liquidity := getLiquidity(ctx, jobData, msgCallback, lnAPI, filter, name)
 		if liquidity == nil {
 			return nil, fmt.Errorf("could not get liquidity")
 		}
 		return convertLiquidityNodePercent(jobData, limits, liquidity, msgCallback, true)
 	case InboundLiquidityNodePercent:
-		liquidity := getLiquidity(ctx, jobData, msgCallback, lnAPI, filter)
+		liquidity := getLiquidity(ctx, jobData, msgCallback, lnAPI, filter, name)
 		if liquidity == nil {
 			return nil, fmt.Errorf("could not get liquidity")
 		}
 		return convertLiquidityNodePercent(jobData, limits, liquidity, msgCallback, false)
 	case InboundLiquidityChannelPercent:
-		return convertInboundLiquidityChanPercent(ctx, jobData, limits, msgCallback, lnAPI, filter)
+		return convertInboundLiquidityChanPercent(ctx, jobData, limits, msgCallback, lnAPI, filter, name)
 	case DummyTarget:
 		return &SwapData{Attempt: limits.MaxAttempts + 1}, nil
 	default:
@@ -104,11 +106,11 @@ func (sd *SwapData) GetUniqueJobID() string {
 	return fmt.Sprintf("%d-%d", sd.JobID, sd.Attempt)
 }
 
-func getLiquidity(ctx context.Context, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) *Liquidity {
+func getLiquidity(ctx context.Context, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface, name string) *Liquidity {
 	liquidity, err := GetNodeLiquidity(ctx, lnAPI, filter)
 
 	if err != nil {
-		glog.Infof("[Boltz] [%d] Could not get liquidity", jobData.ID)
+		glog.Infof("[%v] [%d] Could not get liquidity", name, jobData.ID)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
 				JobID:      jobData.ID,
@@ -123,10 +125,10 @@ func getLiquidity(ctx context.Context, jobData *JobData, msgCallback agent_entit
 	return liquidity
 }
 
-func convertInboundLiquidityChanPercent(ctx context.Context, jobData *JobData, limits SwapLimits, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*SwapData, error) {
+func convertInboundLiquidityChanPercent(ctx context.Context, jobData *JobData, limits SwapLimits, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface, name string) (*SwapData, error) {
 	liquidity, total, err := GetChanLiquidity(ctx, jobData.ChannelId, 0, false, lnAPI, filter)
 	if err != nil {
-		glog.Infof("[Boltz] [%d] Could not get liquidity", jobData.ID)
+		glog.Infof("[%v] [%d] Could not get liquidity", name, jobData.ID)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
 				JobID:      jobData.ID,
@@ -140,10 +142,10 @@ func convertInboundLiquidityChanPercent(ctx context.Context, jobData *JobData, l
 
 	ratio := float64(liquidity.Capacity) / float64(total)
 
-	glog.Infof("[Boltz] [%d] Ratio for channel %d is %f", jobData.ID, jobData.ChannelId, ratio)
+	glog.Infof("[%v] [%d] Ratio for channel %d is %f", name, jobData.ID, jobData.ChannelId, ratio)
 
 	if ratio*100 > jobData.Amount || jobData.Amount < 0 || jobData.Amount > 100 {
-		glog.Infof("[Boltz] [%v] No need to do anything - current inbound liquidity %v %% for channel %v", jobData.ID, ratio*100, jobData.ChannelId)
+		glog.Infof("[%v] [%v] No need to do anything - current inbound liquidity %v %% for channel %v", name, jobData.ID, ratio*100, jobData.ChannelId)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
 				JobID:      jobData.ID,
@@ -158,7 +160,7 @@ func convertInboundLiquidityChanPercent(ctx context.Context, jobData *JobData, l
 	factor := ((jobData.Amount / 100) - ratio)
 	sats := float64(total) * factor
 	if sats < float64(limits.MinSwap) && limits.BelowMinAmountIsSuccess {
-		glog.Infof("[Boltz] [%v] Cannot do anything - current inbound liquidity %v %% for channel %v we would swap %v which is below lower amount", jobData.ID, ratio*100, jobData.ChannelId, sats)
+		glog.Infof("[%v] [%v] Cannot do anything - current inbound liquidity %v %% for channel %v we would swap %v which is below lower amount", name, jobData.ID, ratio*100, jobData.ChannelId, sats)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
 				JobID:      jobData.ID,
@@ -193,7 +195,7 @@ func convertLiquidityNodePercent(jobData *JobData, limits SwapLimits, liquidity 
 	}
 
 	if val > jobData.Amount || jobData.Amount < 0 || jobData.Amount > 100 {
-		glog.Infof("[Boltz] [%v] No need to do anything - current %s liquidity %v %%", jobData.ID, name, val)
+		glog.Infof("[%v] [%v] No need to do anything - current %s liquidity %v %%", name, jobData.ID, name, val)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
 				JobID:      jobData.ID,
@@ -208,10 +210,10 @@ func convertLiquidityNodePercent(jobData *JobData, limits SwapLimits, liquidity 
 	sats := float64(limits.DefaultSwap)
 	if liquidity.Capacity != 0 {
 		factor := (jobData.Amount - val) / float64(100)
-		glog.Infof("[Boltz] [%d] Factor for node is %f", jobData.ID, factor)
+		glog.Infof("[%v] [%d] Factor for node is %f", name, jobData.ID, factor)
 		sats = float64(liquidity.Capacity) * factor
 		if sats < float64(limits.MinSwap) && limits.BelowMinAmountIsSuccess {
-			glog.Infof("[Boltz] [%v] Cannot do anything - we would swap %v sat which is below lower amount", jobData.ID, sats)
+			glog.Infof("[%v] [%v] Cannot do anything - we would swap %v sat which is below lower amount", name, jobData.ID, sats)
 			if msgCallback != nil {
 				msgCallback(agent_entities.PluginMessage{
 					JobID:      jobData.ID,

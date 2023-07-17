@@ -23,10 +23,10 @@ import (
 	"github.com/urfave/cli"
 )
 
-var PluginCommands = []cli.Command{
-	{
-		Name:  "boltz",
-		Usage: "interact with boltz plugin",
+func genCommand(prefix string) cli.Command {
+	return cli.Command{
+		Name:  fmt.Sprintf("%s", prefix),
+		Usage: fmt.Sprintf("interact with %s plugin", prefix),
 		Subcommands: []cli.Command{
 			{
 				Name:   "submarineswap",
@@ -102,7 +102,7 @@ var PluginCommands = []cli.Command{
 				},
 			},
 		},
-	},
+	}
 }
 
 func getRandomId() int64 {
@@ -111,7 +111,7 @@ func getRandomId() int64 {
 	return -n
 }
 
-func getPlugin(c *cli.Context) (*Plugin, error) {
+func getPlugin(c *cli.Context, prefix string) (*Plugin, error) {
 	entities.GlogShim(c)
 
 	parentCtx := c.Parent().Parent()
@@ -123,7 +123,7 @@ func getPlugin(c *cli.Context) (*Plugin, error) {
 		return nil, err
 	}
 
-	plugin, err := NewPlugin(agent_entities.MkGetLndAPI(parentCtx), f, parentCtx, nil)
+	plugin, err := NewPlugin(agent_entities.MkGetLndAPI(parentCtx), f, parentCtx, nil, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func getPlugin(c *cli.Context) (*Plugin, error) {
 func swap(c *cli.Context) error {
 	var sd common.SwapData
 
-	plugin, err := getPlugin(c)
+	plugin, err := getPlugin(c, c.Command.Name)
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func swap(c *cli.Context) error {
 func reverseSwap(c *cli.Context) error {
 	var sd common.SwapData
 
-	plugin, err := getPlugin(c)
+	plugin, err := getPlugin(c, c.Command.Name)
 	if err != nil {
 		return err
 	}
@@ -252,7 +252,7 @@ type RefundData struct {
 func generateRefund(c *cli.Context) error {
 	var sd common.SwapData
 
-	plugin, err := getPlugin(c)
+	plugin, err := getPlugin(c, c.Command.Name)
 	if err != nil {
 		return err
 	}
@@ -320,7 +320,7 @@ func waitForJob(plugin *Plugin, id int64) {
 }
 
 func dumpMnemonic(c *cli.Context) error {
-	plugin, err := getPlugin(c)
+	plugin, err := getPlugin(c, c.Command.Name)
 	if err != nil {
 		return err
 	}
@@ -335,7 +335,7 @@ func setNewMnemonic(c *cli.Context) error {
 		dummy   Entropy
 	)
 
-	plugin, err := getPlugin(c)
+	plugin, err := getPlugin(c, c.Command.Name)
 	if err != nil {
 		return err
 	}
@@ -365,7 +365,7 @@ func setNewMnemonic(c *cli.Context) error {
 func updateState(c *cli.Context) error {
 	var sd common.SwapData
 
-	plugin, err := getPlugin(c)
+	plugin, err := getPlugin(c, c.Command.Name)
 	if err != nil {
 		return err
 	}

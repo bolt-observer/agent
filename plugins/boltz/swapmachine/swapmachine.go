@@ -28,7 +28,7 @@ func log(in common.FsmIn, msg string, data []byte) {
 		ret = nil
 	}
 
-	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), msg)
+	glog.Infof("[%v] [%d] %s", in.SwapData.Name, in.GetJobID(), msg)
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int64(in.GetJobID()),
@@ -76,7 +76,7 @@ func (s *SwapMachine) FsmSwapSuccessOne(in common.FsmIn) common.FsmOut {
 		message = fmt.Sprintf("Swap %d finished in dry-run mode (no funds were used)", in.GetJobID())
 	}
 
-	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), message)
+	glog.Infof("[%v] [%d] %s", in.SwapData.Name, in.GetJobID(), message)
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int64(in.GetJobID()),
@@ -111,7 +111,7 @@ func (s *SwapMachine) nextRound(in common.FsmIn) common.FsmOut {
 
 	// When we do another round automatically treat a swap < min limit as success
 	in.SwapData.SwapLimits.BelowMinAmountIsSuccess = true
-	sd, err := s.JobDataToSwapData(ctx, in.SwapData.SwapLimits, &in.SwapData.OriginalJobData, in.MsgCallback, lnConnection, s.Filter)
+	sd, err := s.JobDataToSwapData(ctx, in.SwapData.SwapLimits, &in.SwapData.OriginalJobData, in.MsgCallback, lnConnection, s.Filter, in.SwapData.Name)
 
 	if err == common.ErrNoNeedToDoAnything {
 		if in.MsgCallback != nil {
@@ -201,7 +201,7 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, Chan
 		if realOut.Error != nil {
 			realOut.NextState = common.SwapFailed
 
-			glog.Infof("[Boltz] [%d] Error %v happened", realIn.GetJobID(), realOut.Error)
+			glog.Infof("[%v] [%d] Error %v happened", realIn.SwapData.Name, realIn.GetJobID(), realOut.Error)
 			if realIn.MsgCallback != nil {
 				realIn.MsgCallback(entities.PluginMessage{
 					JobID:      int64(realIn.GetJobID()),
@@ -219,7 +219,7 @@ func FsmWrap[I common.FsmInGetter, O common.FsmOutGetter](f func(data I) O, Chan
 		}
 		if realOut.NextState != common.None {
 			err := ChangeStateFn(realIn, realOut.NextState)
-			glog.Infof("[Boltz] [%d] Transitioning to state %v", realIn.GetJobID(), realOut.NextState)
+			glog.Infof("[%v] [%d] Transitioning to state %v", realIn.SwapData.Name, realIn.GetJobID(), realOut.NextState)
 			if realIn.MsgCallback != nil {
 				realIn.MsgCallback(entities.PluginMessage{
 					JobID:      int64(realIn.GetJobID()),
