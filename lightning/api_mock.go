@@ -113,3 +113,7 @@ func (m *MockLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []ui
 func (m *MockLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error) {
 	panic("not implemented")
 }
+
+func (m *MockLightningAPI) GetRoutes(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (<-chan DeterminedRoute, error) {
+	panic("not implemented")
+}

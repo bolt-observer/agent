@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -1169,14 +1171,62 @@ func (l *LndGrpcLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs [
 	return ret, nil
 }
 
-func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error) {
-	resp, err := l.Client.QueryRoutes(ctx, &lnrpc.QueryRoutesRequest{
-		SourcePubKey: source,
-		PubKey: destination,
-		AmtMsat: msats,
-		// TODO: exclusions
-	})
+var (
+	ErrRouteNotFound  = errors.New("route not found")
+	ErrPubKeysInvalid = errors.New("pubkeys invalid")
+)
 
-	if resp.Rout
-	return nil, nil
+func IsValidPubKey(pubKey string) bool {
+	r := regexp.MustCompile("^0[23][a-fA-F0-9]{64}$")
+
+	return r.MatchString(pubKey)
+}
+
+// GetRoute API.
+func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error) {
+	if !IsValidPubKey(source) || !IsValidPubKey(destination) {
+		return nil, ErrPubKeysInvalid
+	}
+	req := &lnrpc.QueryRoutesRequest{
+		SourcePubKey: source,
+		PubKey:       destination,
+		AmtMsat:      msats,
+	}
+
+	for _, exclusion := range exclusions {
+		switch e := exclusion.(type) {
+		case ExcludedNode:
+			req.IgnoredNodes = append(req.IgnoredNodes, []byte(e.PubKey))
+		case ExcludedEdge:
+			// TODO: this will soon become deprecated
+			req.IgnoredEdges = append(req.IgnoredEdges, &lnrpc.EdgeLocator{ChannelId: e.ChannelId, DirectionReverse: false},
+				&lnrpc.EdgeLocator{ChannelId: e.ChannelId, DirectionReverse: true})
+		}
+	}
+
+	resp, err := l.Client.QueryRoutes(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Routes) != 1 {
+		return nil, ErrRouteNotFound
+	}
+
+	hops := len(resp.Routes[0].Hops)
+
+	if hops < 1 {
+		return nil, ErrRouteNotFound
+	}
+
+	result := make(DeterminedRoute, 0)
+
+	// A -1-> B -2-> C is presented as hops (B, 1), (C, 2) but we transform it to (A, 1), (B, 2) - and C is ommited
+	// First is source and route to neighbour
+	result = append(result, RouteElement{PubKey: source, OutgoingChannelId: resp.Routes[0].Hops[0].ChanId})
+
+	for i := 0; i < hops-1; i++ {
+		result = append(result, RouteElement{PubKey: resp.Routes[0].Hops[i].PubKey, OutgoingChannelId: resp.Routes[0].Hops[i+1].ChanId})
+	}
+
+	return result, nil
 }
