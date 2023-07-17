@@ -177,7 +177,7 @@ func maxIgnoreZero[T constraints.Ordered](s ...T) T {
 	}
 	m := s[0]
 	for _, v := range s {
-		if m < v && v != T(0) {
+		if m < v && v != T(int32(0)) {
 			m = v
 		}
 	}
@@ -191,7 +191,7 @@ func minIgnoreZero[T constraints.Ordered](s ...T) T {
 	}
 	m := s[0]
 	for _, v := range s {
-		if m > v && v != T(0) {
+		if m > v && v != T(int32(0)) {
 			m = v
 		}
 	}
