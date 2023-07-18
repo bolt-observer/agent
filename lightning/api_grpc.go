@@ -9,7 +9,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -1175,12 +1174,6 @@ var (
 	ErrRouteNotFound  = errors.New("route not found")
 	ErrPubKeysInvalid = errors.New("pubkeys invalid")
 )
-
-func IsValidPubKey(pubKey string) bool {
-	r := regexp.MustCompile("^0[23][a-fA-F0-9]{64}$")
-
-	return r.MatchString(pubKey)
-}
 
 // GetRoute API.
 func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error) {

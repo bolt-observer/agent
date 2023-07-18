@@ -541,53 +541,6 @@ func getNodeInfoFullTemplate(ctx context.Context, l LightingAPICalls, threshUseD
 	return extendedNodeInfo, nil
 }
 
-// getRoutesTemplate implements Yen's algorithm for finding alternative routes
-func getRoutesTemplate(ctx context.Context, l LightingAPICalls, source string, destination string, exclusions []Exclusion, msats int64) (<-chan DeterminedRoute, error) {
-	ch := make(chan DeterminedRoute)
-
-	// copy
-	myexclusions := exclusions[:]
-
-	// k == 1
-	initial, err := l.GetRoute(ctx, source, destination, exclusions, msats)
-	if err != nil {
-		close(ch)
-		return nil, err
-	}
-
-	previous := initial[:]
-
-	fmt.Printf("%+v, %+v\n", myexclusions, previous)
-
-	ch <- initial
-
-	// A[k-1] is previous
-	go func() {
-		defer close(ch)
-
-		// for k from 2 to K (in algorithm)
-		for i := 1; i <= 5; i++ {
-			// TODO
-			ch <- DeterminedRoute{}
-			previous = DeterminedRoute{}
-		}
-	}()
-
-	return ch, nil
-}
-
-func (l *LndGrpcLightningAPI) GetRoutes(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (<-chan DeterminedRoute, error) {
-	return getRoutesTemplate(ctx, l, source, destination, exclusions, msats)
-}
-
-func (l *LndRestLightningAPI) GetRoutes(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (<-chan DeterminedRoute, error) {
-	panic("not implemented")
-}
-
-func (l *ClnRawLightningAPI) GetRoutes(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (<-chan DeterminedRoute, error) {
-	return getRoutesTemplate(ctx, l, source, destination, exclusions, msats)
-}
-
 // ErrorData struct.
 type ErrorData struct {
 	Error          error

@@ -60,5 +60,20 @@ func TestGetRouteLnd(t *testing.T) {
 
 	fmt.Printf("from %s -> %s\n", srcData.IdentityPubkey, getPubkey(t, ctx, "C"))
 	fmt.Printf("%v %+v\n", srcData, route)
-	t.Fail()
+	//t.Fail()
+}
+
+func TestGetRouteCln(t *testing.T) {
+	ctx := context.Background()
+	c := GetLocalCln(t, "B")
+	cln, err := c()
+	assert.NoError(t, err)
+
+	a := ExcludedEdge{ChannelId: 128642860515328}
+
+	route, err := cln.GetRoute(ctx, getPubkey(t, ctx, "A"), getPubkey(t, ctx, "C"), []Exclusion{a}, 1000)
+	//route, err := cln.GetRoute(ctx, getPubkey(t, ctx, "A"), getPubkey(t, ctx, "C"), nil, 1000)
+	assert.NoError(t, err)
+	fmt.Printf("%+v\n", route)
+	//t.Fail()
 }
