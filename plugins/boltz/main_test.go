@@ -138,3 +138,12 @@ func TestExecute(t *testing.T) {
 		assert.True(t, ok)
 	})
 }
+
+func TestMinMax(t *testing.T) {
+	assert.Equal(t, "", maxIgnoreZero[string]())
+	assert.Equal(t, 3, maxIgnoreZero(1, 0, 2, 3))
+	assert.Equal(t, 1, minIgnoreZero(1, 0, 2, 3))
+	assert.Equal(t, 0.0, minIgnoreZero[float64]())
+	assert.Equal(t, 12.37, minIgnoreZero(12.37, float64(0), 0.0, 13.44))
+	assert.Equal(t, 3, maxIgnoreZero(3))
+}

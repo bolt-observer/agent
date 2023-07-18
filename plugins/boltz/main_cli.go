@@ -23,7 +23,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-func genCommand(prefix string) cli.Command {
+func GenCommand(prefix string) cli.Command {
 	return cli.Command{
 		Name:  fmt.Sprintf("%s", prefix),
 		Usage: fmt.Sprintf("interact with %s plugin", prefix),

@@ -38,7 +38,7 @@ const (
 	SecretDbKey = "secret"
 )
 
-func genFlags(prefix string) []cli.Flag {
+func GenFlags(prefix string) []cli.Flag {
 	return []cli.Flag{
 		cli.Float64Flag{
 			Name: fmt.Sprintf("%smaxfeepercentage", prefix), Value: 5.0, Usage: "maximum fee in percentage that is still acceptable", Hidden: prefix != "",
@@ -68,9 +68,6 @@ var GenericFlags = []cli.Flag{
 	cli.BoolFlag{
 		Name: "disableboltz", Usage: "Disable boltz swapping", Hidden: true,
 	},
-	cli.BoolFlag{
-		Name: "disablediamondhands", Usage: "Disable diamondhands swapping", Hidden: true,
-	},
 }
 
 var BoltzFlags = []cli.Flag{
@@ -91,52 +88,23 @@ var BoltzFlags = []cli.Flag{
 	},
 }
 
-var DiamondHandsFlags = []cli.Flag{
-	cli.StringFlag{
-		Name: "diamondhandsurl", Value: "", Usage: fmt.Sprintf("url of diamondhands api - empty means default - %s", common.DefaultDiamondhandsUrl), Hidden: false,
-	},
-	cli.StringFlag{
-		Name: "diamondhandsdatabase", Value: btcutil.AppDataDir("bolt", false) + "/diamondhands.db", Usage: "full path to database file (file will be created if it does not exist yet)", Hidden: false,
-	},
-	cli.StringFlag{
-		Name: "diamondhandsreferral", Value: "", Usage: "diamondhands referral code", Hidden: true,
-	},
-	cli.BoolFlag{
-		Name: "diamondhandsopenchannel", Usage: "whether diamondhands should open channnels if it cannot pay invoice", Hidden: true,
-	},
-	cli.BoolTFlag{
-		Name: "diamondhandsbelowminsuccess", Usage: "whether when you want to swap an amount below min is treated as success", Hidden: true,
-	},
-}
-
 func init() {
 	// Register ourselves with plugins
+	const Name = "boltz"
+
 	plugins.AllPluginFlags = append(plugins.AllPluginFlags, GenericFlags...)
 	plugins.AllPluginFlags = append(plugins.AllPluginFlags, BoltzFlags...)
-	plugins.AllPluginFlags = append(plugins.AllPluginFlags, DiamondHandsFlags...)
-	plugins.AllPluginFlags = append(plugins.AllPluginFlags, genFlags("")...)
-	plugins.AllPluginFlags = append(plugins.AllPluginFlags, genFlags("boltz")...)
-	plugins.AllPluginFlags = append(plugins.AllPluginFlags, genFlags("diamondhands")...)
+	plugins.AllPluginFlags = append(plugins.AllPluginFlags, GenFlags("")...)
+	plugins.AllPluginFlags = append(plugins.AllPluginFlags, GenFlags(Name)...)
 
-	plugins.AllPluginCommands = append(plugins.AllPluginCommands, []cli.Command{genCommand("boltz"), genCommand("diamondhands")}...)
+	plugins.AllPluginCommands = append(plugins.AllPluginCommands, GenCommand(Name))
 	plugins.RegisteredPlugins = append(plugins.RegisteredPlugins, plugins.PluginData{
-		Name: "boltz",
+		Name: Name,
 		Init: func(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (agent_entities.Plugin, error) {
 			if cmdCtx.Bool("disableboltz") {
 				return nil, fmt.Errorf("plugin disabled")
 			}
-			r, err := NewPlugin(lnAPI, filter, cmdCtx, nodeDataInvalidator, "boltz")
-			return agent_entities.Plugin(r), err
-		},
-	})
-
-	plugins.RegisteredPlugins = append(plugins.RegisteredPlugins, plugins.PluginData{
-		Name: "diamondhands",
-		Init: func(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *cli.Context, nodeDataInvalidator agent_entities.Invalidatable) (agent_entities.Plugin, error) {
-			if cmdCtx.Bool("disablediamondhands") {
-				return nil, fmt.Errorf("plugin disabled")
-			}
-			r, err := NewPlugin(lnAPI, filter, cmdCtx, nodeDataInvalidator, "diamondhands")
+			r, err := NewPlugin(lnAPI, filter, cmdCtx, nodeDataInvalidator, Name)
 			return agent_entities.Plugin(r), err
 		},
 	})
@@ -171,13 +139,13 @@ type Entropy struct {
 }
 
 func maxIgnoreZero[T constraints.Ordered](s ...T) T {
+	var zero T
 	if len(s) == 0 {
-		var zero T
 		return zero
 	}
 	m := s[0]
 	for _, v := range s {
-		if m < v && v != T(int32(0)) {
+		if m < v && v != zero {
 			m = v
 		}
 	}
@@ -185,13 +153,13 @@ func maxIgnoreZero[T constraints.Ordered](s ...T) T {
 }
 
 func minIgnoreZero[T constraints.Ordered](s ...T) T {
+	var zero T
 	if len(s) == 0 {
-		var zero T
 		return zero
 	}
 	m := s[0]
 	for _, v := range s {
-		if m > v && v != T(int32(0)) {
+		if m > v && v != zero {
 			m = v
 		}
 	}
