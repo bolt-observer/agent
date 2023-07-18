@@ -31,6 +31,7 @@ const (
 	Pay                = "pay"
 	InvoiceCmd         = "invoice"
 	ListClosedChannels = "listclosedchannels"
+	GetRoute           = "getroute"
 
 	DefaultDuration = 1 * time.Hour
 )
@@ -1202,5 +1203,59 @@ func (l *ClnRawLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []
 
 // GetRoute - API call.
 func (l *ClnRawLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error) {
-	return nil, nil
+	const (
+		DefaultFuzzPercent = 5.0
+		DefaultCltv        = 9
+		DefaultRiskFactor  = 0
+	)
+	var (
+		reply ClnRouteResp
+	)
+
+	if !IsValidPubKey(source) || !IsValidPubKey(destination) {
+		return nil, ErrPubKeysInvalid
+	}
+
+	ex := make([]string, 0)
+
+	for _, exclusion := range exclusions {
+		switch e := exclusion.(type) {
+		case ExcludedNode:
+			ex = append(ex, e.PubKey)
+		case ExcludedEdge:
+			ex = append(ex, fmt.Sprintf("%s/%d", FromLndChanID(e.ChannelId), 0))
+			ex = append(ex, fmt.Sprintf("%s/%d", FromLndChanID(e.ChannelId), 1))
+		}
+	}
+
+	err := l.connection.Call(ctx, GetRoute, []interface{}{destination, msats, DefaultRiskFactor, DefaultCltv, source, DefaultFuzzPercent, ex}, &reply, DefaultDuration)
+	if err != nil {
+		return nil, err
+	}
+
+	hops := len(reply.Route)
+
+	if hops < 1 {
+		return nil, ErrRouteNotFound
+	}
+
+	result := make(DeterminedRoute, 0)
+
+	// A -1-> B -2-> C is presented as hops (B, 1), (C, 2) but we transform it to (A, 1), (B, 2) - and C is ommited
+	// First is source and route to neighbour
+	id, err := ToLndChanID(reply.Route[0].Channel)
+	if err != nil {
+		return nil, err
+	}
+	result = append(result, RouteElement{PubKey: source, OutgoingChannelId: id})
+
+	for i := 0; i < hops-1; i++ {
+		id, err := ToLndChanID(reply.Route[i+1].Channel)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, RouteElement{PubKey: reply.Route[i].PubKey, OutgoingChannelId: id})
+	}
+
+	return result, nil
 }

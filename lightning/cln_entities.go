@@ -315,3 +315,17 @@ type ClnClosedChannelEntry struct {
 	Opener         string `json:"opener,omitempty"`      // local, remote
 	CloseCause     string `json:"close_cause,omitempty"` // close_cause (string): What caused the channel to close (one of "unknown", "local", "user", "remote", "protocol", "onchain")
 }
+
+// ClnRouteResp struct.
+type ClnRouteResp struct {
+	Route []ClnRoute `json:"route,omitempty"`
+	ClnResp
+}
+
+// ClnRoute struct.
+type ClnRoute struct {
+	PubKey    string `json:"id"`
+	Channel   string `json:"channel"`
+	Direction int    `json:"direction"`
+	/* ... */
+}
