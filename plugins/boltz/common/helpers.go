@@ -21,6 +21,7 @@ import (
 const (
 	FailNoCredsBoltz       = false
 	DefaultBoltzUrl        = "https://boltz.exchange/api"
+	DefaultDiamondhandsUrl = "https://boltz.diamondhands.technology/api/"
 	DefaultBoltzTestnetUrl = "https://testnet.boltz.exchange/api"
 	BtcPair                = "BTC/BTC"
 	Btc                    = "BTC"

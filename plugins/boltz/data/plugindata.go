@@ -33,4 +33,5 @@ type PluginData struct {
 	DeleteJobFn         DeleteJobFn
 	AllowChanCreation   bool
 	PrivateChanCreation bool
+	PluginName          string // Boltz or DiamondHands for now, but could be anything
 }
