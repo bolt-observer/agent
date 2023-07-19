@@ -125,8 +125,8 @@ type Plugin struct {
 	db                  DB
 	jobs                map[int64]interface{}
 	mutex               sync.Mutex
-	agent_entities.Plugin
-	Name string
+
+	agent_entities.PluginCommon
 }
 
 type JobModel struct {
@@ -222,8 +222,9 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 		db:                  db,
 		jobs:                make(map[int64]interface{}),
 		isDryRun:            cmdCtx.Bool("dryrun"),
-		Name:                caser.String(prefix),
 	}
+
+	resp.PluginName = caser.String(prefix)
 
 	limits := common.SwapLimits{
 		MaxFeePercentage:        minIgnoreZero(cmdCtx.Float64(fmt.Sprintf("%smaxfeepercentage", prefix)), cmdCtx.Float64("maxfeepercentage")),
@@ -289,7 +290,7 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 			DeleteJobFn:         resp.DeleteJob,
 			AllowChanCreation:   cmdCtx.Bool(fmt.Sprintf("%sopenchannel", prefix)),
 			PrivateChanCreation: false,
-			Name:                caser.String(prefix),
+			PluginName:          caser.String(prefix),
 		}, nodeDataInvalidator, common.JobDataToSwapData, resp.LnAPI)
 
 	resp.Redeemer.SetCallback(resp.SwapMachine.RedeemedCallback)
@@ -336,7 +337,7 @@ func (b *Plugin) GetSleepTime() time.Duration {
 
 func (b *Plugin) handleError(jobID int64, msgCallback agent_entities.MessageCallback, err error) error {
 	if err == common.ErrNoNeedToDoAnything {
-		glog.Infof("[%v] [%v] Nothing to do %v", b.Name, jobID, err)
+		glog.Infof("[%v] [%v] Nothing to do %v", b.PluginName, jobID, err)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
 				JobID:      jobID,
@@ -346,7 +347,7 @@ func (b *Plugin) handleError(jobID int64, msgCallback agent_entities.MessageCall
 			})
 		}
 	} else {
-		glog.Infof("[%v] [%v] Error %v", b.Name, jobID, err)
+		glog.Infof("[%v] [%v] Error %v", b.PluginName, jobID, err)
 		if msgCallback != nil {
 			msgCallback(agent_entities.PluginMessage{
 				JobID:      jobID,
@@ -403,12 +404,12 @@ func (b *Plugin) Execute(jobID int64, data []byte, msgCallback agent_entities.Me
 			}
 			defer lnAPI.Cleanup()
 
-			data, err := common.JobDataToSwapData(ctx, b.Limits, jd, msgCallback, lnAPI, b.Filter, b.Name)
+			data, err := common.JobDataToSwapData(ctx, b.Limits, jd, msgCallback, lnAPI, b.Filter, b.PluginName)
 			if err != nil {
 				return b.handleError(jobID, msgCallback, err)
 			}
 
-			data.Name = b.Name
+			data.Name = b.PluginName
 			data.IsDryRun = b.isDryRun
 			sd = *data
 			sd.JobID = common.JobID(jobID)
