@@ -34,6 +34,7 @@ import (
 
 	// we need this so init() is called
 	_ "github.com/bolt-observer/agent/plugins/boltz"
+	_ "github.com/bolt-observer/agent/plugins/diamondhands"
 )
 
 const (
