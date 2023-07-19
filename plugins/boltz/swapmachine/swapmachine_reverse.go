@@ -263,7 +263,7 @@ func (s *SwapMachine) FsmSwapInvoiceCouldNotBePaid(in common.FsmIn) common.FsmOu
 		message = fmt.Sprintf("Swap %d failed in dry-run mode (no funds were used)", in.GetJobID())
 	}
 
-	glog.Infof("[%v] [%d] %s", "Swap", in.GetJobID(), message)
+	glog.Infof("[%v] [%d] %s", in.SwapData.PluginName, in.GetJobID(), message)
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int64(in.GetJobID()),

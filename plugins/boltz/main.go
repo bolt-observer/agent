@@ -409,7 +409,7 @@ func (b *Plugin) Execute(jobID int64, data []byte, msgCallback agent_entities.Me
 				return b.handleError(jobID, msgCallback, err)
 			}
 
-			data.Name = b.PluginName
+			data.PluginName = b.PluginName
 			data.IsDryRun = b.isDryRun
 			sd = *data
 			sd.JobID = common.JobID(jobID)

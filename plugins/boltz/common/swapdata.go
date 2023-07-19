@@ -46,7 +46,7 @@ type SwapData struct {
 	FeesSoFar   Fees
 	FeesPending Fees
 
-	Name string
+	PluginName string
 }
 
 func (s *SwapData) CommitFees() {
