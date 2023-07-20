@@ -2,10 +2,15 @@ package lightning
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+var runNodeTests = flag.Bool("node", false, "Run the tests that require a node locally")
 
 func getPubkey(t *testing.T, ctx context.Context, key string) string {
 	node := GetLocalLndByName(t, key)
@@ -43,85 +48,97 @@ func TestIsValidPubKey(t *testing.T) {
 }
 
 func TestGetRouteLnd(t *testing.T) {
-	return
+	flag.Parse()
 
-	/*
-		ctx := context.Background()
-		srcNode := GetLocalLndByName(t, "A")
-		src, err := srcNode()
-		assert.NoError(t, err)
+	if !*runNodeTests {
+		t.Skip("To run this test, use: go test -node")
+		return
+	}
 
-		a := ExcludedEdge{ChannelId: 128642860515328}
-		route, err := src.GetRoute(ctx, "", getPubkey(t, ctx, "C"), []Exclusion{a}, Reliability, 1000)
-		assert.NoError(t, err)
-		fmt.Printf("%s\n", route.PrettyRoute(getPubkey(t, ctx, "C"), true))
+	ctx := context.Background()
+	srcNode := GetLocalLndByName(t, "A")
+	src, err := srcNode()
+	assert.NoError(t, err)
 
-		fmt.Printf("--------------------------------\n")
-		iterator, err := src.GetRoutes(ctx, "", getPubkey(t, ctx, "C"), nil, Reliability, 1000)
-		assert.NoError(t, err)
+	a := ExcludedEdge{ChannelId: 128642860515328}
+	route, err := src.GetRoute(ctx, "", getPubkey(t, ctx, "C"), []Exclusion{a}, Reliability, 1000)
+	assert.NoError(t, err)
+	fmt.Printf("%s\n", route.PrettyRoute(getPubkey(t, ctx, "C"), true))
 
-		i := 0
-		for route := range iterator {
-			fmt.Printf("|%s|\n", route.PrettyRoute(getPubkey(t, ctx, "C"), true))
-			i++
-			if i > 50 {
-				break
-			}
+	fmt.Printf("--------------------------------\n")
+	iterator, err := src.GetRoutes(ctx, "", getPubkey(t, ctx, "C"), nil, Reliability, 1000)
+	assert.NoError(t, err)
+
+	i := 0
+	for route := range iterator {
+		fmt.Printf("|%s|\n", route.PrettyRoute(getPubkey(t, ctx, "C"), true))
+		i++
+		if i > 50 {
+			break
 		}
+	}
 
-		t.Fail()
-	*/
+	t.Fail()
+
 }
 
 func TestGetRouteCln(t *testing.T) {
-	return
+	flag.Parse()
 
-	/*
-		ctx := context.Background()
-		c := GetLocalCln(t, "B")
-		cln, err := c()
-		assert.NoError(t, err)
+	if !*runNodeTests {
+		t.Skip("To run this test, use: go test -node")
+		return
+	}
 
-		a := ExcludedEdge{ChannelId: 128642860515328}
+	ctx := context.Background()
+	c := GetLocalCln(t, "B")
+	cln, err := c()
+	assert.NoError(t, err)
 
-		route, err := cln.GetRoute(ctx, getPubkey(t, ctx, "A"), getPubkey(t, ctx, "C"), []Exclusion{a}, Reliability, 1000)
-		//route, err := cln.GetRoute(ctx, getPubkey(t, ctx, "A"), getPubkey(t, ctx, "C"), nil, 1000)
-		assert.NoError(t, err)
-		fmt.Printf("%+v\n", route)
-		t.Fail()
-	*/
+	a := ExcludedEdge{ChannelId: 128642860515328}
+
+	route, err := cln.GetRoute(ctx, getPubkey(t, ctx, "A"), getPubkey(t, ctx, "C"), []Exclusion{a}, Reliability, 1000)
+	//route, err := cln.GetRoute(ctx, getPubkey(t, ctx, "A"), getPubkey(t, ctx, "C"), nil, 1000)
+	assert.NoError(t, err)
+	fmt.Printf("%+v\n", route)
+	t.Fail()
+
 }
 
 func TestRealNode(t *testing.T) {
-	return
-	/*
-		api := getAPI(t, "fixture-grpc.secret", LndGrpc)
-		if api == nil {
-			return
+	flag.Parse()
+
+	if !*runNodeTests {
+		t.Skip("To run this test, use: go test -node")
+		return
+	}
+
+	api := getAPI(t, "fixture-grpc.secret", LndGrpc)
+	if api == nil {
+		return
+	}
+
+	eb := NewEmptyExclusionBuilder()
+	//eb.AddNode("02a75f33c6fa0e5287d70ca69ca64902fed8beef561b990f33dd4a5a77b9ab43b3")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	r, err := api.GetRoute(ctx, "", "0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", eb.Build(), Reliability, 10000)
+	assert.NoError(t, err)
+
+	fmt.Printf("%s\n", r.PrettyRoute("0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", true))
+
+	ch, err := api.GetRoutes(ctx, "", "0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", eb.Build(), Reliability, 10000)
+	assert.NoError(t, err)
+	i := 0
+	for route := range ch {
+		fmt.Printf("|%s|\n", route.PrettyRoute("0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", true))
+		i++
+		if i > 50 {
+			break
 		}
+	}
 
-		eb := NewEmptyExclusionBuilder()
-		//eb.AddNode("02a75f33c6fa0e5287d70ca69ca64902fed8beef561b990f33dd4a5a77b9ab43b3")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		r, err := api.GetRoute(ctx, "", "0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", eb.Build(), Reliability, 10000)
-		assert.NoError(t, err)
-
-		fmt.Printf("%s\n", r.PrettyRoute("0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", true))
-
-		ch, err := api.GetRoutes(ctx, "", "0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", eb.Build(), Reliability, 10000)
-		assert.NoError(t, err)
-		i := 0
-		for route := range ch {
-			fmt.Printf("|%s|\n", route.PrettyRoute("0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", true))
-			i++
-			if i > 50 {
-				break
-			}
-		}
-
-		t.Fail()
-	*/
+	t.Fail()
 }
