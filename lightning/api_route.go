@@ -6,6 +6,12 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/golang/glog"
+)
+
+const (
+	MaxPathLen = 20
 )
 
 // An Item is something we manage in a priority queue.
@@ -14,10 +20,18 @@ type Item struct {
 	index int
 }
 
+// Clone - create a copy of given DeterminedRoute
+func (r DeterminedRoute) Clone() DeterminedRoute {
+	ret := make(DeterminedRoute, len(r))
+	copy(ret, r)
+	return ret
+}
+
 // PrettyRoute - returns a pretty route
 func (r DeterminedRoute) PrettyRoute(destination string, chanIds bool) string {
 	var sb strings.Builder
 
+	sb.WriteString(fmt.Sprintf("(%d) ", len(r)+1))
 	for _, one := range r {
 		sb.WriteString(one.PubKey)
 		if !chanIds {
@@ -28,7 +42,6 @@ func (r DeterminedRoute) PrettyRoute(destination string, chanIds bool) string {
 	}
 
 	sb.WriteString(destination)
-	sb.WriteString("\n")
 
 	return sb.String()
 }
@@ -36,18 +49,22 @@ func (r DeterminedRoute) PrettyRoute(destination string, chanIds bool) string {
 // A PriorityQueue implements heap.Interface and holds Items.
 type PriorityQueue []*Item
 
+// Len - returns number of items in the PriorityQueue
 func (pq PriorityQueue) Len() int { return len(pq) }
 
+// Less - is element i less than element j
 func (pq PriorityQueue) Less(i, j int) bool {
 	return len(pq[i].route) > len(pq[j].route)
 }
 
+// Swap - swap elements i and j
 func (pq PriorityQueue) Swap(i, j int) {
 	pq[i], pq[j] = pq[j], pq[i]
 	pq[i].index = i
 	pq[j].index = j
 }
 
+// Push - add ne element to queue
 func (pq *PriorityQueue) Push(x any) {
 	n := len(*pq)
 	item := x.(*Item)
@@ -55,6 +72,7 @@ func (pq *PriorityQueue) Push(x any) {
 	*pq = append(*pq, item)
 }
 
+// Pop - return last element from queue
 func (pq *PriorityQueue) Pop() any {
 	old := *pq
 	n := len(old)
@@ -70,9 +88,10 @@ func (pq *PriorityQueue) update(item *Item, value DeterminedRoute, priority int)
 	heap.Fix(pq, item.index)
 }
 
+// Contains - check whether priority queue contains element
 func (pq *PriorityQueue) Contains(value DeterminedRoute) bool {
 	for _, one := range *pq {
-		if routesMatch(one.route, value, len(one.route)) {
+		if routesMatch(one.route, value, len(value)) {
 			return true
 		}
 	}
@@ -80,6 +99,7 @@ func (pq *PriorityQueue) Contains(value DeterminedRoute) bool {
 	return false
 }
 
+// IsValidPubKey - returns true if pubkey is valid, false otherwise
 func IsValidPubKey(pubKey string) bool {
 	r := regexp.MustCompile("^0[23][a-fA-F0-9]{64}$")
 
@@ -95,7 +115,7 @@ func routesMatch(a DeterminedRoute, b DeterminedRoute, n int) bool {
 		if i >= len(a) || i >= len(b) {
 			return false
 		}
-		if a[i].OutgoingChannelId != b[i].OutgoingChannelId || a[i].PubKey == b[i].PubKey {
+		if (a[i].OutgoingChannelId != b[i].OutgoingChannelId && a[i].OutgoingChannelId != 0 && b[i].OutgoingChannelId != 0) || a[i].PubKey != b[i].PubKey {
 			return false
 		}
 	}
@@ -144,6 +164,7 @@ func NewExclusionBuilder(existing []Exclusion) ExclusionBuilder {
 	return ret
 }
 
+// Build - get the built exlcusions
 func (b ExclusionBuilder) Build() []Exclusion {
 	ret := make([]Exclusion, 0, len(b.nodeExclusion)+len(b.edgeExclusion))
 
@@ -166,19 +187,25 @@ func getRoutesTemplate(ctx context.Context, l LightingAPICalls, source string, d
 	// This is A in the algorithm
 	oldRoutes := make([]DeterminedRoute, 0)
 	// Output channel (iterator pattern)
-	ch := make(chan DeterminedRoute)
+	ch := make(chan DeterminedRoute, 1)
 
 	// k = 1
 	initial, err := l.GetRoute(ctx, source, destination, exclusions, optimizeFor, msats)
 	if err != nil {
+		glog.Warningf("GetRoute returned error: %v", err)
 		close(ch)
 		return nil, err
+	}
+
+	if len(initial) >= MaxPathLen {
+		glog.Warningf("Too long path %d, returning error", len(initial))
+		return nil, ErrRouteNotFound
 	}
 
 	// This is B in the algorithm
 	pq := make(PriorityQueue, 0)
 
-	ch <- initial
+	ch <- initial.Clone()
 	oldRoutes = append(oldRoutes, initial)
 
 	go func() {
@@ -186,6 +213,9 @@ func getRoutesTemplate(ctx context.Context, l LightingAPICalls, source string, d
 
 		// k = 2..inf
 		for {
+			if ctx.Err() != nil {
+				return
+			}
 			previousRoute := oldRoutes[len(oldRoutes)-1]
 			eb := NewExclusionBuilder(exclusions)
 
@@ -199,24 +229,31 @@ func getRoutesTemplate(ctx context.Context, l LightingAPICalls, source string, d
 					eb.AddNode(one.PubKey)
 				}
 
-				// Ignore spureNode outgoing connection if rootPath is same an already known one
+				//rootPathWithSpur := append(rootPath, RouteElement{PubKey: previousRoute[spurIndex].PubKey, OutgoingChannelId: 0})
+
+				// Ignore old route outgoing connection if rootPath is same as an already known one
 				for _, oldRoute := range oldRoutes {
 					if routesMatch(oldRoute, rootPath, len(rootPath)) {
-						eb.AddEdge(previousRoute[spurIndex].OutgoingChannelId)
-						break
+						eb.AddEdge(oldRoute[spurIndex].OutgoingChannelId)
 					}
 				}
 
 				spurPath, err := l.GetRoute(ctx, previousRoute[spurIndex].PubKey, destination, eb.Build(), optimizeFor, msats)
 				if err != nil {
+					glog.Warningf("GetRoute returned error: %v", err)
 					continue
 				}
 
-				totalPath := append(rootPath, spurPath...)
+				totalPath := rootPath.Clone()
+				totalPath = append(totalPath, spurPath...)
+				if len(totalPath) >= MaxPathLen {
+					glog.Warningf("Too long path %d, skipping", len(totalPath))
+					continue
+				}
 
 				// If not in B append to B
 				if !pq.Contains(totalPath) {
-					heap.Push(&pq, Item{route: totalPath})
+					heap.Push(&pq, &Item{route: totalPath})
 				}
 			}
 
@@ -227,7 +264,7 @@ func getRoutesTemplate(ctx context.Context, l LightingAPICalls, source string, d
 			}
 
 			item := heap.Pop(&pq).(*Item)
-			ch <- item.route
+			ch <- item.route.Clone()
 			oldRoutes = append(oldRoutes, item.route)
 		}
 	}()

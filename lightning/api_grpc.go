@@ -1177,7 +1177,7 @@ var (
 
 // GetRoute API.
 func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (DeterminedRoute, error) {
-	if (source == "" || !IsValidPubKey(source)) || !IsValidPubKey(destination) {
+	if (source != "" && !IsValidPubKey(source)) || !IsValidPubKey(destination) {
 		return nil, ErrPubKeysInvalid
 	}
 
@@ -1199,7 +1199,11 @@ func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, desti
 	for _, exclusion := range exclusions {
 		switch e := exclusion.(type) {
 		case ExcludedNode:
-			req.IgnoredNodes = append(req.IgnoredNodes, []byte(e.PubKey))
+			data, err := hex.DecodeString(e.PubKey)
+			if err != nil {
+				continue
+			}
+			req.IgnoredNodes = append(req.IgnoredNodes, data)
 		case ExcludedEdge:
 			// TODO: this will soon become deprecated
 			req.IgnoredEdges = append(req.IgnoredEdges, &lnrpc.EdgeLocator{ChannelId: e.ChannelId, DirectionReverse: false},
@@ -1222,6 +1226,15 @@ func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, desti
 	}
 
 	result := make(DeterminedRoute, 0)
+
+	if source == "" {
+		info, err := l.GetInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		source = info.IdentityPubkey
+	}
 
 	// A -1-> B -2-> C is presented as hops (B, 1), (C, 2) but we transform it to (A, 1), (B, 2) - and C is ommited
 	// First is source and route to neighbour

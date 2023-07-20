@@ -879,7 +879,7 @@ func (l *LndRestLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs [
 
 // GetRoute API.
 func (l *LndRestLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (DeterminedRoute, error) {
-	if !IsValidPubKey(source) || !IsValidPubKey(destination) {
+	if (source != "" && !IsValidPubKey(source)) || !IsValidPubKey(destination) {
 		return nil, ErrPubKeysInvalid
 	}
 

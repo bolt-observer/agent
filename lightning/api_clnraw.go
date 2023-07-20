@@ -1212,7 +1212,7 @@ func (l *ClnRawLightningAPI) GetRoute(ctx context.Context, source string, destin
 		reply ClnRouteResp
 	)
 
-	if (source == "" || !IsValidPubKey(source)) || !IsValidPubKey(destination) {
+	if (source != "" && !IsValidPubKey(source)) || !IsValidPubKey(destination) {
 		return nil, ErrPubKeysInvalid
 	}
 
