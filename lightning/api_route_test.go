@@ -54,7 +54,7 @@ func TestGetRouteLnd(t *testing.T) {
 
 	a := ExcludedEdge{ChannelId: 128642860515328}
 
-	route, err := src.GetRoute(ctx, srcData.IdentityPubkey, getPubkey(t, ctx, "C"), []Exclusion{a}, 1000)
+	route, err := src.GetRoute(ctx, srcData.IdentityPubkey, getPubkey(t, ctx, "C"), []Exclusion{a}, Reliability, 1000)
 	//route, err := src.GetRoute(ctx, srcData.IdentityPubkey, getPubkey(t, ctx, "C"), nil, 1000)
 	assert.NoError(t, err)
 
@@ -71,7 +71,7 @@ func TestGetRouteCln(t *testing.T) {
 
 	a := ExcludedEdge{ChannelId: 128642860515328}
 
-	route, err := cln.GetRoute(ctx, getPubkey(t, ctx, "A"), getPubkey(t, ctx, "C"), []Exclusion{a}, 1000)
+	route, err := cln.GetRoute(ctx, getPubkey(t, ctx, "A"), getPubkey(t, ctx, "C"), []Exclusion{a}, Reliability, 1000)
 	//route, err := cln.GetRoute(ctx, getPubkey(t, ctx, "A"), getPubkey(t, ctx, "C"), nil, 1000)
 	assert.NoError(t, err)
 	fmt.Printf("%+v\n", route)

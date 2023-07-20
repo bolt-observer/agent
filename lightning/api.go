@@ -587,6 +587,16 @@ func (e ExcludedNode) IsNodeExclusion() bool {
 	return true
 }
 
+// OptimizeRouteFor enum.
+type OptimizeRouteFor int
+
+// OptimizeRouteFor values.
+const (
+	Reliability OptimizeRouteFor = iota
+	Price
+	None
+)
+
 // LightingAPICalls is the interface for lightning API.
 type LightingAPICalls interface {
 	Cleanup()
@@ -619,8 +629,8 @@ type LightingAPICalls interface {
 	GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error)
 
 	// Includes source but NOT destination addreses in response
-	GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error)
-	GetRoutes(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (<-chan DeterminedRoute, error)
+	GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (DeterminedRoute, error)
+	GetRoutes(ctx context.Context, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (<-chan DeterminedRoute, error)
 }
 
 // GetDataCall - signature of function for retrieving data.

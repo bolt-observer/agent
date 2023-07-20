@@ -1176,14 +1176,24 @@ var (
 )
 
 // GetRoute API.
-func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error) {
-	if !IsValidPubKey(source) || !IsValidPubKey(destination) {
+func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (DeterminedRoute, error) {
+	if (source == "" || !IsValidPubKey(source)) || !IsValidPubKey(destination) {
 		return nil, ErrPubKeysInvalid
 	}
+
 	req := &lnrpc.QueryRoutesRequest{
 		SourcePubKey: source,
 		PubKey:       destination,
 		AmtMsat:      msats,
+	}
+
+	switch optimizeFor {
+	case Reliability:
+		req.TimePref = 1
+	case Price:
+		req.TimePref = -1
+	default:
+		req.TimePref = 0
 	}
 
 	for _, exclusion := range exclusions {

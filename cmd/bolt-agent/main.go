@@ -226,7 +226,7 @@ func getApp() *cli.App {
 			// as false.
 			Usage:  "how long to wait before reporting node is not synced to chain",
 			Hidden: true,
-			Value:  5 * time.Minute,
+			Value:  15 * time.Minute,
 		},
 		&cli.BoolFlag{
 			Name:   "smooth",

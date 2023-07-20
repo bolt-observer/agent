@@ -1202,7 +1202,7 @@ func (l *ClnRawLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs []
 }
 
 // GetRoute - API call.
-func (l *ClnRawLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, msats int64) (DeterminedRoute, error) {
+func (l *ClnRawLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (DeterminedRoute, error) {
 	const (
 		DefaultFuzzPercent = 5.0
 		DefaultCltv        = 9
@@ -1212,7 +1212,7 @@ func (l *ClnRawLightningAPI) GetRoute(ctx context.Context, source string, destin
 		reply ClnRouteResp
 	)
 
-	if !IsValidPubKey(source) || !IsValidPubKey(destination) {
+	if (source == "" || !IsValidPubKey(source)) || !IsValidPubKey(destination) {
 		return nil, ErrPubKeysInvalid
 	}
 
