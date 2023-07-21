@@ -371,7 +371,7 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 			break
 		} else {
 			if now.After(alert.Add(30 * time.Second)) {
-				log(in, fmt.Sprintf("Boltz did not claim funds on their side %v, status is %v", in.SwapData.JobID, status), nil)
+				log(in, fmt.Sprintf("%s did not claim funds on their side %v, status is %v", in.SwapData.PluginName, in.SwapData.JobID, status), nil)
 				alert = now
 			}
 		}

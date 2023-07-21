@@ -24,7 +24,7 @@ var GenericFlags = []cli.Flag{
 
 var DiamondHandsFlags = []cli.Flag{
 	cli.StringFlag{
-		Name: "diamondhandsurl", Value: "", Usage: fmt.Sprintf("url of diamondhands api - empty means default - %s", common.DefaultDiamondhandsUrl), Hidden: false,
+		Name: "diamondhandsurl", Value: "", Usage: fmt.Sprintf("url of diamondhandsurl api - empty means default - %s or %s", common.DefaultDiamondhandsUrl, common.DefaultDiamondhandsTestnetUrl), Hidden: false,
 	},
 	cli.StringFlag{
 		Name: "diamondhandsdatabase", Value: btcutil.AppDataDir("bolt", false) + "/diamondhands.db", Usage: "full path to database file (file will be created if it does not exist yet)", Hidden: false,

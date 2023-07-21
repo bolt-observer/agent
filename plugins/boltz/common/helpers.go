@@ -19,14 +19,15 @@ import (
 )
 
 const (
-	FailNoCredsBoltz       = false
-	DefaultBoltzUrl        = "https://boltz.exchange/api"
-	DefaultDiamondhandsUrl = "https://boltz.diamondhands.technology/api/"
-	DefaultBoltzTestnetUrl = "https://testnet.boltz.exchange/api"
-	BtcPair                = "BTC/BTC"
-	Btc                    = "BTC"
-	SecretBitSize          = 256
-	ErrInvalidArguments    = Error("invalid arguments")
+	FailNoCredsBoltz              = false
+	DefaultBoltzUrl               = "https://boltz.exchange/api"
+	DefaultDiamondhandsUrl        = "https://boltz.diamondhands.technology/api"
+	DefaultBoltzTestnetUrl        = "https://testnet.boltz.exchange/api"
+	DefaultDiamondhandsTestnetUrl = "https://testnet.boltz.diamondhands.technology/api"
+	BtcPair                       = "BTC/BTC"
+	Btc                           = "BTC"
+	SecretBitSize                 = 256
+	ErrInvalidArguments           = Error("invalid arguments")
 )
 
 func GetAPI(t *testing.T, name string, typ api.APIType) api.NewAPICall {

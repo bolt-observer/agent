@@ -203,9 +203,13 @@ func NewPlugin(lnAPI api.NewAPICall, filter filter.FilteringInterface, cmdCtx *c
 			url = cmdCtx.String("boltzurl")
 		}
 	case "diamondhands":
-		url = cmdCtx.String("diamondhandsurl")
-		if url == "" {
-			url = common.DefaultDiamondhandsUrl
+		url = common.DefaultDiamondhandsUrl
+		if cmdCtx.String("diamondhandsurl") == "" {
+			if cmdCtx.String("network") == "testnet" {
+				url = common.DefaultDiamondhandsTestnetUrl
+			}
+		} else {
+			url = cmdCtx.String("diamondhandsurl")
 		}
 	default:
 		return nil, fmt.Errorf("prefix %s not supported", prefix)
