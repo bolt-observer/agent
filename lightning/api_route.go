@@ -27,13 +27,37 @@ func (r DeterminedRoute) Clone() DeterminedRoute {
 	return ret
 }
 
+// InitNameCache - get the mapping between pubkey and name
+func InitNameCache(ctx context.Context, l LightingAPICalls) (map[string]string, error) {
+	glog.Info("Initializing name cache... ")
+	resp := make(map[string]string)
+	graph, err := l.DescribeGraph(ctx, false)
+	if err != nil {
+		return resp, err
+	}
+
+	for _, one := range graph.Nodes {
+		resp[one.PubKey] = one.Alias
+	}
+	glog.Info("Initializing name cache... done")
+
+	return resp, nil
+}
+
 // PrettyRoute - returns a pretty route
-func (r DeterminedRoute) PrettyRoute(destination string, chanIds bool) string {
+func (r DeterminedRoute) PrettyRoute(destination string, chanIds bool, nameCache map[string]string) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("(%d) ", len(r)+1))
+	sb.WriteString(fmt.Sprintf("(%d) ", len(r)))
 	for _, one := range r {
 		sb.WriteString(one.PubKey)
+		if nameCache != nil {
+			if name, ok := nameCache[one.PubKey]; ok {
+				sb.WriteString(" (")
+				sb.WriteString(name)
+				sb.WriteString(")")
+			}
+		}
 		if !chanIds {
 			sb.WriteString(" --> ")
 		} else {
@@ -115,7 +139,7 @@ func routesMatch(a DeterminedRoute, b DeterminedRoute, n int) bool {
 		if i >= len(a) || i >= len(b) {
 			return false
 		}
-		if (a[i].OutgoingChannelId != b[i].OutgoingChannelId && a[i].OutgoingChannelId != 0 && b[i].OutgoingChannelId != 0) || a[i].PubKey != b[i].PubKey {
+		if a[i].OutgoingChannelId != b[i].OutgoingChannelId || a[i].PubKey != b[i].PubKey {
 			return false
 		}
 	}
@@ -184,25 +208,29 @@ func (b ExclusionBuilder) Build() []Exclusion {
 func getRoutesTemplate(ctx context.Context, l LightingAPICalls, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (<-chan DeterminedRoute, error) {
 	// Beware each route will be saved so it's O(n) storage-wise!
 
-	// This is A in the algorithm
+	// This is A in the pseudo-code on Wikipedia
 	oldRoutes := make([]DeterminedRoute, 0)
 	// Output channel (iterator pattern)
 	ch := make(chan DeterminedRoute, 1)
+	getRoutesCalls := 0
 
 	// k = 1
 	initial, err := l.GetRoute(ctx, source, destination, exclusions, optimizeFor, msats)
+
+	getRoutesCalls++
+	glog.V(5).Infof("Number of get routes calls %d", getRoutesCalls)
 	if err != nil {
 		glog.Warningf("GetRoute returned error: %v", err)
 		close(ch)
 		return nil, err
 	}
 
-	if len(initial) >= MaxPathLen {
+	if len(initial) > MaxPathLen {
 		glog.Warningf("Too long path %d, returning error", len(initial))
 		return nil, ErrRouteNotFound
 	}
 
-	// This is B in the algorithm
+	// This is B in the pseudo-code on Wikipedia
 	pq := make(PriorityQueue, 0)
 
 	ch <- initial.Clone()
@@ -229,8 +257,6 @@ func getRoutesTemplate(ctx context.Context, l LightingAPICalls, source string, d
 					eb.AddNode(one.PubKey)
 				}
 
-				//rootPathWithSpur := append(rootPath, RouteElement{PubKey: previousRoute[spurIndex].PubKey, OutgoingChannelId: 0})
-
 				// Ignore old route outgoing connection if rootPath is same as an already known one
 				for _, oldRoute := range oldRoutes {
 					if routesMatch(oldRoute, rootPath, len(rootPath)) {
@@ -239,14 +265,16 @@ func getRoutesTemplate(ctx context.Context, l LightingAPICalls, source string, d
 				}
 
 				spurPath, err := l.GetRoute(ctx, previousRoute[spurIndex].PubKey, destination, eb.Build(), optimizeFor, msats)
+				getRoutesCalls++
+				glog.V(5).Infof("Number of get routes calls %d", getRoutesCalls)
 				if err != nil {
 					glog.Warningf("GetRoute returned error: %v", err)
 					continue
 				}
 
-				totalPath := rootPath.Clone()
+				totalPath := rootPath.Clone() // or else oldRoutes will be updated which is bad!
 				totalPath = append(totalPath, spurPath...)
-				if len(totalPath) >= MaxPathLen {
+				if len(totalPath) > MaxPathLen {
 					glog.Warningf("Too long path %d, skipping", len(totalPath))
 					continue
 				}
@@ -259,7 +287,6 @@ func getRoutesTemplate(ctx context.Context, l LightingAPICalls, source string, d
 
 			// B is empty
 			if pq.Len() == 0 {
-				// empty
 				return
 			}
 

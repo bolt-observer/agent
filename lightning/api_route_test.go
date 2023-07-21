@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var runNodeTests = flag.Bool("node", false, "Run the tests that require a node locally")
+var runNodeTests = flag.Bool("node", true, "Run the tests that require a node locally")
 
 func getPubkey(t *testing.T, ctx context.Context, key string) string {
 	node := GetLocalLndByName(t, key)
@@ -63,7 +63,7 @@ func TestGetRouteLnd(t *testing.T) {
 	a := ExcludedEdge{ChannelId: 128642860515328}
 	route, err := src.GetRoute(ctx, "", getPubkey(t, ctx, "C"), []Exclusion{a}, Reliability, 1000)
 	assert.NoError(t, err)
-	fmt.Printf("%s\n", route.PrettyRoute(getPubkey(t, ctx, "C"), true))
+	fmt.Printf("%s\n", route.PrettyRoute(getPubkey(t, ctx, "C"), true, nil))
 
 	fmt.Printf("--------------------------------\n")
 	iterator, err := src.GetRoutes(ctx, "", getPubkey(t, ctx, "C"), nil, Reliability, 1000)
@@ -71,7 +71,7 @@ func TestGetRouteLnd(t *testing.T) {
 
 	i := 0
 	for route := range iterator {
-		fmt.Printf("|%s|\n", route.PrettyRoute(getPubkey(t, ctx, "C"), true))
+		fmt.Printf("|%s|\n", route.PrettyRoute(getPubkey(t, ctx, "C"), true, nil))
 		i++
 		if i > 50 {
 			break
@@ -124,16 +124,19 @@ func TestRealNode(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	r, err := api.GetRoute(ctx, "", "0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", eb.Build(), Reliability, 10000)
+	nc, err := InitNameCache(ctx, api)
 	assert.NoError(t, err)
 
-	fmt.Printf("%s\n", r.PrettyRoute("0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", true))
+	r, err := api.GetRoute(ctx, "0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a", eb.Build(), Reliability, 10000)
+	assert.NoError(t, err)
 
-	ch, err := api.GetRoutes(ctx, "", "0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", eb.Build(), Reliability, 10000)
+	fmt.Printf("!!!%s!!!\n", r.PrettyRoute("0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a", true, nc))
+
+	ch, err := api.GetRoutes(ctx, "0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", "0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a", eb.Build(), Reliability, 10000)
 	assert.NoError(t, err)
 	i := 0
 	for route := range ch {
-		fmt.Printf("|%s|\n", route.PrettyRoute("0327f763c849bfd218910e41eef74f5a737989358ab3565f185e1a61bb7df445b8", true))
+		fmt.Printf("|%s|\n", route.PrettyRoute("0288037d3f0bdcfb240402b43b80cdc32e41528b3e2ebe05884aff507d71fca71a", true, nc))
 		i++
 		if i > 50 {
 			break
