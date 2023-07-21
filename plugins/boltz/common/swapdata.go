@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strings"
 
 	agent_entities "github.com/bolt-observer/agent/entities"
 	"github.com/bolt-observer/agent/filter"
@@ -103,7 +104,11 @@ func JobDataToSwapData(ctx context.Context, limits SwapLimits, jobData *JobData,
 }
 
 func (sd *SwapData) GetUniqueJobID() string {
-	return fmt.Sprintf("%d-%d", sd.JobID, sd.Attempt)
+	prefix := strings.ToLower(sd.PluginName)
+	if prefix == "boltz" {
+		prefix = ""
+	}
+	return fmt.Sprintf("%s%d-%d", prefix, sd.JobID, sd.Attempt)
 }
 
 func getLiquidity(ctx context.Context, jobData *JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface, name string) *Liquidity {
