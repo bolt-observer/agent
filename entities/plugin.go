@@ -1,5 +1,10 @@
 package entities
 
+// PluginCommon contains common plugin data
+type PluginCommon struct {
+	PluginName string
+}
+
 // Plugin is temporary interface for plugins. This will probably be replaced by gRPC interface
 type Plugin interface {
 	// Execute can be called multiple times for the same job

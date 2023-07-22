@@ -105,7 +105,7 @@ func TestNextRoundNotNeeded(t *testing.T) {
 
 	invalidatable := &FakeInvalidatable{}
 
-	noFun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*common.SwapData, error) {
+	noFun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface, name string) (*common.SwapData, error) {
 		return nil, common.ErrNoNeedToDoAnything
 	}
 
@@ -146,7 +146,7 @@ func TestNextRoundNeeded(t *testing.T) {
 
 	invalidatable := &FakeInvalidatable{}
 
-	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*common.SwapData, error) {
+	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface, name string) (*common.SwapData, error) {
 		sd.State = common.InitialForward
 		sd.SwapLimits = limits
 		return sd, nil
@@ -201,7 +201,7 @@ func TestNextRoundJobConversionFails(t *testing.T) {
 
 	invalidatable := &FakeInvalidatable{}
 
-	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*common.SwapData, error) {
+	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface, name string) (*common.SwapData, error) {
 		return nil, common.ErrInvalidArguments
 	}
 
@@ -248,7 +248,7 @@ func TestSwapCouldNotBePaid(t *testing.T) {
 	invalidatable := &FakeInvalidatable{}
 
 	called := false
-	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface) (*common.SwapData, error) {
+	fun := func(ctx context.Context, limits common.SwapLimits, jobData *common.JobData, msgCallback agent_entities.MessageCallback, lnAPI lightning.LightingAPICalls, filter filter.FilteringInterface, name string) (*common.SwapData, error) {
 		assert.Equal(t, uint64(80000), limits.MaxSwap)
 		called = true
 		return &common.SwapData{

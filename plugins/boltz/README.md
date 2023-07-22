@@ -1,7 +1,7 @@
 # Boltz plugin
 
 ## Introduction
-This is a plugin to do submarine swaps using [Boltz.Exchange](https://boltz.exchange/).
+This is a plugin to do submarine swaps using [Boltz.Exchange](https://boltz.exchange/) and [DiamondHands](https://swap.diamondhands.technology/).
 Submarine swap is a special type of atomic swap between on-chain and off-chain funds. This means it does not bear counterparty risk. Either the swap will go through completely or nothing will happen.
 
 ### Auto swap mode

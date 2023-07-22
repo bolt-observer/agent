@@ -12,7 +12,7 @@
       packages = forAllSystems
         (system:
           let
-            version = "v0.2.1";
+            version = "v0.2.2";
             pkgs = nixpkgsFor.${system};
             ldflags = ''-ldflags "-X main.GitRevision=${version} -extldflags '-static'"'';
           in
@@ -22,7 +22,7 @@
                 name = "bolt-agent";
                 inherit version;
                 src = ./.;
-                vendorHash = "sha256-Vy/87OwiDAF4sQ6c8GfTSlYcXvuuF7h4zcjIKNMp5Vo=";
+                vendorHash = "sha256-FuMEXh/hRi0nwgIueK4IGuxNLU0HAQBpWmog32gFYsw=";
                 doCheck = false;
                 doInstallCheck = false;
 

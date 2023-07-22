@@ -66,7 +66,7 @@ func (s *SwapMachine) FsmInitialForward(in common.FsmIn) common.FsmOut {
 	defer lnConnection.Cleanup()
 
 	invoice, err := lnConnection.CreateInvoice(ctx, int64(in.SwapData.Sats), hex.EncodeToString(keys.Preimage.Raw),
-		fmt.Sprintf("Automatic Swap Boltz %d", in.GetJobID()), 24*time.Hour) // assume boltz returns 144 blocks
+		fmt.Sprintf("Automatic Swap %d", in.GetJobID()), 24*time.Hour) // assume boltz returns 144 blocks
 	if err != nil {
 		return common.FsmOut{Error: err}
 	}

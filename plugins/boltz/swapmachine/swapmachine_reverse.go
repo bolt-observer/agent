@@ -218,7 +218,7 @@ func (s *SwapMachine) FsmReverseSwapCreated(in common.FsmIn) common.FsmOut {
 
 		s, err := s.BoltzAPI.SwapStatus(in.SwapData.BoltzID)
 		if err != nil {
-			log(in, fmt.Sprintf("Error communicating with BoltzAPI: %v", err), logger.Get("error", err.Error()))
+			log(in, fmt.Sprintf("Error communicating with API: %v", err), logger.Get("error", err.Error()))
 			time.Sleep(SleepTime)
 			continue
 		}
@@ -263,7 +263,7 @@ func (s *SwapMachine) FsmSwapInvoiceCouldNotBePaid(in common.FsmIn) common.FsmOu
 		message = fmt.Sprintf("Swap %d failed in dry-run mode (no funds were used)", in.GetJobID())
 	}
 
-	glog.Infof("[Boltz] [%d] %s", in.GetJobID(), message)
+	glog.Infof("[%v] [%d] %s", in.SwapData.PluginName, in.GetJobID(), message)
 	if in.MsgCallback != nil {
 		in.MsgCallback(entities.PluginMessage{
 			JobID:      int64(in.GetJobID()),
@@ -371,7 +371,7 @@ func (s *SwapMachine) FsmSwapClaimed(in common.FsmIn) common.FsmOut {
 			break
 		} else {
 			if now.After(alert.Add(30 * time.Second)) {
-				log(in, fmt.Sprintf("Boltz did not claim funds on their side %v, status is %v", in.SwapData.JobID, status), nil)
+				log(in, fmt.Sprintf("%s did not claim funds on their side %v, status is %v", in.SwapData.PluginName, in.SwapData.JobID, status), nil)
 				alert = now
 			}
 		}
