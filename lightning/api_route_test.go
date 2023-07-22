@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var runNodeTests = flag.Bool("node", true, "Run the tests that require a node locally")
+var runNodeTests = flag.Bool("node", false, "Run the tests that require a node locally")
 
 func getPubkey(t *testing.T, ctx context.Context, key string) string {
 	node := GetLocalLndByName(t, key)
