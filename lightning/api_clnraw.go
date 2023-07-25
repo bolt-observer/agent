@@ -1239,22 +1239,33 @@ func (l *ClnRawLightningAPI) GetRoute(ctx context.Context, source string, destin
 		return nil, ErrRouteNotFound
 	}
 
+	ret, err := buildRouteResult(source, reply.Route)
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+func buildRouteResult(source string, route []ClnRoute) (DeterminedRoute, error) {
 	result := make(DeterminedRoute, 0)
 
 	// A -1-> B -2-> C is presented as hops (B, 1), (C, 2) but we transform it to (A, 1), (B, 2) - and C is ommited
+	// C is ommited since it is easier to concatenate partial routes together then, when you request a slice lower bound is usually incluse
+	// upper bound exclusive
+
 	// First is source and route to neighbour
-	id, err := ToLndChanID(reply.Route[0].Channel)
+	id, err := ToLndChanID(route[0].Channel)
 	if err != nil {
 		return nil, err
 	}
 	result = append(result, RouteElement{PubKey: source, OutgoingChannelId: id})
 
-	for i := 0; i < hops-1; i++ {
-		id, err := ToLndChanID(reply.Route[i+1].Channel)
+	for i := 0; i < len(route)-1; i++ {
+		id, err := ToLndChanID(route[i+1].Channel)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, RouteElement{PubKey: reply.Route[i].PubKey, OutgoingChannelId: id})
+		result = append(result, RouteElement{PubKey: route[i].PubKey, OutgoingChannelId: id})
 	}
 
 	return result, nil

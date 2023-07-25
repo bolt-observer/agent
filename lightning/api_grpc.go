@@ -1224,7 +1224,15 @@ func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, desti
 	if hops < 1 {
 		return nil, ErrRouteNotFound
 	}
+	ret, err := buildGrpcRouteResult(ctx, l, source, resp.Routes[0])
+	if err != nil {
+		return nil, err
+	}
 
+	return ret, nil
+}
+
+func buildGrpcRouteResult(ctx context.Context, l LightingAPICalls, source string, route *lnrpc.Route) (DeterminedRoute, error) {
 	result := make(DeterminedRoute, 0)
 
 	if source == "" {
@@ -1237,11 +1245,14 @@ func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, desti
 	}
 
 	// A -1-> B -2-> C is presented as hops (B, 1), (C, 2) but we transform it to (A, 1), (B, 2) - and C is ommited
-	// First is source and route to neighbour
-	result = append(result, RouteElement{PubKey: source, OutgoingChannelId: resp.Routes[0].Hops[0].ChanId})
+	// C is ommited since it is easier to concatenate partial routes together then, when you request a slice lower bound is usually incluse
+	// upper bound exclusive
 
-	for i := 0; i < hops-1; i++ {
-		result = append(result, RouteElement{PubKey: resp.Routes[0].Hops[i].PubKey, OutgoingChannelId: resp.Routes[0].Hops[i+1].ChanId})
+	// First is source and route to neighbour
+	result = append(result, RouteElement{PubKey: source, OutgoingChannelId: route.Hops[0].ChanId})
+
+	for i := 0; i < len(route.Hops)-1; i++ {
+		result = append(result, RouteElement{PubKey: route.Hops[i].PubKey, OutgoingChannelId: route.Hops[i+1].ChanId})
 	}
 
 	return result, nil
