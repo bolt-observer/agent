@@ -876,3 +876,13 @@ func (l *LndRestLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs [
 
 	return ret, nil
 }
+
+// GetRoute API.
+func (l *LndRestLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (DeterminedRoute, error) {
+	if (source != "" && !IsValidPubKey(source)) || !IsValidPubKey(destination) {
+		return nil, ErrPubKeysInvalid
+	}
+
+	// TODO: exclusions do not work fine with REST
+	panic("not implemented")
+}

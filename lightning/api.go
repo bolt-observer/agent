@@ -547,6 +547,56 @@ type ErrorData struct {
 	IsStillRunning bool
 }
 
+// RouteElement struct.
+type RouteElement struct {
+	PubKey            string
+	OutgoingChannelId uint64
+}
+
+// Route alias.
+type DeterminedRoute []RouteElement
+
+// ExclusionBase struct.
+type ExclusionBase struct {
+}
+
+// ExcludedNode struct.
+type ExcludedNode struct {
+	PubKey string
+	ExclusionBase
+}
+
+// ExcludedEdge struct.
+type ExcludedEdge struct {
+	ChannelId uint64
+	ExclusionBase
+}
+
+// Exclusion interface.
+type Exclusion interface {
+	IsNodeExclusion() bool
+}
+
+// IsNodeExclusion for edge
+func (e ExcludedEdge) IsNodeExclusion() bool {
+	return false
+}
+
+// IsNodeExclusion for node
+func (e ExcludedNode) IsNodeExclusion() bool {
+	return true
+}
+
+// OptimizeRouteFor enum.
+type OptimizeRouteFor int
+
+// OptimizeRouteFor values.
+const (
+	Reliability OptimizeRouteFor = iota
+	Price
+	None
+)
+
 // LightingAPICalls is the interface for lightning API.
 type LightingAPICalls interface {
 	Cleanup()
@@ -577,6 +627,10 @@ type LightingAPICalls interface {
 	IsInvoicePaid(ctx context.Context, paymentHash string) (bool, error)
 
 	GetChannelCloseInfo(ctx context.Context, chanIDs []uint64) ([]CloseInfo, error)
+
+	// Includes source but NOT destination addreses in response
+	GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (DeterminedRoute, error)
+	GetRoutes(ctx context.Context, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (<-chan DeterminedRoute, error)
 }
 
 // GetDataCall - signature of function for retrieving data.

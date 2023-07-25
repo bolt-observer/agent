@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -1181,4 +1182,92 @@ func (l *LndGrpcLightningAPI) GetChannelCloseInfo(ctx context.Context, chanIDs [
 	}
 
 	return ret, nil
+}
+
+var (
+	ErrRouteNotFound  = errors.New("route not found")
+	ErrPubKeysInvalid = errors.New("pubkeys invalid")
+)
+
+// GetRoute API.
+func (l *LndGrpcLightningAPI) GetRoute(ctx context.Context, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (DeterminedRoute, error) {
+	if (source != "" && !IsValidPubKey(source)) || !IsValidPubKey(destination) {
+		return nil, ErrPubKeysInvalid
+	}
+
+	req := &lnrpc.QueryRoutesRequest{
+		SourcePubKey: source,
+		PubKey:       destination,
+		AmtMsat:      msats,
+	}
+
+	switch optimizeFor {
+	case Reliability:
+		req.TimePref = 1
+	case Price:
+		req.TimePref = -1
+	default:
+		req.TimePref = 0
+	}
+
+	for _, exclusion := range exclusions {
+		switch e := exclusion.(type) {
+		case ExcludedNode:
+			data, err := hex.DecodeString(e.PubKey)
+			if err != nil {
+				continue
+			}
+			req.IgnoredNodes = append(req.IgnoredNodes, data)
+		case ExcludedEdge:
+			// TODO: this will soon become deprecated
+			req.IgnoredEdges = append(req.IgnoredEdges, &lnrpc.EdgeLocator{ChannelId: e.ChannelId, DirectionReverse: false},
+				&lnrpc.EdgeLocator{ChannelId: e.ChannelId, DirectionReverse: true})
+		}
+	}
+
+	resp, err := l.Client.QueryRoutes(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Routes) != 1 {
+		return nil, ErrRouteNotFound
+	}
+
+	hops := len(resp.Routes[0].Hops)
+
+	if hops < 1 {
+		return nil, ErrRouteNotFound
+	}
+	ret, err := buildGrpcRouteResult(ctx, l, source, resp.Routes[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return ret, nil
+}
+
+func buildGrpcRouteResult(ctx context.Context, l LightingAPICalls, source string, route *lnrpc.Route) (DeterminedRoute, error) {
+	result := make(DeterminedRoute, 0)
+
+	if source == "" {
+		info, err := l.GetInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		source = info.IdentityPubkey
+	}
+
+	// A -1-> B -2-> C is presented as hops (B, 1), (C, 2) but we transform it to (A, 1), (B, 2) - and C is ommited
+	// C is ommited since it is easier to concatenate partial routes together then, when you request a slice lower bound is usually incluse
+	// upper bound exclusive
+
+	// First is source and route to neighbour
+	result = append(result, RouteElement{PubKey: source, OutgoingChannelId: route.Hops[0].ChanId})
+
+	for i := 0; i < len(route.Hops)-1; i++ {
+		result = append(result, RouteElement{PubKey: route.Hops[i].PubKey, OutgoingChannelId: route.Hops[i+1].ChanId})
+	}
+
+	return result, nil
 }
