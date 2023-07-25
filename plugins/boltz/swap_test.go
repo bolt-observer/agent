@@ -323,3 +323,32 @@ func TestPayHodlInvoiceGrpc(t *testing.T) {
 
 	t.Fail()
 }
+
+func TestGetPaymentStatus(t *testing.T) {
+	return
+	const Node = "C"
+
+	ln := api.GetLocalLndByName(t, Node)
+	if ln == nil {
+		fmt.Printf("Ignoring swap test since regtest network is not available\n")
+		return
+	}
+
+	api, err := ln()
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	//timeoutCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	//defer cancel()
+
+	pay, err := api.PayInvoice(ctx, "lnbcrt50u1pjtlv6rpp5j4xt4r5dqwqnnhdu5cnqanufx0kdlnrxnepru9a88q7eqgm0pgpsdqqcqzpgxqyz5vqsp5fg26jcxlq9yygujm4ez64gfsw0fmpdnlelkk2xughnawrwpvj9sq9qyyssq0fneq9qh4xpz8jcekzslwnh5yyj2lhvc4f9wcnxtklq58scflpxpakecz9f4ngjumpvhwnk0numrykttp2dcfpsdsd99xmvfnguvxwsqprtglk", 0, nil)
+	fmt.Printf("%+v %v\n", pay, err)
+	t.Fail()
+
+	//resp, err := api.GetPaymentStatus(timeoutCtx, "lnbcrt50u1pjtlv6rpp5j4xt4r5dqwqnnhdu5cnqanufx0kdlnrxnepru9a88q7eqgm0pgpsdqqcqzpgxqyz5vqsp5fg26jcxlq9yygujm4ez64gfsw0fmpdnlelkk2xughnawrwpvj9sq9qyyssq0fneq9qh4xpz8jcekzslwnh5yyj2lhvc4f9wcnxtklq58scflpxpakecz9f4ngjumpvhwnk0numrykttp2dcfpsdsd99xmvfnguvxwsqprtglk")
+	//require.NoError(t, err)
+
+	//fmt.Printf("%+v\n", resp)
+
+	t.Fail()
+}

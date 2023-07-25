@@ -139,7 +139,11 @@ func ensureInvoiceIsPaid(ctx context.Context, ln lightning.LightingAPICalls, inv
 	log(in, fmt.Sprintf("Ensuring invoice %v is paid [%+v]", invoice, chanIdsToUse),
 		logger.Get("invoice", invoice))
 
-	status, err := ln.GetPaymentStatus(ctx, invoice)
+	// Use more strict timeout for GetPaymentStatus
+	timeoutCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+
+	status, err := ln.GetPaymentStatus(timeoutCtx, invoice)
 	if err != nil {
 		log(in, fmt.Sprintf("Failed to get payment status for %v - %v", invoice, err),
 			logger.Get("invoice", invoice, "error", err))
@@ -162,7 +166,15 @@ func ensureInvoiceIsPaid(ctx context.Context, ln lightning.LightingAPICalls, inv
 	}
 
 	if pay != nil && (pay.Status == lightning.Pending || pay.Status == lightning.Success) {
-		log(in, fmt.Sprintf("Paid invoice %v - %v", invoice, status),
+		log(in, fmt.Sprintf("Paid invoice %v - %v", invoice, pay),
+			logger.Get("invoice", invoice))
+
+		in.SwapData.CommitFees()
+		return true
+	}
+
+	if pay == nil {
+		log(in, fmt.Sprintf("Assume invoice is paid %v", invoice),
 			logger.Get("invoice", invoice))
 
 		in.SwapData.CommitFees()
