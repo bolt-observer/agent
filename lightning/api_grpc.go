@@ -936,6 +936,13 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 	resp, err := l.RouterClient.SendPaymentV2(ctx, req)
 
 	if err != nil {
+		if strings.Contains(err.Error(), "invoice is already paid") {
+			// TODO: we don't know the hash here, else we could return l.GetPaymentStatus()
+			return nil, nil
+		} else if strings.Contains(err.Error(), "AlreadyExists desc = payment is in transition") {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
@@ -949,6 +956,13 @@ func (l *LndGrpcLightningAPI) PayInvoice(ctx context.Context, paymentRequest str
 		}
 
 		if err != nil {
+			if strings.Contains(err.Error(), "invoice is already paid") {
+				// TODO: we don't know the hash here, else we could return l.GetPaymentStatus()
+				return nil, nil
+			} else if strings.Contains(err.Error(), "AlreadyExists desc = payment is in transition") {
+				return nil, nil
+			}
+
 			return nil, err
 		}
 
