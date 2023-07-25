@@ -147,62 +147,6 @@ func routesMatch(a DeterminedRoute, b DeterminedRoute, n int) bool {
 	return true
 }
 
-// ExlusionBuilder struct.
-type ExclusionBuilder struct {
-	nodeExclusion map[string]struct{}
-	edgeExclusion map[uint64]struct{}
-}
-
-// AddNode - excludes node by pubkey
-func (b ExclusionBuilder) AddNode(node string) {
-	b.nodeExclusion[node] = struct{}{}
-}
-
-// AddEdge - excluse edge by channel id
-func (b ExclusionBuilder) AddEdge(edge uint64) {
-	b.edgeExclusion[edge] = struct{}{}
-}
-
-// NewEmptyExclusionBuilder - creates a new empty builder
-func NewEmptyExclusionBuilder() ExclusionBuilder {
-	ret := ExclusionBuilder{}
-	ret.edgeExclusion = make(map[uint64]struct{})
-	ret.nodeExclusion = make(map[string]struct{})
-
-	return ret
-}
-
-// NewExclusionBuilder - creates a new builder with existing exclusions
-func NewExclusionBuilder(existing []Exclusion) ExclusionBuilder {
-	ret := NewEmptyExclusionBuilder()
-
-	for _, exclusion := range existing {
-		switch e := exclusion.(type) {
-		case ExcludedNode:
-			ret.AddNode(e.PubKey)
-		case ExcludedEdge:
-			ret.AddEdge(e.ChannelId)
-		}
-	}
-
-	return ret
-}
-
-// Build - get the built exlcusions
-func (b ExclusionBuilder) Build() []Exclusion {
-	ret := make([]Exclusion, 0, len(b.nodeExclusion)+len(b.edgeExclusion))
-
-	for k := range b.nodeExclusion {
-		ret = append(ret, ExcludedNode{PubKey: k})
-	}
-
-	for k := range b.edgeExclusion {
-		ret = append(ret, ExcludedEdge{ChannelId: k})
-	}
-
-	return ret
-}
-
 // getRoutesTemplate implements Yen's algorithm for finding alternative routes
 // Reference: https://en.wikipedia.org/wiki/Yen%27s_algorithm
 func getRoutesTemplate(ctx context.Context, l LightingAPICalls, source string, destination string, exclusions []Exclusion, optimizeFor OptimizeRouteFor, msats int64) (<-chan DeterminedRoute, error) {
@@ -244,6 +188,28 @@ func getRoutesTemplate(ctx context.Context, l LightingAPICalls, source string, d
 			if ctx.Err() != nil {
 				return
 			}
+
+			// GetRoute is not deterministic, so perhaps we can just get away without Yen
+			another, err := l.GetRoute(ctx, source, destination, exclusions, optimizeFor, msats)
+			getRoutesCalls++
+			if err != nil {
+				glog.Warningf("GetRoute returned error: %v", err)
+				continue
+			}
+			known := false
+			for _, oldRoute := range oldRoutes {
+				if routesMatch(oldRoute, another, len(another)) {
+					known = true
+					break
+				}
+			}
+			if !known {
+				ch <- another.Clone()
+				oldRoutes = append(oldRoutes, another)
+				continue
+			}
+
+			// Apparently not, try with Yen algorithm
 			previousRoute := oldRoutes[len(oldRoutes)-1]
 			eb := NewExclusionBuilder(exclusions)
 
