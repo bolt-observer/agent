@@ -58,19 +58,32 @@ func NewExclusionBuilder(existing []Exclusion) ExclusionBuilder {
 // Build - get the built exclusions
 func (b ExclusionBuilder) Build() []Exclusion {
 	ret := make([]Exclusion, 0, len(b.nodeExclusion)+len(b.edgeExclusion))
+	removeNodes := make([]string, 0)
 
 	for k, v := range b.nodeExclusion {
 		if v.Before(time.Now()) {
+			removeNodes = append(removeNodes, k)
 			continue
 		}
 		ret = append(ret, ExcludedNode{PubKey: k})
 	}
 
+	for _, k := range removeNodes {
+		delete(b.nodeExclusion, k)
+	}
+
+	removeEdges := make([]uint64, 0)
+
 	for k, v := range b.edgeExclusion {
 		if v.Before(time.Now()) {
+			removeEdges = append(removeEdges, k)
 			continue
 		}
 		ret = append(ret, ExcludedEdge{ChannelId: k})
+	}
+
+	for _, k := range removeEdges {
+		delete(b.edgeExclusion, k)
 	}
 
 	return ret
