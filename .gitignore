@@ -5,3 +5,5 @@ result
 .vscode
 .idea
 .DS_Store
+
+.planning/debug/
